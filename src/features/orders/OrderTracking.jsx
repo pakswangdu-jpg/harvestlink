@@ -10,6 +10,7 @@ import {
   advanceDelivery,
   cancelOrder,
   getDeliverySequence,
+  getLiveTransitProgress,
   getNextDeliveryStatus,
   getOrderById,
   isCancellable,
@@ -68,8 +69,11 @@ export default function OrderTracking() {
   const nextStep = getNextDeliveryStatus(order);
   const isTrackable = order.status === 'confirmed' || order.status === 'completed';
   const deliverySequence = getDeliverySequence(order.deliveryMethod);
-  const stepIndex = Math.max(0, deliverySequence.indexOf(order.deliveryStatus));
-  const progress = deliverySequence.length > 1 ? stepIndex / (deliverySequence.length - 1) : 0;
+  // The last step in the sequence (delivered/picked up) is confirmed by the buyer via
+  // "Got it" rather than the farmer, since the farmer has no way to know the moment the
+  // buyer actually receives it in hand.
+  const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
+  const { progress, etaMinutes, isInTransit } = getLiveTransitProgress(order);
 
   return (
     <AppShell
@@ -121,9 +125,15 @@ export default function OrderTracking() {
               </>
             ) : null}
 
-            {isFarmer && order.status === 'confirmed' && nextStep ? (
+            {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep ? (
               <Button onClick={() => run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
                 Mark {DELIVERY_STEP_LABELS[nextStep]}
+              </Button>
+            ) : null}
+
+            {isBuyer && order.status === 'confirmed' && isFinalNextStep ? (
+              <Button onClick={() => run(() => advanceDelivery(order.id), 'The order is received! Thank you for confirming.')}>
+                <Check size={15} /> Got it
               </Button>
             ) : null}
 
@@ -145,7 +155,11 @@ export default function OrderTracking() {
               <p className="eyebrow">Map</p>
               <h2>{order.deliveryMethod === 'buyer_pickup' ? 'Pickup location' : 'Delivery route'}</h2>
             </div>
-            <span className="live-indicator"><span className="live-dot" /> Live</span>
+            {isInTransit ? (
+              <span className="live-indicator"><span className="live-dot" /> ETA ~{etaMinutes} min{etaMinutes === 1 ? '' : 's'}</span>
+            ) : (
+              <span className="live-indicator"><span className="live-dot" /> Live</span>
+            )}
           </div>
           <DeliveryMap
             routes={[{

@@ -1234,48 +1234,8 @@ a.user-chip:hover {
   background: var(--soft);
 }
 
-.leaflet-div-icon {
-  background: transparent;
-  border: none;
-}
-
-.map-pin span {
-  display: block;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 3px solid white;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  position: relative;
-  z-index: 1;
-}
-
-.map-pin span.map-pin-pulse {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin: -8px 0 0 -8px;
-  border: none;
-  box-shadow: none;
-  z-index: 0;
-  background: rgba(220, 38, 38, 0.6);
-  animation: map-pin-pulse 1.6s ease-out infinite;
-  pointer-events: none;
-}
-
-@keyframes map-pin-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(2.6); opacity: 0; }
-}
-
 .map-empty-note {
   margin-top: 10px;
-}
-
-.map-truck {
-  font-size: 20px;
-  text-align: center;
-  line-height: 26px;
 }
 
 .farmer-map {
@@ -2176,6 +2136,21 @@ th {
   max-width: 320px;
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.reference-price-input {
+  width: 90px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  color: var(--text);
+  background: #fbfdfb;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.reference-price-input:focus {
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
 }
 
 .market-panel {

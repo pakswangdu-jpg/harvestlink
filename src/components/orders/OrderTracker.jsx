@@ -24,7 +24,11 @@ export default function OrderTracker({ order }) {
       {isActive ? (
         <ol className="tracker">
           {sequence.map((step, index) => {
-            const state = index < currentIndex ? 'done' : index === currentIndex ? 'active' : 'upcoming';
+            // The final step has no later step to be superseded by, so on its own
+            // `index < currentIndex` would never fire — treat it as done once the order
+            // itself is marked completed, rather than leaving it stuck on "active" forever.
+            const isReached = index < currentIndex || (index === currentIndex && order.status === 'completed');
+            const state = isReached ? 'done' : index === currentIndex ? 'active' : 'upcoming';
             return (
               <li key={step} className={`tracker-step ${state}`}>
                 <span className="tracker-icon">

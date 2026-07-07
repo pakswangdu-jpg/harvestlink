@@ -10,8 +10,9 @@ import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
+import { getBuyers, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
-import { getDeliverySequence, getOrdersByFarmer } from '../../services/orderService';
+import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { STORAGE_KEYS } from '../../utils/constants';
@@ -43,9 +44,7 @@ export default function FarmerDashboard() {
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
 
   const activeDeliveryRoutes = confirmedOrders.map((order) => {
-    const sequence = getDeliverySequence(order.deliveryMethod);
-    const stepIndex = Math.max(0, sequence.indexOf(order.deliveryStatus));
-    const progress = sequence.length > 1 ? stepIndex / (sequence.length - 1) : 0;
+    const { progress, etaMinutes } = getLiveTransitProgress(order);
     return {
       id: order.id,
       originLabel: `${order.farmerName} (you)`,
@@ -53,6 +52,7 @@ export default function FarmerDashboard() {
       originMunicipality: order.originMunicipality,
       destinationMunicipality: order.deliveryMunicipality,
       progress,
+      etaMinutes,
       label: `${order.productName} — ${order.buyerName}`,
       href: `/orders/${order.id}`,
     };
@@ -60,6 +60,9 @@ export default function FarmerDashboard() {
 
   const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
+
+  const otherFarmers = getVerifiedFarmers().filter((farmer) => farmer.id !== currentUser.id);
+  const registeredBuyers = getBuyers();
 
   return (
     <AppShell
@@ -98,10 +101,16 @@ export default function FarmerDashboard() {
           <div>
             <p className="eyebrow">Map</p>
             <h2>Active deliveries</h2>
+            <p className="map-legend">
+              <span className="legend-dot origin" /> Farmer/pickup
+              <span className="legend-dot destination" /> Delivery to buyer
+              <span className="legend-dot farmer" /> Other farmers
+              <span className="legend-dot destination" /> Registered buyers
+            </p>
           </div>
           <span className="live-indicator"><span className="live-dot" /> Live</span>
         </div>
-        <DeliveryMap routes={activeDeliveryRoutes} />
+        <DeliveryMap routes={activeDeliveryRoutes} farmers={otherFarmers} buyers={registeredBuyers} alertStyle />
       </section>
 
       <MarketPricePanel commodityId={marketCommodityId} perspective="farmer" />
