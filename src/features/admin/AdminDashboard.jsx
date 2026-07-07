@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BadgeAlert,
   Ban,
@@ -41,6 +41,13 @@ import {
 } from '../../services/productService';
 import { getOrders } from '../../services/orderService';
 import { getDonations } from '../../services/donationService';
+import {
+  clearPriceOverride,
+  fetchAnnualPriceTrend,
+  getPriceOverride,
+  MARKET_COMMODITIES,
+  setPriceOverride,
+} from '../../services/marketPriceService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatCurrency, formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
@@ -450,6 +457,129 @@ function AdminDonations({ donations }) {
   );
 }
 
+function AdminReferencePrices() {
+  const [referenceData, setReferenceData] = useState({});
+  const [drafts, setDrafts] = useState({});
+  const [notice, setNotice] = useState('');
+
+  const loadCommodity = async (commodity) => {
+    try {
+      const points = await fetchAnnualPriceTrend(commodity.id, 3);
+      const latest = [...points].reverse().find((point) => point.price != null);
+      setReferenceData((previous) => ({
+        ...previous,
+        [commodity.id]: {
+          price: latest?.price ?? null,
+          year: latest?.year ?? null,
+          override: getPriceOverride(commodity.id),
+        },
+      }));
+    } catch {
+      // The PSA service itself is unreachable (network/CORS/downtime) — an override still
+      // has to surface here, since "PSA is down" is exactly when admins rely on it most.
+      const override = getPriceOverride(commodity.id);
+      setReferenceData((previous) => ({
+        ...previous,
+        [commodity.id]: { price: override?.referencePrice ?? null, year: override?.referenceYear ?? null, override },
+      }));
+    }
+  };
+
+  // Requests run one at a time rather than all 30 at once: firing them concurrently gets
+  // a large fraction Cloudflare-rate-limited, even though each request works fine in
+  // isolation — a strictly sequential load keeps this from ever reading as a burst.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const commodity of MARKET_COMMODITIES) {
+        if (cancelled) return;
+        await loadCommodity(commodity);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async (commodity) => {
+    const draft = drafts[commodity.id];
+    const value = Number(draft);
+    if (!draft || !Number.isFinite(value) || value <= 0) return;
+
+    await setPriceOverride(commodity.id, value);
+    setNotice(`${commodity.label} reference price set to ${formatCurrency(value)}/kg.`);
+    setDrafts((previous) => ({ ...previous, [commodity.id]: '' }));
+    loadCommodity(commodity);
+  };
+
+  const handleReset = (commodity) => {
+    clearPriceOverride(commodity.id);
+    setNotice(`${commodity.label} reference price reset to PSA data.`);
+    loadCommodity(commodity);
+  };
+
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">DTI oversight</p>
+          <h2>PSA reference prices</h2>
+        </div>
+      </div>
+      {notice ? <div className="form-alert success">{notice}</div> : null}
+      <DataTable
+        columns={[
+          { key: 'label', label: 'Commodity' },
+          {
+            key: 'current',
+            label: 'Reference price',
+            render: (row) => {
+              const info = referenceData[row.id];
+              if (!info) return 'Loading…';
+              if (info.price == null) return 'No data';
+              return `${formatCurrency(info.price)} / kg (${info.year})`;
+            },
+          },
+          {
+            key: 'source',
+            label: 'Source',
+            render: (row) => {
+              const info = referenceData[row.id];
+              if (!info) return '—';
+              return info.override ? 'DTI override' : 'PSA OpenStat';
+            },
+          },
+          {
+            key: 'override',
+            label: 'Set override',
+            render: (row) => (
+              <div className="table-actions">
+                <input
+                  className="reference-price-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="₱/kg"
+                  value={drafts[row.id] ?? ''}
+                  onChange={(event) => setDrafts((previous) => ({ ...previous, [row.id]: event.target.value }))}
+                />
+                <Button size="sm" onClick={() => handleSave(row)}>Save</Button>
+                {referenceData[row.id]?.override ? (
+                  <Button size="sm" variant="secondary" onClick={() => handleReset(row)}>
+                    <RotateCcw size={15} /> Reset
+                  </Button>
+                ) : null}
+              </div>
+            ),
+          },
+        ]}
+        rows={MARKET_COMMODITIES}
+        emptyMessage="No commodities tracked."
+      />
+    </section>
+  );
+}
+
 function AdminPriceMonitoring({ products }) {
   const [reviews, setReviews] = useState(() => getPendingPriceReviews());
   const [declined, setDeclined] = useState(() => getDeclinedPriceReviews());
@@ -489,6 +619,8 @@ function AdminPriceMonitoring({ products }) {
 
   return (
     <>
+      <AdminReferencePrices />
+
       <section className="panel">
         <div className="section-heading">
           <div>

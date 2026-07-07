@@ -12,7 +12,7 @@ import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
 import { getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
-import { getDeliverySequence, getOrdersByBuyer } from '../../services/orderService';
+import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { formatDate, getFirstName } from '../../utils/formatters';
@@ -40,9 +40,7 @@ export default function BuyerDashboard() {
   const verifiedFarmers = getVerifiedFarmers();
 
   const activeDeliveryRoutes = confirmedOrders.map((order) => {
-    const sequence = getDeliverySequence(order.deliveryMethod);
-    const stepIndex = Math.max(0, sequence.indexOf(order.deliveryStatus));
-    const progress = sequence.length > 1 ? stepIndex / (sequence.length - 1) : 0;
+    const { progress, etaMinutes } = getLiveTransitProgress(order);
     return {
       id: order.id,
       originLabel: `${order.farmerName} (farmer)`,
@@ -50,6 +48,7 @@ export default function BuyerDashboard() {
       originMunicipality: order.originMunicipality,
       destinationMunicipality: order.deliveryMunicipality,
       progress,
+      etaMinutes,
       label: `${order.productName} — ${order.farmerName}`,
       href: `/orders/${order.id}`,
     };

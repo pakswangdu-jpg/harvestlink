@@ -1,6 +1,55 @@
-import { DELIVERY_SEQUENCES, matchMunicipality, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../utils/constants';
+import { DELIVERY_SEQUENCES, getMunicipalityCoords, matchMunicipality, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../utils/constants';
 import { createId, migrateLegacyOrders, readStorage, writeStorage } from './storageService';
 import { getProductById, reduceProductQuantity, restoreProductQuantity } from './productService';
+
+const ASSUMED_TRANSIT_SPEED_KMH = 25;
+const MIN_ESTIMATED_MINUTES = 5;
+
+function haversineKm(a, b) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Approximates a live, Maxim/Grab-style tracker on top of a step-based (not real-GPS)
+// delivery model: once the order is actually out for delivery, its on-map position and
+// ETA advance continuously with real elapsed time since that step started (order.updatedAt)
+// against an assumed travel speed, instead of jumping straight to each step's fixed
+// fraction the moment a farmer marks it. Buyer pickup has no "in transit" leg — the buyer
+// travels there on their own schedule — so it's excluded entirely. Shared by every screen
+// that plots a delivery route (order tracking page, farmer/buyer dashboards) so the truck's
+// position and ETA agree everywhere it's shown.
+export function getLiveTransitProgress(order) {
+  const sequence = getDeliverySequence(order.deliveryMethod);
+  const stepIndex = Math.max(0, sequence.indexOf(order.deliveryStatus));
+  const isFinalStep = stepIndex === sequence.length - 1;
+  const isPickup = order.deliveryMethod === 'buyer_pickup';
+  const transitStatus = sequence[sequence.length - 2];
+  const isInTransit = !isPickup && order.deliveryStatus === transitStatus;
+
+  if (!isInTransit) {
+    const progress = sequence.length > 1 ? stepIndex / (sequence.length - 1) : 0;
+    return { progress: isFinalStep ? 1 : progress, etaMinutes: null, isInTransit: false };
+  }
+
+  const origin = getMunicipalityCoords(order.originMunicipality);
+  const destination = getMunicipalityCoords(order.deliveryMunicipality);
+  const distanceKm = haversineKm(origin, destination);
+  const estimatedTotalMinutes = Math.max(MIN_ESTIMATED_MINUTES, (distanceKm / ASSUMED_TRANSIT_SPEED_KMH) * 60);
+  const elapsedMinutes = (Date.now() - new Date(order.updatedAt).getTime()) / 60000;
+  const transitFraction = Math.min(1, Math.max(0, elapsedMinutes / estimatedTotalMinutes));
+
+  const stepStartProgress = stepIndex / (sequence.length - 1);
+  const stepEndProgress = (stepIndex + 1) / (sequence.length - 1);
+  const progress = stepStartProgress + (stepEndProgress - stepStartProgress) * transitFraction;
+  const etaMinutes = Math.ceil(estimatedTotalMinutes * (1 - transitFraction));
+
+  return { progress, etaMinutes, isInTransit: true };
+}
 
 export function getOrders() {
   migrateLegacyOrders();

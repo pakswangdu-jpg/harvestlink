@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { loadGoogleMaps } from '../../services/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 
-const CEBU_CENTER = [10.3157, 123.8854];
+const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
 const PRECISION_LABELS = {
   address: 'Exact registered address',
@@ -12,34 +11,28 @@ const PRECISION_LABELS = {
   fallback: 'Approximate — municipality area',
 };
 
-function pin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
-}
-
-// Donation pins pulse a red alert ring so a stakeholder scanning the map notices new
-// surplus produce immediately, instead of it blending in as just another static pin.
-function alertPin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span class="map-pin-pulse"></span><span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
+function dotIcon(maps, color) {
+  return {
+    path: maps.SymbolPath.CIRCLE,
+    scale: 8,
+    fillColor: color,
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 3,
+  };
 }
 
 export default function FarmerMap({ farmers = [], buyers = [], donationFarmers = [], selectedId, onSelectPin }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const layerGroupRef = useRef(null);
+  const mapsRef = useRef(null);
+  const infoWindowRef = useRef(null);
+  const resizeObserverRef = useRef(null);
   const markersRef = useRef({});
   const fittedSignatureRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
   const donationFarmerCoordsById = useMapCoordinates(donationFarmers);
@@ -59,102 +52,121 @@ export default function FarmerMap({ farmers = [], buyers = [], donationFarmers =
   };
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return undefined;
+    let cancelled = false;
 
-    const map = L.map(containerRef.current, {
-      zoomControl: true,
-      attributionControl: false,
-      // Fractional zoom steps + a higher wheel threshold make zooming feel smooth and
-      // controllable instead of jumping multiple whole levels per scroll tick.
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 120,
+    loadGoogleMaps().then((maps) => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+
+      mapsRef.current = maps;
+      const map = new maps.Map(containerRef.current, {
+        center: CEBU_CENTER,
+        zoom: 9,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+      });
+      mapRef.current = map;
+      infoWindowRef.current = new maps.InfoWindow();
+
+      // The container's real size is only final after the CSS grid layout settles, which
+      // can happen after the map's own initial measurement — without this, a map created
+      // inside a not-yet-sized flex/grid cell can render at the wrong dimensions.
+      const resizeObserver = new ResizeObserver(() => maps.event.trigger(map, 'resize'));
+      resizeObserver.observe(containerRef.current);
+      resizeObserverRef.current = resizeObserver;
+
+      setIsReady(true);
     });
-    mapRef.current = map;
-    map.setView(CEBU_CENTER, 9);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-    layerGroupRef.current = L.layerGroup().addTo(map);
-
-    // The container's real size is only final after the CSS grid layout settles, which
-    // can happen after Leaflet's own initial measurement — without this, zoom/pan math
-    // is computed against a stale size and panning/zooming can look subtly broken.
-    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
-    resizeObserver.observe(containerRef.current);
-    const initialSizeFix = setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
-      clearTimeout(initialSizeFix);
-      resizeObserver.disconnect();
-      map.remove();
-      mapRef.current = null;
-      layerGroupRef.current = null;
+      cancelled = true;
+      resizeObserverRef.current?.disconnect();
     };
   }, []);
 
   useEffect(() => {
+    const maps = mapsRef.current;
     const map = mapRef.current;
-    const layerGroup = layerGroupRef.current;
-    if (!map || !layerGroup) return;
+    const infoWindow = infoWindowRef.current;
+    if (!maps || !map) return;
 
-    layerGroup.clearLayers();
+    Object.values(markersRef.current).forEach((marker) => marker.setMap(null));
     markersRef.current = {};
     const allPoints = [];
+
+    const openInfo = (marker, content) => {
+      infoWindow.setContent(content);
+      infoWindow.open({ map, anchor: marker });
+    };
 
     farmers.forEach((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
+      allPoints.push(coords);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: pin('#15803d') }).addTo(layerGroup);
+      const marker = new maps.Marker({ position: coords, map, icon: dotIcon(maps, '#15803d') });
       const displayName = farmer.farmName || farmer.name;
-      marker.bindPopup(
+      const content =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
         `${farmer.municipality}` +
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(farmer.id));
+        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>` +
+        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">Contact farmer</a>`;
+      marker.addListener('click', () => {
+        openInfo(marker, content);
+        onSelectPin?.(farmer.id);
+      });
       markersRef.current[farmer.id] = marker;
     });
 
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
+      allPoints.push(coords);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: pin('#1d4ed8') }).addTo(layerGroup);
-      marker.bindPopup(
+      const marker = new maps.Marker({ position: coords, map, icon: dotIcon(maps, '#1d4ed8') });
+      const content =
         `<strong>${buyer.name}</strong><br/>` +
         `${buyer.municipality}` +
         (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(buyer.id));
+        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
+      marker.addListener('click', () => {
+        openInfo(marker, content);
+        onSelectPin?.(buyer.id);
+      });
       markersRef.current[buyer.id] = marker;
     });
 
     donationFarmers.forEach((farmer) => {
       const coords = donationFarmerCoordsById[farmer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
+      allPoints.push(coords);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: alertPin('#db2777') }).addTo(layerGroup);
+      // Bounces continuously so a stakeholder scanning the map notices new surplus produce
+      // immediately, instead of it blending in as just another static pin.
+      const marker = new maps.Marker({
+        position: coords,
+        map,
+        icon: dotIcon(maps, '#db2777'),
+        animation: maps.Animation.BOUNCE,
+      });
       const displayName = farmer.farmName || farmer.name;
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
-      marker.bindPopup(
+      const content =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
         `${farmer.municipality}` +
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><br/><strong>Available donations</strong><br/>${donationList}`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(farmer.id));
+        `<br/><br/><strong>Available donations</strong><br/>${donationList}`;
+      marker.addListener('click', () => {
+        openInfo(marker, content);
+        onSelectPin?.(farmer.id);
+      });
       markersRef.current[farmer.id] = marker;
     });
 
@@ -165,22 +177,28 @@ export default function FarmerMap({ farmers = [], buyers = [], donationFarmers =
     if (signature !== fittedSignatureRef.current) {
       fittedSignatureRef.current = signature;
       if (allPoints.length === 1) {
-        map.setView(allPoints[0], 12);
+        map.setCenter(allPoints[0]);
+        map.setZoom(12);
       } else if (allPoints.length > 1) {
-        map.fitBounds(allPoints, { padding: [40, 40] });
+        const bounds = new maps.LatLngBounds();
+        allPoints.forEach((point) => bounds.extend(point));
+        map.fitBounds(bounds, 40);
       } else {
-        map.setView(CEBU_CENTER, 9);
+        map.setCenter(CEBU_CENTER);
+        map.setZoom(9);
       }
     }
-  }, [farmers, buyers, donationFarmers, farmerCoordsById, buyerCoordsById, donationFarmerCoordsById, onSelectPin]);
+  }, [isReady, farmers, buyers, donationFarmers, farmerCoordsById, buyerCoordsById, donationFarmerCoordsById, onSelectPin]);
 
   useEffect(() => {
     if (!selectedId) return;
     const marker = markersRef.current[selectedId];
     const map = mapRef.current;
-    if (marker && map) {
-      map.setView(marker.getLatLng(), 13, { animate: true });
-      marker.openPopup();
+    const maps = mapsRef.current;
+    if (marker && map && maps) {
+      map.panTo(marker.getPosition());
+      map.setZoom(13);
+      maps.event.trigger(marker, 'click');
     }
   }, [selectedId]);
 

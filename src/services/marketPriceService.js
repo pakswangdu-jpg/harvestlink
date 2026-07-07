@@ -5,6 +5,7 @@ const TABLE_MIN_YEAR = 2010;
 const CACHE_PREFIX = 'harvestlink_psa_price_';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
+const OVERRIDE_STORAGE_KEY = 'harvestlink_psa_price_overrides';
 
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
 export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
@@ -53,6 +54,47 @@ export function matchCommodity(productName) {
 
 export function getCommodityById(id) {
   return MARKET_COMMODITIES.find((commodity) => commodity.id === id) || MARKET_COMMODITIES[0];
+}
+
+// DTI-set reference prices that take precedence over the live PSA figure — used to
+// correct a stale/wrong PSA number or fill in the current year before PSA has published it.
+function readOverrides() {
+  try {
+    const raw = localStorage.getItem(OVERRIDE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function getPriceOverride(commodityId) {
+  return readOverrides()[commodityId] || null;
+}
+
+// baselinePrice is what PSA showed (for referenceYear) at the moment this override was
+// set — it's what lets applyOverride later tell "PSA still hasn't changed" apart from
+// "PSA has since published/updated this year's figure", so a stale override can stand
+// down on its own instead of permanently masking new PSA data.
+export async function setPriceOverride(commodityId, referencePrice, yearsBack = 3) {
+  const rawPoints = await fetchRawAnnualPriceTrend(commodityId, yearsBack);
+  const latest = [...rawPoints].reverse().find((point) => point.price != null);
+
+  const overrides = readOverrides();
+  const override = {
+    referencePrice: Number(referencePrice),
+    referenceYear: latest?.year ?? new Date().getFullYear(),
+    baselinePrice: latest?.price ?? null,
+    updatedAt: new Date().toISOString(),
+  };
+  overrides[commodityId] = override;
+  localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+  return override;
+}
+
+export function clearPriceOverride(commodityId) {
+  const overrides = readOverrides();
+  delete overrides[commodityId];
+  localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
 }
 
 function readCache(key) {
@@ -125,11 +167,37 @@ function parseAnnualCsv(text) {
   return priceByYear;
 }
 
+// Applied after every fetch (cached or live) rather than baked into the cached value,
+// so an admin override takes effect immediately instead of waiting out the 12h cache TTL.
+// Also self-heals: if PSA now shows a different figure for the override's year than it
+// did when the override was set, PSA has since published/updated real data, so the
+// override's reason (missing/wrong data) no longer holds — drop it and let PSA win.
+function applyOverride(commodityId, points) {
+  const override = getPriceOverride(commodityId);
+  if (!override) return points;
+
+  const index = points.findIndex((point) => point.year === override.referenceYear);
+  const livePrice = index === -1 ? null : points[index].price;
+
+  if (livePrice != null && livePrice !== override.baselinePrice) {
+    clearPriceOverride(commodityId);
+    return points;
+  }
+
+  if (index === -1) {
+    return [...points, { year: override.referenceYear, price: override.referencePrice }].sort((a, b) => a.year - b.year);
+  }
+
+  const next = [...points];
+  next[index] = { year: override.referenceYear, price: override.referencePrice };
+  return next;
+}
+
 // Fetches the PSA farmgate-price table via a CORS-simple request: the server has no
 // CORS preflight (OPTIONS) handler, so a real `application/json` POST is blocked by
 // the browser before it's even sent. Sending the same JSON body as `text/plain`
 // avoids the preflight — the server still parses it as JSON regardless of the header.
-export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
+async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   const endYear = new Date().getFullYear();
   const startYear = Math.max(TABLE_MIN_YEAR, endYear - yearsBack + 1);
   const cacheKey = `${CACHE_PREFIX}annual_${commodityId}_${startYear}_${endYear}`;
@@ -181,4 +249,9 @@ export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
 
   writeCache(cacheKey, points);
   return points;
+}
+
+export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
+  const points = await fetchRawAnnualPriceTrend(commodityId, yearsBack);
+  return applyOverride(commodityId, points);
 }
