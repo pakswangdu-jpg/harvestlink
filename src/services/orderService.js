@@ -1,19 +1,11 @@
-import { DELIVERY_SEQUENCES, getMunicipalityCoords, matchMunicipality, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../utils/constants';
+import { DELIVERY_SEQUENCES, matchMunicipality, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../utils/constants';
+import { haversineKm, resolveRoutePoints } from '../utils/geo';
 import { createId, migrateLegacyOrders, readStorage, writeStorage } from './storageService';
 import { getProductById, reduceProductQuantity, restoreProductQuantity } from './productService';
+import { getCachedRoadRoute } from './routingService';
 
 const ASSUMED_TRANSIT_SPEED_KMH = 25;
 const MIN_ESTIMATED_MINUTES = 5;
-
-function haversineKm(a, b) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
 
 // Approximates a live, Maxim/Grab-style tracker on top of a step-based (not real-GPS)
 // delivery model: once the order is actually out for delivery, its on-map position and
@@ -36,10 +28,19 @@ export function getLiveTransitProgress(order) {
     return { progress: isFinalStep ? 1 : progress, etaMinutes: null, isInTransit: false };
   }
 
-  const origin = getMunicipalityCoords(order.originMunicipality);
-  const destination = getMunicipalityCoords(order.deliveryMunicipality);
-  const distanceKm = haversineKm(origin, destination);
-  const estimatedTotalMinutes = Math.max(MIN_ESTIMATED_MINUTES, (distanceKm / ASSUMED_TRANSIT_SPEED_KMH) * 60);
+  const { origin, destination } = resolveRoutePoints({
+    id: order.id,
+    originMunicipality: order.originMunicipality,
+    destinationMunicipality: order.deliveryMunicipality,
+    deliveryMethod: order.deliveryMethod,
+  });
+  // Prefers OSRM's actual driving-time estimate for this road route (populated in the
+  // background by the map component's own route fetch) over the straight-line-distance
+  // guess — falls back only until that first fetch for this municipality pair resolves.
+  const cachedRoute = getCachedRoadRoute(origin, destination);
+  const estimatedTotalMinutes = cachedRoute
+    ? Math.max(MIN_ESTIMATED_MINUTES, cachedRoute.durationMinutes)
+    : Math.max(MIN_ESTIMATED_MINUTES, (haversineKm(origin, destination) / ASSUMED_TRANSIT_SPEED_KMH) * 60);
   const elapsedMinutes = (Date.now() - new Date(order.updatedAt).getTime()) / 60000;
   const transitFraction = Math.min(1, Math.max(0, elapsedMinutes / estimatedTotalMinutes));
 

@@ -6,6 +6,7 @@ import Button from '../../components/common/Button';
 import OrderTracker from '../../components/orders/OrderTracker';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
+import { getUserById } from '../../services/authService';
 import {
   advanceDelivery,
   cancelOrder,
@@ -74,6 +75,7 @@ export default function OrderTracking() {
   // buyer actually receives it in hand.
   const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
   const { progress, etaMinutes, isInTransit } = getLiveTransitProgress(order);
+  const isPickup = order.deliveryMethod === 'buyer_pickup';
 
   return (
     <AppShell
@@ -153,7 +155,7 @@ export default function OrderTracking() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Map</p>
-              <h2>{order.deliveryMethod === 'buyer_pickup' ? 'Pickup location' : 'Delivery route'}</h2>
+              <h2>{isPickup ? 'Route to pickup location' : 'Delivery route'}</h2>
             </div>
             {isInTransit ? (
               <span className="live-indicator"><span className="live-dot" /> ETA ~{etaMinutes} min{etaMinutes === 1 ? '' : 's'}</span>
@@ -164,10 +166,15 @@ export default function OrderTracking() {
           <DeliveryMap
             routes={[{
               id: order.id,
-              originLabel: `${order.farmerName} (farmer)`,
-              destinationLabel: order.deliveryMethod === 'buyer_pickup' ? `${order.buyerName} (pickup here)` : `${order.buyerName} (buyer)`,
+              // For pickup, the destination pin represents where the buyer starts from,
+              // not the farm itself — the route shows how to get there, not a delivery.
+              originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
+              destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
               originMunicipality: order.originMunicipality,
-              destinationMunicipality: order.deliveryMunicipality,
+              destinationMunicipality: isPickup
+                ? (isBuyer ? currentUser.municipality : getUserById(order.buyerId)?.municipality) || order.deliveryMunicipality
+                : order.deliveryMunicipality,
+              deliveryMethod: order.deliveryMethod,
               progress,
               label: order.productName,
             }]}

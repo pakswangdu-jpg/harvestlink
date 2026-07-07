@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import { getMunicipalityCoords } from '../../utils/constants';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
-import { loadGoogleMaps } from '../../services/googleMapsLoader';
+import { fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 
-const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
+const CEBU_CENTER = [10.3157, 123.8854];
 
 const PRECISION_LABELS = {
   address: 'Exact registered address',
@@ -12,55 +14,65 @@ const PRECISION_LABELS = {
   fallback: 'Approximate — municipality area',
 };
 
-function dotIcon(maps, color) {
-  return {
-    path: maps.SymbolPath.CIRCLE,
-    scale: 8,
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 3,
-  };
+function withAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// A fully transparent base icon just gives the emoji label an anchor point to center on
-// — Google Marker labels are drawn relative to the icon, not standalone.
-function truckIcon(maps) {
-  return {
-    path: maps.SymbolPath.CIRCLE,
-    scale: 13,
-    fillOpacity: 0,
-    strokeOpacity: 0,
-  };
+function pin(color) {
+  return L.divIcon({
+    className: 'map-pin',
+    html: `<span style="background:${color}"></span>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
 }
 
-function interpolate(origin, destination, fraction) {
-  return {
-    lat: origin.lat + (destination.lat - origin.lat) * fraction,
-    lng: origin.lng + (destination.lng - origin.lng) * fraction,
-  };
+// Reference-layer pins (other farmers/registered buyers) pulse an alert ring so they draw
+// attention on a dashboard that's otherwise mostly about the active route, not just sitting
+// there as a static, easy-to-miss dot.
+function alertPin(color) {
+  return L.divIcon({
+    className: 'map-pin',
+    html: `<span class="map-pin-pulse" style="--pulse-color:${withAlpha(color, 0.6)}"></span><span style="background:${color}"></span>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
 }
 
-// `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality, progress, label, href }]
+function truckIcon() {
+  return L.divIcon({
+    className: 'map-truck',
+    html: '🚚',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
+function pointKey(point) {
+  return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
+}
+
+// `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality, deliveryMethod, progress, label, href, etaMinutes }]
 // `farmers`: optional [{ id, name, farmName, municipality }] — DTI-verified farmers plotted
 // as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
 // `buyers`: optional [{ id, name, municipality }] — registered buyers plotted the same way
 // (e.g. on the farmer dashboard, so a farmer can see who's nearby).
-// `alertStyle`: when true, the farmer/buyer reference pins (not the route pins) bounce
-// continuously to draw attention, the same treatment used for surplus-donation pins.
+// `alertStyle`: when true, the farmer/buyer reference pins (not the route pins) pulse to
+// draw attention, the same treatment used for surplus-donation pins on the farmer map.
 export default function DeliveryMap({ routes, farmers = [], buyers = [], alertStyle = false }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const mapsRef = useRef(null);
-  const infoWindowRef = useRef(null);
-  const resizeObserverRef = useRef(null);
-  const routeMarkersRef = useRef([]);
-  const farmerMarkersRef = useRef([]);
-  const buyerMarkersRef = useRef([]);
+  const layerGroupRef = useRef(null);
+  const farmerLayerGroupRef = useRef(null);
+  const buyerLayerGroupRef = useRef(null);
   const fittedSignatureRef = useRef(null);
+  const requestedRouteKeysRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [roadGeometries, setRoadGeometries] = useState({});
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
 
@@ -79,156 +91,147 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
   };
 
   useEffect(() => {
-    let cancelled = false;
+    if (!containerRef.current || mapRef.current) return undefined;
 
-    loadGoogleMaps().then((maps) => {
-      if (cancelled || !containerRef.current || mapRef.current) return;
-
-      mapsRef.current = maps;
-      const map = new maps.Map(containerRef.current, {
-        center: CEBU_CENTER,
-        zoom: 10,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-      });
-      mapRef.current = map;
-      infoWindowRef.current = new maps.InfoWindow();
-
-      // The container's real size is only final after the CSS grid layout settles, which
-      // can happen after the map's own initial measurement — without this, a map created
-      // inside a not-yet-sized flex/grid cell can render at the wrong dimensions.
-      const resizeObserver = new ResizeObserver(() => maps.event.trigger(map, 'resize'));
-      resizeObserver.observe(containerRef.current);
-      resizeObserverRef.current = resizeObserver;
-
-      setIsReady(true);
+    const map = L.map(containerRef.current, {
+      zoomControl: true,
+      attributionControl: false,
+      // Fractional zoom steps + a higher wheel threshold make zooming feel smooth and
+      // controllable instead of jumping multiple whole levels per scroll tick.
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 120,
     });
+    mapRef.current = map;
+    map.setView(CEBU_CENTER, 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+    layerGroupRef.current = L.layerGroup().addTo(map);
+    farmerLayerGroupRef.current = L.layerGroup().addTo(map);
+    buyerLayerGroupRef.current = L.layerGroup().addTo(map);
+
+    // The container's real size is only final after the CSS grid layout settles, which
+    // can happen after Leaflet's own initial measurement — without this, zoom/pan math
+    // is computed against a stale size and panning/zooming can look subtly broken.
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+    resizeObserver.observe(containerRef.current);
+    const initialSizeFix = setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
-      cancelled = true;
-      resizeObserverRef.current?.disconnect();
+      clearTimeout(initialSizeFix);
+      resizeObserver.disconnect();
+      map.remove();
+      mapRef.current = null;
+      layerGroupRef.current = null;
+      farmerLayerGroupRef.current = null;
+      buyerLayerGroupRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    const maps = mapsRef.current;
-    const map = mapRef.current;
-    const infoWindow = infoWindowRef.current;
-    if (!maps || !map) return;
+    const layerGroup = farmerLayerGroupRef.current;
+    if (!layerGroup) return;
 
-    farmerMarkersRef.current.forEach((marker) => marker.setMap(null));
-    farmerMarkersRef.current = [];
-
+    layerGroup.clearLayers();
     farmers.forEach((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
       const displayName = farmer.farmName || farmer.name;
-
-      const marker = new maps.Marker({
-        position: coords,
-        map,
-        icon: dotIcon(maps, '#b45309'),
-        title: displayName,
-        animation: alertStyle ? maps.Animation.BOUNCE : undefined,
-      });
-      const content =
-        `<strong>${displayName}</strong><br/>${farmer.name}<br/>${farmer.municipality}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>` +
-        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">Contact farmer</a>`;
-      marker.addListener('click', () => {
-        infoWindow.setContent(content);
-        infoWindow.open({ map, anchor: marker });
-      });
-      farmerMarkersRef.current.push(marker);
+      const icon = alertStyle ? alertPin('#b45309') : pin('#b45309');
+      L.marker([coords.lat, coords.lng], { icon })
+        .bindPopup(
+          `<strong>${displayName}</strong><br/>${farmer.name}<br/>${farmer.municipality}` +
+          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+          `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>` +
+          `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">Contact farmer</a>`
+        )
+        .bindTooltip(displayName)
+        .addTo(layerGroup);
     });
-  }, [isReady, farmers, farmerCoordsById, alertStyle]);
+  }, [farmers, farmerCoordsById, alertStyle]);
 
   useEffect(() => {
-    const maps = mapsRef.current;
-    const map = mapRef.current;
-    const infoWindow = infoWindowRef.current;
-    if (!maps || !map) return;
+    const layerGroup = buyerLayerGroupRef.current;
+    if (!layerGroup) return;
 
-    buyerMarkersRef.current.forEach((marker) => marker.setMap(null));
-    buyerMarkersRef.current = [];
-
+    layerGroup.clearLayers();
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-
-      const marker = new maps.Marker({
-        position: coords,
-        map,
-        icon: dotIcon(maps, '#1d4ed8'),
-        title: buyer.name,
-        animation: alertStyle ? maps.Animation.BOUNCE : undefined,
-      });
-      const content =
-        `<strong>${buyer.name}</strong><br/>${buyer.municipality}` +
-        (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
-      marker.addListener('click', () => {
-        infoWindow.setContent(content);
-        infoWindow.open({ map, anchor: marker });
-      });
-      buyerMarkersRef.current.push(marker);
+      const icon = alertStyle ? alertPin('#1d4ed8') : pin('#1d4ed8');
+      L.marker([coords.lat, coords.lng], { icon })
+        .bindPopup(
+          `<strong>${buyer.name}</strong><br/>${buyer.municipality}` +
+          (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
+          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`
+        )
+        .bindTooltip(buyer.name)
+        .addTo(layerGroup);
     });
-  }, [isReady, buyers, buyerCoordsById, alertStyle]);
+  }, [buyers, buyerCoordsById, alertStyle]);
+
+  // Fetches the actual road path for each distinct origin/destination pair once, so the
+  // route line follows real streets/bridges instead of cutting a straight line across
+  // whatever's in between (open water, in Cebu's case). Tracked in a ref (not state) so a
+  // pair already resolved successfully is never re-fetched on every 4s poll while its order
+  // is active. A *failed* attempt (network blip, timeout, transient rate limit) is deleted
+  // from that ref instead of sticking forever, so the next poll retries it rather than
+  // permanently locking the route onto the straight-line fallback for the rest of the session.
+  useEffect(() => {
+    routes.forEach((route) => {
+      const { origin, destination } = resolveRoutePoints(route);
+
+      const key = `${pointKey(origin)}|${pointKey(destination)}`;
+      if (requestedRouteKeysRef.current.has(key)) return;
+      requestedRouteKeysRef.current.add(key);
+
+      fetchRoadRoute(origin, destination).then((result) => {
+        if (!result) {
+          requestedRouteKeysRef.current.delete(key);
+          return;
+        }
+        setRoadGeometries((previous) => ({ ...previous, [key]: result.points }));
+      });
+    });
+  }, [routes]);
 
   useEffect(() => {
-    const maps = mapsRef.current;
     const map = mapRef.current;
-    const infoWindow = infoWindowRef.current;
-    if (!maps || !map) return;
+    const layerGroup = layerGroupRef.current;
+    if (!map || !layerGroup) return;
 
-    routeMarkersRef.current.forEach((marker) => marker.setMap(null));
-    routeMarkersRef.current = [];
+    layerGroup.clearLayers();
     const allPoints = [];
 
     routes.forEach((route) => {
-      const origin = getMunicipalityCoords(route.originMunicipality);
-      const destination = getMunicipalityCoords(route.destinationMunicipality);
-      const samePoint = route.originMunicipality === route.destinationMunicipality;
+      const { origin, destination, isPickup } = resolveRoutePoints(route);
 
-      routeMarkersRef.current.push(
-        new maps.Marker({ position: origin, map, icon: dotIcon(maps, '#15803d'), title: route.originLabel })
-      );
-      allPoints.push(origin);
+      L.marker([origin.lat, origin.lng], { icon: pin('#15803d') }).bindTooltip(route.originLabel).addTo(layerGroup);
+      allPoints.push([origin.lat, origin.lng]);
 
-      if (!samePoint) {
-        routeMarkersRef.current.push(
-          new maps.Marker({ position: destination, map, icon: dotIcon(maps, '#1d4ed8'), title: route.destinationLabel })
-        );
-        allPoints.push(destination);
+      L.marker([destination.lat, destination.lng], { icon: pin('#1d4ed8') }).bindTooltip(route.destinationLabel).addTo(layerGroup);
+      allPoints.push([destination.lat, destination.lng]);
 
-        routeMarkersRef.current.push(
-          new maps.Polyline({
-            map,
-            path: [origin, destination],
-            strokeColor: '#8fb99b',
-            strokeWeight: 3,
-            strokeOpacity: 0.8,
-          })
-        );
+      // Falls back to a straight line only until the real road geometry resolves (or if
+      // the routing service is unreachable) — never blocks rendering on the fetch.
+      const roadPoints = roadGeometries[`${pointKey(origin)}|${pointKey(destination)}`];
+      const pathPoints = roadPoints?.length > 1 ? roadPoints : [origin, destination];
+      const latLngPath = pathPoints.map((point) => [point.lat, point.lng]);
 
-        const truckPosition = interpolate(origin, destination, route.progress);
-        const truckMarker = new maps.Marker({
-          position: truckPosition,
-          map,
-          icon: truckIcon(maps),
-          label: { text: '🚚', fontSize: '20px' },
-          zIndex: 10,
-        });
+      // A white casing drawn underneath keeps the route line readable against any tile
+      // color (dense street yellows/oranges, green cover, blue water) instead of blending
+      // into whatever's directly beneath it.
+      L.polyline(latLngPath, { color: '#ffffff', weight: 7, opacity: 0.9 }).addTo(layerGroup);
+      L.polyline(latLngPath, { color: '#ea580c', weight: 4, dashArray: '1 10', lineCap: 'round' }).addTo(layerGroup);
+
+      // Pickup orders have no truck to track — the buyer travels there on their own
+      // schedule, so the route just shows how to get there, not a live position/ETA.
+      if (!isPickup) {
+        const truckPosition = pointAlongRoute(pathPoints, route.progress);
+        const truckMarker = L.marker([truckPosition.lat, truckPosition.lng], { icon: truckIcon() }).addTo(layerGroup);
         const popupText = route.label || `${route.originLabel} → ${route.destinationLabel}`;
         const etaText = route.etaMinutes != null ? `<br/><small>ETA ~${route.etaMinutes} min${route.etaMinutes === 1 ? '' : 's'}</small>` : '';
-        const content = (route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText;
-        truckMarker.addListener('click', () => {
-          infoWindow.setContent(content);
-          infoWindow.open({ map, anchor: truckMarker });
-        });
-        routeMarkersRef.current.push(truckMarker);
+        truckMarker.bindPopup((route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText);
       }
     });
 
@@ -240,17 +243,13 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
     fittedSignatureRef.current = signature;
 
     if (allPoints.length === 1) {
-      map.setCenter(allPoints[0]);
-      map.setZoom(13);
+      map.setView(allPoints[0], 13);
     } else if (allPoints.length > 1) {
-      const bounds = new maps.LatLngBounds();
-      allPoints.forEach((point) => bounds.extend(point));
-      map.fitBounds(bounds, 36);
+      map.fitBounds(allPoints, { padding: [36, 36] });
     } else {
-      map.setCenter(CEBU_CENTER);
-      map.setZoom(10);
+      map.setView(CEBU_CENTER, 10);
     }
-  }, [isReady, routes]);
+  }, [routes, roadGeometries]);
 
   return (
     <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
