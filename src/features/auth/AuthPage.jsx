@@ -122,7 +122,7 @@ export default function AuthPage({ mode }) {
       <section className="auth-card">
         <div className="auth-card-header">
           <h2>{isRegister ? 'Register' : 'Login'}</h2>
-          <p>{isRegister ? 'Choose your role and start trading locally.' : 'Use your account or the admin shortcut.'}</p>
+          <p>{isRegister ? 'Choose your role and start trading locally.' : 'Log in to your account.'}</p>
         </div>
 
         <form className="form-stack" onSubmit={handleSubmit}>
@@ -298,7 +298,7 @@ export default function AuthPage({ mode }) {
             </div>
           ) : null}
 
-          <FormField label="Email address" name="email" error={errors.email} helper={!isRegister ? 'Admin: admin@harvestlink.com / admin' : ''}>
+          <FormField label="Email address" name="email" error={errors.email}>
             <input
               id="email"
               type="email"
