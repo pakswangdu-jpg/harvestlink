@@ -10,7 +10,7 @@ import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getUserById, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
@@ -45,12 +45,17 @@ export default function FarmerDashboard() {
 
   const activeDeliveryRoutes = confirmedOrders.map((order) => {
     const { progress, etaMinutes } = getLiveTransitProgress(order);
+    const isPickup = order.deliveryMethod === 'buyer_pickup';
+    // For pickup, the destination pin represents where the buyer is starting from, not
+    // the farm itself — the route shows how they'll get there, not a delivery in transit.
+    const buyerMunicipality = isPickup ? getUserById(order.buyerId)?.municipality || order.deliveryMunicipality : order.deliveryMunicipality;
     return {
       id: order.id,
-      originLabel: `${order.farmerName} (you)`,
-      destinationLabel: order.deliveryMethod === 'buyer_pickup' ? `${order.buyerName} (pickup here)` : `${order.buyerName} (buyer)`,
+      originLabel: isPickup ? `${order.farmerName} (you, pickup here)` : `${order.farmerName} (you)`,
+      destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
       originMunicipality: order.originMunicipality,
-      destinationMunicipality: order.deliveryMunicipality,
+      destinationMunicipality: buyerMunicipality,
+      deliveryMethod: order.deliveryMethod,
       progress,
       etaMinutes,
       label: `${order.productName} — ${order.buyerName}`,

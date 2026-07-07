@@ -41,12 +41,16 @@ export default function BuyerDashboard() {
 
   const activeDeliveryRoutes = confirmedOrders.map((order) => {
     const { progress, etaMinutes } = getLiveTransitProgress(order);
+    const isPickup = order.deliveryMethod === 'buyer_pickup';
     return {
       id: order.id,
-      originLabel: `${order.farmerName} (farmer)`,
-      destinationLabel: order.deliveryMethod === 'buyer_pickup' ? `${order.buyerName} (pickup here)` : `${order.buyerName} (you)`,
+      // For pickup, the destination pin represents where you're starting from, not the
+      // farm itself — the route shows how to get there, not a delivery on its way to you.
+      originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
+      destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
       originMunicipality: order.originMunicipality,
-      destinationMunicipality: order.deliveryMunicipality,
+      destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
+      deliveryMethod: order.deliveryMethod,
       progress,
       etaMinutes,
       label: `${order.productName} — ${order.farmerName}`,
