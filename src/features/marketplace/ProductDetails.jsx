@@ -1,0 +1,97 @@
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { MapPin, Package } from 'lucide-react';
+import AppShell from '../../components/layout/AppShell';
+import CheckoutForm from '../../components/forms/CheckoutForm';
+import StatusBadge from '../../components/common/StatusBadge';
+import Button from '../../components/common/Button';
+import { useAuth } from '../auth/AuthContext';
+import { getProductById } from '../../services/productService';
+import { createOrder } from '../../services/orderService';
+import { formatCurrency, formatDate } from '../../utils/formatters';
+import { buyerNavItems } from '../buyer/buyerNav';
+import { farmerNavItems } from '../farmer/farmerNav';
+
+export default function ProductDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const product = getProductById(id);
+
+  if (!product) return <Navigate to="/marketplace" replace />;
+
+  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const canRequest = currentUser.role === 'buyer' && currentUser.id !== product.farmerId && product.status === 'active';
+
+  const handleOrder = (values) => {
+    const order = createOrder(values, product, currentUser);
+    navigate(`/orders/${order.id}`, { state: { notice: 'Order placed. Track its progress below.' } });
+  };
+
+  return (
+    <AppShell
+      user={currentUser}
+      navItems={navItems}
+      title={product.name}
+      subtitle={`${product.farmerName} • ${product.location}`}
+    >
+      <section className="content-grid two uneven">
+        <article className="panel product-detail">
+          <div className="detail-image">
+            {product.image ? <img src={product.image} alt={product.name} /> : <Package size={64} />}
+          </div>
+          <div className="detail-content">
+            <div className="product-card-top">
+              <span className="category-pill">{product.category}</span>
+              <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
+              {product.sellingType === 'bulk' ? <span className="badge badge-bulk">Bulk</span> : null}
+              {product.discountPercent ? <span className="badge badge-sale">-{product.discountPercent}%</span> : null}
+              <StatusBadge value={product.status} />
+            </div>
+            <h2>{product.name}</h2>
+            <p>{product.description}</p>
+            <div className="detail-list">
+              <div>
+                <span>Price</span>
+                <strong>
+                  {product.discountPercent ? <small className="price-original">{formatCurrency(product.originalPrice)}</small> : null}
+                  {' '}{formatCurrency(product.price)} / {product.unit}
+                </strong>
+              </div>
+              <div><span>Available</span><strong>{product.quantity} {product.unit}</strong></div>
+              <div><span>Selling type</span><strong>{product.sellingType === 'bulk' ? 'Bulk / Wholesale' : 'Retail'}</strong></div>
+              {product.sellingType === 'bulk' && product.bulkMinQuantity ? (
+                <div><span>Minimum bulk order</span><strong>{product.bulkMinQuantity} {product.unit}</strong></div>
+              ) : null}
+              <div><span>Location</span><strong><MapPin size={15} /> {product.location}</strong></div>
+              <div><span>Farmer</span><strong>{product.farmerName}</strong></div>
+              <div><span>Listed</span><strong>{formatDate(product.createdAt)}</strong></div>
+            </div>
+          </div>
+        </article>
+
+        <aside className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Checkout</p>
+              <h2>Order this product</h2>
+            </div>
+          </div>
+          {canRequest ? (
+            <CheckoutForm product={product} currentUser={currentUser} onSubmit={handleOrder} />
+          ) : (
+            <div className="empty-state compact">
+              <h3>Order unavailable</h3>
+              <p>
+                {currentUser.role !== 'buyer'
+                  ? 'Only buyer accounts can place orders.'
+                  : 'You cannot order your own product or an inactive listing.'}
+              </p>
+              <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
+            </div>
+          )}
+        </aside>
+      </section>
+      <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
+    </AppShell>
+  );
+}

@@ -1,0 +1,13 @@
+import { ClipboardList, Gift, LayoutDashboard, MapPinned, MessageCircle, PackagePlus, Store, TrendingUp, User } from 'lucide-react';
+
+export const farmerNavItems = [
+  { to: '/farmer-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/farmer-products', label: 'Products', icon: Store },
+  { to: '/farmer-orders', label: 'Orders', icon: ClipboardList },
+  { to: '/farmer-donations', label: 'Donations', icon: Gift },
+  { to: '/messages', label: 'Messages', icon: MessageCircle },
+  { to: '/marketplace', label: 'Marketplace', icon: PackagePlus },
+  { to: '/farmer-map', label: 'Farmer Map', icon: MapPinned },
+  { to: '/market-insights', label: 'Market Insights', icon: TrendingUp },
+  { to: '/profile', label: 'Profile', icon: User },
+];
