@@ -163,6 +163,9 @@ export default function Profile() {
                       <input id="contactPerson" value={profileDraft.contactPerson} onChange={(event) => updateProfileField('contactPerson', event.target.value)} />
                     </FormField>
                   </div>
+                  <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
+                    <input id="contactNumber" value={profileDraft.contactNumber} onChange={(event) => updateProfileField('contactNumber', event.target.value)} />
+                  </FormField>
                 </>
               ) : (
                 <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
@@ -219,9 +222,8 @@ export default function Profile() {
               <InfoRow icon={Mail} label="Email address" value={currentUser.email} />
               {isStakeholder ? (
                 <InfoRow icon={UserSquare} label="Contact person" value={currentUser.contactPerson} />
-              ) : (
-                <InfoRow icon={Phone} label="Contact number" value={currentUser.contactNumber} />
-              )}
+              ) : null}
+              <InfoRow icon={Phone} label="Contact number" value={currentUser.contactNumber} />
               {isFarmer ? (
                 <InfoRow icon={Calendar} label="Birthday" value={currentUser.birthday ? formatDate(currentUser.birthday) : ''} />
               ) : (

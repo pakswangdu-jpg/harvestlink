@@ -9,11 +9,12 @@ import { useAuth } from '../auth/AuthContext';
 import { cancelOrder, getOrdersByBuyer, isCancellable, payOrder } from '../../services/orderService';
 import { ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
-import { buyerNavItems } from './buyerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function BuyerOrders() {
   const { currentUser } = useAuth();
   const location = useLocation();
+  const navItems = getNavItemsForRole(currentUser.role);
   const [orders, setOrders] = useState(() => getOrdersByBuyer(currentUser.id));
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
@@ -48,7 +49,7 @@ export default function BuyerOrders() {
   return (
     <AppShell
       user={currentUser}
-      navItems={buyerNavItems}
+      navItems={navItems}
       title="My orders"
       subtitle="Track payment and delivery status for every order you've placed."
     >

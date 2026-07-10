@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import Button from '../common/Button';
+import NotificationBell from '../notifications/NotificationBell';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
 import { getInitials } from '../../utils/formatters';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -72,6 +73,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
             <h1>{title}</h1>
             {subtitle ? <p>{subtitle}</p> : null}
           </div>
+          {hasProfile ? <NotificationBell userId={user.id} /> : null}
         </header>
         {children}
       </main>

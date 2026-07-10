@@ -1,7 +1,9 @@
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
 // Bumped when the query logic changes, so previously-cached results computed with old
 // (buggy) query construction don't keep being served as if they were still correct.
 const CACHE_PREFIX = 'harvestlink_geocode_v3_';
+const REVERSE_CACHE_PREFIX = 'harvestlink_reverse_geocode_v1_';
 // Addresses rarely change, and OSM's Nominatim usage policy asks callers to cache
 // aggressively rather than re-querying the same place repeatedly.
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -114,4 +116,49 @@ export async function geocodeAccountLocation({ address, municipality }) {
 
   if (result) writeCache(cacheKey, result);
   return result;
+}
+
+// Turns a raw GPS coordinate (from the browser's Geolocation API) into a street-level
+// address line and postcode, for the registration form's "use my location" button.
+// Coordinates are rounded to ~11m precision before caching/querying — GPS jitters by a
+// few meters between reads, and Nominatim's usage policy asks callers to cache rather than
+// re-query near-identical points. Returns null (never a guess) if OSM has no data there.
+export async function reverseGeocode({ lat, lng }) {
+  const roundedLat = Number(lat).toFixed(4);
+  const roundedLng = Number(lng).toFixed(4);
+  const cacheKey = `${REVERSE_CACHE_PREFIX}${roundedLat}__${roundedLng}`;
+  const cached = readCache(cacheKey);
+  if (cached) return cached;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const url = `${NOMINATIM_REVERSE_URL}?${new URLSearchParams({
+      format: 'json',
+      lat: roundedLat,
+      lon: roundedLng,
+      zoom: '18',
+      addressdetails: '1',
+    }).toString()}`;
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const addr = data?.address;
+    if (!addr) return null;
+
+    const streetLine = [addr.house_number, addr.road || addr.pedestrian || addr.neighbourhood]
+      .filter(Boolean)
+      .join(' ');
+    const barangay = addr.village || addr.suburb || addr.quarter || addr.hamlet || '';
+    const addressLine = [streetLine, barangay].filter(Boolean).join(', ');
+    const cityText = addr.city || addr.town || addr.municipality || addr.county || '';
+
+    const result = { address: addressLine, zipCode: addr.postcode || '', cityText };
+    writeCache(cacheKey, result);
+    return result;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }

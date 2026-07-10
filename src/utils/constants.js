@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   orders: 'harvestlink_orders',
   donations: 'harvestlink_donations',
   messages: 'harvestlink_messages',
+  notifications: 'harvestlink_notifications',
   currentUser: 'harvestlink_current_user',
   legacyProducts: 'harvestlinkProducts',
   legacyRequests: 'harvestlink_purchase_requests',
@@ -25,13 +26,58 @@ export const ADMIN_USER = {
 export const PRODUCT_CATEGORIES = [
   'Vegetables',
   'Fruits',
-  'Grains',
-  'Root Crops',
+  'Grains & Cereals',
+  'Root & Tuber Crops',
+  'Legumes & Pulses',
   'Herbs',
+  'Spices',
+  'Nuts',
+  'Oil Crops',
+  'Sugar Crops',
+  'Beverage Crops',
+  'Mushrooms',
+  'Flowers & Ornamentals',
+  'Medicinal Plants',
+  'Fiber Crops',
+  'Seeds, Seedlings & Nursery',
+  'Fodder & Forage',
+  'Livestock Products',
   'Other',
 ];
 
+// Master list of every unit offered anywhere in the app — used as the category-agnostic
+// fallback (e.g. for the 'Other' category, or a category with no explicit mapping below).
 export const PRODUCT_UNITS = ['kg', 'sack', 'bundle', 'piece'];
+
+// Which units make sense to sell a category in varies a lot — livestock sells by the head,
+// cut flowers by the stem, rice/corn by the cavan, seedlings by the pack — so the "Unit"
+// field on the product form is scoped to the selected category instead of offering one
+// generic list for everything from mushrooms to cattle.
+const UNITS_BY_CATEGORY = {
+  Vegetables: ['kg', 'sack', 'bundle', 'piece', 'crate'],
+  Fruits: ['kg', 'sack', 'piece', 'dozen', 'crate'],
+  'Grains & Cereals': ['kg', 'sack', 'cavan'],
+  'Root & Tuber Crops': ['kg', 'sack'],
+  'Legumes & Pulses': ['kg', 'sack'],
+  Herbs: ['kg', 'bundle', 'piece'],
+  Spices: ['kg', 'sack', 'piece'],
+  Nuts: ['kg', 'sack', 'piece'],
+  'Oil Crops': ['kg', 'sack', 'liter'],
+  'Sugar Crops': ['kg', 'sack'],
+  'Beverage Crops': ['kg', 'sack', 'piece'],
+  Mushrooms: ['kg', 'piece', 'tray'],
+  'Flowers & Ornamentals': ['stem', 'bouquet', 'pot', 'piece'],
+  'Medicinal Plants': ['kg', 'bundle', 'piece'],
+  'Fiber Crops': ['kg', 'sack', 'bale'],
+  'Seeds, Seedlings & Nursery': ['pack', 'seedling', 'piece', 'tray'],
+  'Fodder & Forage': ['kg', 'sack', 'bale'],
+  'Livestock Products': ['head', 'kg', 'piece', 'dozen'],
+  Other: PRODUCT_UNITS,
+};
+
+export function getUnitsForCategory(category) {
+  return UNITS_BY_CATEGORY[category] || PRODUCT_UNITS;
+}
 
 export const PRODUCT_GRADES = [
   { value: 'A', label: 'Grade A — Premium' },

@@ -1,4 +1,4 @@
-import { MapPin, Search } from 'lucide-react';
+import { Award, MapPin, Search, Tag, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -6,19 +6,22 @@ import ProductCard from '../../components/cards/ProductCard';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getActiveProducts } from '../../services/productService';
-import { CEBU_MUNICIPALITIES } from '../../utils/constants';
-import { buyerNavItems } from '../buyer/buyerNav';
-import { farmerNavItems } from '../farmer/farmerNav';
+import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function Marketplace() {
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get('search') || '');
-  // Defaults to the signed-in account's own municipality so each buyer/farmer sees
-  // their own local market first — "All locations" is one click away, never a dead end.
+  // Defaults to the signed-in account's own municipality so each buyer/farmer/partner org
+  // sees their own local market first — "All locations" is one click away, never a dead end.
   const [location, setLocation] = useState(() => currentUser.municipality || '');
+  const [grade, setGrade] = useState('');
+  const [sellingType, setSellingType] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
   const products = getActiveProducts();
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const navItems = getNavItemsForRole(currentUser.role);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -28,9 +31,23 @@ export default function Marketplace() {
         .toLowerCase()
         .includes(normalized);
       const matchesLocation = !location || product.location === location;
-      return matchesQuery && matchesLocation;
+      const matchesGrade = !grade || product.grade === grade;
+      const matchesSellingType = !sellingType || product.sellingType === sellingType;
+      const matchesMinPrice = !minPrice || product.price >= Number(minPrice);
+      const matchesMaxPrice = !maxPrice || product.price <= Number(maxPrice);
+      return matchesQuery && matchesLocation && matchesGrade && matchesSellingType && matchesMinPrice && matchesMaxPrice;
     });
-  }, [products, query, location]);
+  }, [products, query, location, grade, sellingType, minPrice, maxPrice]);
+
+  const hasActiveFilters = Boolean(query || location || grade || sellingType || minPrice || maxPrice);
+  const clearFilters = () => {
+    setQuery('');
+    setLocation('');
+    setGrade('');
+    setSellingType('');
+    setMinPrice('');
+    setMaxPrice('');
+  };
 
   return (
     <AppShell
@@ -57,6 +74,42 @@ export default function Marketplace() {
               {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality} value={municipality}>{municipality}</option>)}
             </select>
           </label>
+          <label className="location-filter" htmlFor="marketplace-grade">
+            <Award size={16} />
+            <select id="marketplace-grade" value={grade} onChange={(event) => setGrade(event.target.value)}>
+              <option value="">All grades</option>
+              {PRODUCT_GRADES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <label className="location-filter" htmlFor="marketplace-selling-type">
+            <Tag size={16} />
+            <select id="marketplace-selling-type" value={sellingType} onChange={(event) => setSellingType(event.target.value)}>
+              <option value="">All selling types</option>
+              {SELLING_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
+          <div className="location-filter price-range-filter">
+            <Wallet size={16} />
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={minPrice}
+              onChange={(event) => setMinPrice(event.target.value)}
+              placeholder="Min ₱"
+              aria-label="Minimum price"
+            />
+            <span className="price-range-separator">–</span>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={maxPrice}
+              onChange={(event) => setMaxPrice(event.target.value)}
+              placeholder="Max ₱"
+              aria-label="Maximum price"
+            />
+          </div>
         </div>
       </section>
 
@@ -67,9 +120,9 @@ export default function Marketplace() {
       ) : (
         <EmptyState
           title="No matching products"
-          message={location ? `No active listings in ${location} right now.` : 'Try another search or check back when farmers add new harvests.'}
-          actionLabel={location ? 'Show all locations' : undefined}
-          onAction={location ? () => setLocation('') : undefined}
+          message={hasActiveFilters ? 'No active listings match your filters right now.' : 'Check back when farmers add new harvests.'}
+          actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
+          onAction={hasActiveFilters ? clearFilters : undefined}
         />
       )}
     </AppShell>

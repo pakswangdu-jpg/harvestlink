@@ -1,6 +1,8 @@
 import { STORAGE_KEYS } from '../utils/constants';
 import { createId, readStorage, writeStorage } from './storageService';
 import { restoreProductQuantity, updateProduct } from './productService';
+import { createNotification } from './notificationService';
+import { getVerifiedStakeholders } from './authService';
 
 export function getDonations() {
   return readStorage(STORAGE_KEYS.donations, []);
@@ -50,10 +52,27 @@ export function createDonation(product, farmer) {
 
   saveDonations([donation, ...getDonations()]);
   updateProduct(product.id, { ...product, quantity: 0, status: 'inactive' });
+
+  // Every verified partner org gets alerted — donations go to whoever requests them first,
+  // so all of them need to see it appear, not just whichever one happens to check back.
+  getVerifiedStakeholders().forEach((stakeholder) => {
+    createNotification({
+      userId: stakeholder.id,
+      type: 'donation',
+      title: 'New surplus donation available',
+      message: `${farmer.name} donated ${donation.quantity} ${donation.unit} of ${donation.productName} in ${donation.location}.`,
+      link: '/stakeholder-donations',
+    });
+  });
+
   return donation;
 }
 
 export function requestDonation(id, stakeholder) {
+  if (stakeholder.verificationStatus !== 'verified') {
+    throw new Error('Your organization must be verified by admin before you can request donations.');
+  }
+
   const donations = getDonations();
   const target = donations.find((donation) => donation.id === id);
   if (!target) throw new Error('Donation was not found.');
@@ -71,7 +90,15 @@ export function requestDonation(id, stakeholder) {
       : donation
   );
   saveDonations(updated);
-  return updated.find((donation) => donation.id === id);
+  const donation = updated.find((item) => item.id === id);
+  createNotification({
+    userId: donation.farmerId,
+    type: 'donation',
+    title: 'Donation requested',
+    message: `${donation.requestedByName} requested your donation of ${donation.productName}.`,
+    link: '/farmer-donations',
+  });
+  return donation;
 }
 
 export function declineDonationRequest(id) {

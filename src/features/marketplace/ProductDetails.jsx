@@ -8,8 +8,9 @@ import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
-import { buyerNavItems } from '../buyer/buyerNav';
-import { farmerNavItems } from '../farmer/farmerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
+
+const ORDERING_ROLES = ['buyer', 'stakeholder'];
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -19,8 +20,8 @@ export default function ProductDetails() {
 
   if (!product) return <Navigate to="/marketplace" replace />;
 
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
-  const canRequest = currentUser.role === 'buyer' && currentUser.id !== product.farmerId && product.status === 'active';
+  const navItems = getNavItemsForRole(currentUser.role);
+  const canRequest = ORDERING_ROLES.includes(currentUser.role) && currentUser.id !== product.farmerId && product.status === 'active';
 
   const handleOrder = (values) => {
     const order = createOrder(values, product, currentUser);
@@ -82,8 +83,8 @@ export default function ProductDetails() {
             <div className="empty-state compact">
               <h3>Order unavailable</h3>
               <p>
-                {currentUser.role !== 'buyer'
-                  ? 'Only buyer accounts can place orders.'
+                {!ORDERING_ROLES.includes(currentUser.role)
+                  ? 'Only buyer or partner organization accounts can place orders.'
                   : 'You cannot order your own product or an inactive listing.'}
               </p>
               <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>

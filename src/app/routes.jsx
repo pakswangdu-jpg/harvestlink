@@ -6,6 +6,7 @@ import FarmerDashboard from '../features/farmer/FarmerDashboard';
 import FarmerProducts from '../features/farmer/FarmerProducts';
 import FarmerOrders from '../features/farmer/FarmerOrders';
 import FarmerDonations from '../features/farmer/FarmerDonations';
+import FarmerDemandForecast from '../features/farmer/FarmerDemandForecast';
 import BuyerDashboard from '../features/buyer/BuyerDashboard';
 import BuyerOrders from '../features/buyer/BuyerOrders';
 import Marketplace from '../features/marketplace/Marketplace';
@@ -33,6 +34,7 @@ export default function AppRoutes() {
         <Route path="/farmer-products" element={<FarmerProducts />} />
         <Route path="/farmer-orders" element={<FarmerOrders />} />
         <Route path="/farmer-donations" element={<FarmerDonations />} />
+        <Route path="/demand-forecast" element={<FarmerDemandForecast />} />
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['buyer']} />}>
@@ -40,7 +42,7 @@ export default function AppRoutes() {
         <Route path="/buyer-orders" element={<BuyerOrders />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer', 'stakeholder']} />}>
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/orders/:id" element={<OrderTracking />} />
@@ -52,6 +54,7 @@ export default function AppRoutes() {
 
       <Route element={<ProtectedRoute allowedRoles={['stakeholder']} />}>
         <Route path="/stakeholder-dashboard" element={<StakeholderDashboard />} />
+        <Route path="/stakeholder-orders" element={<BuyerOrders />} />
         <Route path="/stakeholder-donations" element={<StakeholderDonations />} />
         <Route path="/stakeholder-requests" element={<StakeholderRequests />} />
       </Route>

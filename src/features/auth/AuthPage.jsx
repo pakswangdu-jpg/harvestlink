@@ -1,9 +1,12 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { LocateFixed } from 'lucide-react';
 import { useState } from 'react';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { fileToDataUrl } from '../../utils/formatters';
+import { findNearestMunicipality } from '../../utils/geo';
+import { reverseGeocode } from '../../services/geocodeService';
 import { hasErrors, validateAuthForm } from '../../utils/validators';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
@@ -12,7 +15,9 @@ const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
 function buildEmptyForm(preselectedRole) {
   return {
-    name: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -41,6 +46,8 @@ export default function AuthPage({ mode }) {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationNotice, setLocationNotice] = useState('');
 
   if (currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
 
@@ -76,6 +83,43 @@ export default function AuthPage({ mode }) {
     } finally {
       setIsReadingFile(false);
     }
+  };
+
+  // Uses the browser's Geolocation API to auto-fill municipality, street address, and zip
+  // code — nice-to-have for a mobile-first registration flow where typing a full address is
+  // tedious. Municipality is matched by real distance (findNearestMunicipality), not by
+  // trusting OSM's admin-boundary text, so it always resolves to one of our known list.
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationNotice('Location access is not supported on this device.');
+      return;
+    }
+    setIsLocating(true);
+    setLocationNotice('');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        updateField('municipality', findNearestMunicipality(latitude, longitude));
+        const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
+        setIsLocating(false);
+        if (reverse?.address) {
+          updateField('address', reverse.address);
+          if (reverse.zipCode) updateField('zipCode', reverse.zipCode);
+          setLocationNotice('Location detected — please double-check the details below.');
+        } else {
+          setLocationNotice('Location detected, but we could not fill in your street address automatically — please enter it manually.');
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        setLocationNotice(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access was denied. You can still fill this in manually.'
+            : 'Unable to detect your location. Please fill this in manually.'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const handleSubmit = (event) => {
@@ -138,15 +182,34 @@ export default function AuthPage({ mode }) {
                   <option value="stakeholder">Partner organization (donation recipient)</option>
                 </select>
               </FormField>
-              <FormField label="Full name" name="name" error={errors.name}>
-                <input
-                  id="name"
-                  value={form.name}
-                  onChange={(event) => updateField('name', event.target.value)}
-                  onBlur={() => handleBlur('name')}
-                  placeholder="Juan Dela Cruz"
-                />
-              </FormField>
+              <div className="form-grid three">
+                <FormField label="First name" name="firstName" error={errors.firstName}>
+                  <input
+                    id="firstName"
+                    value={form.firstName}
+                    onChange={(event) => updateField('firstName', event.target.value)}
+                    onBlur={() => handleBlur('firstName')}
+                    placeholder="Juan"
+                  />
+                </FormField>
+                <FormField label="Middle name" name="middleName" error={errors.middleName} helper="Optional">
+                  <input
+                    id="middleName"
+                    value={form.middleName}
+                    onChange={(event) => updateField('middleName', event.target.value)}
+                    placeholder="Santos"
+                  />
+                </FormField>
+                <FormField label="Last name" name="lastName" error={errors.lastName}>
+                  <input
+                    id="lastName"
+                    value={form.lastName}
+                    onChange={(event) => updateField('lastName', event.target.value)}
+                    onBlur={() => handleBlur('lastName')}
+                    placeholder="Dela Cruz"
+                  />
+                </FormField>
+              </div>
             </>
           ) : null}
 
@@ -190,6 +253,16 @@ export default function AuthPage({ mode }) {
                   onChange={(event) => updateField('contactPerson', event.target.value)}
                   onBlur={() => handleBlur('contactPerson')}
                   placeholder="Program coordinator's name"
+                />
+              </FormField>
+              <FormField label="Contact number" name="contactNumber" error={errors.contactNumber}>
+                <input
+                  id="contactNumber"
+                  type="tel"
+                  value={form.contactNumber}
+                  onChange={(event) => updateField('contactNumber', event.target.value)}
+                  onBlur={() => handleBlur('contactNumber')}
+                  placeholder="09XX XXX XXXX"
                 />
               </FormField>
               <FormField label="Proof of accreditation" name="accreditationFile" helper="Optional. Stored locally as a data URL for this prototype.">
@@ -274,28 +347,36 @@ export default function AuthPage({ mode }) {
           ) : null}
 
           {isRegister && ['farmer', 'buyer', 'stakeholder'].includes(form.role) ? (
-            <div className="form-grid">
-              <FormField label="Complete address" name="address" error={errors.address}>
-                <input
-                  id="address"
-                  value={form.address}
-                  onChange={(event) => updateField('address', event.target.value)}
-                  onBlur={() => handleBlur('address')}
-                  placeholder="House/Unit No., Street, Barangay"
-                />
-              </FormField>
-              <FormField label="Zip code" name="zipCode" error={errors.zipCode}>
-                <input
-                  id="zipCode"
-                  value={form.zipCode}
-                  onChange={(event) => updateField('zipCode', event.target.value)}
-                  onBlur={() => handleBlur('zipCode')}
-                  placeholder="6000"
-                  inputMode="numeric"
-                  maxLength={4}
-                />
-              </FormField>
-            </div>
+            <>
+              <div>
+                <Button type="button" variant="secondary" size="sm" onClick={handleUseMyLocation} disabled={isLocating}>
+                  <LocateFixed size={15} /> {isLocating ? 'Locating…' : 'Use my current location'}
+                </Button>
+                {locationNotice ? <p className="muted">{locationNotice}</p> : null}
+              </div>
+              <div className="form-grid">
+                <FormField label="Complete address" name="address" error={errors.address}>
+                  <input
+                    id="address"
+                    value={form.address}
+                    onChange={(event) => updateField('address', event.target.value)}
+                    onBlur={() => handleBlur('address')}
+                    placeholder="House/Unit No., Street, Barangay"
+                  />
+                </FormField>
+                <FormField label="Zip code" name="zipCode" error={errors.zipCode}>
+                  <input
+                    id="zipCode"
+                    value={form.zipCode}
+                    onChange={(event) => updateField('zipCode', event.target.value)}
+                    onBlur={() => handleBlur('zipCode')}
+                    placeholder="6000"
+                    inputMode="numeric"
+                    maxLength={4}
+                  />
+                </FormField>
+              </div>
+            </>
           ) : null}
 
           <FormField label="Email address" name="email" error={errors.email}>

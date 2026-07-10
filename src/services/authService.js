@@ -1,5 +1,6 @@
 import { ADMIN_CREDENTIALS, ADMIN_USER, STORAGE_KEYS } from '../utils/constants';
 import { createId, readSession, readStorage, removeSession, writeSession, writeStorage } from './storageService';
+import { createNotification } from './notificationService';
 
 // Accounts registered before verification review existed have no verificationStatus
 // at all, and accounts registered before account suspension existed have no
@@ -68,9 +69,19 @@ export function registerUser(values) {
     throw new Error('An account with this email already exists.');
   }
 
+  // Captured as separate fields at registration, but every other screen in the app
+  // (greetings, order/notification records, map popups) displays a single name — so
+  // that combined form is still stored as `name`, alongside the parts for later editing.
+  const firstName = values.firstName.trim();
+  const middleName = values.middleName?.trim() || '';
+  const lastName = values.lastName.trim();
+
   const user = {
     id: createId('user'),
-    name: values.name.trim(),
+    firstName,
+    middleName,
+    lastName,
+    name: [firstName, middleName, lastName].filter(Boolean).join(' '),
     email,
     password: values.password,
     role: values.role,
@@ -83,6 +94,7 @@ export function registerUser(values) {
     user.organizationName = values.organizationName.trim();
     user.organizationType = values.organizationType;
     user.contactPerson = values.contactPerson.trim();
+    user.contactNumber = values.contactNumber.trim();
     user.municipality = values.municipality;
     user.accreditationFile = values.accreditationFile || '';
     user.verificationStatus = 'pending';
@@ -119,6 +131,12 @@ export function getVerifiedFarmers() {
   return getUsers().filter((user) => user.role === 'farmer' && user.verificationStatus === 'verified' && user.accountStatus !== 'suspended');
 }
 
+// Only DTI-approved partner organizations should be alerted to new surplus donations —
+// mirrors getVerifiedFarmers' same pending/rejected/suspended exclusions.
+export function getVerifiedStakeholders() {
+  return getUsers().filter((user) => user.role === 'stakeholder' && user.verificationStatus === 'verified' && user.accountStatus !== 'suspended');
+}
+
 // Buyers have no DTI verification workflow (only farmers/stakeholders do), so every
 // registered buyer account is traceable — there's no pending/rejected state to filter on.
 export function getBuyers() {
@@ -147,6 +165,7 @@ function buildProfilePatch(target, values) {
     patch.organizationName = values.organizationName.trim();
     patch.organizationType = values.organizationType;
     patch.contactPerson = values.contactPerson.trim();
+    patch.contactNumber = values.contactNumber?.trim() || '';
   }
   return patch;
 }
@@ -191,6 +210,15 @@ export function setUserVerification(id, status) {
     user.id === id ? { ...user, verificationStatus: status, verifiedAt: new Date().toISOString(), verificationAcknowledged: false } : user
   );
   writeStorage(STORAGE_KEYS.users, updated);
+  createNotification({
+    userId: id,
+    type: 'verification',
+    title: status === 'verified' ? 'Account verified' : 'Verification declined',
+    message: status === 'verified'
+      ? 'Your account has been approved by admin. You can now add products to the marketplace.'
+      : 'Your account verification was declined. Update your profile and contact support if you believe this was a mistake.',
+    link: '/profile',
+  });
   return updated.find((user) => user.id === id) || null;
 }
 

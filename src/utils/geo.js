@@ -1,4 +1,4 @@
-import { getMunicipalityCoords } from './constants';
+import { CEBU_MUNICIPALITY_COORDS, DEFAULT_MUNICIPALITY, getMunicipalityCoords } from './constants';
 
 export function haversineKm(a, b) {
   const R = 6371;
@@ -8,6 +8,26 @@ export function haversineKm(a, b) {
   const lat2 = (b.lat * Math.PI) / 180;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Picks the municipality whose reference point is physically closest to a raw GPS
+// coordinate — used for "use my location" so the match is based on real distance rather
+// than trusting a geocoder's admin-boundary text to line up with our municipality list.
+// 'Other' is excluded since it's a catch-all label, not a real place to measure against.
+export function findNearestMunicipality(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return DEFAULT_MUNICIPALITY;
+  const point = { lat, lng };
+  let nearest = DEFAULT_MUNICIPALITY;
+  let nearestDistance = Infinity;
+  for (const [municipality, coords] of Object.entries(CEBU_MUNICIPALITY_COORDS)) {
+    if (municipality === 'Other') continue;
+    const distance = haversineKm(point, coords);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = municipality;
+    }
+  }
+  return nearest;
 }
 
 function hashString(value) {

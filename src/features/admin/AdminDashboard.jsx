@@ -29,6 +29,8 @@ import EmptyState from '../../components/common/EmptyState';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import FormField from '../../components/common/FormField';
+import RevenueTrendChart from '../../components/charts/RevenueTrendChart';
+import StatusBarChart from '../../components/charts/StatusBarChart';
 import { useAuth } from '../auth/AuthContext';
 import { adminUpdateUserDetails, getUsers, setAccountStatus, setUserVerification } from '../../services/authService';
 import {
@@ -48,8 +50,16 @@ import {
   MARKET_COMMODITIES,
   setPriceOverride,
 } from '../../services/marketPriceService';
+import {
+  getDonationStatusBreakdown,
+  getMonthlyRevenue,
+  getOrderStatusBreakdown,
+  getTopProducts,
+  getTotalRevenue,
+  getUserRoleBreakdown,
+} from '../../services/reportService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
-import { formatCurrency, formatDate, getInitials } from '../../utils/formatters';
+import { donationStatusLabel, formatCurrency, formatDate, getInitials, statusTone } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
 import { hasErrors, validateProfileForm } from '../../utils/validators';
 import { adminNavItems } from './adminNav';
@@ -134,7 +144,7 @@ export default function AdminDashboard() {
       {section === 'price-monitoring' ? <AdminPriceMonitoring products={products} /> : null}
       {section === 'orders' ? <AdminOrders orders={orders} /> : null}
       {section === 'donations' ? <AdminDonations donations={donations} /> : null}
-      {section === 'reports' ? <ReportsPlaceholder /> : null}
+      {section === 'reports' ? <AdminReports users={users} orders={orders} donations={donations} /> : null}
       {section === 'profile' ? <AdminProfile user={currentUser} /> : null}
     </AppShell>
   );
@@ -311,6 +321,9 @@ function AdminUserDetailCard({ user, onVerify, onToggleAccountStatus, onProfileS
                   <input id="contactPerson" value={profileDraft.contactPerson} onChange={(event) => updateProfileField('contactPerson', event.target.value)} />
                 </FormField>
               </div>
+              <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
+                <input id="contactNumber" value={profileDraft.contactNumber} onChange={(event) => updateProfileField('contactNumber', event.target.value)} />
+              </FormField>
             </>
           ) : (
             <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
@@ -755,13 +768,102 @@ function AdminProfile({ user }) {
   );
 }
 
-function ReportsPlaceholder() {
+function AdminReports({ users, orders, donations }) {
+  const totalRevenue = getTotalRevenue(orders);
+  const monthlyRevenue = getMonthlyRevenue(orders, 6);
+  const orderStatusBreakdown = getOrderStatusBreakdown(orders);
+  const donationStatusBreakdown = getDonationStatusBreakdown(donations);
+  const userRoleBreakdown = getUserRoleBreakdown(users);
+  const topProducts = getTopProducts(orders, 5);
+  const completedDonations = donations.filter((donation) => donation.status === 'completed').length;
+
   return (
-    <section className="panel">
-      <EmptyState
-        title="Reports placeholder"
-        message="This section is reserved for future market, sales, product, and issue reports once a backend exists."
-      />
-    </section>
+    <>
+      <section className="stats-grid">
+        <StatCard label="Total revenue" value={formatCurrency(totalRevenue)} icon={<BarChart3 size={20} />} />
+        <StatCard label="Total orders" value={orders.length} icon={<ShoppingBag size={20} />} />
+        <StatCard label="Registered users" value={users.length} icon={<Users size={20} />} />
+        <StatCard label="Donations completed" value={completedDonations} icon={<Gift size={20} />} />
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Sales</p>
+            <h2>Revenue — last 6 months</h2>
+          </div>
+        </div>
+        <RevenueTrendChart points={monthlyRevenue} />
+      </section>
+
+      <section className="content-grid two">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Issues</p>
+              <h2>Orders by status</h2>
+            </div>
+          </div>
+          <StatusBarChart
+            data={orderStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
+            labelFor={(entry) => entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+            toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
+          />
+        </div>
+
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Surplus</p>
+              <h2>Donations by status</h2>
+            </div>
+          </div>
+          <StatusBarChart
+            data={donationStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
+            labelFor={(entry) => donationStatusLabel(entry.status)}
+            toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
+          />
+        </div>
+      </section>
+
+      <section className="content-grid two uneven">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Product</p>
+              <h2>Top products by revenue</h2>
+            </div>
+          </div>
+          {topProducts.length ? (
+            <DataTable
+              columns={[
+                { key: 'productName', label: 'Product' },
+                { key: 'farmerName', label: 'Farmer' },
+                { key: 'unitsSold', label: 'Units sold', render: (row) => `${row.unitsSold} ${row.unit}` },
+                { key: 'revenue', label: 'Revenue', render: (row) => formatCurrency(row.revenue) },
+              ]}
+              rows={topProducts.map((row) => ({ ...row, id: row.productId }))}
+              emptyMessage="No paid orders yet."
+            />
+          ) : (
+            <EmptyState title="No sales yet" message="Top-selling products will appear here once orders are paid." />
+          )}
+        </div>
+
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Market</p>
+              <h2>Users by role</h2>
+            </div>
+          </div>
+          <StatusBarChart
+            data={userRoleBreakdown.map((entry) => ({ key: entry.role, count: entry.count, role: entry.role }))}
+            labelFor={(entry) => entry.role.charAt(0).toUpperCase() + entry.role.slice(1)}
+            toneClassFor={() => 'status-bar-neutral'}
+          />
+        </div>
+      </section>
+    </>
   );
 }

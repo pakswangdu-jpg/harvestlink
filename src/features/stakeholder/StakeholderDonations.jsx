@@ -51,7 +51,19 @@ export default function StakeholderDonations() {
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
 
-      {donations.length ? (
+      {currentUser.verificationStatus !== 'verified' ? (
+        currentUser.verificationStatus === 'rejected' ? (
+          <div className="form-alert error">
+            <strong>Your organization's verification was declined.</strong>
+            <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
+          </div>
+        ) : (
+          <div className="form-alert warning">
+            <strong>Your organization's account is pending verification.</strong>
+            <p>An admin typically reviews and approves new accounts within 24 hours. You&apos;ll be able to browse and request surplus donations once your account is verified.</p>
+          </div>
+        )
+      ) : donations.length ? (
         <section className="product-grid">
           {donations.map((donation) => (
             <DonationCard
