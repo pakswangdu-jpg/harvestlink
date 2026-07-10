@@ -5,6 +5,7 @@ import StatCard from '../../components/cards/StatCard';
 import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
+import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import FarmerMap from '../../components/map/FarmerMap';
 import { useAuth } from '../auth/AuthContext';
@@ -39,7 +40,7 @@ function buildDonationFarmers(donations) {
 }
 
 export default function StakeholderDashboard() {
-  const { currentUser } = useAuth();
+  const { currentUser, acknowledgeVerification } = useAuth();
   const available = getAvailableDonations();
   const myRequests = getDonationsForStakeholder(currentUser.id);
   const scheduled = myRequests.filter((donation) => donation.status === 'scheduled');
@@ -53,6 +54,24 @@ export default function StakeholderDashboard() {
       title="Partner dashboard"
       subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests."
     >
+      {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
+        <div className="form-alert success">
+          <strong>Your organization has been approved by admin!</strong>
+          <p>You can now browse and request surplus donations.</p>
+          <Button size="sm" variant="secondary" onClick={acknowledgeVerification}>Got it</Button>
+        </div>
+      ) : currentUser.verificationStatus === 'pending' ? (
+        <div className="form-alert warning">
+          <strong>Your organization's account is pending verification.</strong>
+          <p>An admin typically reviews and approves new accounts within 24 hours. You can explore your dashboard in the meantime, but requesting donations is unlocked once your account is verified.</p>
+        </div>
+      ) : currentUser.verificationStatus === 'rejected' ? (
+        <div className="form-alert error">
+          <strong>Your organization's verification was declined.</strong>
+          <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
+        </div>
+      ) : null}
+
       <section className="stats-grid">
         <StatCard label="Available donations" value={available.length} icon={<Gift size={20} />} />
         <StatCard label="My requests" value={myRequests.length} icon={<ListChecks size={20} />} />

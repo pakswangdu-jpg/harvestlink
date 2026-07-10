@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Gift, Info, TriangleAlert } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
-import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_CATEGORIES, PRODUCT_GRADES, PRODUCT_UNITS, SELLING_TYPES } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, getUnitsForCategory, matchMunicipality, PRODUCT_CATEGORIES, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
 import { fileToDataUrl } from '../../utils/formatters';
 import { fetchAnnualPriceTrend, matchCommodity } from '../../services/marketPriceService';
 import { hasErrors, validateProductForm } from '../../utils/validators';
@@ -103,6 +103,23 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
 
+  // The unit list is scoped to the selected category (e.g. Livestock Products sells by
+  // "head", Flowers & Ornamentals by "stem") — switching category can leave the previously
+  // chosen unit invalid, so fall back to that category's first unit whenever the current one
+  // no longer applies, instead of silently keeping a mismatched value.
+  const handleCategoryChange = (event) => {
+    const nextCategory = event.target.value;
+    const nextUnits = getUnitsForCategory(nextCategory);
+    setValues((previous) => ({
+      ...previous,
+      category: nextCategory,
+      unit: nextUnits.includes(previous.unit) ? previous.unit : nextUnits[0],
+    }));
+    setErrors((previous) => ({ ...previous, category: undefined, unit: undefined }));
+  };
+
+  const availableUnits = getUnitsForCategory(values.category);
+
   const handleImageChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -168,7 +185,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
           <input id="name" value={values.name} onChange={(event) => updateField('name', event.target.value)} placeholder="Fresh cabbage" />
         </FormField>
         <FormField label="Category" name="category" error={errors.category}>
-          <select id="category" value={values.category} onChange={(event) => updateField('category', event.target.value)}>
+          <select id="category" value={values.category} onChange={handleCategoryChange}>
             {PRODUCT_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
           </select>
         </FormField>
@@ -247,7 +264,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         ) : null}
         <FormField label="Unit" name="unit" error={errors.unit}>
           <select id="unit" value={values.unit} onChange={(event) => updateField('unit', event.target.value)}>
-            {PRODUCT_UNITS.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+            {availableUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
           </select>
         </FormField>
         <FormField label="Quantity available" name="quantity" error={errors.quantity}>

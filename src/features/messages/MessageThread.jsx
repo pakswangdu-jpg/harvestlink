@@ -8,8 +8,7 @@ import { getOrderById } from '../../services/orderService';
 import { getMessagesForOrder, markThreadRead, sendMessage } from '../../services/messageService';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
-import { farmerNavItems } from '../farmer/farmerNav';
-import { buyerNavItems } from '../buyer/buyerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function MessageThread() {
   const { orderId } = useParams();
@@ -20,7 +19,10 @@ export default function MessageThread() {
   const [draft, setDraft] = useState('');
   const bottomRef = useRef(null);
 
-  const isBuyer = order && currentUser.role === 'buyer' && currentUser.id === order.buyerId;
+  // "Buyer" here means "the account that placed this order" — a partner organization
+  // checking out through the marketplace is just as much the buyer as a buyer-role
+  // account is, so this checks id ownership, not the literal account role.
+  const isBuyer = order && currentUser.id === order.buyerId;
   const isFarmer = order && currentUser.role === 'farmer' && currentUser.id === order.farmerId;
   const canView = Boolean(isBuyer || isFarmer);
 
@@ -51,7 +53,7 @@ export default function MessageThread() {
 
   if (!order || !canView) return <Navigate to="/messages" replace />;
 
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const navItems = getNavItemsForRole(currentUser.role);
   const otherPartyName = currentUser.role === 'farmer' ? order.buyerName : order.farmerName;
 
   const handleSend = (event) => {

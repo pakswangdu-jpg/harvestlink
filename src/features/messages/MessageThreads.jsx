@@ -7,13 +7,12 @@ import { getOrdersByBuyer, getOrdersByFarmer } from '../../services/orderService
 import { getThreadsForOrders } from '../../services/messageService';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
-import { farmerNavItems } from '../farmer/farmerNav';
-import { buyerNavItems } from '../buyer/buyerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function MessageThreads() {
   const { currentUser } = useAuth();
   const [, forceRefresh] = useState(0);
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const navItems = getNavItemsForRole(currentUser.role);
   const orders = currentUser.role === 'farmer' ? getOrdersByFarmer(currentUser.id) : getOrdersByBuyer(currentUser.id);
   const threads = getThreadsForOrders(orders, currentUser);
 

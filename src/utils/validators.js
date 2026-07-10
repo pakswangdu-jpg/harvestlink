@@ -1,3 +1,5 @@
+import { getUnitsForCategory } from './constants';
+
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
@@ -17,7 +19,8 @@ export function isValidZipCode(value) {
 
 export function validateAuthForm(values, mode) {
   const errors = {};
-  if (mode === 'register' && !required(values.name)) errors.name = 'Enter your full name.';
+  if (mode === 'register' && !required(values.firstName)) errors.firstName = 'Enter your first name.';
+  if (mode === 'register' && !required(values.lastName)) errors.lastName = 'Enter your last name.';
   if (!required(values.email)) errors.email = 'Enter your email address.';
   else if (!isValidEmail(values.email)) errors.email = 'Enter a valid email address.';
   if (!required(values.password)) errors.password = 'Enter your password.';
@@ -36,6 +39,7 @@ export function validateAuthForm(values, mode) {
     if (!required(values.organizationName)) errors.organizationName = 'Enter your organization name.';
     if (!required(values.organizationType)) errors.organizationType = 'Choose an organization type.';
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter a contact person.';
+    if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
     if (!required(values.municipality)) errors.municipality = 'Choose a municipality.';
   }
   if (mode === 'register' && values.role === 'farmer') {
@@ -66,6 +70,7 @@ export function validateProductForm(values) {
     }
   }
   if (!required(values.unit)) errors.unit = 'Choose a unit.';
+  else if (!getUnitsForCategory(values.category).includes(values.unit)) errors.unit = 'Choose a unit valid for this category.';
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
   if (!required(values.location)) errors.location = 'Enter the product location.';
   if (!required(values.description)) errors.description = 'Add a short product description.';
@@ -101,7 +106,7 @@ export function validateProfileForm(values, role) {
   if (!required(values.municipality)) errors.municipality = 'Choose your location.';
   if (!required(values.address)) errors.address = 'Enter your complete address.';
   if (!isValidZipCode(values.zipCode)) errors.zipCode = 'Enter a valid 4-digit zip code.';
-  if (role === 'farmer' || role === 'buyer') {
+  if (role === 'farmer' || role === 'buyer' || role === 'stakeholder') {
     if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
   }
   if (role === 'farmer') {

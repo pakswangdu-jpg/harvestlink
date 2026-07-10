@@ -3,6 +3,7 @@ import { haversineKm, resolveRoutePoints } from '../utils/geo';
 import { createId, migrateLegacyOrders, readStorage, writeStorage } from './storageService';
 import { getProductById, reduceProductQuantity, restoreProductQuantity } from './productService';
 import { getCachedRoadRoute } from './routingService';
+import { createNotification } from './notificationService';
 
 const ASSUMED_TRANSIT_SPEED_KMH = 25;
 const MIN_ESTIMATED_MINUTES = 5;
@@ -102,6 +103,13 @@ export function createOrder(values, product, buyer) {
   };
 
   saveOrders([order, ...getOrders()]);
+  createNotification({
+    userId: order.farmerId,
+    type: 'order',
+    title: 'New order received',
+    message: `${order.buyerName} ordered ${order.quantity} ${order.unit} of ${order.productName}.`,
+    link: `/orders/${order.id}`,
+  });
   return order;
 }
 
@@ -121,7 +129,17 @@ export function updateOrderStatus(id, status) {
     order.id === id ? { ...order, status, updatedAt: new Date().toISOString() } : order
   );
   saveOrders(updatedOrders);
-  return updatedOrders.find((order) => order.id === id);
+  const updatedOrder = updatedOrders.find((order) => order.id === id);
+  createNotification({
+    userId: updatedOrder.buyerId,
+    type: 'order',
+    title: status === 'confirmed' ? 'Order confirmed' : 'Order rejected',
+    message: status === 'confirmed'
+      ? `${updatedOrder.farmerName} confirmed your order for ${updatedOrder.productName}.`
+      : `${updatedOrder.farmerName} rejected your order for ${updatedOrder.productName}.`,
+    link: `/orders/${updatedOrder.id}`,
+  });
+  return updatedOrder;
 }
 
 export function isCancellable(order) {

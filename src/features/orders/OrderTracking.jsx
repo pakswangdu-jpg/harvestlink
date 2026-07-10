@@ -20,8 +20,13 @@ import {
 } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../../utils/constants';
 import { deliveryMethodLabel, formatCurrency, formatDate, paymentLabel } from '../../utils/formatters';
-import { buyerNavItems } from '../buyer/buyerNav';
-import { farmerNavItems } from '../farmer/farmerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
+
+function fallbackOrdersPath(role) {
+  if (role === 'farmer') return '/farmer-orders';
+  if (role === 'stakeholder') return '/stakeholder-orders';
+  return '/buyer-orders';
+}
 
 export default function OrderTracking() {
   const { id } = useParams();
@@ -45,15 +50,18 @@ export default function OrderTracking() {
     };
   }, [id]);
 
-  if (!order) return <Navigate to={currentUser.role === 'farmer' ? '/farmer-orders' : '/buyer-orders'} replace />;
+  if (!order) return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
 
-  const isBuyer = currentUser.role === 'buyer' && currentUser.id === order.buyerId;
+  // "Buyer" here means "the account that placed this order" — a partner organization
+  // checking out through the marketplace is just as much the buyer as a buyer-role
+  // account is, so this checks id ownership, not the literal account role.
+  const isBuyer = currentUser.id === order.buyerId;
   const isFarmer = currentUser.role === 'farmer' && currentUser.id === order.farmerId;
   if (!isBuyer && !isFarmer) {
-    return <Navigate to={currentUser.role === 'farmer' ? '/farmer-orders' : '/buyer-orders'} replace />;
+    return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
   }
 
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const navItems = getNavItemsForRole(currentUser.role);
 
   const run = (action, successMessage) => {
     try {
