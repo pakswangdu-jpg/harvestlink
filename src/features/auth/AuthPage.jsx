@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
-import { fileToDataUrl } from '../../utils/formatters';
 import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
 import { hasErrors, validateAuthForm } from '../../utils/validators';
@@ -41,15 +40,15 @@ export default function AuthPage({ mode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { currentUser, login, register } = useAuth();
+  const { currentUser, loading: authLoading, login, register } = useAuth();
   const [form, setForm] = useState(() => buildEmptyForm(searchParams.get('role')));
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
-  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
 
-  if (currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
+  if (!authLoading && currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
 
   const updateField = (field, value) => {
     setForm((previous) => ({ ...previous, [field]: value }));
@@ -71,18 +70,13 @@ export default function AuthPage({ mode }) {
     setErrors((previous) => ({ ...previous, [field]: nextErrors[field] }));
   };
 
-  const handleFileChange = (field) => async (event) => {
+  // The actual upload happens later, in handleSubmit (via authService.registerUser) —
+  // Storage's bucket policy requires an authenticated session to write into a user's own
+  // folder, and there's no session yet while the form is still being filled in. This just
+  // holds onto the picked File until then.
+  const handleFileChange = (field) => (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      setIsReadingFile(true);
-      const dataUrl = await fileToDataUrl(file);
-      updateField(field, dataUrl);
-    } catch {
-      setErrors((previous) => ({ ...previous, [field]: 'Unable to read this file.' }));
-    } finally {
-      setIsReadingFile(false);
-    }
+    if (file) updateField(field, file);
   };
 
   // Uses the browser's Geolocation API to auto-fill municipality, street address, and zip
@@ -122,7 +116,7 @@ export default function AuthPage({ mode }) {
     );
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = validateAuthForm(form, mode);
     if (hasErrors(nextErrors)) {
@@ -130,13 +124,15 @@ export default function AuthPage({ mode }) {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      const user = isRegister ? register(form) : login(form.email, form.password);
+      const user = isRegister ? await register(form) : await login(form.email, form.password);
       const fallback = ROLE_DASHBOARDS[user.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
       setErrors({ form: error.message });
       setMessage('');
+      setIsSubmitting(false);
     }
   };
 
@@ -265,7 +261,7 @@ export default function AuthPage({ mode }) {
                   placeholder="09XX XXX XXXX"
                 />
               </FormField>
-              <FormField label="Proof of accreditation" name="accreditationFile" helper="Optional. Stored locally as a data URL for this prototype.">
+              <FormField label="Proof of accreditation" name="accreditationFile" helper="Optional. Uploaded securely — only visible to admins for verification.">
                 <input id="accreditationFile" type="file" accept="image/*,.pdf" onChange={handleFileChange('accreditationFile')} />
               </FormField>
             </>
@@ -315,7 +311,7 @@ export default function AuthPage({ mode }) {
                   </select>
                 </FormField>
               </div>
-              <FormField label="Proof of certification / government ID" name="govIdFile" helper="Optional. Stored locally as a data URL for this prototype.">
+              <FormField label="Proof of certification / government ID" name="govIdFile" helper="Optional. Uploaded securely — only visible to admins for verification.">
                 <input id="govIdFile" type="file" accept="image/*,.pdf" onChange={handleFileChange('govIdFile')} />
               </FormField>
             </>
@@ -400,6 +396,10 @@ export default function AuthPage({ mode }) {
             />
           </FormField>
 
+          {!isRegister ? (
+            <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link>
+          ) : null}
+
           {isRegister ? (
             <FormField label="Confirm password" name="confirmPassword" error={errors.confirmPassword}>
               <input
@@ -413,8 +413,10 @@ export default function AuthPage({ mode }) {
             </FormField>
           ) : null}
 
-          <Button type="submit" className="full-width" disabled={isReadingFile}>
-            {isRegister ? 'Create account' : 'Sign in'}
+          <Button type="submit" className="full-width" disabled={isSubmitting}>
+            {isSubmitting
+              ? (isRegister ? 'Creating account…' : 'Signing in…')
+              : (isRegister ? 'Create account' : 'Sign in')}
           </Button>
         </form>
 

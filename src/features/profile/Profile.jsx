@@ -8,6 +8,7 @@ import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import { useAuth } from '../auth/AuthContext';
 import { changePassword, updateUserProfile } from '../../services/authService';
+import { getSignedDocumentUrl } from '../../services/uploadService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
@@ -29,9 +30,6 @@ export default function Profile() {
   const navItems = NAV_ITEMS_BY_ROLE[currentUser.role];
   const isFarmer = currentUser.role === 'farmer';
   const isStakeholder = currentUser.role === 'stakeholder';
-  // Farmers and buyers can no longer self-edit these details — only an admin can, from
-  // the Users section of the admin dashboard. Stakeholders keep self-service editing.
-  const canEditProfile = isStakeholder;
 
   const [isEditing, setIsEditing] = useState(false);
   const [profileDraft, setProfileDraft] = useState(() => buildProfileDraft(currentUser));
@@ -55,17 +53,21 @@ export default function Profile() {
     setIsEditing(true);
   };
 
-  const handleProfileSubmit = (event) => {
+  const handleProfileSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = validateProfileForm(profileDraft, currentUser.role);
     if (hasErrors(nextErrors)) {
       setProfileErrors(nextErrors);
       return;
     }
-    updateUserProfile(currentUser.id, profileDraft);
-    refreshUser();
-    setIsEditing(false);
-    setProfileNotice('Profile updated.');
+    try {
+      await updateUserProfile(currentUser.id, profileDraft);
+      await refreshUser();
+      setIsEditing(false);
+      setProfileNotice('Profile updated.');
+    } catch (error) {
+      setProfileErrors({ name: error.message });
+    }
   };
 
   const updatePasswordField = (field, value) => {
@@ -80,7 +82,7 @@ export default function Profile() {
     setIsChangingPassword(true);
   };
 
-  const handlePasswordSubmit = (event) => {
+  const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = validatePasswordForm(passwordDraft);
     if (hasErrors(nextErrors)) {
@@ -88,8 +90,7 @@ export default function Profile() {
       return;
     }
     try {
-      changePassword(currentUser.id, passwordDraft.currentPassword, passwordDraft.newPassword);
-      refreshUser();
+      await changePassword(currentUser.id, passwordDraft.currentPassword, passwordDraft.newPassword);
       setIsChangingPassword(false);
       setPasswordDraft(EMPTY_PASSWORD_DRAFT);
       setPasswordNotice('Password changed.');
@@ -131,14 +132,12 @@ export default function Profile() {
               <p className="eyebrow">Personal</p>
               <h2>Personal information</h2>
             </div>
-            {canEditProfile && !isEditing ? (
+            {!isEditing ? (
               <Button size="sm" variant="secondary" onClick={startEditing}>
                 <Edit3 size={15} /> Edit
               </Button>
             ) : null}
           </div>
-
-          {!canEditProfile ? <p className="muted">Contact an admin to update these details.</p> : null}
 
           {profileNotice ? <div className="form-alert success">{profileNotice}</div> : null}
 
@@ -249,7 +248,11 @@ export default function Profile() {
                 <InfoRow icon={Store} label="Farm name" value={currentUser.farmName} />
                 <InfoRow icon={MapPin} label="Farm location" value={currentUser.municipality} />
               </div>
-              <FilePreviewCard label="Proof of certification / government ID" file={currentUser.govIdFile} />
+              <FilePreviewCard
+                label="Proof of certification / government ID"
+                file={currentUser.govIdFile}
+                resolveUrl={() => getSignedDocumentUrl(currentUser.govIdFile)}
+              />
             </>
           ) : isStakeholder ? (
             <>
@@ -264,7 +267,11 @@ export default function Profile() {
                 <InfoRow icon={ShieldCheck} label="Organization type" value={currentUser.organizationType} />
                 <InfoRow icon={MapPin} label="Location" value={currentUser.municipality} />
               </div>
-              <FilePreviewCard label="Proof of accreditation" file={currentUser.accreditationFile} />
+              <FilePreviewCard
+                label="Proof of accreditation"
+                file={currentUser.accreditationFile}
+                resolveUrl={() => getSignedDocumentUrl(currentUser.accreditationFile)}
+              />
             </>
           ) : (
             <>

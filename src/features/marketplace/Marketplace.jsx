@@ -1,5 +1,5 @@
-import { Award, MapPin, Search, Tag, Wallet } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Award, MapPin, Search, Tag, Wallet, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import ProductCard from '../../components/cards/ProductCard';
@@ -13,15 +13,31 @@ export default function Marketplace() {
   const { currentUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [query, setQuery] = useState(() => searchParams.get('search') || '');
+  // Deliberately a separate, exact-match filter rather than folded into the free-text
+  // search above — "View products" links from the map pass a farm's brand name (e.g.
+  // "CHADS FARM"), which doesn't appear anywhere on a product (name/category/location/
+  // farmerName are all the farmer's personal name, not their farm name), so text-matching
+  // on it silently returned nothing. Filtering by the actual farmerId is exact and can't
+  // drift out of sync with the display name used to describe it.
+  const [farmerIdFilter, setFarmerIdFilter] = useState(() => searchParams.get('farmerId') || '');
+  const [farmerNameLabel] = useState(() => searchParams.get('farmerName') || '');
   // Defaults to the signed-in account's own municipality so each buyer/farmer/partner org
-  // sees their own local market first — "All locations" is one click away, never a dead end.
-  const [location, setLocation] = useState(() => currentUser.municipality || '');
+  // sees their own local market first — "All locations" is one click away, never a dead
+  // end. Skipped when arriving via a specific farmer's "View products" link, though: that
+  // farmer's own municipality could easily differ from the viewer's, and defaulting to the
+  // viewer's location would then silently filter out the exact products they clicked
+  // through to see.
+  const [location, setLocation] = useState(() => (farmerIdFilter ? '' : currentUser.municipality || ''));
   const [grade, setGrade] = useState('');
   const [sellingType, setSellingType] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const products = getActiveProducts();
+  const [products, setProducts] = useState([]);
   const navItems = getNavItemsForRole(currentUser.role);
+
+  useEffect(() => {
+    getActiveProducts().then(setProducts);
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -35,11 +51,12 @@ export default function Marketplace() {
       const matchesSellingType = !sellingType || product.sellingType === sellingType;
       const matchesMinPrice = !minPrice || product.price >= Number(minPrice);
       const matchesMaxPrice = !maxPrice || product.price <= Number(maxPrice);
-      return matchesQuery && matchesLocation && matchesGrade && matchesSellingType && matchesMinPrice && matchesMaxPrice;
+      const matchesFarmer = !farmerIdFilter || product.farmerId === farmerIdFilter;
+      return matchesQuery && matchesLocation && matchesGrade && matchesSellingType && matchesMinPrice && matchesMaxPrice && matchesFarmer;
     });
-  }, [products, query, location, grade, sellingType, minPrice, maxPrice]);
+  }, [products, query, location, grade, sellingType, minPrice, maxPrice, farmerIdFilter]);
 
-  const hasActiveFilters = Boolean(query || location || grade || sellingType || minPrice || maxPrice);
+  const hasActiveFilters = Boolean(query || location || grade || sellingType || minPrice || maxPrice || farmerIdFilter);
   const clearFilters = () => {
     setQuery('');
     setLocation('');
@@ -47,6 +64,7 @@ export default function Marketplace() {
     setSellingType('');
     setMinPrice('');
     setMaxPrice('');
+    setFarmerIdFilter('');
   };
 
   return (
@@ -56,6 +74,15 @@ export default function Marketplace() {
       title="Marketplace"
       subtitle="Find active produce listings from Cebu farmers."
     >
+      {farmerIdFilter ? (
+        <div className="form-alert info farmer-filter-banner">
+          <span>Showing products from <strong>{farmerNameLabel || 'this farmer'}</strong></span>
+          <button type="button" className="farmer-filter-clear" onClick={() => setFarmerIdFilter('')}>
+            <X size={14} /> View all products
+          </button>
+        </div>
+      ) : null}
+
       <section className="panel marketplace-toolbar">
         <div className="marketplace-filters">
           <label className="search-field" htmlFor="marketplace-search">

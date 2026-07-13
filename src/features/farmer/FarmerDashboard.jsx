@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Clock3, Gift, Package, Store } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -15,59 +15,83 @@ import { getProductsByFarmer } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { STORAGE_KEYS } from '../../utils/constants';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
+
+const EMPTY_STATE = {
+  products: [], orders: [], donations: [], otherFarmers: [], registeredBuyers: [], activeDeliveryRoutes: [],
+};
 
 export default function FarmerDashboard() {
   const { currentUser, acknowledgeVerification } = useAuth();
   const navigate = useNavigate();
-  const [, forceRefresh] = useReducer((tick) => tick + 1, 0);
+  const [state, setState] = useState(EMPTY_STATE);
 
   useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.orders) forceRefresh();
-    };
-    const interval = setInterval(forceRefresh, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
+    let cancelled = false;
 
-  const products = getProductsByFarmer(currentUser.id);
-  const orders = getOrdersByFarmer(currentUser.id);
-  const donations = getDonationsByFarmer(currentUser.id);
+    const reload = async () => {
+      const [products, orders, donations, verifiedFarmers, registeredBuyers] = await Promise.all([
+        getProductsByFarmer(currentUser.id),
+        getOrdersByFarmer(currentUser.id),
+        getDonationsByFarmer(currentUser.id),
+        getVerifiedFarmers(),
+        getBuyers(),
+      ]);
+      if (cancelled) return;
+
+      const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
+      // For pickup orders, the destination pin is where the BUYER starts from, not the
+      // farm itself — that municipality lives on the buyer's own profile, not the order,
+      // so pickup buyers need a separate lookup before the routes can be built.
+      const pickupBuyerIds = [...new Set(confirmedOrders.filter((o) => o.deliveryMethod === 'buyer_pickup').map((o) => o.buyerId))];
+      const pickupBuyers = await Promise.all(pickupBuyerIds.map((id) => getUserById(id).catch(() => null)));
+      if (cancelled) return;
+      const municipalityByBuyerId = new Map(pickupBuyers.filter(Boolean).map((buyer) => [buyer.id, buyer.municipality]));
+
+      const activeDeliveryRoutes = confirmedOrders.map((order) => {
+        const { progress, etaMinutes } = getLiveTransitProgress(order);
+        const isPickup = order.deliveryMethod === 'buyer_pickup';
+        const buyerMunicipality = isPickup ? (municipalityByBuyerId.get(order.buyerId) || order.deliveryMunicipality) : order.deliveryMunicipality;
+        return {
+          id: order.id,
+          originLabel: isPickup ? `${order.farmerName} (you, pickup here)` : `${order.farmerName} (you)`,
+          destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
+          originMunicipality: order.originMunicipality,
+          destinationMunicipality: buyerMunicipality,
+          deliveryMethod: order.deliveryMethod,
+          progress,
+          etaMinutes,
+          label: `${order.productName} — ${order.buyerName}`,
+          href: `/orders/${order.id}`,
+        };
+      });
+
+      setState({
+        products,
+        orders,
+        donations,
+        otherFarmers: verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id),
+        registeredBuyers,
+        activeDeliveryRoutes,
+      });
+    };
+
+    reload();
+    const interval = setInterval(reload, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [currentUser.id]);
+
+  const { products, orders, donations, otherFarmers, registeredBuyers, activeDeliveryRoutes } = state;
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
 
-  const activeDeliveryRoutes = confirmedOrders.map((order) => {
-    const { progress, etaMinutes } = getLiveTransitProgress(order);
-    const isPickup = order.deliveryMethod === 'buyer_pickup';
-    // For pickup, the destination pin represents where the buyer is starting from, not
-    // the farm itself — the route shows how they'll get there, not a delivery in transit.
-    const buyerMunicipality = isPickup ? getUserById(order.buyerId)?.municipality || order.deliveryMunicipality : order.deliveryMunicipality;
-    return {
-      id: order.id,
-      originLabel: isPickup ? `${order.farmerName} (you, pickup here)` : `${order.farmerName} (you)`,
-      destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
-      originMunicipality: order.originMunicipality,
-      destinationMunicipality: buyerMunicipality,
-      deliveryMethod: order.deliveryMethod,
-      progress,
-      etaMinutes,
-      label: `${order.productName} — ${order.buyerName}`,
-      href: `/orders/${order.id}`,
-    };
-  });
-
   const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
-
-  const otherFarmers = getVerifiedFarmers().filter((farmer) => farmer.id !== currentUser.id);
-  const registeredBuyers = getBuyers();
 
   return (
     <AppShell

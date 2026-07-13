@@ -1,13 +1,12 @@
-const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
-// Bumped when the query logic changes, so previously-cached results computed with old
-// (buggy) query construction don't keep being served as if they were still correct.
-const CACHE_PREFIX = 'harvestlink_geocode_v3_';
-const REVERSE_CACHE_PREFIX = 'harvestlink_reverse_geocode_v1_';
-// Addresses rarely change, and OSM's Nominatim usage policy asks callers to cache
-// aggressively rather than re-querying the same place repeatedly.
+import { loadGoogleGeocoding } from '../lib/googleMapsLoader';
+
+// Bumped whenever the underlying geocoder changes, so previously-cached results computed
+// by the old provider don't keep being served as if they came from this one.
+const CACHE_PREFIX = 'harvestlink_geocode_google_v1_';
+const REVERSE_CACHE_PREFIX = 'harvestlink_reverse_geocode_google_v1_';
+// Addresses rarely change, and geocoding is a metered API — cache aggressively rather than
+// re-querying the same place repeatedly.
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 5000;
 
 function readCache(key) {
   try {
@@ -29,76 +28,52 @@ function writeCache(key, value) {
   }
 }
 
-async function queryNominatim(params) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+// One shared Geocoder instance, lazily created on first use (importLibrary() itself already
+// dedupes concurrent script-load calls — see lib/googleMapsLoader.js).
+let geocoderPromise = null;
+function getGeocoder() {
+  if (!geocoderPromise) {
+    geocoderPromise = loadGoogleGeocoding().then(({ Geocoder }) => new Geocoder());
+  }
+  return geocoderPromise;
+}
+
+async function queryAddress(street, municipality) {
+  const geocoder = await getGeocoder();
   try {
-    const url = `${NOMINATIM_URL}?${new URLSearchParams(params).toString()}`;
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) return null;
-    const results = await response.json();
+    const { results } = await geocoder.geocode({
+      address: `${street}, ${municipality}, Cebu, Philippines`,
+      region: 'ph',
+    });
     if (!results.length) return null;
-    return { lat: Number(results[0].lat), lng: Number(results[0].lon) };
+    const { location } = results[0].geometry;
+    return { lat: location.lat(), lng: location.lng() };
   } catch {
     return null;
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
-// A free-text query mashing a raw, comma-less, abbreviation-heavy address together with
-// the municipality name (e.g. "B.Ceniza St. Mantuyong Mandaue City, Mandaue City, Cebu,
-// Philippines") badly confuses Nominatim's parser and returns nothing — confirmed live
-// even for addresses that genuinely exist in OSM. Nominatim's *structured* search (street/
-// city as separate fields) handles exactly this case correctly.
-//
-// Disambiguation is a genuine two-way trade-off, confirmed live against real cases: adding
-// county=Cebu correctly resolves Cebu's several small-town names that are duplicated
-// elsewhere in the Philippines (e.g. "San Fernando" would otherwise match Pampanga, "Naga"
-// would otherwise match Bicol) — but it breaks geocoding entirely for Cebu's independent,
-// highly-urbanized cities (Mandaue, Lapu-Lapu, Cebu City) that OSM's admin hierarchy does
-// NOT nest under Cebu province as a "county". So try the disambiguated form first, and only
-// if that comes back empty, retry without it.
-async function queryAddress(street, municipality) {
-  const scoped = await queryNominatim({
-    format: 'json',
-    limit: '1',
-    countrycodes: 'ph',
-    street,
-    city: municipality,
-    county: 'Cebu',
-  });
-  if (scoped) return scoped;
-
-  await new Promise((resolve) => setTimeout(resolve, 1100));
-  return queryNominatim({
-    format: 'json',
-    limit: '1',
-    countrycodes: 'ph',
-    street,
-    city: municipality,
-  });
-}
-
-// The plain free-text form works fine for a municipality name alone, since including
-// "Cebu" directly in the query string is enough for Nominatim to disambiguate correctly.
 async function queryMunicipality(municipality) {
-  return queryNominatim({
-    format: 'json',
-    limit: '1',
-    countrycodes: 'ph',
-    q: `${municipality}, Cebu, Philippines`,
-  });
+  const geocoder = await getGeocoder();
+  try {
+    const { results } = await geocoder.geocode({
+      address: `${municipality}, Cebu, Philippines`,
+      region: 'ph',
+    });
+    if (!results.length) return null;
+    const { location } = results[0].geometry;
+    return { lat: location.lat(), lng: location.lng() };
+  } catch {
+    return null;
+  }
 }
 
-// Most informal Cebu addresses (Purok/Sitio-level, no formal street naming) genuinely have
-// no match in OpenStreetMap's data at all — confirmed by testing real examples live, where
-// such queries came back empty. So this tries the account's exact registered address first,
-// and only if that genuinely has no match, falls back to a municipality-level geocode
-// instead. It returns null (never a guess) when even that fails, so the caller can fall
-// back to its own static coordinate table rather than ever showing a fabricated position
-// as if it were real. Works for any account with address/municipality fields — farmer or
-// buyer alike, since neither field is role-specific.
+// Tries the account's exact registered address first, and only if that genuinely has no
+// match, falls back to a municipality-level geocode instead. Returns null (never a guess)
+// when even that fails, so the caller can fall back to its own static coordinate table
+// rather than ever showing a fabricated position as if it were real. Works for any account
+// with address/municipality fields — farmer or buyer alike, since neither field is
+// role-specific.
 export async function geocodeAccountLocation({ address, municipality }) {
   const cacheKey = `${CACHE_PREFIX}${String(address || '').toLowerCase()}__${String(municipality || '').toLowerCase()}`;
   const cached = readCache(cacheKey);
@@ -118,11 +93,15 @@ export async function geocodeAccountLocation({ address, municipality }) {
   return result;
 }
 
+function addressComponent(components, type) {
+  return components.find((component) => component.types.includes(type))?.long_name || '';
+}
+
 // Turns a raw GPS coordinate (from the browser's Geolocation API) into a street-level
 // address line and postcode, for the registration form's "use my location" button.
-// Coordinates are rounded to ~11m precision before caching/querying — GPS jitters by a
-// few meters between reads, and Nominatim's usage policy asks callers to cache rather than
-// re-query near-identical points. Returns null (never a guess) if OSM has no data there.
+// Coordinates are rounded to ~11m precision before caching/querying — GPS jitters by a few
+// meters between reads, and there's no reason to re-query near-identical points. Returns
+// null (never a guess) if the geocoder has no data there.
 export async function reverseGeocode({ lat, lng }) {
   const roundedLat = Number(lat).toFixed(4);
   const roundedLng = Number(lng).toFixed(4);
@@ -130,35 +109,27 @@ export async function reverseGeocode({ lat, lng }) {
   const cached = readCache(cacheKey);
   if (cached) return cached;
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const geocoder = await getGeocoder();
   try {
-    const url = `${NOMINATIM_REVERSE_URL}?${new URLSearchParams({
-      format: 'json',
-      lat: roundedLat,
-      lon: roundedLng,
-      zoom: '18',
-      addressdetails: '1',
-    }).toString()}`;
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const addr = data?.address;
-    if (!addr) return null;
+    const { results } = await geocoder.geocode({
+      location: { lat: Number(roundedLat), lng: Number(roundedLng) },
+    });
+    if (!results.length) return null;
+    const components = results[0].address_components;
 
-    const streetLine = [addr.house_number, addr.road || addr.pedestrian || addr.neighbourhood]
+    const streetLine = [addressComponent(components, 'street_number'), addressComponent(components, 'route')]
       .filter(Boolean)
       .join(' ');
-    const barangay = addr.village || addr.suburb || addr.quarter || addr.hamlet || '';
+    const barangay = addressComponent(components, 'sublocality_level_1')
+      || addressComponent(components, 'neighborhood')
+      || addressComponent(components, 'sublocality');
     const addressLine = [streetLine, barangay].filter(Boolean).join(', ');
-    const cityText = addr.city || addr.town || addr.municipality || addr.county || '';
+    const cityText = addressComponent(components, 'locality') || addressComponent(components, 'administrative_area_level_2');
 
-    const result = { address: addressLine, zipCode: addr.postcode || '', cityText };
+    const result = { address: addressLine, zipCode: addressComponent(components, 'postal_code'), cityText };
     writeCache(cacheKey, result);
     return result;
   } catch {
     return null;
-  } finally {
-    clearTimeout(timeoutId);
   }
 }

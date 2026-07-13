@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
-import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, ONLINE_PAYMENT_METHODS, PAYMENT_METHODS } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, ONLINE_PAYMENT_METHODS, PAYMENT_METHODS, matchMunicipality } from '../../utils/constants';
+import { estimateDeliveryFee } from '../../utils/geo';
 import { formatCurrency } from '../../utils/formatters';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
 
@@ -16,15 +17,34 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
   }));
   const [errors, setErrors] = useState({});
   const [stage, setStage] = useState('details');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined, form: undefined }));
   };
 
-  const total = (Number(values.quantity) || 0) * Number(product.price);
+  const subtotal = (Number(values.quantity) || 0) * Number(product.price);
+  // Estimate only — shown so the buyer isn't surprised at the total, but the fee actually
+  // charged is always computed server-side at order creation (see
+  // backend/src/lib/deliveryFee.js), never trusted from anything calculated here.
+  const originMunicipality = matchMunicipality(product.location);
+  const deliveryFeeEstimate = estimateDeliveryFee(originMunicipality, values.deliveryMunicipality, values.deliveryMethod);
+  const total = subtotal + deliveryFeeEstimate;
   const isOnlinePayment = ONLINE_PAYMENT_METHODS.includes(values.paymentMethod);
   const paymentLabel = PAYMENT_METHODS.find((method) => method.value === values.paymentMethod)?.label;
+
+  const submitOrder = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(values);
+      // No setIsSubmitting(false) on success — the caller navigates away on success, so
+      // resetting here would just re-enable the button for the instant before that happens.
+    } catch (error) {
+      setErrors((previous) => ({ ...previous, form: error.message }));
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDetailsSubmit = (event) => {
     event.preventDefault();
@@ -36,12 +56,12 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     if (isOnlinePayment) {
       setStage('payment');
     } else {
-      onSubmit(values);
+      submitOrder();
     }
   };
 
   const handleConfirmPayment = () => {
-    onSubmit(values);
+    submitOrder();
   };
 
   if (stage === 'payment') {
@@ -56,9 +76,12 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
           <span>Amount to pay</span>
           <strong>{formatCurrency(total)}</strong>
         </div>
+        {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
         <div className="form-actions">
-          <Button variant="secondary" onClick={() => setStage('details')}>Back</Button>
-          <Button onClick={handleConfirmPayment}>Confirm payment</Button>
+          <Button variant="secondary" onClick={() => setStage('details')} disabled={isSubmitting}>Back</Button>
+          <Button onClick={handleConfirmPayment} disabled={isSubmitting}>
+            {isSubmitting ? 'Confirming…' : 'Confirm payment'}
+          </Button>
         </div>
       </div>
     );
@@ -141,13 +164,20 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
         />
       </FormField>
 
+      {values.deliveryMethod !== 'buyer_pickup' ? (
+        <div className="order-total-breakdown">
+          <div><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
+          <div><span>Delivery fee (estimate)</span><span>{formatCurrency(deliveryFeeEstimate)}</span></div>
+        </div>
+      ) : null}
+
       <div className="order-total">
         <span>Order total</span>
         <strong>{formatCurrency(total)}</strong>
       </div>
 
-      <Button type="submit" className="full-width">
-        {isOnlinePayment ? 'Continue to payment' : 'Place order — pay on delivery'}
+      <Button type="submit" className="full-width" disabled={isSubmitting}>
+        {isSubmitting ? 'Placing order…' : isOnlinePayment ? 'Continue to payment' : 'Place order — pay on delivery'}
       </Button>
     </form>
   );

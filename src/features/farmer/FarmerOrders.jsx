@@ -8,34 +8,28 @@ import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
 import { useAuth } from '../auth/AuthContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
-import { DELIVERY_STEP_LABELS, STORAGE_KEYS } from '../../utils/constants';
+import { DELIVERY_STEP_LABELS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
 
 export default function FarmerOrders() {
   const { currentUser } = useAuth();
-  const [orders, setOrders] = useState(() => getOrdersByFarmer(currentUser.id));
+  const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const reload = () => setOrders(getOrdersByFarmer(currentUser.id));
+  const reload = () => getOrdersByFarmer(currentUser.id).then(setOrders);
 
   useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.orders) reload();
-    };
+    reload();
     const interval = setInterval(reload, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id]);
 
-  const run = (action, successMessage) => {
+  const run = async (action, successMessage) => {
     try {
-      action();
+      await action();
       setError('');
       setNotice(successMessage);
       reload();

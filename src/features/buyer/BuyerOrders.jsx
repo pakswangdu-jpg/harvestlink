@@ -7,7 +7,7 @@ import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useAuth } from '../auth/AuthContext';
 import { cancelOrder, getOrdersByBuyer, isCancellable, payOrder } from '../../services/orderService';
-import { ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../../utils/constants';
+import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
@@ -15,28 +15,22 @@ export default function BuyerOrders() {
   const { currentUser } = useAuth();
   const location = useLocation();
   const navItems = getNavItemsForRole(currentUser.role);
-  const [orders, setOrders] = useState(() => getOrdersByBuyer(currentUser.id));
+  const [orders, setOrders] = useState([]);
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
 
-  const reload = () => setOrders(getOrdersByBuyer(currentUser.id));
+  const reload = () => getOrdersByBuyer(currentUser.id).then(setOrders);
 
   useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.orders) reload();
-    };
+    reload();
     const interval = setInterval(reload, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id]);
 
-  const run = (action, successMessage) => {
+  const run = async (action, successMessage) => {
     try {
-      action();
+      await action();
       setError('');
       setNotice(successMessage);
       reload();

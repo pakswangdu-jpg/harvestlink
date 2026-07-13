@@ -1,0 +1,20 @@
+# Render Blueprint — Render Dashboard -> New -> Blueprint, point at this repo.
+# Render reads rootDir automatically, so only backend/ gets built/deployed as this service.
+services:
+  - type: web
+    name: harvestlink-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: CORS_ALLOWED_ORIGIN
+        sync: false
+      - key: NODE_ENV
+        value: production

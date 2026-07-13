@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Package } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
@@ -16,15 +17,35 @@ export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const product = getProductById(id);
+  const [product, setProduct] = useState(null);
+  const [loadedId, setLoadedId] = useState(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    getProductById(id)
+      .then((result) => {
+        if (cancelled) return;
+        setProduct(result);
+        setLoadedId(id);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProduct(null);
+        setLoadedId(id);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (loadedId !== id) return null;
   if (!product) return <Navigate to="/marketplace" replace />;
 
   const navItems = getNavItemsForRole(currentUser.role);
   const canRequest = ORDERING_ROLES.includes(currentUser.role) && currentUser.id !== product.farmerId && product.status === 'active';
 
-  const handleOrder = (values) => {
-    const order = createOrder(values, product, currentUser);
+  const handleOrder = async (values) => {
+    const order = await createOrder({ ...values, productId: product.id });
     navigate(`/orders/${order.id}`, { state: { notice: 'Order placed. Track its progress below.' } });
   };
 

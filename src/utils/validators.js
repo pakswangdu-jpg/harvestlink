@@ -71,6 +71,9 @@ export function validateProductForm(values) {
   }
   if (!required(values.unit)) errors.unit = 'Choose a unit.';
   else if (!getUnitsForCategory(values.category).includes(values.unit)) errors.unit = 'Choose a unit valid for this category.';
+  else if (!values.isDonation && values.unit !== 'kg' && toPositiveNumber(values.kgPerUnit) === null) {
+    errors.kgPerUnit = `Enter how many kg 1 ${values.unit} is.`;
+  }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
   if (!required(values.location)) errors.location = 'Enter the product location.';
   if (!required(values.description)) errors.description = 'Add a short product description.';

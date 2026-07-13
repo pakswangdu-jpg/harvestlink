@@ -1,6 +1,9 @@
 import { PRODUCT_CATEGORIES } from '../utils/constants';
-import { getOrders } from './orderService';
-import { getActiveProducts, getProducts } from './productService';
+// Demand forecasting hasn't moved to the backend yet — repointed at frozen
+// localStorage-backed copies so this file keeps working unchanged while
+// auth/products/orders migrate. See src/services/local/*Local.js for why these exist.
+import { getOrders } from './local/orderServiceLocal';
+import { getActiveProducts, getProducts } from './local/productServiceLocal';
 
 const EXCLUDED_ORDER_STATUSES = ['rejected', 'cancelled'];
 // Demand-per-listing at or above this reads as "supply is stretched" — an active

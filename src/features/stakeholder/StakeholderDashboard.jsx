@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { CalendarCheck, CheckCircle2, Gift, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -5,21 +6,29 @@ import StatCard from '../../components/cards/StatCard';
 import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
-import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import FarmerMap from '../../components/map/FarmerMap';
+import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
-import { getUserById } from '../../services/authService';
+import { getUserById, getVerifiedFarmers } from '../../services/authService';
 import { getAvailableDonations, getDonationsForStakeholder } from '../../services/donationService';
+import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { formatDate } from '../../utils/formatters';
 import { stakeholderNavItems } from './stakeholderNav';
 
-function buildDonationFarmers(donations) {
+// Donation farmer profiles are resolved from the real backend (donation records
+// themselves still live in localStorage — see src/services/donationService.js — but the
+// farmerId on each one is a real account, so its profile can still be looked up).
+async function buildDonationFarmers(donations) {
+  const farmerIds = [...new Set(donations.map((donation) => donation.farmerId))];
+  const farmers = await Promise.all(farmerIds.map((id) => getUserById(id).catch(() => null)));
+  const farmerById = new Map(farmers.filter(Boolean).map((farmer) => [farmer.id, farmer]));
+
   const byFarmerId = {};
   donations.forEach((donation) => {
+    const farmer = farmerById.get(donation.farmerId);
+    if (!farmer) return;
     if (!byFarmerId[donation.farmerId]) {
-      const farmer = getUserById(donation.farmerId);
-      if (!farmer) return;
       byFarmerId[donation.farmerId] = {
         id: farmer.id,
         name: farmer.name,
@@ -39,13 +48,73 @@ function buildDonationFarmers(donations) {
   return Object.values(byFarmerId);
 }
 
+function buildActiveDeliveryRoutes(orders, currentUser) {
+  return orders
+    .filter((order) => order.status === 'confirmed')
+    .map((order) => {
+      const { progress, etaMinutes } = getLiveTransitProgress(order);
+      const isPickup = order.deliveryMethod === 'buyer_pickup';
+      return {
+        id: order.id,
+        // For pickup, the destination pin represents where you're starting from, not the
+        // farm itself — the route shows how to get there, not a delivery on its way to you.
+        originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
+        destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
+        originMunicipality: order.originMunicipality,
+        destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
+        deliveryMethod: order.deliveryMethod,
+        progress,
+        etaMinutes,
+        label: `${order.productName} — ${order.farmerName}`,
+        href: `/orders/${order.id}`,
+      };
+    });
+}
+
+const EMPTY_STATE = {
+  available: [], myRequests: [], donationFarmers: [], activeDeliveryRoutes: [], verifiedFarmers: [],
+};
+
 export default function StakeholderDashboard() {
-  const { currentUser, acknowledgeVerification } = useAuth();
-  const available = getAvailableDonations();
-  const myRequests = getDonationsForStakeholder(currentUser.id);
+  const { currentUser } = useAuth();
+  const [state, setState] = useState(EMPTY_STATE);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const reload = async () => {
+      const available = getAvailableDonations();
+      const myRequests = getDonationsForStakeholder(currentUser.id);
+      const [donationFarmers, orders, verifiedFarmers] = await Promise.all([
+        buildDonationFarmers(available),
+        // Real marketplace purchases (not donation requests) — placed the same way a
+        // buyer account would, so they're tracked the same way: by buyerId ownership.
+        getOrdersByBuyer(currentUser.id),
+        getVerifiedFarmers(),
+      ]);
+      if (cancelled) return;
+
+      setState({
+        available,
+        myRequests,
+        donationFarmers,
+        activeDeliveryRoutes: buildActiveDeliveryRoutes(orders, currentUser),
+        verifiedFarmers,
+      });
+    };
+
+    reload();
+    const interval = setInterval(reload, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, currentUser.municipality]);
+
+  const { available, myRequests, donationFarmers, activeDeliveryRoutes, verifiedFarmers } = state;
   const scheduled = myRequests.filter((donation) => donation.status === 'scheduled');
   const completed = myRequests.filter((donation) => donation.status === 'completed');
-  const donationFarmers = buildDonationFarmers(available);
 
   return (
     <AppShell
@@ -54,24 +123,6 @@ export default function StakeholderDashboard() {
       title="Partner dashboard"
       subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests."
     >
-      {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
-        <div className="form-alert success">
-          <strong>Your organization has been approved by admin!</strong>
-          <p>You can now browse and request surplus donations.</p>
-          <Button size="sm" variant="secondary" onClick={acknowledgeVerification}>Got it</Button>
-        </div>
-      ) : currentUser.verificationStatus === 'pending' ? (
-        <div className="form-alert warning">
-          <strong>Your organization's account is pending verification.</strong>
-          <p>An admin typically reviews and approves new accounts within 24 hours. You can explore your dashboard in the meantime, but requesting donations is unlocked once your account is verified.</p>
-        </div>
-      ) : currentUser.verificationStatus === 'rejected' ? (
-        <div className="form-alert error">
-          <strong>Your organization's verification was declined.</strong>
-          <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
-        </div>
-      ) : null}
-
       <section className="stats-grid">
         <StatCard label="Available donations" value={available.length} icon={<Gift size={20} />} />
         <StatCard label="My requests" value={myRequests.length} icon={<ListChecks size={20} />} />
@@ -117,6 +168,25 @@ export default function StakeholderDashboard() {
             emptyMessage="No donation requests yet."
           />
         </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Map</p>
+            <h2>Active deliveries</h2>
+            <p className="map-legend">
+              <span className="legend-dot origin" /> Farmer/pickup
+              <span className="legend-dot destination" /> Delivery to you
+              <span className="legend-dot farmer" /> Verified farmer
+            </p>
+          </div>
+          <span className="live-indicator"><span className="live-dot" /> Live</span>
+        </div>
+        <DeliveryMap routes={activeDeliveryRoutes} farmers={verifiedFarmers} />
+        {!activeDeliveryRoutes.length ? (
+          <p className="muted map-empty-note">Confirmed marketplace orders will show up here with a live delivery route.</p>
+        ) : null}
       </section>
 
       <section className="panel">

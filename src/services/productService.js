@@ -1,224 +1,68 @@
-import { STORAGE_KEYS } from '../utils/constants';
-import { createId, migrateLegacyProducts, readStorage, writeStorage } from './storageService';
+import { apiClient } from './apiClient';
 
-// A farmer's price more than this far above the PSA regional reference gets
-// flagged for DTI review instead of auto-approved.
-const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
+// Every function here now talks to the real backend instead of localStorage — see
+// backend/src/routes/products.routes.js for the matching API surface. The DTI
+// fair-pricing check (buildPriceReview) now runs server-side (backend/src/lib/priceReview.js)
+// since a client could otherwise submit any price with a forged marketReference to dodge it.
 
-function buildPriceReview(marketReference, price, previousReview) {
-  if (!marketReference || !marketReference.referencePrice) return null;
-
-  const farmerPrice = Number(price);
-  const referencePrice = Number(marketReference.referencePrice);
-  const deviationPct = Number((((farmerPrice - referencePrice) / referencePrice) * 100).toFixed(1));
-
-  if (deviationPct <= PRICE_DEVIATION_THRESHOLD_PERCENT) return null;
-
-  // Re-flagging after an edit starts a fresh review rather than keeping a stale decision.
-  if (previousReview && previousReview.farmerPrice === farmerPrice && previousReview.referencePrice === referencePrice) {
-    return previousReview;
-  }
-
-  return {
-    commodityLabel: marketReference.commodityLabel,
-    referencePrice,
-    referenceYear: marketReference.referenceYear,
-    farmerPrice,
-    deviationPct,
-    status: 'pending',
-    reason: `Price is ${deviationPct}% above the PSA Central Visayas average of ₱${referencePrice.toFixed(2)}/kg for ${marketReference.commodityLabel} (${marketReference.referenceYear}) — exceeds the ${PRICE_DEVIATION_THRESHOLD_PERCENT}% fair-pricing threshold.`,
-    createdAt: new Date().toISOString(),
-    decidedAt: null,
-  };
+export async function getProducts() {
+  return apiClient.get('/products');
 }
 
-export function getProducts() {
-  migrateLegacyProducts();
-  const products = readStorage(STORAGE_KEYS.products, []);
-  return products.map((product) => ({ grade: 'A', sellingType: 'retail', ...product }));
+export async function getActiveProducts() {
+  return apiClient.get('/products?activeOnly=true');
 }
 
-export function saveProducts(products) {
-  return writeStorage(STORAGE_KEYS.products, products);
+export async function getProductById(id) {
+  return apiClient.get(`/products/${id}`);
 }
 
-export function getProductById(id) {
-  return getProducts().find((product) => product.id === id) || null;
+export async function getProductsByFarmer(farmerId) {
+  return apiClient.get(`/products?farmerId=${farmerId}`);
 }
 
-export function getActiveProducts() {
-  return getProducts().filter((product) => product.status === 'active' && Number(product.quantity) > 0);
+// `farmer` is no longer needed — the backend infers the owner from the authenticated
+// session — but the parameter is kept so call sites don't need to change.
+export async function createProduct(values) {
+  return apiClient.post('/products', values);
 }
 
-export function getProductsByFarmer(farmerId) {
-  return getProducts().filter((product) => product.farmerId === farmerId);
+export async function updateProduct(id, values) {
+  return apiClient.patch(`/products/${id}`, values);
 }
 
-export function createProduct(values, farmer) {
-  const now = new Date().toISOString();
-  const product = {
-    id: createId('prod'),
-    farmerId: farmer.id,
-    farmerName: farmer.name,
-    name: values.name.trim(),
-    category: values.category,
-    grade: values.grade || 'A',
-    sellingType: values.sellingType || 'retail',
-    bulkMinQuantity: values.sellingType === 'bulk' ? Number(values.bulkMinQuantity) : null,
-    price: Number(values.price),
-    unit: values.unit,
-    quantity: Number(values.quantity),
-    location: values.location.trim(),
-    description: values.description.trim(),
-    image: values.image || '',
-    status: 'active',
-    priceReview: buildPriceReview(values.marketReference, values.price, null),
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  saveProducts([product, ...getProducts()]);
-  return product;
+export async function deleteProduct(id) {
+  return apiClient.delete(`/products/${id}`);
 }
 
-export function updateProduct(id, values) {
-  const products = getProducts();
-  const updatedProducts = products.map((product) => {
-    if (product.id !== id) return product;
-    const quantity = Number(values.quantity);
-    const { marketReference, ...rest } = values;
-    const priceReview = marketReference !== undefined
-      ? buildPriceReview(marketReference, values.price, product.priceReview)
-      : rest.priceReview !== undefined ? rest.priceReview : product.priceReview;
-
-    return {
-      ...product,
-      ...rest,
-      price: Number(values.price),
-      quantity,
-      bulkMinQuantity: rest.sellingType === 'bulk' ? Number(rest.bulkMinQuantity) : null,
-      status: values.status || (quantity > 0 ? product.status : 'inactive'),
-      priceReview,
-      updatedAt: new Date().toISOString(),
-    };
-  });
-
-  saveProducts(updatedProducts);
-  return updatedProducts.find((product) => product.id === id) || null;
+export async function setProductStatus(id, status) {
+  return apiClient.patch(`/products/${id}/status`, { status });
 }
 
-export function deleteProduct(id) {
-  saveProducts(getProducts().filter((product) => product.id !== id));
+export async function applyDiscount(id, percent) {
+  return apiClient.post(`/products/${id}/discount`, { percent });
 }
 
-export function setProductStatus(id, status) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-
-  if (status === 'active') {
-    if (Number(product.quantity) <= 0) throw new Error('This product has no remaining stock — add stock before activating it.');
-    if (product.priceReview?.status === 'declined') {
-      throw new Error('DTI declined this price — edit the product with a new price before activating it.');
-    }
-  }
-
-  return updateProduct(id, { ...product, status });
+export async function removeDiscount(id) {
+  return apiClient.delete(`/products/${id}/discount`);
 }
 
-export function applyDiscount(id, percent) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-
-  const originalPrice = product.originalPrice ?? product.price;
-  const discountedPrice = Number((originalPrice * (1 - percent / 100)).toFixed(2));
-
-  return updateProduct(id, { ...product, originalPrice, discountPercent: percent, price: discountedPrice });
+export async function getPendingPriceReviews() {
+  return apiClient.get('/products/price-reviews/pending');
 }
 
-export function removeDiscount(id) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-  if (!product.originalPrice) return product;
-
-  return updateProduct(id, { ...product, price: product.originalPrice, originalPrice: undefined, discountPercent: undefined });
+export async function getDeclinedPriceReviews() {
+  return apiClient.get('/products/price-reviews/declined');
 }
 
-export function getPendingPriceReviews() {
-  return getProducts().filter((product) => product.priceReview?.status === 'pending');
+export async function approvePriceReview(id) {
+  return apiClient.post(`/products/${id}/price-review/approve`);
 }
 
-export function getDeclinedPriceReviews() {
-  return getProducts().filter((product) => product.priceReview?.status === 'declined');
+export async function declinePriceReview(id) {
+  return apiClient.post(`/products/${id}/price-review/decline`);
 }
 
-export function approvePriceReview(id) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-  if (!product.priceReview) throw new Error('This product has no pending price review.');
-
-  return updateProduct(id, {
-    ...product,
-    priceReview: { ...product.priceReview, status: 'approved', decidedAt: new Date().toISOString() },
-  });
-}
-
-export function declinePriceReview(id) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-  if (!product.priceReview) throw new Error('This product has no pending price review.');
-
-  return updateProduct(id, {
-    ...product,
-    status: 'inactive',
-    priceReview: { ...product.priceReview, status: 'declined', decidedAt: new Date().toISOString() },
-  });
-}
-
-// Reverses a decline: unlike approvePriceReview (which never touched status because a
-// pending review never deactivated the listing), this also has to restore the listing
-// itself, since declinePriceReview forced it inactive.
-export function reactivatePriceReview(id) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-  if (product.priceReview?.status !== 'declined') throw new Error('This product does not have a declined price review.');
-  if (Number(product.quantity) <= 0) throw new Error('This product has no remaining stock — add stock before reactivating it.');
-
-  return updateProduct(id, {
-    ...product,
-    status: 'active',
-    priceReview: { ...product.priceReview, status: 'approved', decidedAt: new Date().toISOString() },
-  });
-}
-
-export function reduceProductQuantity(id, quantity) {
-  const product = getProductById(id);
-  if (!product) throw new Error('Product was not found.');
-
-  const nextQuantity = Number(product.quantity) - Number(quantity);
-  if (nextQuantity < 0) throw new Error('Requested quantity exceeds available stock.');
-
-  return updateProduct(id, {
-    ...product,
-    quantity: nextQuantity,
-    status: nextQuantity > 0 ? product.status : 'inactive',
-  });
-}
-
-// Adds stock back after a cancelled order or withdrawn donation. Only reverses the
-// automatic zero-stock deactivation from reduceProductQuantity/createDonation — a
-// product the farmer deliberately hid, or one DTI declined, stays exactly as it was.
-export function restoreProductQuantity(id, quantity) {
-  const product = getProductById(id);
-  if (!product) return null;
-
-  const nextQuantity = Number(product.quantity) + Number(quantity);
-  const wasAutoDeactivated = product.status === 'inactive' && Number(product.quantity) === 0;
-  const isDeclined = product.priceReview?.status === 'declined';
-  const shouldReactivate = wasAutoDeactivated && !isDeclined && nextQuantity > 0;
-
-  return updateProduct(id, {
-    ...product,
-    quantity: nextQuantity,
-    status: shouldReactivate ? 'active' : product.status,
-  });
+export async function reactivatePriceReview(id) {
+  return apiClient.post(`/products/${id}/price-review/reactivate`);
 }

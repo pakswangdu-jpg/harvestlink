@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock3, PackageCheck, ShoppingBag, Store } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -14,50 +14,61 @@ import { getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { STORAGE_KEYS } from '../../utils/constants';
 import { formatDate, getFirstName } from '../../utils/formatters';
 import { buyerNavItems } from './buyerNav';
 
+const EMPTY_STATE = { products: [], orders: [], verifiedFarmers: [], activeDeliveryRoutes: [] };
+
 export default function BuyerDashboard() {
   const { currentUser } = useAuth();
-  const [, forceRefresh] = useReducer((tick) => tick + 1, 0);
+  const [state, setState] = useState(EMPTY_STATE);
 
   useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.orders) forceRefresh();
+    let cancelled = false;
+
+    const reload = async () => {
+      const [products, orders, verifiedFarmers] = await Promise.all([
+        getActiveProducts(),
+        getOrdersByBuyer(currentUser.id),
+        getVerifiedFarmers(),
+      ]);
+      if (cancelled) return;
+
+      const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
+      const activeDeliveryRoutes = confirmedOrders.map((order) => {
+        const { progress, etaMinutes } = getLiveTransitProgress(order);
+        const isPickup = order.deliveryMethod === 'buyer_pickup';
+        return {
+          id: order.id,
+          // For pickup, the destination pin represents where you're starting from, not the
+          // farm itself — the route shows how to get there, not a delivery on its way to you.
+          originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
+          destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
+          originMunicipality: order.originMunicipality,
+          destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
+          deliveryMethod: order.deliveryMethod,
+          progress,
+          etaMinutes,
+          label: `${order.productName} — ${order.farmerName}`,
+          href: `/orders/${order.id}`,
+        };
+      });
+
+      setState({ products, orders, verifiedFarmers, activeDeliveryRoutes });
     };
-    const interval = setInterval(forceRefresh, 4000);
-    window.addEventListener('storage', handleStorage);
+
+    reload();
+    const interval = setInterval(reload, 4000);
     return () => {
+      cancelled = true;
       clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
     };
-  }, []);
+  }, [currentUser.id, currentUser.municipality]);
 
-  const products = getActiveProducts();
-  const orders = getOrdersByBuyer(currentUser.id);
-  const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
-  const verifiedFarmers = getVerifiedFarmers();
-
-  const activeDeliveryRoutes = confirmedOrders.map((order) => {
-    const { progress, etaMinutes } = getLiveTransitProgress(order);
-    const isPickup = order.deliveryMethod === 'buyer_pickup';
-    return {
-      id: order.id,
-      // For pickup, the destination pin represents where you're starting from, not the
-      // farm itself — the route shows how to get there, not a delivery on its way to you.
-      originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
-      destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
-      originMunicipality: order.originMunicipality,
-      destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
-      deliveryMethod: order.deliveryMethod,
-      progress,
-      etaMinutes,
-      label: `${order.productName} — ${order.farmerName}`,
-      href: `/orders/${order.id}`,
-    };
-  });
-
+  const { products, orders, verifiedFarmers, activeDeliveryRoutes } = state;
+  // Fresh listings only spotlights Grade A produce — Grade B is still buyable from the full
+  // Marketplace, just not featured in this at-a-glance dashboard preview.
+  const freshListings = products.filter((product) => product.grade === 'A');
   const matchedCommodity = orders.map((order) => matchCommodity(order.productName)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
 
@@ -102,9 +113,9 @@ export default function BuyerDashboard() {
             </div>
             <Link className="btn btn-secondary btn-md" to="/marketplace">Browse all</Link>
           </div>
-          {products.length ? (
+          {freshListings.length ? (
             <div className="product-grid preview">
-              {products.slice(0, 4).map((product) => <ProductCard key={product.id} product={product} />)}
+              {freshListings.slice(0, 4).map((product) => <ProductCard key={product.id} product={product} />)}
             </div>
           ) : (
             <EmptyState title="No products yet" message="Farmer listings will appear here once products are added." />

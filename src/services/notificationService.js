@@ -1,49 +1,27 @@
-import { STORAGE_KEYS } from '../utils/constants';
-import { createId, readStorage, writeStorage } from './storageService';
+import { apiClient } from './apiClient';
 
-export function getNotifications() {
-  return readStorage(STORAGE_KEYS.notifications, []);
+// Every function here now talks to the real backend instead of localStorage — see
+// backend/src/routes/notifications.routes.js. There's no createNotification() export
+// anymore — notifications are only ever created server-side as a side effect of
+// verification decisions and order create/status-change flows (see
+// backend/src/lib/notify.js), never invoked directly from a client request.
+
+// Existing call sites pass a userId argument (harmless — JS ignores extra positional
+// args) — the backend always scopes the list to the authenticated caller regardless,
+// never a client-supplied id.
+export async function getNotificationsForUser() {
+  return apiClient.get('/notifications');
 }
 
-export function saveNotifications(notifications) {
-  return writeStorage(STORAGE_KEYS.notifications, notifications);
+export async function getUnreadCount() {
+  const notifications = await getNotificationsForUser();
+  return notifications.filter((notification) => !notification.read).length;
 }
 
-export function getNotificationsForUser(userId) {
-  return getNotifications()
-    .filter((notification) => notification.userId === userId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+export async function markNotificationRead(id) {
+  return apiClient.patch(`/notifications/${id}/read`);
 }
 
-export function getUnreadCount(userId) {
-  return getNotifications().filter((notification) => notification.userId === userId && !notification.read).length;
-}
-
-export function createNotification({ userId, type, title, message, link }) {
-  const notification = {
-    id: createId('notif'),
-    userId,
-    type,
-    title,
-    message,
-    link: link || null,
-    read: false,
-    createdAt: new Date().toISOString(),
-  };
-  saveNotifications([notification, ...getNotifications()]);
-  return notification;
-}
-
-export function markNotificationRead(id) {
-  const updated = getNotifications().map((notification) =>
-    notification.id === id ? { ...notification, read: true } : notification
-  );
-  saveNotifications(updated);
-}
-
-export function markAllNotificationsRead(userId) {
-  const updated = getNotifications().map((notification) =>
-    notification.userId === userId ? { ...notification, read: true } : notification
-  );
-  saveNotifications(updated);
+export async function markAllNotificationsRead() {
+  return apiClient.patch('/notifications/read-all');
 }

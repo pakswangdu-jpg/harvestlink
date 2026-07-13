@@ -1,5 +1,19 @@
 import { CEBU_MUNICIPALITY_COORDS, DEFAULT_MUNICIPALITY, getMunicipalityCoords } from './constants';
 
+// Mirrors backend/src/lib/deliveryFee.js exactly — keep both in sync. This copy is only
+// ever used to show the buyer a live estimate before they submit the order; the actual
+// charged fee is always computed authoritatively server-side at order creation.
+const DELIVERY_BASE_FEE = 40;
+const DELIVERY_FEE_PER_KM = 10;
+
+export function estimateDeliveryFee(originMunicipality, deliveryMunicipality, deliveryMethod) {
+  if (deliveryMethod === 'buyer_pickup') return 0;
+  const origin = getMunicipalityCoords(originMunicipality);
+  const destination = getMunicipalityCoords(deliveryMunicipality);
+  const distanceKm = haversineKm(origin, destination);
+  return Math.round(DELIVERY_BASE_FEE + DELIVERY_FEE_PER_KM * distanceKm);
+}
+
 export function haversineKm(a, b) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
