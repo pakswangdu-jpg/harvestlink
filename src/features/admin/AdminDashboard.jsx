@@ -6,7 +6,6 @@ import {
   Building2,
   Calendar,
   Check,
-  Edit3,
   Gift,
   Mail,
   MapPin,
@@ -28,11 +27,10 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
-import FormField from '../../components/common/FormField';
 import RevenueTrendChart from '../../components/charts/RevenueTrendChart';
 import StatusBarChart from '../../components/charts/StatusBarChart';
 import { useAuth } from '../auth/AuthContext';
-import { adminUpdateUserDetails, getUsers, setAccountStatus, setUserVerification } from '../../services/authService';
+import { getUsers, getVerificationDocuments, setAccountStatus, setUserVerification } from '../../services/authService';
 import {
   approvePriceReview,
   declinePriceReview,
@@ -58,10 +56,7 @@ import {
   getTotalRevenue,
   getUserRoleBreakdown,
 } from '../../services/reportService';
-import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { donationStatusLabel, formatCurrency, formatDate, getInitials, statusTone } from '../../utils/formatters';
-import { buildProfileDraft } from '../../utils/profileDraft';
-import { hasErrors, validateProfileForm } from '../../utils/validators';
 import { adminNavItems } from './adminNav';
 
 function sectionFromPath(pathname) {
@@ -74,15 +69,28 @@ function sectionFromPath(pathname) {
   return 'dashboard';
 }
 
+const EMPTY_STATE = { users: [], products: [], orders: [], donations: [], pendingPriceReviews: [] };
+
 export default function AdminDashboard() {
   const { currentUser } = useAuth();
   const { pathname } = useLocation();
   const section = sectionFromPath(pathname);
-  const users = getUsers();
-  const products = getProducts();
-  const orders = getOrders();
-  const donations = getDonations();
-  const pendingPriceReviews = getPendingPriceReviews();
+  const [state, setState] = useState(EMPTY_STATE);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getUsers(), getProducts(), getOrders(), getPendingPriceReviews()]).then(([users, products, orders, pendingPriceReviews]) => {
+      if (cancelled) return;
+      // Donations haven't moved to the backend yet (see src/services/donationService.js) —
+      // still a synchronous, localStorage-backed read, called alongside the async ones.
+      setState({ users, products, orders, pendingPriceReviews, donations: getDonations() });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [section]);
+
+  const { users, products, orders, donations, pendingPriceReviews } = state;
   const pendingVerifications = users.filter((user) => user.verificationStatus === 'pending');
   const monthlySales = orders
     .filter((order) => order.paymentStatus === 'paid')
@@ -176,32 +184,31 @@ function AdminUsers({ users }) {
 }
 
 function AdminUsersDetail() {
-  const [users, setUsers] = useState(() => getUsers());
+  const [users, setUsers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [notice, setNotice] = useState('');
   const selectedUser = users.find((user) => user.id === selectedId) || null;
 
-  const reload = () => setUsers(getUsers());
+  const reload = () => getUsers().then(setUsers);
 
-  const handleVerify = (user, status) => {
-    setUserVerification(user.id, status);
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const handleVerify = async (user, status) => {
+    await setUserVerification(user.id, status);
     setNotice(`${user.name}'s account was ${status === 'verified' ? 'verified' : 'rejected'}.`);
     reload();
   };
 
-  const handleToggleAccountStatus = (user, status) => {
-    setAccountStatus(user.id, status);
+  const handleToggleAccountStatus = async (user, status) => {
+    await setAccountStatus(user.id, status);
     setNotice(`${user.name}'s account was ${status === 'suspended' ? 'deactivated' : 'reactivated'}.`);
     reload();
   };
 
-  const handleProfileSaved = (name) => {
-    setNotice(`${name}'s details were updated.`);
-    reload();
-  };
-
   return (
-    <section className="content-grid two uneven">
+    <section className="content-grid two uneven admin-users-grid">
       <div className="panel">
         <div className="section-heading">
           <div>
@@ -239,7 +246,6 @@ function AdminUsersDetail() {
             user={selectedUser}
             onVerify={handleVerify}
             onToggleAccountStatus={handleToggleAccountStatus}
-            onProfileSaved={handleProfileSaved}
           />
         ) : (
           <EmptyState title="Select a user" message="Choose a user from the list to view their full account details." />
@@ -249,39 +255,12 @@ function AdminUsersDetail() {
   );
 }
 
-function AdminUserDetailCard({ user, onVerify, onToggleAccountStatus, onProfileSaved }) {
+function AdminUserDetailCard({ user, onVerify, onToggleAccountStatus }) {
   const isFarmer = user.role === 'farmer';
   const isStakeholder = user.role === 'stakeholder';
   const isSuspended = user.accountStatus === 'suspended';
   const idFile = isFarmer ? user.govIdFile : isStakeholder ? user.accreditationFile : null;
   const idLabel = isFarmer ? 'Proof of certification / government ID' : 'Proof of accreditation';
-
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileDraft, setProfileDraft] = useState(() => buildProfileDraft(user));
-  const [profileErrors, setProfileErrors] = useState({});
-
-  const updateProfileField = (field, value) => {
-    setProfileDraft((previous) => ({ ...previous, [field]: value }));
-    setProfileErrors((previous) => ({ ...previous, [field]: undefined }));
-  };
-
-  const startEditing = () => {
-    setProfileDraft(buildProfileDraft(user));
-    setProfileErrors({});
-    setIsEditing(true);
-  };
-
-  const handleProfileSubmit = (event) => {
-    event.preventDefault();
-    const nextErrors = validateProfileForm(profileDraft, user.role);
-    if (hasErrors(nextErrors)) {
-      setProfileErrors(nextErrors);
-      return;
-    }
-    adminUpdateUserDetails(user.id, profileDraft);
-    setIsEditing(false);
-    onProfileSaved(user.name);
-  };
 
   return (
     <>
@@ -292,94 +271,34 @@ function AdminUserDetailCard({ user, onVerify, onToggleAccountStatus, onProfileS
         </div>
         <div className="table-actions">
           <StatusBadge value={user.role} />
-          {!isEditing ? (
-            <Button size="sm" variant="secondary" onClick={startEditing}>
-              <Edit3 size={15} /> Edit
-            </Button>
-          ) : null}
         </div>
       </div>
 
-      {isEditing ? (
-        <form className="form-stack" onSubmit={handleProfileSubmit}>
-          <FormField label="Full name" name="name" error={profileErrors.name}>
-            <input id="name" value={profileDraft.name} onChange={(event) => updateProfileField('name', event.target.value)} />
-          </FormField>
+      <div className="info-grid">
+        <InfoRow icon={Mail} label="Email" value={user.email} />
+        {user.contactNumber ? <InfoRow icon={Phone} label="Contact number" value={user.contactNumber} /> : null}
+        {user.municipality ? <InfoRow icon={MapPin} label={isFarmer ? 'Farm location' : 'Location'} value={user.municipality} /> : null}
+        <InfoRow icon={Calendar} label="Member since" value={formatDate(user.createdAt)} />
+        {isFarmer ? <InfoRow icon={Store} label="Farm name" value={user.farmName} /> : null}
+        {isFarmer && user.birthday ? <InfoRow icon={Calendar} label="Birthday" value={formatDate(user.birthday)} /> : null}
+        {isStakeholder ? <InfoRow icon={Building2} label="Organization" value={user.organizationName} /> : null}
+        {isStakeholder ? <InfoRow icon={ShieldCheck} label="Organization type" value={user.organizationType} /> : null}
+        {isStakeholder ? <InfoRow icon={UserSquare} label="Contact person" value={user.contactPerson} /> : null}
+        <InfoRow icon={MapPin} label="Complete address" value={user.address} />
+        <InfoRow icon={MapPin} label="Zip code" value={user.zipCode} />
+      </div>
 
-          {isStakeholder ? (
-            <>
-              <FormField label="Organization name" name="organizationName" error={profileErrors.organizationName}>
-                <input id="organizationName" value={profileDraft.organizationName} onChange={(event) => updateProfileField('organizationName', event.target.value)} />
-              </FormField>
-              <div className="form-grid">
-                <FormField label="Organization type" name="organizationType" error={profileErrors.organizationType}>
-                  <select id="organizationType" value={profileDraft.organizationType} onChange={(event) => updateProfileField('organizationType', event.target.value)}>
-                    {ORGANIZATION_TYPES.map((type) => <option key={type}>{type}</option>)}
-                  </select>
-                </FormField>
-                <FormField label="Contact person" name="contactPerson" error={profileErrors.contactPerson}>
-                  <input id="contactPerson" value={profileDraft.contactPerson} onChange={(event) => updateProfileField('contactPerson', event.target.value)} />
-                </FormField>
-              </div>
-              <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
-                <input id="contactNumber" value={profileDraft.contactNumber} onChange={(event) => updateProfileField('contactNumber', event.target.value)} />
-              </FormField>
-            </>
-          ) : (
-            <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
-              <input id="contactNumber" value={profileDraft.contactNumber} onChange={(event) => updateProfileField('contactNumber', event.target.value)} />
-            </FormField>
-          )}
-
-          {isFarmer ? (
-            <FormField label="Birthday" name="birthday" error={profileErrors.birthday}>
-              <input id="birthday" type="date" value={profileDraft.birthday} onChange={(event) => updateProfileField('birthday', event.target.value)} />
-            </FormField>
-          ) : null}
-
-          <FormField label={isFarmer ? 'Farm location' : 'Location'} name="municipality" error={profileErrors.municipality}>
-            <select id="municipality" value={profileDraft.municipality} onChange={(event) => updateProfileField('municipality', event.target.value)}>
-              {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-            </select>
-          </FormField>
-
-          {isFarmer ? (
-            <FormField label="Farm name" name="farmName" error={profileErrors.farmName}>
-              <input id="farmName" value={profileDraft.farmName} onChange={(event) => updateProfileField('farmName', event.target.value)} />
-            </FormField>
-          ) : null}
-
-          <div className="form-grid">
-            <FormField label="Complete address" name="address" error={profileErrors.address}>
-              <input id="address" value={profileDraft.address} onChange={(event) => updateProfileField('address', event.target.value)} />
-            </FormField>
-            <FormField label="Zip code" name="zipCode" error={profileErrors.zipCode}>
-              <input id="zipCode" value={profileDraft.zipCode} onChange={(event) => updateProfileField('zipCode', event.target.value)} maxLength={4} />
-            </FormField>
-          </div>
-
-          <div className="form-actions">
-            <Button type="button" variant="secondary" onClick={() => setIsEditing(false)}>Cancel</Button>
-            <Button type="submit">Save changes</Button>
-          </div>
-        </form>
-      ) : (
-        <div className="info-grid">
-          <InfoRow icon={Mail} label="Email" value={user.email} />
-          {user.contactNumber ? <InfoRow icon={Phone} label="Contact number" value={user.contactNumber} /> : null}
-          {user.municipality ? <InfoRow icon={MapPin} label={isFarmer ? 'Farm location' : 'Location'} value={user.municipality} /> : null}
-          <InfoRow icon={Calendar} label="Member since" value={formatDate(user.createdAt)} />
-          {isFarmer ? <InfoRow icon={Store} label="Farm name" value={user.farmName} /> : null}
-          {isFarmer && user.birthday ? <InfoRow icon={Calendar} label="Birthday" value={formatDate(user.birthday)} /> : null}
-          {isStakeholder ? <InfoRow icon={Building2} label="Organization" value={user.organizationName} /> : null}
-          {isStakeholder ? <InfoRow icon={ShieldCheck} label="Organization type" value={user.organizationType} /> : null}
-          {isStakeholder ? <InfoRow icon={UserSquare} label="Contact person" value={user.contactPerson} /> : null}
-          <InfoRow icon={MapPin} label="Complete address" value={user.address} />
-          <InfoRow icon={MapPin} label="Zip code" value={user.zipCode} />
-        </div>
-      )}
-
-      {isFarmer || isStakeholder ? <FilePreviewCard label={idLabel} file={idFile} large /> : null}
+      {isFarmer || isStakeholder ? (
+        <FilePreviewCard
+          label={idLabel}
+          file={idFile}
+          large
+          resolveUrl={async () => {
+            const urls = await getVerificationDocuments(user.id);
+            return isFarmer ? urls.govIdFile : urls.accreditationFile;
+          }}
+        />
+      ) : null}
 
       <div className="form-actions">
         <StatusBadge value={isSuspended ? 'Suspended' : 'Active'} />
@@ -594,33 +513,37 @@ function AdminReferencePrices() {
 }
 
 function AdminPriceMonitoring({ products }) {
-  const [reviews, setReviews] = useState(() => getPendingPriceReviews());
-  const [declined, setDeclined] = useState(() => getDeclinedPriceReviews());
+  const [reviews, setReviews] = useState([]);
+  const [declined, setDeclined] = useState([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   const reload = () => {
-    setReviews(getPendingPriceReviews());
-    setDeclined(getDeclinedPriceReviews());
+    getPendingPriceReviews().then(setReviews);
+    getDeclinedPriceReviews().then(setDeclined);
   };
 
-  const handleApprove = (product) => {
-    approvePriceReview(product.id);
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const handleApprove = async (product) => {
+    await approvePriceReview(product.id);
     setError('');
     setNotice(`${product.name}'s price was approved.`);
     reload();
   };
 
-  const handleDecline = (product) => {
-    declinePriceReview(product.id);
+  const handleDecline = async (product) => {
+    await declinePriceReview(product.id);
     setError('');
     setNotice(`${product.name}'s price was declined — the listing is hidden until the farmer revises it.`);
     reload();
   };
 
-  const handleReactivate = (product) => {
+  const handleReactivate = async (product) => {
     try {
-      reactivatePriceReview(product.id);
+      await reactivatePriceReview(product.id);
       setError('');
       setNotice(`${product.name}'s listing was reactivated.`);
       reload();
@@ -780,7 +703,7 @@ function AdminReports({ users, orders, donations }) {
   return (
     <>
       <section className="stats-grid">
-        <StatCard label="Total revenue" value={formatCurrency(totalRevenue)} icon={<BarChart3 size={20} />} />
+        <StatCard label="Total Sales" value={formatCurrency(totalRevenue)} icon={<BarChart3 size={20} />} />
         <StatCard label="Total orders" value={orders.length} icon={<ShoppingBag size={20} />} />
         <StatCard label="Registered users" value={users.length} icon={<Users size={20} />} />
         <StatCard label="Donations completed" value={completedDonations} icon={<Gift size={20} />} />

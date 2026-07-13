@@ -56,6 +56,22 @@ export function getCommodityById(id) {
   return MARKET_COMMODITIES.find((commodity) => commodity.id === id) || MARKET_COMMODITIES[0];
 }
 
+// PSA's figure is the farmgate price — what a trader/middleman pays the farmer, not what
+// a buyer pays. Selling direct through HarvestLink already skips that middleman, but the
+// farmer still has real harvesting, packing, and delivery costs to cover. Local wholesale
+// and retail markups over farmgate commonly run 40-60%+ once a trader is involved, so a
+// modest markup here keeps the farmer clearly profitable while the listing still undercuts
+// typical retail — a real selling point for buyers browsing the marketplace.
+const RECOMMENDED_MARGIN_PERCENT = 15;
+
+export function getRecommendedPrice(referencePrice) {
+  if (!referencePrice || referencePrice <= 0) return null;
+  const raw = referencePrice * (1 + RECOMMENDED_MARGIN_PERCENT / 100);
+  // Rounded UP to the nearest ₱0.50 so the margin is never quietly shaved by rounding down.
+  const price = Math.ceil(raw * 2) / 2;
+  return { price, marginPercent: RECOMMENDED_MARGIN_PERCENT, referencePrice };
+}
+
 // DTI-set reference prices that take precedence over the live PSA figure — used to
 // correct a stale/wrong PSA number or fill in the current year before PSA has published it.
 function readOverrides() {

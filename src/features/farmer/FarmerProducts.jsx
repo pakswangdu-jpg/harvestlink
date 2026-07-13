@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Edit3, Gift, PackagePlus, Tag, Trash2 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import ProductCard from '../../components/cards/ProductCard';
@@ -23,27 +23,32 @@ import { farmerNavItems } from './farmerNav';
 
 export default function FarmerProducts() {
   const { currentUser } = useAuth();
-  const [products, setProducts] = useState(() => getProductsByFarmer(currentUser.id));
+  const [products, setProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [discountDraft, setDiscountDraft] = useState({});
 
-  const reload = () => setProducts(getProductsByFarmer(currentUser.id));
+  const reload = () => getProductsByFarmer(currentUser.id).then(setProducts);
 
-  const handleSubmit = (values) => {
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id]);
+
+  const handleSubmit = async (values) => {
     try {
       setError('');
       if (editingProduct) {
-        updateProduct(editingProduct.id, values);
+        await updateProduct(editingProduct.id, values);
         setEditingProduct(null);
         setNotice('Product updated.');
       } else if (values.isDonation) {
-        const product = createProduct({ ...values, price: 0, sellingType: 'retail', bulkMinQuantity: '' }, currentUser);
+        const product = await createProduct({ ...values, price: 0, sellingType: 'retail', bulkMinQuantity: '' });
         createDonation(product, currentUser);
         setNotice(`${product.name} listed as a surplus donation for partner organizations.`);
       } else {
-        createProduct(values, currentUser);
+        await createProduct(values);
         setNotice('Product added to the marketplace.');
       }
       reload();
@@ -53,15 +58,15 @@ export default function FarmerProducts() {
     }
   };
 
-  const handleDelete = (id) => {
-    deleteProduct(id);
+  const handleDelete = async (id) => {
+    await deleteProduct(id);
     setNotice('Product deleted.');
     reload();
   };
 
-  const handleStatus = (product) => {
+  const handleStatus = async (product) => {
     try {
-      setProductStatus(product.id, product.status === 'active' ? 'inactive' : 'active');
+      await setProductStatus(product.id, product.status === 'active' ? 'inactive' : 'active');
       setError('');
       setNotice(`Product marked ${product.status === 'active' ? 'inactive' : 'active'}.`);
     } catch (statusError) {
@@ -71,25 +76,25 @@ export default function FarmerProducts() {
     reload();
   };
 
-  const handleApplyDiscount = (product) => {
+  const handleApplyDiscount = async (product) => {
     const percent = Number(discountDraft[product.id] || DISCOUNT_OPTIONS[0]);
-    applyDiscount(product.id, percent);
+    await applyDiscount(product.id, percent);
     setNotice(`${product.name} discounted by ${percent}%.`);
     reload();
   };
 
-  const handleRemoveDiscount = (product) => {
-    removeDiscount(product.id);
+  const handleRemoveDiscount = async (product) => {
+    await removeDiscount(product.id);
     setNotice(`Discount removed from ${product.name}.`);
     reload();
   };
 
-  const handleDonate = (product) => {
+  const handleDonate = async (product) => {
     try {
       // Re-fetch the current record rather than using this component's possibly-stale
       // state — another tab could have changed the product's quantity or other fields
       // since this page last reloaded.
-      const freshProduct = getProductById(product.id);
+      const freshProduct = await getProductById(product.id);
       if (!freshProduct) throw new Error('This product no longer exists.');
       createDonation(freshProduct, currentUser);
       setError('');

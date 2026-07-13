@@ -6,25 +6,20 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../services/notificationService';
-import { STORAGE_KEYS } from '../../utils/constants';
 import { formatRelativeTime } from '../../utils/formatters';
 
 export default function NotificationBell({ userId }) {
   const wrapperRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState(() => getNotificationsForUser(userId));
+  const [notifications, setNotifications] = useState([]);
+
+  const refresh = () => getNotificationsForUser(userId).then(setNotifications);
 
   useEffect(() => {
-    const refresh = () => setNotifications(getNotificationsForUser(userId));
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.notifications) refresh();
-    };
+    refresh();
     const interval = setInterval(refresh, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {
@@ -38,17 +33,17 @@ export default function NotificationBell({ userId }) {
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
     if (!notification.read) {
-      markNotificationRead(notification.id);
-      setNotifications(getNotificationsForUser(userId));
+      await markNotificationRead(notification.id);
+      refresh();
     }
     setIsOpen(false);
   };
 
-  const handleMarkAllRead = () => {
-    markAllNotificationsRead(userId);
-    setNotifications(getNotificationsForUser(userId));
+  const handleMarkAllRead = async () => {
+    await markAllNotificationsRead(userId);
+    refresh();
   };
 
   return (

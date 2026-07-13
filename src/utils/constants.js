@@ -3,7 +3,6 @@ export const STORAGE_KEYS = {
   products: 'harvestlink_products',
   orders: 'harvestlink_orders',
   donations: 'harvestlink_donations',
-  messages: 'harvestlink_messages',
   notifications: 'harvestlink_notifications',
   currentUser: 'harvestlink_current_user',
   legacyProducts: 'harvestlinkProducts',

@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 
-const CEBU_CENTER = [10.3157, 123.8854];
+const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
 const PRECISION_LABELS = {
   address: 'Exact registered address',
@@ -14,41 +13,35 @@ const PRECISION_LABELS = {
   fallback: 'Approximate — municipality area',
 };
 
-function withAlpha(hex, alpha) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+// Same teardrop pin as FarmerMap.jsx — see that file for why `alert` is a static ring
+// rather than a CSS pulse (a data-URI <img> icon can't run a CSS animation).
+const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
+
+function buildPinIcon(mapsApi, color, { alert = false } = {}) {
+  const alertRing = alert
+    ? `<circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.45"/>`
+    : '';
+  const svg =
+    `<svg width="28" height="38" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
+    `${alertRing}<path d="${PIN_PATH}" fill="${color}"/><circle cx="12" cy="12" r="5.5" fill="white"/>` +
+    `</svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new mapsApi.Size(28, 38),
+    anchor: new mapsApi.Point(14, 38),
+  };
 }
 
-function pin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
-}
-
-// Reference-layer pins (other farmers/registered buyers) pulse an alert ring so they draw
-// attention on a dashboard that's otherwise mostly about the active route, not just sitting
-// there as a static, easy-to-miss dot.
-function alertPin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span class="map-pin-pulse" style="--pulse-color:${withAlpha(color, 0.6)}"></span><span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
-}
-
-function truckIcon() {
-  return L.divIcon({
-    className: 'map-truck',
-    html: '🚚',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-  });
+function buildTruckIcon(mapsApi) {
+  const svg =
+    `<svg width="26" height="26" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">` +
+    `<text x="13" y="21" font-size="22" text-anchor="middle">🚚</text>` +
+    `</svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new mapsApi.Size(26, 26),
+    anchor: new mapsApi.Point(13, 13),
+  };
 }
 
 function pointKey(point) {
@@ -60,18 +53,20 @@ function pointKey(point) {
 // as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
 // `buyers`: optional [{ id, name, municipality }] — registered buyers plotted the same way
 // (e.g. on the farmer dashboard, so a farmer can see who's nearby).
-// `alertStyle`: when true, the farmer/buyer reference pins (not the route pins) pulse to
-// draw attention, the same treatment used for surplus-donation pins on the farmer map.
+// `alertStyle`: when true, the farmer/buyer reference pins (not the route pins) get the
+// alert-ring treatment, the same one used for surplus-donation pins on the farmer map.
 export default function DeliveryMap({ routes, farmers = [], buyers = [], alertStyle = false }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const layerGroupRef = useRef(null);
-  const farmerLayerGroupRef = useRef(null);
-  const buyerLayerGroupRef = useRef(null);
+  const mapsApiRef = useRef(null);
+  const routeLayerRef = useRef([]);
+  const farmerMarkersRef = useRef([]);
+  const buyerMarkersRef = useRef([]);
   const fittedSignatureRef = useRef(null);
   const requestedRouteKeysRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [roadGeometries, setRoadGeometries] = useState({});
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
@@ -92,83 +87,99 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
+    let cancelled = false;
 
-    const map = L.map(containerRef.current, {
-      zoomControl: true,
-      attributionControl: false,
-      // Fractional zoom steps + a higher wheel threshold make zooming feel smooth and
-      // controllable instead of jumping multiple whole levels per scroll tick.
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 120,
+    loadGoogleMaps().then((mapsApi) => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+      const map = new mapsApi.Map(containerRef.current, {
+        center: CEBU_CENTER,
+        zoom: 10,
+        disableDefaultUI: true,
+        zoomControl: true,
+        gestureHandling: 'greedy',
+        clickableIcons: false,
+      });
+      mapRef.current = map;
+      mapsApiRef.current = mapsApi;
+      setMapReady(true);
     });
-    mapRef.current = map;
-    map.setView(CEBU_CENTER, 10);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-    layerGroupRef.current = L.layerGroup().addTo(map);
-    farmerLayerGroupRef.current = L.layerGroup().addTo(map);
-    buyerLayerGroupRef.current = L.layerGroup().addTo(map);
-
-    // The container's real size is only final after the CSS grid layout settles, which
-    // can happen after Leaflet's own initial measurement — without this, zoom/pan math
-    // is computed against a stale size and panning/zooming can look subtly broken.
-    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
-    resizeObserver.observe(containerRef.current);
-    const initialSizeFix = setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
-      clearTimeout(initialSizeFix);
-      resizeObserver.disconnect();
-      map.remove();
-      mapRef.current = null;
-      layerGroupRef.current = null;
-      farmerLayerGroupRef.current = null;
-      buyerLayerGroupRef.current = null;
+      cancelled = true;
     };
   }, []);
 
+  // The container's real size is only final after the CSS grid layout settles, which can
+  // happen after Google's own initial measurement (and again on the fullscreen toggle) —
+  // without re-triggering 'resize' and restoring the center, panning/zooming can look
+  // subtly broken or the map can appear blank until manually nudged.
   useEffect(() => {
-    const layerGroup = farmerLayerGroupRef.current;
-    if (!layerGroup) return;
+    if (!mapReady || !containerRef.current) return undefined;
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    const resizeObserver = new ResizeObserver(() => {
+      const center = map.getCenter();
+      mapsApi.event.trigger(map, 'resize');
+      if (center) map.setCenter(center);
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [mapReady]);
 
-    layerGroup.clearLayers();
+  useEffect(() => {
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
+
+    farmerMarkersRef.current.forEach((marker) => marker.setMap(null));
+    farmerMarkersRef.current = [];
     farmers.forEach((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
       const displayName = farmer.farmName || farmer.name;
-      const icon = alertStyle ? alertPin('#b45309') : pin('#b45309');
-      L.marker([coords.lat, coords.lng], { icon })
-        .bindPopup(
+      const marker = new mapsApi.Marker({
+        position: coords,
+        map,
+        icon: buildPinIcon(mapsApi, '#b45309', { alert: alertStyle }),
+        title: displayName,
+      });
+      const infoWindow = new mapsApi.InfoWindow({
+        content:
           `<strong>${displayName}</strong><br/>${farmer.name}<br/>${farmer.municipality}` +
           `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-          `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>` +
-          `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">Contact farmer</a>`
-        )
-        .bindTooltip(displayName)
-        .addTo(layerGroup);
+          `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>`,
+      });
+      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
+      farmerMarkersRef.current.push(marker);
     });
-  }, [farmers, farmerCoordsById, alertStyle]);
+  }, [mapReady, farmers, farmerCoordsById, alertStyle]);
 
   useEffect(() => {
-    const layerGroup = buyerLayerGroupRef.current;
-    if (!layerGroup) return;
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
 
-    layerGroup.clearLayers();
+    buyerMarkersRef.current.forEach((marker) => marker.setMap(null));
+    buyerMarkersRef.current = [];
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-      const icon = alertStyle ? alertPin('#1d4ed8') : pin('#1d4ed8');
-      L.marker([coords.lat, coords.lng], { icon })
-        .bindPopup(
+      const marker = new mapsApi.Marker({
+        position: coords,
+        map,
+        icon: buildPinIcon(mapsApi, '#1d4ed8', { alert: alertStyle }),
+        title: buyer.name,
+      });
+      const infoWindow = new mapsApi.InfoWindow({
+        content:
           `<strong>${buyer.name}</strong><br/>${buyer.municipality}` +
           (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`
-        )
-        .bindTooltip(buyer.name)
-        .addTo(layerGroup);
+          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`,
+      });
+      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
+      buyerMarkersRef.current.push(marker);
     });
-  }, [buyers, buyerCoordsById, alertStyle]);
+  }, [mapReady, buyers, buyerCoordsById, alertStyle]);
 
   // Fetches the actual road path for each distinct origin/destination pair once, so the
   // route line follows real streets/bridges instead of cutting a straight line across
@@ -197,41 +208,59 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
 
   useEffect(() => {
     const map = mapRef.current;
-    const layerGroup = layerGroupRef.current;
-    if (!map || !layerGroup) return;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
 
-    layerGroup.clearLayers();
+    routeLayerRef.current.forEach((layer) => layer.setMap(null));
+    routeLayerRef.current = [];
     const allPoints = [];
 
     routes.forEach((route) => {
       const { origin, destination, isPickup } = resolveRoutePoints(route);
 
-      L.marker([origin.lat, origin.lng], { icon: pin('#15803d') }).bindTooltip(route.originLabel).addTo(layerGroup);
-      allPoints.push([origin.lat, origin.lng]);
+      const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildPinIcon(mapsApi, '#15803d'), title: route.originLabel });
+      routeLayerRef.current.push(originMarker);
+      allPoints.push(origin);
 
-      L.marker([destination.lat, destination.lng], { icon: pin('#1d4ed8') }).bindTooltip(route.destinationLabel).addTo(layerGroup);
-      allPoints.push([destination.lat, destination.lng]);
+      const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, '#1d4ed8'), title: route.destinationLabel });
+      routeLayerRef.current.push(destinationMarker);
+      allPoints.push(destination);
 
       // Falls back to a straight line only until the real road geometry resolves (or if
       // the routing service is unreachable) — never blocks rendering on the fetch.
       const roadPoints = roadGeometries[`${pointKey(origin)}|${pointKey(destination)}`];
       const pathPoints = roadPoints?.length > 1 ? roadPoints : [origin, destination];
-      const latLngPath = pathPoints.map((point) => [point.lat, point.lng]);
 
       // A white casing drawn underneath keeps the route line readable against any tile
       // color (dense street yellows/oranges, green cover, blue water) instead of blending
-      // into whatever's directly beneath it.
-      L.polyline(latLngPath, { color: '#ffffff', weight: 7, opacity: 0.9 }).addTo(layerGroup);
-      L.polyline(latLngPath, { color: '#ea580c', weight: 4, dashArray: '1 10', lineCap: 'round' }).addTo(layerGroup);
+      // into whatever's directly beneath it. Google Polylines don't support a native
+      // dash-array — the dashed effect is a repeated line-segment icon along the path.
+      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 7, strokeOpacity: 0.9, map });
+      routeLayerRef.current.push(casing);
+      const dashedLine = new mapsApi.Polyline({
+        path: pathPoints,
+        strokeOpacity: 0,
+        icons: [{
+          icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: '#ea580c', strokeWeight: 4, scale: 3 },
+          offset: '0',
+          repeat: '14px',
+        }],
+        map,
+      });
+      routeLayerRef.current.push(dashedLine);
 
       // Pickup orders have no truck to track — the buyer travels there on their own
       // schedule, so the route just shows how to get there, not a live position/ETA.
       if (!isPickup) {
         const truckPosition = pointAlongRoute(pathPoints, route.progress);
-        const truckMarker = L.marker([truckPosition.lat, truckPosition.lng], { icon: truckIcon() }).addTo(layerGroup);
+        const truckMarker = new mapsApi.Marker({ position: truckPosition, map, icon: buildTruckIcon(mapsApi) });
         const popupText = route.label || `${route.originLabel} → ${route.destinationLabel}`;
         const etaText = route.etaMinutes != null ? `<br/><small>ETA ~${route.etaMinutes} min${route.etaMinutes === 1 ? '' : 's'}</small>` : '';
-        truckMarker.bindPopup((route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText);
+        const truckInfoWindow = new mapsApi.InfoWindow({
+          content: (route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText,
+        });
+        truckMarker.addListener('click', () => truckInfoWindow.open({ map, anchor: truckMarker }));
+        routeLayerRef.current.push(truckMarker);
       }
     });
 
@@ -243,13 +272,17 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
     fittedSignatureRef.current = signature;
 
     if (allPoints.length === 1) {
-      map.setView(allPoints[0], 13);
+      map.setCenter(allPoints[0]);
+      map.setZoom(13);
     } else if (allPoints.length > 1) {
-      map.fitBounds(allPoints, { padding: [36, 36] });
+      const bounds = new mapsApi.LatLngBounds();
+      allPoints.forEach((point) => bounds.extend(point));
+      map.fitBounds(bounds, 36);
     } else {
-      map.setView(CEBU_CENTER, 10);
+      map.setCenter(CEBU_CENTER);
+      map.setZoom(10);
     }
-  }, [routes, roadGeometries]);
+  }, [mapReady, routes, roadGeometries]);
 
   return (
     <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>

@@ -18,8 +18,15 @@ import {
   payOrder,
   updateOrderStatus,
 } from '../../services/orderService';
-import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS, STORAGE_KEYS } from '../../utils/constants';
-import { deliveryMethodLabel, formatCurrency, formatDate, paymentLabel } from '../../utils/formatters';
+import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS } from '../../utils/constants';
+import {
+  deliveryMethodLabel,
+  formatCurrency,
+  formatDate,
+  formatDurationMinutes,
+  paymentLabel,
+  shortOrderId,
+} from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 function fallbackOrdersPath(role) {
@@ -33,23 +40,57 @@ export default function OrderTracking() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [order, setOrder] = useState(() => getOrderById(id));
+  const [order, setOrder] = useState(null);
+  const [loadedId, setLoadedId] = useState(null);
+  const [pickupBuyerMunicipality, setPickupBuyerMunicipality] = useState(null);
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const refresh = () => setOrder(getOrderById(id));
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.orders) refresh();
+    let cancelled = false;
+    const refresh = () => {
+      getOrderById(id)
+        .then((result) => {
+          if (cancelled) return;
+          setOrder(result);
+          setLoadedId(id);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setOrder(null);
+          setLoadedId(id);
+        });
     };
+    refresh();
     const interval = setInterval(refresh, 4000);
-    window.addEventListener('storage', handleStorage);
     return () => {
+      cancelled = true;
       clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
     };
   }, [id]);
 
+  // For a pickup order, the destination pin is where the BUYER starts from, not the farm
+  // itself — the farmer viewing this page needs that buyer's municipality resolved
+  // separately (the buyer viewing their own order already has it via currentUser). Only
+  // relevant when isPickup && !isBuyer below, so a stale value from a previously-viewed
+  // order sitting in state harmlessly goes unread the rest of the time.
+  const needsPickupBuyerLookup = Boolean(order) && order.deliveryMethod === 'buyer_pickup' && currentUser.id !== order.buyerId;
+  useEffect(() => {
+    if (!needsPickupBuyerLookup) return undefined;
+    let cancelled = false;
+    getUserById(order.buyerId)
+      .then((buyer) => {
+        if (!cancelled) setPickupBuyerMunicipality(buyer?.municipality || null);
+      })
+      .catch(() => {
+        if (!cancelled) setPickupBuyerMunicipality(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsPickupBuyerLookup, order?.buyerId]);
+
+  if (loadedId !== id) return null;
   if (!order) return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
 
   // "Buyer" here means "the account that placed this order" — a partner organization
@@ -63,9 +104,9 @@ export default function OrderTracking() {
 
   const navItems = getNavItemsForRole(currentUser.role);
 
-  const run = (action, successMessage) => {
+  const run = async (action, successMessage) => {
     try {
-      const updated = action();
+      const updated = await action();
       setOrder(updated);
       setError('');
       setNotice(successMessage);
@@ -82,7 +123,7 @@ export default function OrderTracking() {
   // "Got it" rather than the farmer, since the farmer has no way to know the moment the
   // buyer actually receives it in hand.
   const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
-  const { progress, etaMinutes, isInTransit } = getLiveTransitProgress(order);
+  const { progress, etaMinutes, estimatedTotalMinutes, isInTransit } = getLiveTransitProgress(order);
   const isPickup = order.deliveryMethod === 'buyer_pickup';
 
   return (
@@ -90,7 +131,7 @@ export default function OrderTracking() {
       user={currentUser}
       navItems={navItems}
       title={`Order — ${order.productName}`}
-      subtitle={`${order.quantity} ${order.unit} • ${formatCurrency(order.totalAmount)} • placed ${formatDate(order.createdAt)}`}
+      subtitle={`Order #${shortOrderId(order.id)} • ${order.quantity} ${order.unit} • ${formatCurrency(order.totalAmount)} • placed ${formatDate(order.createdAt)}`}
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
@@ -113,13 +154,28 @@ export default function OrderTracking() {
               <p className="eyebrow">Details</p>
               <h2>Order details</h2>
             </div>
-            <Link className="btn btn-secondary btn-md" to={`/messages/${order.id}`}>Message {isFarmer ? order.buyerName : order.farmerName}</Link>
+            <div className="table-actions">
+              <Link className="btn btn-secondary btn-md" to={`/orders/${order.id}/receipt`}>View receipt</Link>
+              <Link className="btn btn-secondary btn-md" to={`/messages/${order.id}`}>Message {isFarmer ? order.buyerName : order.farmerName}</Link>
+            </div>
           </div>
           <div className="detail-list">
+            <div><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
             <div><span>Buyer</span><strong>{order.buyerName}</strong></div>
             <div><span>Farmer</span><strong>{order.farmerName}</strong></div>
             <div><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
             <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+            {order.deliveryFee > 0 ? <div><span>Delivery fee</span><strong>{formatCurrency(order.deliveryFee)}</strong></div> : null}
+            {order.status === 'confirmed' && estimatedTotalMinutes != null ? (
+              <div>
+                <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
+                <strong>
+                  {isInTransit
+                    ? `~${etaMinutes} min${etaMinutes === 1 ? '' : 's'} left`
+                    : `~${formatDurationMinutes(estimatedTotalMinutes)}`}
+                </strong>
+              </div>
+            ) : null}
             {order.message ? <div><span>Message</span><strong>{order.message}</strong></div> : null}
           </div>
 
@@ -180,7 +236,7 @@ export default function OrderTracking() {
               destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
               originMunicipality: order.originMunicipality,
               destinationMunicipality: isPickup
-                ? (isBuyer ? currentUser.municipality : getUserById(order.buyerId)?.municipality) || order.deliveryMunicipality
+                ? (isBuyer ? currentUser.municipality : pickupBuyerMunicipality) || order.deliveryMunicipality
                 : order.deliveryMunicipality,
               deliveryMethod: order.deliveryMethod,
               progress,

@@ -5,7 +5,7 @@ export const buyerNavItems = [
   { to: '/marketplace', label: 'Marketplace', icon: Store },
   { to: '/buyer-orders', label: 'My orders', icon: History },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
-  { to: '/farmer-map', label: 'Farmer Map', icon: MapPinned },
+  { to: '/farmer-map', label: 'View Map', icon: MapPinned },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp },
   { to: '/profile', label: 'Profile', icon: User },
 ];

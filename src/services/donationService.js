@@ -1,8 +1,11 @@
 import { STORAGE_KEYS } from '../utils/constants';
 import { createId, readStorage, writeStorage } from './storageService';
-import { restoreProductQuantity, updateProduct } from './productService';
-import { createNotification } from './notificationService';
-import { getVerifiedStakeholders } from './authService';
+// Donations haven't moved to the backend yet — repointed at frozen localStorage-backed
+// copies so this file keeps working unchanged while auth/products/orders migrate.
+// See src/services/local/*Local.js for why these exist.
+import { restoreProductQuantity, updateProduct } from './local/productServiceLocal';
+import { createNotification } from './local/notificationServiceLocal';
+import { getStakeholders } from './local/authServiceLocal';
 
 export function getDonations() {
   return readStorage(STORAGE_KEYS.donations, []);
@@ -53,9 +56,9 @@ export function createDonation(product, farmer) {
   saveDonations([donation, ...getDonations()]);
   updateProduct(product.id, { ...product, quantity: 0, status: 'inactive' });
 
-  // Every verified partner org gets alerted — donations go to whoever requests them first,
-  // so all of them need to see it appear, not just whichever one happens to check back.
-  getVerifiedStakeholders().forEach((stakeholder) => {
+  // Every partner org gets alerted — donations go to whoever requests them first, so all
+  // of them need to see it appear, not just whichever one happens to check back.
+  getStakeholders().forEach((stakeholder) => {
     createNotification({
       userId: stakeholder.id,
       type: 'donation',
@@ -69,10 +72,6 @@ export function createDonation(product, farmer) {
 }
 
 export function requestDonation(id, stakeholder) {
-  if (stakeholder.verificationStatus !== 'verified') {
-    throw new Error('Your organization must be verified by admin before you can request donations.');
-  }
-
   const donations = getDonations();
   const target = donations.find((donation) => donation.id === id);
   if (!target) throw new Error('Donation was not found.');

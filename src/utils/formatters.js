@@ -30,6 +30,28 @@ export function formatRelativeTime(value) {
   return formatDate(value);
 }
 
+// Duration, not a timestamp — "~2h 15m" / "~45 mins" — used for the upfront "estimated
+// delivery" figure (see getLiveTransitProgress's estimatedTotalMinutes).
+export function formatDurationMinutes(minutes) {
+  const rounded = Math.max(1, Math.round(minutes));
+  if (rounded < 60) return `${rounded} min${rounded === 1 ? '' : 's'}`;
+  const hours = Math.floor(rounded / 60);
+  const remainder = rounded % 60;
+  return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+}
+
+// "Online" here means "the backend saw an authenticated request from this account within
+// the last ONLINE_THRESHOLD_MINUTES" (see backend/src/middleware/requireAuth.js, which
+// touches last_active_at on every authenticated request, throttled to ~once/minute). Set
+// a little above that throttle window so a genuinely-active account doesn't flicker
+// offline between writes.
+const ONLINE_THRESHOLD_MINUTES = 2;
+
+export function isRecentlyActive(lastActiveAt) {
+  if (!lastActiveAt) return false;
+  return (Date.now() - new Date(lastActiveAt).getTime()) / 60000 < ONLINE_THRESHOLD_MINUTES;
+}
+
 export function getInitials(nameOrEmail = '') {
   const parts = String(nameOrEmail).trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
@@ -40,52 +62,13 @@ export function getFirstName(name = '') {
   return String(name).trim().split(/\s+/)[0] || name;
 }
 
-const MAX_IMAGE_DIMENSION = 1000;
-const IMAGE_QUALITY = 0.75;
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Unable to read file.'));
-    reader.readAsDataURL(file);
-  });
+// A full UUID is correct but unwieldy to read/quote aloud on a receipt or tracking page —
+// the first 8 characters (uppercased) are unique enough for a human-facing reference, while
+// every link/API call still uses the full id underneath.
+export function shortOrderId(id) {
+  return String(id).slice(0, 8).toUpperCase();
 }
 
-// Downscales and re-encodes images before they're stored as data URLs. This app keeps
-// everything — every user, product, order, and image alike — in localStorage, which caps
-// out around 5-10MB per origin, so an unmodified photo straight from a phone camera (often
-// several MB on its own) can exhaust that shared quota after just a couple of uploads.
-// Capping the longest side and re-encoding as JPEG brings a typical photo down to a few
-// hundred KB. PDFs (accepted alongside images for ID/accreditation uploads) can't be
-// resized this way, so they're read through unchanged.
-export async function fileToDataUrl(file) {
-  if (!file) return '';
-  if (!file.type.startsWith('image/')) return readFileAsDataUrl(file);
-
-  const rawDataUrl = await readFileAsDataUrl(file);
-
-  const image = await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Unable to read image file.'));
-    img.src = rawDataUrl;
-  });
-
-  const scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height));
-  const width = Math.round(image.width * scale);
-  const height = Math.round(image.height * scale);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-
-  const compressed = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
-  // A canvas re-encode can occasionally end up larger than the original for an
-  // already small/heavily-compressed source — keep whichever is actually smaller.
-  return compressed.length < rawDataUrl.length ? compressed : rawDataUrl;
-}
 
 const PAYMENT_METHOD_LABELS = {
   cod: 'Cash on delivery',

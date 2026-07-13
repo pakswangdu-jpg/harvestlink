@@ -5,29 +5,35 @@ import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getOrdersByBuyer, getOrdersByFarmer } from '../../services/orderService';
 import { getThreadsForOrders } from '../../services/messageService';
-import { STORAGE_KEYS } from '../../utils/constants';
 import { formatDate } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function MessageThreads() {
   const { currentUser } = useAuth();
-  const [, forceRefresh] = useState(0);
+  const [threads, setThreads] = useState([]);
   const navItems = getNavItemsForRole(currentUser.role);
-  const orders = currentUser.role === 'farmer' ? getOrdersByFarmer(currentUser.id) : getOrdersByBuyer(currentUser.id);
-  const threads = getThreadsForOrders(orders, currentUser);
 
   useEffect(() => {
-    const tick = () => forceRefresh((count) => count + 1);
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.messages || event.key === STORAGE_KEYS.orders) tick();
+    let cancelled = false;
+
+    const reload = async () => {
+      const orders = currentUser.role === 'farmer'
+        ? await getOrdersByFarmer(currentUser.id)
+        : await getOrdersByBuyer(currentUser.id);
+      if (cancelled) return;
+      const nextThreads = await getThreadsForOrders(orders, currentUser);
+      if (cancelled) return;
+      setThreads(nextThreads);
     };
-    const interval = setInterval(tick, 4000);
-    window.addEventListener('storage', handleStorage);
+
+    reload();
+    const interval = setInterval(reload, 4000);
     return () => {
+      cancelled = true;
       clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, currentUser.role]);
 
   return (
     <AppShell

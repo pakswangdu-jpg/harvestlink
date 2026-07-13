@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
 import AuthPage from '../features/auth/AuthPage';
+import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
+import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
 import FarmerDashboard from '../features/farmer/FarmerDashboard';
 import FarmerProducts from '../features/farmer/FarmerProducts';
@@ -12,6 +14,7 @@ import BuyerOrders from '../features/buyer/BuyerOrders';
 import Marketplace from '../features/marketplace/Marketplace';
 import ProductDetails from '../features/marketplace/ProductDetails';
 import OrderTracking from '../features/orders/OrderTracking';
+import OrderReceipt from '../features/orders/OrderReceipt';
 import MessageThreads from '../features/messages/MessageThreads';
 import MessageThread from '../features/messages/MessageThread';
 import Profile from '../features/profile/Profile';
@@ -28,6 +31,8 @@ export default function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
@@ -46,6 +51,7 @@ export default function AppRoutes() {
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/orders/:id" element={<OrderTracking />} />
+        <Route path="/orders/:id/receipt" element={<OrderReceipt />} />
         <Route path="/messages" element={<MessageThreads />} />
         <Route path="/messages/:orderId" element={<MessageThread />} />
         <Route path="/market-insights" element={<MarketInsights />} />

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
+import { isRecentlyActive } from '../../utils/formatters';
 
-const CEBU_CENTER = [10.3157, 123.8854];
+const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
 const PRECISION_LABELS = {
   address: 'Exact registered address',
@@ -12,43 +12,60 @@ const PRECISION_LABELS = {
   fallback: 'Approximate — municipality area',
 };
 
-function withAlpha(hex, alpha) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+// A dot + label rather than just a color, since the pin's own fixed color already means
+// "farmer" / "buyer" / "donation" — presence needs its own independent visual.
+function presenceHtml(person) {
+  const online = isRecentlyActive(person.lastActiveAt);
+  return `<span class="presence-dot ${online ? 'online' : 'offline'}"></span> ${online ? 'Online' : 'Offline'}`;
 }
 
-function pin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
+// Classic teardrop map-pin shape (rounded head + pointed tail) with a white hole punched
+// through the head, rather than a plain colored dot — the tail's tip is the actual pinned
+// location, so the icon's anchor sits there instead of at its center. `alert` bakes in a
+// static ring around the head (used for donation pins) — a plain data-URI <img> icon can't
+// run a CSS pulse animation the way the old Leaflet divIcon could, so this is a static
+// stand-in for that same "notice me" treatment.
+const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
+
+function buildPinIcon(mapsApi, color, { alert = false } = {}) {
+  const alertRing = alert
+    ? `<circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.45"/>`
+    : '';
+  const svg =
+    `<svg width="28" height="38" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
+    `${alertRing}<path d="${PIN_PATH}" fill="${color}"/><circle cx="12" cy="12" r="5.5" fill="white"/>` +
+    `</svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new mapsApi.Size(28, 38),
+    anchor: new mapsApi.Point(14, 38),
+  };
 }
 
-// Donation pins pulse a red alert ring so a stakeholder scanning the map notices new
-// surplus produce immediately, instead of it blending in as just another static pin.
-function alertPin(color) {
-  return L.divIcon({
-    className: 'map-pin',
-    html: `<span class="map-pin-pulse" style="--pulse-color:${withAlpha(color, 0.6)}"></span><span style="background:${color}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
-}
+const EMPTY_SET = new Set();
 
-export default function FarmerMap({ farmers = [], buyers = [], donationFarmers = [], selectedId, onSelectPin }) {
+export default function FarmerMap({
+  farmers = [],
+  buyers = [],
+  stakeholders = [],
+  donationFarmers = [],
+  selectedId,
+  onSelectPin,
+  contactableFarmerOrderIds = {},
+  farmersWithProducts = EMPTY_SET,
+}) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const layerGroupRef = useRef(null);
+  const mapsApiRef = useRef(null);
   const markersRef = useRef({});
+  const openInfoWindowRef = useRef(null);
   const fittedSignatureRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
+  const stakeholderCoordsById = useMapCoordinates(stakeholders);
   const donationFarmerCoordsById = useMapCoordinates(donationFarmers);
 
   useEffect(() => {
@@ -67,130 +84,220 @@ export default function FarmerMap({ farmers = [], buyers = [], donationFarmers =
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return undefined;
+    let cancelled = false;
 
-    const map = L.map(containerRef.current, {
-      zoomControl: true,
-      attributionControl: false,
-      // Fractional zoom steps + a higher wheel threshold make zooming feel smooth and
-      // controllable instead of jumping multiple whole levels per scroll tick.
-      zoomSnap: 0.5,
-      zoomDelta: 0.5,
-      wheelPxPerZoomLevel: 120,
+    loadGoogleMaps().then((mapsApi) => {
+      if (cancelled || !containerRef.current || mapRef.current) return;
+      const map = new mapsApi.Map(containerRef.current, {
+        center: CEBU_CENTER,
+        zoom: 9,
+        disableDefaultUI: true,
+        zoomControl: true,
+        gestureHandling: 'greedy',
+        clickableIcons: false,
+      });
+      mapRef.current = map;
+      mapsApiRef.current = mapsApi;
+      setMapReady(true);
     });
-    mapRef.current = map;
-    map.setView(CEBU_CENTER, 9);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
-    layerGroupRef.current = L.layerGroup().addTo(map);
-
-    // The container's real size is only final after the CSS grid layout settles, which
-    // can happen after Leaflet's own initial measurement — without this, zoom/pan math
-    // is computed against a stale size and panning/zooming can look subtly broken.
-    const resizeObserver = new ResizeObserver(() => map.invalidateSize());
-    resizeObserver.observe(containerRef.current);
-    const initialSizeFix = setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
-      clearTimeout(initialSizeFix);
-      resizeObserver.disconnect();
-      map.remove();
-      mapRef.current = null;
-      layerGroupRef.current = null;
+      cancelled = true;
     };
   }, []);
 
+  // The container's real size is only final after the CSS grid layout settles, which can
+  // happen after Google's own initial measurement (and again on the fullscreen toggle)
+  // — without re-triggering 'resize' and restoring the center, panning/zooming can look
+  // subtly broken or the map can appear blank until manually nudged.
+  useEffect(() => {
+    if (!mapReady || !containerRef.current) return undefined;
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    const resizeObserver = new ResizeObserver(() => {
+      const center = map.getCenter();
+      mapsApi.event.trigger(map, 'resize');
+      if (center) map.setCenter(center);
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, [mapReady]);
+
   useEffect(() => {
     const map = mapRef.current;
-    const layerGroup = layerGroupRef.current;
-    if (!map || !layerGroup) return;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
 
-    layerGroup.clearLayers();
-    markersRef.current = {};
+    const seenIds = new Set();
     const allPoints = [];
+
+    function openInfoWindow(marker, infoWindow) {
+      if (openInfoWindowRef.current && openInfoWindowRef.current !== infoWindow) {
+        openInfoWindowRef.current.close();
+      }
+      infoWindow.open({ map, anchor: marker });
+      openInfoWindowRef.current = infoWindow;
+    }
+
+    // Farmers/buyers refresh on a poll (see FarmerMapPage) so presence dots and the
+    // contactable-farmer set stay live — tearing down and recreating every marker on each
+    // refresh would close any info window the user currently has open (e.g. right as
+    // they're about to click "Contact farmer"). Updating existing markers in place via
+    // setPosition/InfoWindow.setContent instead means an open window's content refreshes
+    // live without ever closing.
+    function upsertMarker(id, coords, buildIcon, popupHtml, onClick) {
+      seenIds.add(id);
+      allPoints.push(coords);
+      const existing = markersRef.current[id];
+      if (existing) {
+        existing.marker.setPosition(coords);
+        existing.infoWindow.setContent(popupHtml);
+        return;
+      }
+      const marker = new mapsApi.Marker({ position: coords, map, icon: buildIcon() });
+      const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
+      marker.addListener('click', () => {
+        openInfoWindow(marker, infoWindow);
+        if (onClick) onClick();
+      });
+      markersRef.current[id] = { marker, infoWindow };
+    }
 
     farmers.forEach((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: pin('#15803d') }).addTo(layerGroup);
       const displayName = farmer.farmName || farmer.name;
-      marker.bindPopup(
+      // Messaging is always scoped to an order (see src/services/messageService.js) —
+      // there's no such thing as a message thread with no order behind it — so "Contact
+      // farmer" only links to a real conversation when the viewer actually has one with
+      // this farmer. Otherwise it explains why: either the farmer has nothing listed yet,
+      // or they do but this viewer hasn't ordered from them — different next steps, so
+      // different messages, instead of one generic line covering both cases.
+      const orderId = contactableFarmerOrderIds[farmer.id];
+      const hasProducts = farmersWithProducts.has(farmer.id);
+      let contactLine;
+      if (orderId) {
+        contactLine = `<br/><a href="/messages/${orderId}">Contact farmer</a>`;
+      } else if (hasProducts) {
+        contactLine = `<br/><small class="muted">Place an order to unlock messaging</small>`;
+      } else {
+        contactLine = `<br/><small class="muted">No products available</small>`;
+      }
+      const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
         `${farmer.municipality}` +
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
+        `<br/>${presenceHtml(farmer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">View products</a>` +
-        `<br/><a href="/marketplace?search=${encodeURIComponent(displayName)}">Contact farmer</a>`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(farmer.id));
-      markersRef.current[farmer.id] = marker;
+        `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>` +
+        contactLine;
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#15803d'), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: pin('#1d4ed8') }).addTo(layerGroup);
-      marker.bindPopup(
+      const popupHtml =
         `<strong>${buyer.name}</strong><br/>` +
         `${buyer.municipality}` +
         (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(buyer.id));
-      markersRef.current[buyer.id] = marker;
+        `<br/>${presenceHtml(buyer)}` +
+        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
+      upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, '#1d4ed8'), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
+    });
+
+    stakeholders.forEach((stakeholder) => {
+      const coords = stakeholderCoordsById[stakeholder.id];
+      if (!coords) return;
+
+      const displayName = stakeholder.organizationName || stakeholder.name;
+      const popupHtml =
+        `<strong>${displayName}</strong><br/>` +
+        (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
+        `${stakeholder.municipality}` +
+        (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
+        `<br/>${presenceHtml(stakeholder)}` +
+        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
+      upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, '#db2777'), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
     donationFarmers.forEach((farmer) => {
       const coords = donationFarmerCoordsById[farmer.id];
       if (!coords) return;
-      allPoints.push([coords.lat, coords.lng]);
 
-      const marker = L.marker([coords.lat, coords.lng], { icon: alertPin('#db2777') }).addTo(layerGroup);
       const displayName = farmer.farmName || farmer.name;
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
-      marker.bindPopup(
+      const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
         `${farmer.municipality}` +
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><br/><strong>Available donations</strong><br/>${donationList}`
-      );
-      if (onSelectPin) marker.on('click', () => onSelectPin(farmer.id));
-      markersRef.current[farmer.id] = marker;
+        `<br/><br/><strong>Available donations</strong><br/>${donationList}`;
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#db2777', { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
+    });
+
+    // Drop markers for accounts no longer present (e.g. an account that goes offline the
+    // map no longer serves, or the search filter narrows the list) instead of nuking and
+    // rebuilding everything, which is what let a live poll refresh close an open info window.
+    Object.keys(markersRef.current).forEach((id) => {
+      if (seenIds.has(id)) return;
+      markersRef.current[id].marker.setMap(null);
+      markersRef.current[id].infoWindow.close();
+      delete markersRef.current[id];
     });
 
     // Background geocoding progressively upgrades pin positions after the initial render
     // — only auto-fit the camera once per distinct set of accounts, so a later address-level
     // upgrade nudging a pin doesn't yank the user's manual pan/zoom back to "fit everything".
-    const signature = [...farmers, ...buyers, ...donationFarmers].map((person) => person.id).sort().join(',');
+    const signature = [...farmers, ...buyers, ...stakeholders, ...donationFarmers].map((person) => person.id).sort().join(',');
     if (signature !== fittedSignatureRef.current) {
       fittedSignatureRef.current = signature;
       if (allPoints.length === 1) {
-        map.setView(allPoints[0], 12);
+        map.setCenter(allPoints[0]);
+        map.setZoom(12);
       } else if (allPoints.length > 1) {
-        map.fitBounds(allPoints, { padding: [40, 40] });
+        const bounds = new mapsApi.LatLngBounds();
+        allPoints.forEach((point) => bounds.extend(point));
+        map.fitBounds(bounds, 40);
       } else {
-        map.setView(CEBU_CENTER, 9);
+        map.setCenter(CEBU_CENTER);
+        map.setZoom(9);
       }
     }
-  }, [farmers, buyers, donationFarmers, farmerCoordsById, buyerCoordsById, donationFarmerCoordsById, onSelectPin]);
+  }, [
+    mapReady,
+    farmers,
+    buyers,
+    stakeholders,
+    donationFarmers,
+    farmerCoordsById,
+    buyerCoordsById,
+    stakeholderCoordsById,
+    donationFarmerCoordsById,
+    onSelectPin,
+    contactableFarmerOrderIds,
+    farmersWithProducts,
+  ]);
 
   useEffect(() => {
-    if (!selectedId) return;
-    const marker = markersRef.current[selectedId];
+    if (!selectedId || !mapReady) return;
     const map = mapRef.current;
-    if (marker && map) {
-      map.setView(marker.getLatLng(), 13, { animate: true });
-      marker.openPopup();
+    const entry = markersRef.current[selectedId];
+    if (!entry || !map) return;
+    map.panTo(entry.marker.getPosition());
+    map.setZoom(13);
+    if (openInfoWindowRef.current && openInfoWindowRef.current !== entry.infoWindow) {
+      openInfoWindowRef.current.close();
     }
-  }, [selectedId]);
+    entry.infoWindow.open({ map, anchor: entry.marker });
+    openInfoWindowRef.current = entry.infoWindow;
+  }, [selectedId, mapReady]);
 
   return (
     <div ref={wrapperRef} className={`farmer-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>

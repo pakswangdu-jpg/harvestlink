@@ -3,15 +3,15 @@ import { Gift, Info, TriangleAlert } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
 import { CEBU_MUNICIPALITIES, getUnitsForCategory, matchMunicipality, PRODUCT_CATEGORIES, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
-import { fileToDataUrl } from '../../utils/formatters';
-import { fetchAnnualPriceTrend, matchCommodity } from '../../services/marketPriceService';
+import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
+import { uploadProductImage } from '../../services/uploadService';
 import { hasErrors, validateProductForm } from '../../utils/validators';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'bulkMinQuantity', 'price', 'unit', 'quantity', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'bulkMinQuantity', 'price', 'unit', 'kgPerUnit', 'quantity', 'location', 'description', 'image'];
 
 const FIELD_LABELS = {
   name: 'Product name',
@@ -21,6 +21,7 @@ const FIELD_LABELS = {
   bulkMinQuantity: 'Minimum bulk order quantity',
   price: 'Price',
   unit: 'Unit',
+  kgPerUnit: 'Unit weight in kg',
   quantity: 'Quantity available',
   location: 'Location',
   description: 'Description',
@@ -43,6 +44,7 @@ function buildDefaultValues(product, currentUser) {
     bulkMinQuantity: '',
     price: '',
     unit: 'kg',
+    kgPerUnit: '',
     quantity: '',
     location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
     description: '',
@@ -60,6 +62,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
+  const [manualCostPrice, setManualCostPrice] = useState('');
 
   const matchedCommodity = matchCommodity(values.name);
   const marketReference = matchedCommodity && marketResult.commodityId === matchedCommodity.id ? marketResult.reference : null;
@@ -91,17 +94,64 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
     };
   }, [matchedCommodity, values.isDonation]);
 
-  const deviationPct = marketReference && values.price
-    ? Number((((Number(values.price) - marketReference.referencePrice) / marketReference.referencePrice) * 100).toFixed(1))
+  // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so
+  // any comparison against PSA (deviation check, recommendation) has to go through a
+  // kg-per-unit conversion the farmer supplies, except when the unit already is kg.
+  const isKgUnit = values.unit === 'kg';
+  const kgPerUnitValue = isKgUnit ? 1 : Number(values.kgPerUnit);
+  const hasKgConversion = isKgUnit || (values.kgPerUnit !== '' && Number.isFinite(kgPerUnitValue) && kgPerUnitValue > 0);
+
+  const pricePerKg = hasKgConversion && values.price ? Number(values.price) / kgPerUnitValue : null;
+  const deviationPct = marketReference && pricePerKg != null
+    ? Number((((pricePerKg - marketReference.referencePrice) / marketReference.referencePrice) * 100).toFixed(1))
+    : null;
+  const recommendedPricePerKg = marketReference ? getRecommendedPrice(marketReference.referencePrice) : null;
+  const recommendedPrice = recommendedPricePerKg && hasKgConversion
+    ? { ...recommendedPricePerKg, price: Math.ceil(recommendedPricePerKg.price * kgPerUnitValue * 2) / 2 }
     : null;
   const isOverThreshold = deviationPct != null && deviationPct > PRICE_DEVIATION_THRESHOLD_PERCENT;
   const hasTypedName = values.name.trim().length > 0;
   const isLoadingReference = Boolean(matchedCommodity) && marketResult.commodityId !== matchedCommodity.id;
 
+  // Self-reported fallback for when PSA has no data at all for this product — the farmer's
+  // own cost is already in their chosen selling unit, so the margin applies directly with
+  // no kg conversion needed.
+  const manualCostNum = Number(manualCostPrice);
+  const manualRecommendation = manualCostNum > 0 ? getRecommendedPrice(manualCostNum) : null;
+
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
+
+  const manualCostSection = (
+    <div className="price-recommendation manual">
+      <label htmlFor="manualCostPrice">What's your cost per {values.unit}? (harvesting, inputs, labor)</label>
+      <input
+        id="manualCostPrice"
+        type="number"
+        min="0"
+        step="0.01"
+        value={manualCostPrice}
+        onChange={(event) => setManualCostPrice(event.target.value)}
+        placeholder="e.g. 30.00"
+      />
+      {manualRecommendation ? (
+        <p>
+          <strong>Recommended price: ₱{manualRecommendation.price.toFixed(2)}/{values.unit}</strong>
+          <span> — {manualRecommendation.marginPercent}% above your stated cost, since there's no PSA reference to compare against for this product.</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => updateField('price', String(manualRecommendation.price))}
+          >
+            Use this price
+          </Button>
+        </p>
+      ) : null}
+    </div>
+  );
 
   // The unit list is scoped to the selected category (e.g. Livestock Products sells by
   // "head", Flowers & Ornamentals by "stem") — switching category can leave the previously
@@ -110,12 +160,23 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   const handleCategoryChange = (event) => {
     const nextCategory = event.target.value;
     const nextUnits = getUnitsForCategory(nextCategory);
+    const unitChanged = !nextUnits.includes(values.unit);
     setValues((previous) => ({
       ...previous,
       category: nextCategory,
       unit: nextUnits.includes(previous.unit) ? previous.unit : nextUnits[0],
+      // A stale "1 [old unit] = Xkg" figure would silently misapply to the new unit.
+      ...(unitChanged ? { kgPerUnit: '' } : null),
     }));
     setErrors((previous) => ({ ...previous, category: undefined, unit: undefined }));
+  };
+
+  // Same reasoning as handleCategoryChange — a kg-per-unit figure entered for "sack"
+  // doesn't apply once the farmer switches to "bundle", so it's cleared on every change.
+  const handleUnitChange = (event) => {
+    const nextUnit = event.target.value;
+    setValues((previous) => ({ ...previous, unit: nextUnit, kgPerUnit: '' }));
+    setErrors((previous) => ({ ...previous, unit: undefined, kgPerUnit: undefined }));
   };
 
   const availableUnits = getUnitsForCategory(values.category);
@@ -126,10 +187,10 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
 
     try {
       setIsReadingImage(true);
-      const dataUrl = await fileToDataUrl(file);
-      updateField('image', dataUrl);
+      const url = await uploadProductImage(file, currentUser.id);
+      updateField('image', url);
     } catch {
-      setErrors((previous) => ({ ...previous, image: 'Unable to load this image.' }));
+      setErrors((previous) => ({ ...previous, image: 'Unable to upload this image.' }));
     } finally {
       setIsReadingImage(false);
     }
@@ -263,7 +324,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
           </FormField>
         ) : null}
         <FormField label="Unit" name="unit" error={errors.unit}>
-          <select id="unit" value={values.unit} onChange={(event) => updateField('unit', event.target.value)}>
+          <select id="unit" value={values.unit} onChange={handleUnitChange}>
             {availableUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
           </select>
         </FormField>
@@ -271,6 +332,25 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
           <input id="quantity" type="number" min="0" step="0.01" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
         </FormField>
       </div>
+
+      {!values.isDonation && !isKgUnit ? (
+        <FormField
+          label={`How many kg is 1 ${values.unit}?`}
+          name="kgPerUnit"
+          error={errors.kgPerUnit}
+          helper="PSA market prices are per kg — this converts them to a fair price for your unit."
+        >
+          <input
+            id="kgPerUnit"
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.kgPerUnit}
+            onChange={(event) => updateField('kgPerUnit', event.target.value)}
+            placeholder="e.g. 2"
+          />
+        </FormField>
+      ) : null}
 
       {!values.isDonation && hasTypedName ? (
         <div className={`price-hint ${isOverThreshold ? 'warning' : ''}`}>
@@ -280,8 +360,31 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
               <strong>Checking PSA market prices…</strong>
             ) : marketReference ? (
               <>
-                <strong>PSA suggested price: ₱{marketReference.referencePrice.toFixed(2)}/kg</strong>
+                <strong>PSA farmgate reference: ₱{marketReference.referencePrice.toFixed(2)}/kg</strong>
                 <span> — {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})</span>
+                {recommendedPrice ? (
+                  <p className="price-recommendation">
+                    <strong>Recommended price: ₱{recommendedPrice.price.toFixed(2)}/{values.unit}</strong>
+                    <span>
+                      {' '}— {recommendedPrice.marginPercent}% above the PSA farmgate reference (converted using your
+                      1 {values.unit} = {kgPerUnitValue}kg). That reference is what a trader would pay you, not what a
+                      buyer pays; local wholesale/retail markups over it commonly run 40-60%+, so this keeps you
+                      profitable after harvesting, packing, and delivery while still pricing below typical retail.
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => updateField('price', String(recommendedPrice.price))}
+                    >
+                      Use this price
+                    </Button>
+                  </p>
+                ) : !isKgUnit ? (
+                  <p className="price-recommendation">
+                    Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
+                  </p>
+                ) : null}
                 {isOverThreshold ? (
                   <p>Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.</p>
                 ) : null}
@@ -289,12 +392,14 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
             ) : matchedCommodity ? (
               <>
                 <strong>No recent PSA price data</strong>
-                <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years. Price it based on your own judgment.</span>
+                <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years.</span>
+                {manualCostSection}
               </>
             ) : (
               <>
                 <strong>No PSA market reference available</strong>
-                <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet. Price it based on your own judgment.</span>
+                <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet.</span>
+                {manualCostSection}
               </>
             )}
           </div>
@@ -311,7 +416,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         <textarea id="description" rows="4" value={values.description} onChange={(event) => updateField('description', event.target.value)} placeholder="Describe freshness, harvest date, pickup notes, or handling requirements." />
       </FormField>
 
-      <FormField label="Product image" name="image" error={errors.image} helper="Images are stored locally as data URLs for this prototype.">
+      <FormField label="Product image" name="image" error={errors.image} helper="Visible to every buyer browsing the marketplace.">
         <input id="image" type="file" accept="image/*" onChange={handleImageChange} />
       </FormField>
 
