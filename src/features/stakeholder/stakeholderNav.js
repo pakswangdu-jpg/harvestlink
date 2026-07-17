@@ -1,4 +1,4 @@
-import { ClipboardList, Gift, History, LayoutDashboard, MessageCircle, Store, User } from 'lucide-react';
+import { ClipboardList, Gift, History, LayoutDashboard, MapPinned, MessageCircle, Store, User } from 'lucide-react';
 
 export const stakeholderNavItems = [
   { to: '/stakeholder-dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -7,5 +7,6 @@ export const stakeholderNavItems = [
   { to: '/stakeholder-donations', label: 'Browse donations', icon: Gift },
   { to: '/stakeholder-requests', label: 'My requests', icon: History },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
+  { to: '/farmer-map', label: 'View Map', icon: MapPinned },
   { to: '/profile', label: 'Profile', icon: User },
 ];

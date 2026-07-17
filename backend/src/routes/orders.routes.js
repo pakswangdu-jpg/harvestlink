@@ -7,6 +7,7 @@ import {
   getOrder,
   listOrders,
   payOrder,
+  updateOrderLocation,
   updateOrderStatus,
 } from '../controllers/orders.controller.js';
 
@@ -19,5 +20,6 @@ router.patch('/:id/status', requireAuth, updateOrderStatus);
 router.patch('/:id/cancel', requireAuth, cancelOrder);
 router.patch('/:id/advance-delivery', requireAuth, advanceDelivery);
 router.patch('/:id/pay', requireAuth, payOrder);
+router.patch('/:id/location', requireAuth, updateOrderLocation);
 
 export default router;

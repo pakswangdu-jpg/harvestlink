@@ -11,7 +11,7 @@ const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'bulkMinQuantity', 'price', 'unit', 'kgPerUnit', 'quantity', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'bulkMinQuantity', 'price', 'unit', 'quantity', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 const FIELD_LABELS = {
   name: 'Product name',
@@ -21,8 +21,9 @@ const FIELD_LABELS = {
   bulkMinQuantity: 'Minimum bulk order quantity',
   price: 'Price',
   unit: 'Unit',
-  kgPerUnit: 'Unit weight in kg',
   quantity: 'Quantity available',
+  costPrice: 'Cost per unit',
+  kgPerUnit: 'Unit weight in kg',
   location: 'Location',
   description: 'Description',
   image: 'Product image',
@@ -52,6 +53,7 @@ function buildDefaultValues(product, currentUser) {
     status: 'active',
     isDonation: false,
     ...product,
+    costPrice: product?.costPrice ?? '',
     ...(product ? { location: matchMunicipality(product.location) } : {}),
   };
 }
@@ -62,7 +64,6 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
-  const [manualCostPrice, setManualCostPrice] = useState('');
 
   const matchedCommodity = matchCommodity(values.name);
   const marketReference = matchedCommodity && marketResult.commodityId === matchedCommodity.id ? marketResult.reference : null;
@@ -116,41 +117,31 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   // Self-reported fallback for when PSA has no data at all for this product — the farmer's
   // own cost is already in their chosen selling unit, so the margin applies directly with
   // no kg conversion needed.
-  const manualCostNum = Number(manualCostPrice);
-  const manualRecommendation = manualCostNum > 0 ? getRecommendedPrice(manualCostNum) : null;
+  const costNum = Number(values.costPrice);
+  const manualRecommendation = costNum > 0 ? getRecommendedPrice(costNum) : null;
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
 
-  const manualCostSection = (
-    <div className="price-recommendation manual">
-      <label htmlFor="manualCostPrice">What's your cost per {values.unit}? (harvesting, inputs, labor)</label>
-      <input
-        id="manualCostPrice"
-        type="number"
-        min="0"
-        step="0.01"
-        value={manualCostPrice}
-        onChange={(event) => setManualCostPrice(event.target.value)}
-        placeholder="e.g. 30.00"
-      />
-      {manualRecommendation ? (
-        <p>
-          <strong>Recommended price: ₱{manualRecommendation.price.toFixed(2)}/{values.unit}</strong>
-          <span> — {manualRecommendation.marginPercent}% above your stated cost, since there's no PSA reference to compare against for this product.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => updateField('price', String(manualRecommendation.price))}
-          >
-            Use this price
-          </Button>
-        </p>
-      ) : null}
-    </div>
+  // Reuses the persisted "Cost per unit" field below (see the form-grid three block) rather
+  // than asking for cost a second time here — this section just reacts to it.
+  const costRecommendationSection = manualRecommendation ? (
+    <p className="price-recommendation">
+      <strong>Recommended price: ₱{manualRecommendation.price.toFixed(2)}/{values.unit}</strong>
+      <span> — {manualRecommendation.marginPercent}% above your stated cost, since there's no PSA reference to compare against for this product.</span>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        onClick={() => updateField('price', String(manualRecommendation.price))}
+      >
+        Use this price
+      </Button>
+    </p>
+  ) : (
+    <p className="price-recommendation">Enter your cost per {values.unit} below to see a recommended price for this product.</p>
   );
 
   // The unit list is scoped to the selected category (e.g. Livestock Products sells by
@@ -333,6 +324,25 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         </FormField>
       </div>
 
+      {!values.isDonation ? (
+        <FormField
+          label="Cost per unit (optional)"
+          name="costPrice"
+          error={errors.costPrice}
+          helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
+        >
+          <input
+            id="costPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.costPrice}
+            onChange={(event) => updateField('costPrice', event.target.value)}
+            placeholder="e.g. 30.00"
+          />
+        </FormField>
+      ) : null}
+
       {!values.isDonation && !isKgUnit ? (
         <FormField
           label={`How many kg is 1 ${values.unit}?`}
@@ -393,13 +403,13 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
               <>
                 <strong>No recent PSA price data</strong>
                 <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years.</span>
-                {manualCostSection}
+                {costRecommendationSection}
               </>
             ) : (
               <>
                 <strong>No PSA market reference available</strong>
                 <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet.</span>
-                {manualCostSection}
+                {costRecommendationSection}
               </>
             )}
           </div>

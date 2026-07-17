@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { loadGoogleMaps } from '../../lib/googleMapsLoader';
-import { resolveRoutePoints } from '../../utils/geo';
+import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
-import { fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
+import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
+
+// Google-Maps-navigation blue — used for every route line (replaces the old always-dashed-
+// orange preview line, which couldn't visually distinguish a real live-navigation route from
+// a time-estimated one).
+const ROUTE_LINE_COLOR = '#1a73e8';
+
+// Live-navigation reroute tuning: the driver's device pings roughly every 8s while sharing
+// is on (see useFarmerActiveDeliverySharing.js), but OSRM's public routing server is a shared,
+// free, no-key instance — refetching on every single ping would hammer it. So a fresh route
+// is only requested when either (a) it's been a while and the driver has actually moved, or
+// (b) the driver has genuinely strayed off the last-fetched line, similar to how a real nav
+// app only reroutes on an actual missed turn, not on every GPS tick.
+const LIVE_REROUTE_MIN_INTERVAL_MS = 20000;
+const LIVE_REROUTE_MIN_MOVE_KM = 0.05;
+const LIVE_REROUTE_DEVIATION_KM = 0.08;
+const LIVE_REROUTE_DEVIATION_COOLDOWN_MS = 8000;
+const MARKER_ANIMATION_DURATION_MS = 1500;
 
 const PRECISION_LABELS = {
   address: 'Exact registered address',
@@ -48,7 +65,35 @@ function pointKey(point) {
   return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
 }
 
-// `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality, deliveryMethod, progress, label, href, etaMinutes }]
+// Tweens a persisted marker smoothly to its new position instead of snapping — Google Maps
+// markers have no built-in "animate to" affordance, so this hand-interpolates position
+// across requestAnimationFrame ticks. Cancels any animation already in flight for this
+// marker first, so a fast run of updates (e.g. two realtime pings arriving close together)
+// doesn't fight itself.
+function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DURATION_MS) {
+  if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
+
+  const startPosition = entry.marker.getPosition();
+  const start = { lat: startPosition.lat(), lng: startPosition.lng() };
+  if (Math.abs(start.lat - targetPosition.lat) < 1e-7 && Math.abs(start.lng - targetPosition.lng) < 1e-7) return;
+
+  const startTime = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - startTime) / durationMs);
+    entry.marker.setPosition({
+      lat: start.lat + (targetPosition.lat - start.lat) * t,
+      lng: start.lng + (targetPosition.lng - start.lng) * t,
+    });
+    entry.animationFrameId = t < 1 ? requestAnimationFrame(step) : null;
+  };
+  entry.animationFrameId = requestAnimationFrame(step);
+}
+
+// `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality,
+//   deliveryMethod, progress, label, href, etaMinutes, currentPosition, remainingKm }] —
+//   `currentPosition`/`remainingKm` come from getLiveTransitProgress and are only non-null
+//   once the farmer has a fresh GPS fix (see useFarmerActiveDeliverySharing.js); otherwise the truck
+//   position/ETA fall back to the time-estimated simulation, same as before.
 // `farmers`: optional [{ id, name, farmName, municipality }] — DTI-verified farmers plotted
 // as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
 // `buyers`: optional [{ id, name, municipality }] — registered buyers plotted the same way
@@ -65,11 +110,35 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
   const buyerMarkersRef = useRef([]);
   const fittedSignatureRef = useRef(null);
   const requestedRouteKeysRef = useRef(new Set());
+  // Truck markers are persisted (not recreated every render, unlike every other marker here)
+  // so their position can be smoothly animated between updates instead of snapping — keyed
+  // by route id: { [routeId]: { marker, infoWindow, infoHtml, animationFrameId } }.
+  const truckMarkersRef = useRef({});
+  // Bookkeeping for the live-navigation reroute effect (throttle + deviation detection) —
+  // a ref, not state, so reading the latest value inside that effect doesn't need it in the
+  // dependency array (same pattern as requestedRouteKeysRef above).
+  const liveRouteMetaRef = useRef({});
+  const pendingLiveFetchRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [roadGeometries, setRoadGeometries] = useState({});
+  const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
+
+  // Cancels any in-flight marker animation on unmount — otherwise a rAF loop could keep
+  // calling setPosition on a marker whose map context is already gone. Deliberately reads
+  // truckMarkersRef.current at unmount time (not a snapshot from mount time) — entries are
+  // created/destroyed throughout the component's life, so the mount-time value would almost
+  // always be stale by the time this actually runs.
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      Object.values(truckMarkersRef.current).forEach((entry) => {
+        if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -206,6 +275,48 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
     });
   }, [routes]);
 
+  // Once a route has a live GPS fix (route.currentPosition — see useFarmerActiveDeliverySharing.js),
+  // this recalculates the road route from THAT position to the destination instead of the
+  // original origin, so the blue line always shows the actual remaining path, exactly like
+  // turn-by-turn navigation. Throttled and deviation-gated (see the LIVE_REROUTE_* constants
+  // above) rather than refetched on every position tick, since OSRM's public server can't
+  // absorb that load from a single app.
+  useEffect(() => {
+    routes.forEach((route) => {
+      if (!route.currentPosition) return;
+      const { destination, isPickup } = resolveRoutePoints(route);
+      if (isPickup) return;
+
+      const meta = liveRouteMetaRef.current[route.id];
+      const now = Date.now();
+
+      if (meta) {
+        const elapsed = now - meta.fetchedAt;
+        const movedKm = haversineKm(meta.fetchedFrom, route.currentPosition);
+        const deviationKm = distanceToPolylineKm(route.currentPosition, meta.points);
+        const dueForRoutineRefresh = elapsed > LIVE_REROUTE_MIN_INTERVAL_MS && movedKm > LIVE_REROUTE_MIN_MOVE_KM;
+        const dueForDeviationReroute = deviationKm > LIVE_REROUTE_DEVIATION_KM && elapsed > LIVE_REROUTE_DEVIATION_COOLDOWN_MS;
+        if (!dueForRoutineRefresh && !dueForDeviationReroute) return;
+      }
+
+      if (pendingLiveFetchRef.current.has(route.id)) return;
+      pendingLiveFetchRef.current.add(route.id);
+
+      fetchRoadRoute(route.currentPosition, destination, { skipCache: true }).then((result) => {
+        pendingLiveFetchRef.current.delete(route.id);
+        if (!result) return;
+        liveRouteMetaRef.current = {
+          ...liveRouteMetaRef.current,
+          [route.id]: { fetchedAt: Date.now(), fetchedFrom: route.currentPosition, points: result.points },
+        };
+        setLiveRouteGeometries((previous) => ({
+          ...previous,
+          [route.id]: { points: result.points, distanceKm: result.distanceKm, durationMinutes: result.durationMinutes },
+        }));
+      });
+    });
+  }, [routes]);
+
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
@@ -214,6 +325,7 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
     routeLayerRef.current.forEach((layer) => layer.setMap(null));
     routeLayerRef.current = [];
     const allPoints = [];
+    const truckRouteIdsThisRender = new Set();
 
     routes.forEach((route) => {
       const { origin, destination, isPickup } = resolveRoutePoints(route);
@@ -225,43 +337,76 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
       const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, '#1d4ed8'), title: route.destinationLabel });
       routeLayerRef.current.push(destinationMarker);
       allPoints.push(destination);
+      if (route.currentPosition) allPoints.push(route.currentPosition);
 
-      // Falls back to a straight line only until the real road geometry resolves (or if
-      // the routing service is unreachable) — never blocks rendering on the fetch.
-      const roadPoints = roadGeometries[`${pointKey(origin)}|${pointKey(destination)}`];
-      const pathPoints = roadPoints?.length > 1 ? roadPoints : [origin, destination];
+      // Once there's a live GPS fix, the blue line shows the actual REMAINING route (current
+      // position -> destination, recalculated as the driver moves — see the effect above),
+      // not the original origin -> destination trip. Falls back to a straight line only
+      // until the first live route resolves, or until the routing service is unreachable —
+      // never blocks rendering on the fetch.
+      const isLiveNavigating = Boolean(route.currentPosition) && !isPickup;
+      const liveRoute = isLiveNavigating ? liveRouteGeometries[route.id] : null;
+      const staticRoadPoints = roadGeometries[`${pointKey(origin)}|${pointKey(destination)}`];
+      const pathPoints = liveRoute?.points?.length > 1
+        ? liveRoute.points
+        : isLiveNavigating
+          ? [route.currentPosition, destination]
+          : (staticRoadPoints?.length > 1 ? staticRoadPoints : [origin, destination]);
 
       // A white casing drawn underneath keeps the route line readable against any tile
       // color (dense street yellows/oranges, green cover, blue water) instead of blending
-      // into whatever's directly beneath it. Google Polylines don't support a native
-      // dash-array — the dashed effect is a repeated line-segment icon along the path.
-      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 7, strokeOpacity: 0.9, map });
+      // into whatever's directly beneath it.
+      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, map });
       routeLayerRef.current.push(casing);
-      const dashedLine = new mapsApi.Polyline({
-        path: pathPoints,
-        strokeOpacity: 0,
-        icons: [{
-          icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: '#ea580c', strokeWeight: 4, scale: 3 },
-          offset: '0',
-          repeat: '14px',
-        }],
-        map,
-      });
-      routeLayerRef.current.push(dashedLine);
+      const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_LINE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, map });
+      routeLayerRef.current.push(routeLine);
 
       // Pickup orders have no truck to track — the buyer travels there on their own
       // schedule, so the route just shows how to get there, not a live position/ETA.
-      if (!isPickup) {
-        const truckPosition = pointAlongRoute(pathPoints, route.progress);
-        const truckMarker = new mapsApi.Marker({ position: truckPosition, map, icon: buildTruckIcon(mapsApi) });
-        const popupText = route.label || `${route.originLabel} → ${route.destinationLabel}`;
-        const etaText = route.etaMinutes != null ? `<br/><small>ETA ~${route.etaMinutes} min${route.etaMinutes === 1 ? '' : 's'}</small>` : '';
-        const truckInfoWindow = new mapsApi.InfoWindow({
-          content: (route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText,
+      if (isPickup) return;
+
+      // A fresh GPS fix from the farmer's own device (see useFarmerActiveDeliverySharing.js) always
+      // wins over the walked-along-the-route estimate — it's the real position, not a guess.
+      const truckPosition = route.currentPosition || pointAlongRoute(pathPoints, route.progress);
+      if (!truckPosition) return;
+      truckRouteIdsThisRender.add(route.id);
+
+      const popupText = route.label || `${route.originLabel} → ${route.destinationLabel}`;
+      const etaText = route.etaMinutes != null ? `<br/><small>ETA ~${route.etaMinutes} min${route.etaMinutes === 1 ? '' : 's'}</small>` : '';
+      const distanceText = route.remainingKm != null ? `<br/><small>${route.remainingKm.toFixed(1)} km remaining</small>` : '';
+      const positionSourceText = `<br/><small>${route.currentPosition ? '📍 Live GPS location' : 'Estimated position'}</small>`;
+      const infoHtml = (route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText + distanceText + positionSourceText;
+
+      // Truck markers are persisted across renders (not recreated, unlike every other marker
+      // here) so their move to a new position can be smoothly animated instead of snapping.
+      // The click listener is registered once at creation and reads `entry.infoHtml` live —
+      // re-registering it every render (like the other markers do) would stack a new
+      // listener on top of the old one every single time, firing the popup N times per click.
+      let entry = truckMarkersRef.current[route.id];
+      if (!entry) {
+        const marker = new mapsApi.Marker({ position: truckPosition, map, icon: buildTruckIcon(mapsApi) });
+        const infoWindow = new mapsApi.InfoWindow();
+        entry = { marker, infoWindow, infoHtml, animationFrameId: null };
+        marker.addListener('click', () => {
+          infoWindow.setContent(entry.infoHtml);
+          infoWindow.open({ map, anchor: marker });
         });
-        truckMarker.addListener('click', () => truckInfoWindow.open({ map, anchor: truckMarker }));
-        routeLayerRef.current.push(truckMarker);
+        truckMarkersRef.current[route.id] = entry;
+      } else {
+        entry.marker.setMap(map);
+        entry.infoHtml = infoHtml;
+        animateMarkerTo(entry, truckPosition);
       }
+    });
+
+    // Drop truck markers for any order no longer being tracked (delivered, cancelled, or the
+    // buyer navigated away) — these are persisted across renders, so nothing else removes them.
+    Object.keys(truckMarkersRef.current).forEach((routeId) => {
+      if (truckRouteIdsThisRender.has(routeId)) return;
+      const entry = truckMarkersRef.current[routeId];
+      if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
+      entry.marker.setMap(null);
+      delete truckMarkersRef.current[routeId];
     });
 
     // Live polling rebuilds `routes` every few seconds even when nothing but a truck's
@@ -282,7 +427,7 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
       map.setCenter(CEBU_CENTER);
       map.setZoom(10);
     }
-  }, [mapReady, routes, roadGeometries]);
+  }, [mapReady, routes, roadGeometries, liveRouteGeometries]);
 
   return (
     <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>

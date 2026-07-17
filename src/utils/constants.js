@@ -88,8 +88,6 @@ export const SELLING_TYPES = [
   { value: 'bulk', label: 'Bulk / Wholesale' },
 ];
 
-export const DISCOUNT_OPTIONS = [10, 20, 30, 50];
-
 export const ORGANIZATION_TYPES = [
   'Orphanage',
   'Home for the Aged',

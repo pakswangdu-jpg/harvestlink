@@ -32,3 +32,11 @@ export function loadGoogleMaps() {
 export function loadGoogleGeocoding() {
   return importLibrary('geocoding');
 }
+
+// DirectionsService/DirectionsRenderer/TravelMode live in the "routes" library — used by
+// src/services/googleDirectionsService.js for the Grab-like live tracking modal. Separate
+// from loadGoogleMaps() above (which the existing DeliveryMap.jsx/FarmerMap.jsx use) so
+// pages that don't need turn-by-turn directions never pull this library in.
+export function loadGoogleRoutes() {
+  return importLibrary('routes');
+}

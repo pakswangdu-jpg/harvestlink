@@ -18,8 +18,46 @@ import {
   updateProduct,
 } from '../../services/productService';
 import { createDonation } from '../../services/donationService';
-import { DISCOUNT_OPTIONS } from '../../utils/constants';
+import { formatCurrency } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
+
+// Farmer types the exact percent they want (rather than picking from presets) and sees the
+// resulting price live before committing — the percent lives in this component's own state
+// since it's a draft that resets once the discount is actually applied (product.discountPercent
+// becomes truthy and this control is swapped for "Remove discount").
+function DiscountControl({ product, onApply }) {
+  const [percent, setPercent] = useState('');
+  const draftPercent = Number(percent);
+  const isValid = percent !== '' && Number.isFinite(draftPercent) && draftPercent > 0 && draftPercent < 100;
+  const previewPrice = isValid ? Number((product.price * (1 - draftPercent / 100)).toFixed(2)) : null;
+
+  return (
+    <div className="discount-picker">
+      <div className="discount-input-wrap">
+        <input
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          value={percent}
+          onChange={(event) => setPercent(event.target.value)}
+          placeholder="20"
+        />
+        <span>%</span>
+      </div>
+      {previewPrice != null ? (
+        <span className="discount-preview">
+          <span className="price-original">{formatCurrency(product.price)}</span>
+          {' → '}
+          <strong>{formatCurrency(previewPrice)}</strong>
+        </span>
+      ) : null}
+      <Button size="sm" variant="secondary" disabled={!isValid} onClick={() => onApply(draftPercent)}>
+        <Tag size={15} /> Apply discount
+      </Button>
+    </div>
+  );
+}
 
 export default function FarmerProducts() {
   const { currentUser } = useAuth();
@@ -27,7 +65,6 @@ export default function FarmerProducts() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [discountDraft, setDiscountDraft] = useState({});
 
   const reload = () => getProductsByFarmer(currentUser.id).then(setProducts);
 
@@ -59,9 +96,15 @@ export default function FarmerProducts() {
   };
 
   const handleDelete = async (id) => {
-    await deleteProduct(id);
-    setNotice('Product deleted.');
-    reload();
+    try {
+      await deleteProduct(id);
+      setError('');
+      setNotice('Product deleted.');
+      reload();
+    } catch (deleteError) {
+      setNotice('');
+      setError(deleteError.message);
+    }
   };
 
   const handleStatus = async (product) => {
@@ -76,11 +119,16 @@ export default function FarmerProducts() {
     reload();
   };
 
-  const handleApplyDiscount = async (product) => {
-    const percent = Number(discountDraft[product.id] || DISCOUNT_OPTIONS[0]);
-    await applyDiscount(product.id, percent);
-    setNotice(`${product.name} discounted by ${percent}%.`);
-    reload();
+  const handleApplyDiscount = async (product, percent) => {
+    try {
+      await applyDiscount(product.id, percent);
+      setError('');
+      setNotice(`${product.name} discounted by ${percent}%.`);
+      reload();
+    } catch (discountError) {
+      setNotice('');
+      setError(discountError.message);
+    }
   };
 
   const handleRemoveDiscount = async (product) => {
@@ -197,19 +245,7 @@ export default function FarmerProducts() {
                           Remove discount
                         </Button>
                       ) : (
-                        <div className="discount-picker">
-                          <select
-                            value={discountDraft[product.id] || DISCOUNT_OPTIONS[0]}
-                            onChange={(event) => setDiscountDraft((previous) => ({ ...previous, [product.id]: event.target.value }))}
-                          >
-                            {DISCOUNT_OPTIONS.map((percent) => (
-                              <option key={percent} value={percent}>{percent}% off</option>
-                            ))}
-                          </select>
-                          <Button size="sm" variant="secondary" onClick={() => handleApplyDiscount(product)}>
-                            <Tag size={15} /> Discount
-                          </Button>
-                        </div>
+                        <DiscountControl product={product} onApply={(percent) => handleApplyDiscount(product, percent)} />
                       )}
 
                       {Number(product.quantity) > 0 ? (

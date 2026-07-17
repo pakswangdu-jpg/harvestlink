@@ -52,7 +52,7 @@ function buildActiveDeliveryRoutes(orders, currentUser) {
   return orders
     .filter((order) => order.status === 'confirmed')
     .map((order) => {
-      const { progress, etaMinutes } = getLiveTransitProgress(order);
+      const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
       const isPickup = order.deliveryMethod === 'buyer_pickup';
       return {
         id: order.id,
@@ -65,6 +65,8 @@ function buildActiveDeliveryRoutes(orders, currentUser) {
         deliveryMethod: order.deliveryMethod,
         progress,
         etaMinutes,
+        currentPosition,
+        remainingKm,
         label: `${order.productName} — ${order.farmerName}`,
         href: `/orders/${order.id}`,
       };

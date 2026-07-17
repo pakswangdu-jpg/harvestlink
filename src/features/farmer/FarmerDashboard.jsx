@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Gift, Package, Store } from 'lucide-react';
+import { CheckCircle2, Clock3, Gift, Package, Store, TrendingUp, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import StatCard from '../../components/cards/StatCard';
@@ -15,6 +15,7 @@ import { getProductsByFarmer } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
 import { matchCommodity } from '../../services/marketPriceService';
+import { getProfitCoverage, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
 
@@ -50,7 +51,7 @@ export default function FarmerDashboard() {
       const municipalityByBuyerId = new Map(pickupBuyers.filter(Boolean).map((buyer) => [buyer.id, buyer.municipality]));
 
       const activeDeliveryRoutes = confirmedOrders.map((order) => {
-        const { progress, etaMinutes } = getLiveTransitProgress(order);
+        const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
         const isPickup = order.deliveryMethod === 'buyer_pickup';
         const buyerMunicipality = isPickup ? (municipalityByBuyerId.get(order.buyerId) || order.deliveryMunicipality) : order.deliveryMunicipality;
         return {
@@ -62,6 +63,8 @@ export default function FarmerDashboard() {
           deliveryMethod: order.deliveryMethod,
           progress,
           etaMinutes,
+          currentPosition,
+          remainingKm,
           label: `${order.productName} — ${order.buyerName}`,
           href: `/orders/${order.id}`,
         };
@@ -89,6 +92,18 @@ export default function FarmerDashboard() {
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
+  // Sums every paid order to date (COD counts once the buyer confirms delivery — see
+  // advanceDelivery on the backend), same "paid orders" definition the admin dashboard's
+  // own revenue figure uses, just scoped to this farmer's own orders.
+  const totalIncome = getTotalRevenue(orders);
+  // Profit = income minus recorded cost, but only for orders whose product had a cost on
+  // file at checkout (see reportService.js) — the coverage note keeps that honest instead
+  // of silently treating "no cost recorded" as "zero cost."
+  const totalProfit = getTotalProfit(orders);
+  const profitCoverage = getProfitCoverage(orders);
+  const profitHint = profitCoverage.total > 0 && profitCoverage.covered < profitCoverage.total
+    ? `Based on ${profitCoverage.covered} of ${profitCoverage.total} paid orders — add a cost per unit to your other listings for a full picture.`
+    : null;
 
   const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
@@ -119,6 +134,8 @@ export default function FarmerDashboard() {
       ) : null}
 
       <section className="stats-grid">
+        <StatCard label="Total income" value={formatCurrency(totalIncome)} icon={<Wallet size={20} />} />
+        <StatCard label="Profit" value={formatCurrency(totalProfit)} icon={<TrendingUp size={20} />} hint={profitHint} />
         <StatCard label="Total products" value={products.length} icon={<Store size={20} />} />
         <StatCard label="Active listings" value={products.filter((product) => product.status === 'active').length} icon={<Package size={20} />} />
         <StatCard label="Pending orders" value={pendingOrders.length} icon={<Clock3 size={20} />} />

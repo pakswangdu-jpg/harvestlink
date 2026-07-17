@@ -41,10 +41,17 @@ function buildCacheKey(origin, destination) {
 // OSRM's actual driving-time estimate instead of a straight-line-distance guess. Returns
 // null (never a guess) if the routing service is unavailable, so callers can fall back to
 // a straight line rather than block or fabricate a fake path.
-export async function fetchRoadRoute(origin, destination) {
+//
+// `skipCache`: used for live-navigation reroutes (see DeliveryMap.jsx), where `origin` is
+// the driver's constantly-changing GPS position — caching by that exact lat/lng would never
+// hit (each fix is essentially unique) and would just fill localStorage with one-off entries
+// that are never read back, so those calls skip the cache entirely on both ends.
+export async function fetchRoadRoute(origin, destination, { skipCache = false } = {}) {
   const cacheKey = buildCacheKey(origin, destination);
-  const cached = readCache(cacheKey);
-  if (cached?.points) return cached;
+  if (!skipCache) {
+    const cached = readCache(cacheKey);
+    if (cached?.points) return cached;
+  }
 
   const url = `${OSRM_URL}/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
   const controller = new AbortController();
@@ -64,7 +71,7 @@ export async function fetchRoadRoute(origin, destination) {
       distanceKm: route.distance / 1000,
       durationMinutes: route.duration / 60,
     };
-    writeCache(cacheKey, result);
+    if (!skipCache) writeCache(cacheKey, result);
     return result;
   } catch {
     return null;
@@ -114,4 +121,28 @@ export function pointAlongRoute(points, fraction) {
     traveled += segmentLength;
   }
   return points[points.length - 1];
+}
+
+// Perpendicular (nearest-point) distance from a point to a multi-segment polyline, in km —
+// this is what DeliveryMap.jsx uses to detect when a driver has strayed off the last-fetched
+// live route by more than a small tolerance, which is what triggers an automatic reroute.
+export function distanceToPolylineKm(point, points) {
+  if (!points || points.length < 2) return Infinity;
+  let minDistance = Infinity;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const distance = distanceToSegmentKm(point, points[i], points[i + 1]);
+    if (distance < minDistance) minDistance = distance;
+  }
+  return minDistance;
+}
+
+// Treats lat/lng as a flat local plane for the nearest-point projection — fine at the scale
+// a single route segment spans here (well under a km), not meant for long-distance accuracy.
+function distanceToSegmentKm(point, a, b) {
+  const abLng = b.lng - a.lng;
+  const abLat = b.lat - a.lat;
+  const lengthSq = abLng * abLng + abLat * abLat;
+  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((point.lng - a.lng) * abLng + (point.lat - a.lat) * abLat) / lengthSq));
+  const closest = { lat: a.lat + abLat * t, lng: a.lng + abLng * t };
+  return haversineKm(point, closest);
 }

@@ -84,12 +84,19 @@ create table if not exists public.products (
   original_price numeric(12,2),
   discount_percent numeric(5,2),
   price_review jsonb,
+  -- Optional — a farmer's own cost per unit (harvesting, inputs, labor), never shown to
+  -- buyers. Powers the profit figure on the farmer dashboard (see reportService.js);
+  -- null means "not recorded," not "zero cost." Snapshotted onto each order at checkout
+  -- (orders.unit_cost_price below) so profit stays accurate even if this later changes.
+  cost_price numeric(12,2),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists products_farmer_id_idx on public.products (farmer_id);
 create index if not exists products_status_idx on public.products (status);
+
+alter table public.products add column if not exists cost_price numeric(12,2);
 
 -- ============================================================================
 -- orders — product_name/unit/unit_price/farmer_name/buyer_name are deliberately
@@ -99,10 +106,19 @@ create index if not exists products_status_idx on public.products (status);
 -- ============================================================================
 create table if not exists public.orders (
   id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id),
+  -- Nullable + on delete set null (not "not null"/restrict) — product_name/unit/unit_price
+  -- etc. are already snapshotted below, so an order stays fully readable even after its
+  -- product is deleted; the FK should reflect that, not silently block the farmer from ever
+  -- deleting a product once a single order has been placed against it.
+  product_id uuid references public.products(id) on delete set null,
   product_name text not null,
   unit text not null,
   unit_price numeric(12,2) not null,
+  -- Snapshot of products.cost_price at checkout — null if the farmer never recorded a cost
+  -- for this product. Same "receipt of what actually happened" reasoning as the other
+  -- snapshotted fields above: profit (see reportService.js) must stay correct even if the
+  -- farmer edits or deletes the product afterward.
+  unit_cost_price numeric(12,2),
   farmer_id uuid not null references public.profiles(id),
   farmer_name text not null,
   buyer_id uuid not null references public.profiles(id),
@@ -123,6 +139,28 @@ create table if not exists public.orders (
   origin_municipality text not null,
   delivery_municipality text not null,
   status text not null default 'pending' check (status in ('pending','confirmed','rejected','completed','cancelled')),
+  -- Farmer's live device GPS while an order is out for delivery (see the Socket.IO
+  -- 'farmer-location' handler in backend/src/realtime/orderTracking.js and
+  -- src/hooks/useFarmerActiveDeliverySharing.js) — null whenever the farmer hasn't got an
+  -- active delivery, or their tab/app has been closed. The buyer's map falls back to a
+  -- time-estimated position once this goes stale (see getLiveTransitProgress).
+  current_lat double precision,
+  current_lng double precision,
+  -- Raw device sensor readings alongside the position fix — heading/speed are only ever
+  -- meaningful once currentLat/currentLng are themselves fresh (see location_updated_at);
+  -- both are frequently null even while moving (many devices don't report a heading/speed
+  -- fix at all below a certain walking/driving speed), so the UI always treats them as
+  -- optional enrichment, never a required field.
+  current_heading double precision,
+  current_speed double precision,
+  current_accuracy double precision,
+  location_updated_at timestamptz,
+  -- Set once, the moment delivery_status first becomes 'out_for_delivery' (see
+  -- advanceDelivery) — the anchor getLiveTransitProgress's time-estimated fallback measures
+  -- elapsed transit time from. Deliberately separate from updated_at, since that column is
+  -- also bumped by every location ping while GPS sharing is active (see the trigger below),
+  -- which would otherwise reset the elapsed-time estimate on every single GPS update.
+  transit_started_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -133,6 +171,23 @@ create index if not exists orders_product_id_idx on public.orders (product_id);
 
 -- Safe to re-run against an already-created table from an earlier version of this schema.
 alter table public.orders add column if not exists delivery_fee numeric(12,2) not null default 0;
+alter table public.orders add column if not exists current_lat double precision;
+alter table public.orders add column if not exists current_lng double precision;
+alter table public.orders add column if not exists current_heading double precision;
+alter table public.orders add column if not exists current_speed double precision;
+alter table public.orders add column if not exists current_accuracy double precision;
+alter table public.orders add column if not exists location_updated_at timestamptz;
+alter table public.orders add column if not exists transit_started_at timestamptz;
+alter table public.orders add column if not exists unit_cost_price numeric(12,2);
+
+-- Lets a farmer delete a product even after orders exist against it — previously this FK
+-- had no ON DELETE clause (defaulting to RESTRICT), which silently blocked every such
+-- delete with a foreign-key-violation error the frontend didn't surface either. Orders
+-- already snapshot product_name/unit/unit_price etc., so they stay fully valid afterward.
+alter table public.orders alter column product_id drop not null;
+alter table public.orders drop constraint if exists orders_product_id_fkey;
+alter table public.orders add constraint orders_product_id_fkey
+  foreign key (product_id) references public.products(id) on delete set null;
 
 -- ============================================================================
 -- notifications
@@ -170,6 +225,29 @@ create table if not exists public.messages (
 create index if not exists messages_order_id_idx on public.messages (order_id, created_at);
 
 -- ============================================================================
+-- ratings — a buyer rates the farmer after confirming receipt of a completed order
+-- (order_id set, one rating per order); a stakeholder rates the farmer after confirming
+-- receipt of a donation (order_id null, since donations aren't backend-tracked — see
+-- src/services/donationService.js). Farmer's own average is computed on read (see
+-- backend/src/controllers/profiles.controller.js), not stored, so it's never stale.
+-- ============================================================================
+create table if not exists public.ratings (
+  id uuid primary key default gen_random_uuid(),
+  farmer_id uuid not null references public.profiles(id) on delete cascade,
+  rater_id uuid not null references public.profiles(id) on delete cascade,
+  rater_role text not null check (rater_role in ('buyer','stakeholder')),
+  order_id uuid references public.orders(id) on delete set null,
+  rating smallint not null check (rating between 1 and 5),
+  comment text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists ratings_farmer_id_idx on public.ratings (farmer_id);
+-- A buyer can only rate a given order once — no such constraint for stakeholder ratings
+-- (order_id null), since those aren't anchored to a unique backend record.
+create unique index if not exists ratings_order_id_unique on public.ratings (order_id) where order_id is not null;
+
+-- ============================================================================
 -- updated_at maintenance trigger
 -- ============================================================================
 create or replace function public.set_updated_at()
@@ -193,21 +271,43 @@ create trigger set_orders_updated_at before update on public.orders
   for each row execute function public.set_updated_at();
 
 -- ============================================================================
--- Row Level Security — enabled with ZERO policies on every table.
---
--- Only the backend's service_role key ever touches these four tables (it
--- bypasses RLS unconditionally, policies or not), so this costs nothing
--- operationally. The payoff: it guarantees the anon/authenticated keys the
--- frontend holds (used ONLY for Supabase Auth, per this project's design —
--- the frontend never queries these tables directly) can never read or write
--- profiles/products/orders/notifications, even via a future accidental
--- `supabase.from('orders')` call added to frontend code.
+-- Row Level Security — enabled on every table; only ONE real policy exists
+-- (orders_select_own, below), added specifically so Supabase Realtime can push live
+-- GPS/status updates straight to an order's own buyer/farmer without a round trip through
+-- the backend (see src/features/orders/OrderTracking.jsx). Every other read/write still
+-- goes exclusively through the backend's service_role key (which bypasses RLS
+-- unconditionally), so this remains one narrow, explicit exception, not a general opening —
+-- the anon/authenticated keys the frontend holds still can't read or write anything else on
+-- these tables, even via a future accidental `supabase.from('products')` call.
 -- ============================================================================
 alter table public.profiles enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
 alter table public.notifications enable row level security;
 alter table public.messages enable row level security;
+alter table public.ratings enable row level security;
+
+-- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
+-- directly — Realtime enforces RLS just like any other read, so without this policy the
+-- client would never receive postgres_changes events at all, even for its own order. Scoped
+-- to exactly "you are a party to this order," nothing broader.
+drop policy if exists orders_select_own on public.orders;
+create policy orders_select_own on public.orders
+  for select
+  using ((select auth.uid()) = buyer_id or (select auth.uid()) = farmer_id);
+
+-- Required for postgres_changes events to fire for this table at all — idempotent (skips
+-- if the table was already added, e.g. via the Database -> Replication toggle in the
+-- Supabase dashboard instead of this SQL).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'
+  ) then
+    alter publication supabase_realtime add table public.orders;
+  end if;
+end $$;
 
 -- ============================================================================
 -- Storage buckets

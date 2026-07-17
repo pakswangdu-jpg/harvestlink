@@ -1,3 +1,11 @@
+/* Tailwind utilities only — deliberately skips tailwindcss/preflight.css (the reset layer),
+   since that would silently restyle every bare <h1>-<h6>/<ul>/<button>/etc. across the whole
+   app on top of the hand-written cascade below. Utility classes (e.g. flex, gap-2, text-sm)
+   are available everywhere; just add them to className as needed on new/existing markup. */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -432,6 +440,24 @@ p {
   background: var(--green-700);
 }
 
+.nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--red-700);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.side-nav a .nav-badge {
+  margin-left: auto;
+}
+
 .logout-link {
   color: var(--red-700);
   background: #fff7f7;
@@ -493,6 +519,11 @@ a.sidebar-user:hover {
   margin: 0 auto;
   padding: 28px;
   display: grid;
+  /* minmax(0, 1fr) on the implicit single column — without it, a wide child (e.g. the
+     Google Map, once its internal DOM/attribution bar finishes rendering) can stretch this
+     grid track past the container's own width instead of shrinking to fit, spilling content
+     out past the viewport edge on narrow screens. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 20px;
 }
@@ -699,6 +730,68 @@ a.user-chip:hover {
   line-height: 1.1;
 }
 
+.stat-card-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.tracking-info-cards-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.tracking-info-heading {
+  font-size: 1.4rem;
+  color: var(--green-900);
+}
+
+/* Matches the delivery-tracking status model in getDeliveryTrackingStatus() —
+   Pending/Confirmed/On the Way/Near Destination/Delivered, plus the two terminal
+   non-delivery outcomes reusing the same red/gray tones as the rest of the app. */
+.tracking-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.tracking-badge.tracking-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tracking-badge.tracking-confirmed {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.tracking-badge.tracking-on-the-way {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.tracking-badge.tracking-near-destination {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.tracking-badge.tracking-delivered {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.tracking-badge.tracking-rejected,
+.tracking-badge.tracking-cancelled {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
 .content-grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -784,6 +877,7 @@ a.user-chip:hover {
   color: var(--muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -823,6 +917,7 @@ a.user-chip:hover {
 
 .discount-picker {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -832,6 +927,46 @@ a.user-chip:hover {
   border-radius: var(--radius);
   padding: 8px 10px;
   background: #fbfdfb;
+}
+
+.discount-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  padding: 0 10px;
+  background: #fbfdfb;
+}
+
+.discount-input-wrap input {
+  width: 56px;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.discount-input-wrap input:focus {
+  outline: none;
+}
+
+.discount-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.location-share-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.location-share-control .muted {
+  font-size: 0.82rem;
 }
 
 .price-block {
@@ -1379,6 +1514,13 @@ a.user-chip:hover {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.chat-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .chat-lang-select {
@@ -2174,7 +2316,11 @@ th {
 
 @media (max-width: 1080px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr), not a bare 1fr — a plain 1fr track still won't shrink below its
+       content's min-content size (the classic CSS grid blowout gotcha), so any wide child
+       (the Google Map's internal tiles, a long unbreakable line) was pushing this column,
+       and everything in it, past the viewport edge on mobile. */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .sidebar {
@@ -2211,6 +2357,7 @@ th {
 
   .mobile-bottom-nav a,
   .mobile-bottom-nav button {
+    position: relative;
     min-height: 46px;
     border-radius: var(--radius);
     display: grid;
@@ -2219,6 +2366,15 @@ th {
     color: #4d6357;
     font-size: 0.7rem;
     padding: 4px;
+  }
+
+  .mobile-bottom-nav a .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    min-width: 15px;
+    height: 15px;
+    font-size: 0.6rem;
   }
 
   .mobile-bottom-nav-scroll a {
@@ -2240,19 +2396,23 @@ th {
 }
 
 @media (max-width: 900px) {
+  /* minmax(0, 1fr), not a bare 1fr — several of these wrap wide children (data tables,
+     maps) whose min-content width would otherwise blow this column out past the viewport
+     instead of letting it shrink to fit (the same grid gotcha fixed on .app-shell/
+     .main-content above). */
   .landing-hero,
   .auth-page,
   .content-grid.two,
   .content-grid.two.uneven,
   .landing-feature-grid,
   .step-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   /* Same specificity as .admin-users-grid's desktop rule above, so this wins on mobile
      via source order rather than losing to it. */
   .content-grid.two.uneven.admin-users-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .stats-grid {
@@ -2287,6 +2447,15 @@ th {
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* .page-header switching to a column above moves the bell to the LEFT edge of the
+     screen (it's the second stacked child now, not a right-aligned one) — the panel's
+     desktop `right: 0` would still anchor to that same bell, pushing most of its 340px
+     width off-screen to the left instead of over it. Open it from the left edge instead. */
+  .notification-panel {
+    left: 0;
+    right: auto;
   }
 
   .landing-actions {
@@ -2785,6 +2954,256 @@ th {
   justify-content: center;
 }
 
+/* ============================================================================
+   Live Delivery Tracking modal (LiveTrackingModal.jsx) — Grab/Uber-Eats-style
+   ============================================================================ */
+.tracking-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 20, 12, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.tracking-modal {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border-radius: 20px;
+  box-shadow: 0 30px 70px rgba(6, 20, 12, 0.35);
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+}
+
+.tracking-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tracking-modal-header h2 {
+  margin-top: 4px;
+  color: var(--green-900);
+  font-size: 1.5rem;
+}
+
+.tracking-modal-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tracking-modal-close:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.tracking-complete-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  background: var(--green-50);
+  color: var(--green-900);
+  border: 1px solid var(--green-100);
+}
+
+.tracking-complete-banner p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tracking-info-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tracking-info-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfdfb;
+}
+
+.tracking-info-card-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.tracking-info-card p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.tracking-info-card strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--green-900);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.tracking-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.tracking-timeline {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  background: var(--soft);
+  overflow-x: auto;
+}
+
+.tracking-timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 78px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0.55;
+}
+
+.tracking-timeline-step.done {
+  color: var(--green-700);
+  opacity: 1;
+}
+
+.tracking-timeline-step.active {
+  color: var(--green-900);
+  opacity: 1;
+}
+
+.tracking-timeline-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 1.05rem;
+  box-shadow: 0 4px 10px rgba(20, 65, 38, 0.08);
+}
+
+.tracking-modal-map {
+  width: 100%;
+  height: 320px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.live-delivery-map-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.live-delivery-map {
+  width: 100%;
+  height: 360px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.live-delivery-map-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tracking-gps-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--soft);
+  font-size: 0.82rem;
+}
+
+.tracking-gps-card span {
+  display: block;
+  color: var(--muted);
+}
+
+.tracking-gps-card strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--green-900);
+}
+
+.tracking-connection-status {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+}
+
+.tracking-farmer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .tracking-info-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tracking-gps-card {
+    grid-template-columns: 1fr;
+  }
+
+  .tracking-modal {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .tracking-modal-map {
+    height: 240px;
+  }
+}
+
 @media print {
   .sidebar,
   .mobile-bottom-nav,
@@ -2801,4 +3220,52 @@ th {
     box-shadow: none;
     border: none;
   }
+}
+
+.star-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star-rating-star {
+  color: var(--line);
+  line-height: 0;
+}
+
+.star-rating-star.filled {
+  color: #f59e0b;
+}
+
+.star-rating-star svg {
+  fill: currentColor;
+}
+
+.star-rating.interactive .star-rating-star {
+  cursor: pointer;
+}
+
+.rating-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.rating-summary strong {
+  color: var(--text);
+}
+
+.recommended-farm-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.recommended-farm-card .farmer-list-text {
+  flex: 1;
+  min-width: 0;
 }
