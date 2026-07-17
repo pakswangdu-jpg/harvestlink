@@ -5,11 +5,16 @@ import NotificationBell from '../notifications/NotificationBell';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
 import { getInitials } from '../../utils/formatters';
 import { useAuth } from '../../features/auth/AuthContext';
+import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
 import logo from '../../assets/logo.png';
 
 export default function AppShell({ user, navItems, title, subtitle, children }) {
   const { logout } = useAuth();
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
+  // Mounted here (not on the order tracking page) so GPS sharing starts the instant an order
+  // goes "out for delivery" no matter which page the farmer used to mark it that way — the
+  // order detail page, the orders list, etc. all call the same backend action.
+  const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null);
 
   const handleLogout = () => {
     // A client-side navigate() here raced with ProtectedRoute's own "no user -> /login"
@@ -38,6 +43,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <item.icon size={18} />
               <span>{item.label}</span>
+              {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
             </NavLink>
           ))}
         </nav>
@@ -75,6 +81,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
           </div>
           {hasProfile ? <NotificationBell userId={user.id} /> : null}
         </header>
+        {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}
         {children}
       </main>
 
@@ -84,6 +91,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <item.icon size={18} />
               <span>{item.label}</span>
+              {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
             </NavLink>
           ))}
         </div>

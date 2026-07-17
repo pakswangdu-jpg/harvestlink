@@ -42,7 +42,11 @@ export default function ProductDetails() {
   if (!product) return <Navigate to="/marketplace" replace />;
 
   const navItems = getNavItemsForRole(currentUser.role);
-  const canRequest = ORDERING_ROLES.includes(currentUser.role) && currentUser.id !== product.farmerId && product.status === 'active';
+  const isPendingReview = product.priceReview?.status === 'pending';
+  const canRequest = ORDERING_ROLES.includes(currentUser.role)
+    && currentUser.id !== product.farmerId
+    && product.status === 'active'
+    && !isPendingReview;
 
   const handleOrder = async (values) => {
     const order = await createOrder({ ...values, productId: product.id });
@@ -106,7 +110,9 @@ export default function ProductDetails() {
               <p>
                 {!ORDERING_ROLES.includes(currentUser.role)
                   ? 'Only buyer or partner organization accounts can place orders.'
-                  : 'You cannot order your own product or an inactive listing.'}
+                  : isPendingReview
+                    ? 'This listing’s price is still awaiting DTI review and can’t be ordered yet.'
+                    : 'You cannot order your own product or an inactive listing.'}
               </p>
               <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
             </div>

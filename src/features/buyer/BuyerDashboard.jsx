@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Clock3, PackageCheck, ShoppingBag, Store } from 'lucide-react';
+import { Clock3, MapPin, PackageCheck, ShoppingBag, Store, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import StatCard from '../../components/cards/StatCard';
@@ -7,6 +7,7 @@ import ProductCard from '../../components/cards/ProductCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import StarRating from '../../components/common/StarRating';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
@@ -14,7 +15,8 @@ import { getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { formatDate, getFirstName } from '../../utils/formatters';
+import { getTotalRevenue } from '../../services/reportService';
+import { formatCurrency, formatDate, getFirstName, getInitials } from '../../utils/formatters';
 import { buyerNavItems } from './buyerNav';
 
 const EMPTY_STATE = { products: [], orders: [], verifiedFarmers: [], activeDeliveryRoutes: [] };
@@ -36,7 +38,7 @@ export default function BuyerDashboard() {
 
       const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
       const activeDeliveryRoutes = confirmedOrders.map((order) => {
-        const { progress, etaMinutes } = getLiveTransitProgress(order);
+        const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
         const isPickup = order.deliveryMethod === 'buyer_pickup';
         return {
           id: order.id,
@@ -49,6 +51,8 @@ export default function BuyerDashboard() {
           deliveryMethod: order.deliveryMethod,
           progress,
           etaMinutes,
+          currentPosition,
+          remainingKm,
           label: `${order.productName} — ${order.farmerName}`,
           href: `/orders/${order.id}`,
         };
@@ -71,6 +75,16 @@ export default function BuyerDashboard() {
   const freshListings = products.filter((product) => product.grade === 'A');
   const matchedCommodity = orders.map((order) => matchCommodity(order.productName)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
+  // Platform-wide recommendation, not personalized to this buyer's own order history —
+  // just the best-reviewed farms overall. Only farms with at least one real rating qualify,
+  // so an unrated farm never shows up ranked above ones buyers have actually vouched for.
+  const recommendedFarmers = [...verifiedFarmers]
+    .filter((farmer) => farmer.ratingCount > 0)
+    .sort((a, b) => b.avgRating - a.avgRating || b.ratingCount - a.ratingCount)
+    .slice(0, 4);
+  // Same "paid orders" definition used for the farmer's total income and the admin's
+  // platform-wide revenue — just scoped to this buyer's own orders (see reportService.js).
+  const totalSpend = getTotalRevenue(orders);
 
   return (
     <AppShell
@@ -80,6 +94,7 @@ export default function BuyerDashboard() {
       subtitle="Browse Cebu harvests, check out, and track delivery from local farmers."
     >
       <section className="stats-grid">
+        <StatCard label="Total spend" value={formatCurrency(totalSpend)} icon={<Wallet size={20} />} />
         <StatCard label="Active listings" value={products.length} icon={<Store size={20} />} />
         <StatCard label="My orders" value={orders.length} icon={<ShoppingBag size={20} />} />
         <StatCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={<Clock3 size={20} />} />
@@ -144,6 +159,36 @@ export default function BuyerDashboard() {
           />
         </div>
       </section>
+
+      {recommendedFarmers.length ? (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">For you</p>
+              <h2>Recommended farms</h2>
+            </div>
+          </div>
+          <div className="content-grid two">
+            {recommendedFarmers.map((farmer) => (
+              <Link
+                key={farmer.id}
+                className="recommended-farm-card"
+                to={`/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(farmer.farmName || farmer.name)}`}
+              >
+                <span className="farmer-list-avatar">{getInitials(farmer.name)}</span>
+                <span className="farmer-list-text">
+                  <strong>{farmer.farmName || farmer.name}</strong>
+                  <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>
+                </span>
+                <span className="rating-summary">
+                  <StarRating value={farmer.avgRating} />
+                  <strong>{farmer.avgRating}</strong> ({farmer.ratingCount})
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </AppShell>
   );
 }

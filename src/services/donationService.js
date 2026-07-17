@@ -142,6 +142,16 @@ export function confirmReceipt(id) {
   return updated.find((donation) => donation.id === id);
 }
 
+// Donations are local-only (no backend order behind one — see ratingService.js), so
+// "already rated" has nowhere authoritative to live except the donation record itself.
+export function markDonationRated(id) {
+  const updated = getDonations().map((donation) =>
+    donation.id === id ? { ...donation, rated: true } : donation
+  );
+  saveDonations(updated);
+  return updated.find((donation) => donation.id === id);
+}
+
 export function cancelDonation(id) {
   const donations = getDonations();
   const target = donations.find((donation) => donation.id === id);

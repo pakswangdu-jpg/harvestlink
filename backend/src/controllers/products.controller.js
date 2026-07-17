@@ -32,7 +32,13 @@ export async function listProducts(req, res) {
   let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
   if (req.query.status) query = query.eq('status', req.query.status);
   if (req.query.farmerId) query = query.eq('farmer_id', req.query.farmerId);
-  if (req.query.activeOnly === 'true') query = query.eq('status', 'active').gt('quantity', 0);
+  if (req.query.activeOnly === 'true') {
+    query = query.eq('status', 'active').gt('quantity', 0);
+    // A flagged price (see buildPriceReview) leaves status as 'active' so the farmer can
+    // still see/manage the listing while it's under review — but it must stay invisible to
+    // buyers until DTI/admin actually approves it, not just because the record is "active".
+    query = query.or('price_review.is.null,price_review->>status.eq.approved');
+  }
 
   const { data, error } = await query;
   if (error) throw new ApiError(error.message, 400);
@@ -68,6 +74,7 @@ export async function createProduct(req, res) {
     image_url: values.image || null,
     status: 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
+    cost_price: values.costPrice ? Number(values.costPrice) : null,
     created_at: now,
     updated_at: now,
   };
@@ -108,6 +115,7 @@ export async function updateProduct(req, res) {
     image_url: values.image !== undefined ? values.image || null : existing.image_url,
     status: values.status || (quantity > 0 ? existing.status : 'inactive'),
     price_review: priceReview,
+    cost_price: values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price,
   };
 
   const { data, error } = await supabaseAdmin.from('products').update(row).eq('id', existing.id).select().single();
@@ -146,6 +154,9 @@ export async function applyDiscount(req, res) {
   const existing = await fetchProductOr404(req.params.id);
   assertOwnership(req, existing);
   const percent = Number(req.body.percent);
+  if (!Number.isFinite(percent) || percent <= 0 || percent >= 100) {
+    throw new ApiError('Discount percent must be between 1 and 99.', 400);
+  }
 
   const originalPrice = existing.original_price ?? existing.price;
   const discountedPrice = Number((originalPrice * (1 - percent / 100)).toFixed(2));

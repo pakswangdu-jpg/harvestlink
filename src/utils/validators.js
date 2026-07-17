@@ -63,6 +63,9 @@ export function validateProductForm(values) {
   if (!values.isDonation) {
     if (!['retail', 'bulk'].includes(values.sellingType)) errors.sellingType = 'Choose a selling type.';
     if (toPositiveNumber(values.price) === null) errors.price = 'Enter a positive price.';
+    if (required(values.costPrice) && toPositiveNumber(values.costPrice) === null) {
+      errors.costPrice = 'Enter a positive cost, or leave it blank.';
+    }
     if (values.sellingType === 'bulk') {
       const bulkMin = toPositiveNumber(values.bulkMinQuantity);
       if (bulkMin === null) errors.bulkMinQuantity = 'Enter a positive minimum bulk quantity.';

@@ -135,7 +135,29 @@ export async function listProfiles(req, res) {
 
   const { data, error } = await query;
   if (error) throw new ApiError(error.message, 400);
-  res.json(data.map(serializeProfile));
+
+  const serialized = data.map(serializeProfile);
+  // A farmer's average rating is computed fresh on every read (never stored) so it can
+  // never drift stale — cheap here since it's one extra query per list call, not per farmer.
+  const farmerIds = data.filter((row) => row.role === 'farmer').map((row) => row.id);
+  if (farmerIds.length) {
+    const { data: ratings } = await supabaseAdmin.from('ratings').select('farmer_id, rating').in('farmer_id', farmerIds);
+    const summaryById = new Map();
+    (ratings || []).forEach(({ farmer_id: farmerId, rating }) => {
+      const entry = summaryById.get(farmerId) || { total: 0, count: 0 };
+      entry.total += rating;
+      entry.count += 1;
+      summaryById.set(farmerId, entry);
+    });
+    serialized.forEach((profile) => {
+      if (profile.role !== 'farmer') return;
+      const entry = summaryById.get(profile.id);
+      profile.avgRating = entry ? Number((entry.total / entry.count).toFixed(1)) : null;
+      profile.ratingCount = entry ? entry.count : 0;
+    });
+  }
+
+  res.json(serialized);
 }
 
 export async function setVerification(req, res) {

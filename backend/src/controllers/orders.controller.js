@@ -60,6 +60,12 @@ export async function createOrder(req, res) {
     .single();
   if (productError || !product) throw new ApiError('Product was not found.', 404);
   if (product.farmer_id === req.profile.id) throw new ApiError('You cannot order your own product.', 400);
+  if (product.status !== 'active') throw new ApiError('This product is no longer available.', 400);
+  // Not shown in the marketplace while its price is under DTI review (see listProducts) —
+  // block ordering it directly too, e.g. via a stale link, not just hide it from browsing.
+  if (product.price_review?.status === 'pending') {
+    throw new ApiError('This product is awaiting DTI price review and cannot be ordered yet.', 400);
+  }
 
   const quantity = Number(values.quantity);
   if (!(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
@@ -80,6 +86,9 @@ export async function createOrder(req, res) {
     product_name: product.name,
     unit: product.unit,
     unit_price: Number(product.price),
+    // Snapshotted so profit stays accurate for this order even if the farmer later edits
+    // or removes their recorded cost (see reportService.js's getTotalProfit).
+    unit_cost_price: product.cost_price == null ? null : Number(product.cost_price),
     farmer_id: product.farmer_id,
     farmer_name: farmer?.name || 'Local farmer',
     buyer_id: req.profile.id,
@@ -158,7 +167,7 @@ export async function cancelOrder(req, res) {
 
   const { data: order, error } = await supabaseAdmin
     .from('orders')
-    .update({ status: 'cancelled', delivery_status: 'cancelled' })
+    .update({ status: 'cancelled', delivery_status: 'cancelled', current_lat: null, current_lng: null, location_updated_at: null })
     .eq('id', existing.id)
     .select()
     .single();
@@ -178,6 +187,10 @@ export async function advanceDelivery(req, res) {
 
   const sequence = getDeliverySequence(existing.delivery_method);
   const isFinalStep = nextStatus === sequence[sequence.length - 1];
+  // Buyer pickup has no delivery leg — the buyer travels there on their own schedule, so
+  // there's no live-location step to anchor (see getLiveTransitProgress on the frontend,
+  // which excludes buyer_pickup from "in transit" the same way).
+  const isTransitStep = existing.delivery_method !== 'buyer_pickup' && nextStatus === sequence[sequence.length - 2];
 
   // The final step (delivered/picked up) is confirmed by the BUYER via "Got it" — only they
   // know the moment they actually receive it in hand. Every earlier step is the FARMER
@@ -190,9 +203,62 @@ export async function advanceDelivery(req, res) {
     delivery_status: nextStatus,
     status: isFinalStep ? 'completed' : existing.status,
     payment_status: isFinalStep && existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
+    ...(isTransitStep ? { transit_started_at: new Date().toISOString() } : null),
+    // The live GPS dot only makes sense while the order is actually in transit — clear it
+    // once delivered so a stale position never lingers on a finished order.
+    ...(isFinalStep ? { current_lat: null, current_lng: null, location_updated_at: null } : null),
   };
 
   const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id).select().single();
+  if (error) throw new ApiError(error.message, 400);
+
+  if (isTransitStep) {
+    await createNotification({
+      userId: order.buyer_id,
+      type: 'order',
+      title: 'Your order is on the way',
+      message: `${order.farmer_name} started delivering your order.`,
+      link: `/orders/${order.id}`,
+    });
+  }
+  if (isFinalStep) {
+    const isPickup = order.delivery_method === 'buyer_pickup';
+    await createNotification({
+      userId: order.buyer_id,
+      type: 'order',
+      title: isPickup ? 'Pickup confirmed' : 'Order delivered',
+      message: isPickup
+        ? `You confirmed picking up your order from ${order.farmer_name}.`
+        : `Your order from ${order.farmer_name} has been delivered.`,
+      link: `/orders/${order.id}`,
+    });
+  }
+
+  res.json(serializeOrder(order));
+}
+
+// PATCH /api/orders/:id/location — body { lat, lng }. Farmer-only, and only while the order
+// is actually out for delivery — this is what lets the buyer's map plot the farmer's real
+// device position instead of the time-estimated one (see getLiveTransitProgress and
+// useLiveLocationSharing.js on the frontend).
+export async function updateOrderLocation(req, res) {
+  const existing = await fetchOrderOr404(req.params.id);
+  if (req.profile.id !== existing.farmer_id) throw new ApiError('You do not have permission to update this order.', 403);
+  if (existing.delivery_method === 'buyer_pickup') throw new ApiError('Pickup orders have no delivery location to share.', 400);
+  if (existing.status !== 'confirmed' || existing.delivery_status !== 'out_for_delivery') {
+    throw new ApiError('You can only share your location while the order is out for delivery.', 400);
+  }
+
+  const lat = Number(req.body.lat);
+  const lng = Number(req.body.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new ApiError('A valid lat and lng are required.', 400);
+
+  const { data: order, error } = await supabaseAdmin
+    .from('orders')
+    .update({ current_lat: lat, current_lng: lng, location_updated_at: new Date().toISOString() })
+    .eq('id', existing.id)
+    .select()
+    .single();
   if (error) throw new ApiError(error.message, 400);
   res.json(serializeOrder(order));
 }

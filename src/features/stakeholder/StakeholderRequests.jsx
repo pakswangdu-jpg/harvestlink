@@ -4,10 +4,47 @@ import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
-import { confirmReceipt, getDonationsForStakeholder } from '../../services/donationService';
+import { confirmReceipt, getDonationsForStakeholder, markDonationRated } from '../../services/donationService';
+import { createRating } from '../../services/ratingService';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { stakeholderNavItems } from './stakeholderNav';
+
+// Donations have no backend order behind them (see donationService.js), so a rating from
+// here has no orderId — it's anchored only to the farmer and the rating stakeholder.
+// Submits immediately on star click rather than a separate confirm step, since a card
+// footer is too tight for a full form; "already rated" is tracked on the local donation
+// record itself via markDonationRated.
+function DonationRatingPrompt({ donation, onRated }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  if (donation.rated) {
+    return <span className="rating-summary">Rated, thank you!</span>;
+  }
+
+  const handleRate = async (value) => {
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await createRating({ farmerId: donation.farmerId, rating: value });
+      markDonationRated(donation.id);
+      onRated();
+    } catch (rateError) {
+      setError(rateError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <span className="rating-summary">
+      <StarRating value={0} onChange={isSubmitting ? undefined : handleRate} size={18} />
+      {error ? <small className="field-error">{error}</small> : 'Rate this farm'}
+    </span>
+  );
+}
 
 export default function StakeholderRequests() {
   const { currentUser } = useAuth();
@@ -109,7 +146,13 @@ export default function StakeholderRequests() {
         </div>
         {history.length ? (
           <div className="product-grid compact">
-            {history.map((donation) => <DonationCard key={donation.id} donation={donation} />)}
+            {history.map((donation) => (
+              <DonationCard
+                key={donation.id}
+                donation={donation}
+                actions={donation.status === 'completed' ? <DonationRatingPrompt donation={donation} onRated={reload} /> : null}
+              />
+            ))}
           </div>
         ) : (
           <EmptyState title="No history yet" message="Completed and cancelled donation requests will be listed here." />

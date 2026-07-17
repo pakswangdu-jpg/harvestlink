@@ -96,10 +96,21 @@ export default function AdminDashboard() {
     .filter((order) => order.paymentStatus === 'paid')
     .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 
+  // Surfaces exactly the two queues that sit on the admin's own to-do list — new accounts
+  // waiting on verification, and listings waiting on a fair-pricing decision — as a number
+  // badge on their nav items, the same way NotificationBell flags unread messages. The other
+  // sections (Orders/Donations/Reports/Profile) are monitoring views, not approval queues,
+  // so they don't get one.
+  const navItemsWithBadges = adminNavItems.map((item) => {
+    if (item.to === '/admin-users') return { ...item, badge: pendingVerifications.length };
+    if (item.to === '/admin-price-monitoring') return { ...item, badge: pendingPriceReviews.length };
+    return item;
+  });
+
   return (
     <AppShell
       user={currentUser}
-      navItems={adminNavItems}
+      navItems={navItemsWithBadges}
       title="Admin dashboard"
       subtitle="Monitor HarvestLink activity across users, products, orders, and surplus donations."
     >

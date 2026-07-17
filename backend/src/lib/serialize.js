@@ -57,6 +57,7 @@ export function serializeProduct(row, farmerName = null) {
     originalPrice: row.original_price == null ? null : Number(row.original_price),
     discountPercent: row.discount_percent == null ? null : Number(row.discount_percent),
     priceReview: row.price_review,
+    costPrice: row.cost_price == null ? null : Number(row.cost_price),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -70,6 +71,7 @@ export function serializeOrder(row) {
     productName: row.product_name,
     unit: row.unit,
     unitPrice: Number(row.unit_price),
+    unitCostPrice: row.unit_cost_price == null ? null : Number(row.unit_cost_price),
     farmerId: row.farmer_id,
     farmerName: row.farmer_name,
     buyerId: row.buyer_id,
@@ -85,6 +87,13 @@ export function serializeOrder(row) {
     originMunicipality: row.origin_municipality,
     deliveryMunicipality: row.delivery_municipality,
     status: row.status,
+    currentLat: row.current_lat == null ? null : Number(row.current_lat),
+    currentLng: row.current_lng == null ? null : Number(row.current_lng),
+    currentHeading: row.current_heading == null ? null : Number(row.current_heading),
+    currentSpeed: row.current_speed == null ? null : Number(row.current_speed),
+    currentAccuracy: row.current_accuracy == null ? null : Number(row.current_accuracy),
+    locationUpdatedAt: row.location_updated_at,
+    transitStartedAt: row.transit_started_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -100,6 +109,20 @@ export function serializeMessage(row) {
     senderRole: row.sender_role,
     text: row.text,
     read: row.read,
+    createdAt: row.created_at,
+  };
+}
+
+export function serializeRating(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    farmerId: row.farmer_id,
+    raterId: row.rater_id,
+    raterRole: row.rater_role,
+    orderId: row.order_id,
+    rating: row.rating,
+    comment: row.comment || '',
     createdAt: row.created_at,
   };
 }

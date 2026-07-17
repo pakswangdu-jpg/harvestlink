@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Languages, Send } from 'lucide-react';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Languages, Send, Store } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
@@ -68,6 +68,11 @@ export default function MessageThread() {
       clearInterval(interval);
     };
   }, [otherPartyId]);
+
+  // A buyer/stakeholder can jump straight to this farmer's full marketplace listing —
+  // handy for exactly the kind of question this thread exists for ("do you still have
+  // carrots?"). Farmer-side viewers don't need a shortcut to their own listings.
+  const shouldShowViewProducts = canView && !isFarmer;
 
   useEffect(() => {
     if (!canView) return undefined;
@@ -147,12 +152,22 @@ export default function MessageThread() {
           <span className="chat-presence">
             <span className={`presence-dot ${online ? 'online' : 'offline'}`} /> {presenceLabel}
           </span>
-          <label className="chat-lang-select" htmlFor="translate-lang">
-            <Languages size={14} />
-            <select id="translate-lang" value={targetLang} onChange={(event) => setTargetLang(event.target.value)}>
-              {MESSAGE_TRANSLATION_LANGUAGES.map((lang) => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
-            </select>
-          </label>
+          <div className="chat-header-actions">
+            {shouldShowViewProducts ? (
+              <Link
+                className="btn btn-secondary btn-sm"
+                to={`/marketplace?farmerId=${order.farmerId}&farmerName=${encodeURIComponent(otherPartyName)}`}
+              >
+                <Store size={14} /> View products
+              </Link>
+            ) : null}
+            <label className="chat-lang-select" htmlFor="translate-lang">
+              <Languages size={14} />
+              <select id="translate-lang" value={targetLang} onChange={(event) => setTargetLang(event.target.value)}>
+                {MESSAGE_TRANSLATION_LANGUAGES.map((lang) => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
+              </select>
+            </label>
+          </div>
         </div>
         <div className="chat-thread">
           {messages.length ? (
@@ -193,6 +208,7 @@ export default function MessageThread() {
           </Button>
         </form>
       </section>
+
       <Button variant="ghost" onClick={() => navigate('/messages')}>Back to messages</Button>
     </AppShell>
   );
