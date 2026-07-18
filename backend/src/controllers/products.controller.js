@@ -45,6 +45,53 @@ export async function listProducts(req, res) {
   res.json(await withFarmerNames(data));
 }
 
+// GET /api/products/public?farmerId=... — public, no auth. Backs the same signed-out
+// "view farmer" page as getPublicFarmerProfile — only that farmer's active, in-stock,
+// non-flagged listings (same activeOnly gate listProducts applies for logged-in buyers),
+// with cost_price/price_review stripped out. The authenticated marketplace already returns
+// those two to any logged-in buyer, but there's no reason to hand a farmer's cost basis and
+// DTI review state to an anonymous visitor who isn't even a customer yet.
+export async function listPublicProducts(req, res) {
+  const { farmerId } = req.query;
+  if (!farmerId) throw new ApiError('farmerId is required.', 400);
+
+  const { data, error } = await supabaseAdmin
+    .from('products')
+    .select('*')
+    .eq('farmer_id', farmerId)
+    .eq('status', 'active')
+    .gt('quantity', 0)
+    .or('price_review.is.null,price_review->>status.eq.approved')
+    .order('created_at', { ascending: false });
+  if (error) throw new ApiError(error.message, 400);
+
+  const serialized = await withFarmerNames(data);
+  // An allowlist, not a denylist — costPrice/priceReview are simply never picked, so a
+  // future field added to serializeProduct doesn't leak here by default.
+  res.json(serialized.map((product) => ({
+    id: product.id,
+    farmerId: product.farmerId,
+    farmerName: product.farmerName,
+    name: product.name,
+    category: product.category,
+    grade: product.grade,
+    sellingType: product.sellingType,
+    bulkMinQuantity: product.bulkMinQuantity,
+    price: product.price,
+    unit: product.unit,
+    kgPerUnit: product.kgPerUnit,
+    quantity: product.quantity,
+    location: product.location,
+    description: product.description,
+    image: product.image,
+    status: product.status,
+    originalPrice: product.originalPrice,
+    discountPercent: product.discountPercent,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+  })));
+}
+
 export async function getProduct(req, res) {
   const product = await fetchProductOr404(req.params.id);
   const [serialized] = await withFarmerNames([product]);

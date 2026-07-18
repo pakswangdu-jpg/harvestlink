@@ -17,6 +17,7 @@ export function serializeProfile(row) {
     zipCode: row.zip_code,
     municipality: row.municipality,
     accountStatus: row.account_status,
+    avatarUrl: row.avatar_url || null,
     farmName: row.farm_name,
     birthday: row.birthday,
     govIdFile: row.gov_id_file_url,
@@ -78,10 +79,21 @@ export function serializeOrder(row) {
     buyerName: row.buyer_name,
     quantity: Number(row.quantity),
     deliveryFee: Number(row.delivery_fee || 0),
+    // Snapshotted by the Smart Distance-Based Delivery Fee System at order creation (see
+    // backend/src/lib/deliveryFee.js) — null for a buyer-pickup order, which has no
+    // delivery leg to measure.
+    deliveryDistanceKm: row.delivery_distance_km == null ? null : Number(row.delivery_distance_km),
+    deliveryDurationMinutes: row.delivery_duration_minutes == null ? null : Number(row.delivery_duration_minutes),
+    deliveryFeeTier: row.delivery_fee_tier || null,
     totalAmount: Number(row.total_amount),
     message: row.message || '',
     paymentMethod: row.payment_method,
     paymentStatus: row.payment_status,
+    // Only ever set by the demo GCash payment module (backend/src/controllers/
+    // payments.controller.js) once a payment actually completes — null for a pending or
+    // COD order.
+    transactionId: row.transaction_id || null,
+    paidAt: row.paid_at || null,
     deliveryMethod: row.delivery_method,
     deliveryStatus: row.delivery_status,
     originMunicipality: row.origin_municipality,
@@ -104,6 +116,7 @@ export function serializeMessage(row) {
   return {
     id: row.id,
     orderId: row.order_id,
+    recipientId: row.recipient_id,
     senderId: row.sender_id,
     senderName: row.sender_name,
     senderRole: row.sender_role,

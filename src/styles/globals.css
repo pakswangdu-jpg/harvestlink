@@ -168,10 +168,10 @@ p {
 }
 
 .landing-hero h1 {
-  max-width: 760px;
+  max-width: 720px;
   color: var(--green-900);
-  font-size: clamp(2.4rem, 6vw, 5.2rem);
-  line-height: 0.98;
+  font-size: clamp(2.1rem, 4vw, 3.6rem);
+  line-height: 1.1;
   letter-spacing: 0;
 }
 
@@ -197,7 +197,7 @@ p {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: var(--shadow);
-  background: white;
+  background: var(--panel);
 }
 
 .preview-photo,
@@ -218,7 +218,7 @@ p {
   bottom: 20px;
   padding: 18px;
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--panel);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
 }
 
@@ -246,6 +246,64 @@ p {
   font-weight: 700;
 }
 
+/* Hidden by default (desktop shows .landing-links / .landing-actions instead) — the
+   max-width: 900px block above flips this pair so the nav links stay reachable instead
+   of just disappearing once .landing-links hides. */
+.landing-mobile-menu {
+  display: none;
+  position: relative;
+}
+
+.landing-mobile-menu-toggle {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--green-900);
+  cursor: pointer;
+}
+
+.landing-mobile-menu-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  z-index: 30;
+}
+
+.landing-mobile-menu-panel a {
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #40564a;
+  font-weight: 700;
+}
+
+.landing-mobile-menu-panel a:hover {
+  background: var(--green-50);
+}
+
+.landing-mobile-menu-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.landing-mobile-menu-actions .btn {
+  flex: 1;
+}
+
 .landing-section-heading {
   max-width: 1180px;
   margin: 0 auto 24px;
@@ -258,6 +316,197 @@ p {
 .landing-section-heading h2 {
   color: var(--green-900);
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+}
+
+.landing-top-farmers {
+  max-width: 1180px;
+  margin: 64px auto 0;
+}
+
+.top-farmer-carousel {
+  position: relative;
+  /* Room for the arrow buttons (see .top-farmer-arrow) to sit just outside the track
+     without overlapping the first/last card. */
+  padding: 0 44px;
+}
+
+.top-farmer-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.top-farmer-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Four per view on desktop — the same count .top-farmer-grid used to lay out as fixed
+   columns, just scrollable now instead of wrapping into extra rows as the farmer list
+   grows. See the max-width: 900px/640px blocks below for how many show per view there. */
+.top-farmer-card {
+  flex: 0 0 calc((100% - 3 * 16px) / 4);
+  scroll-snap-align: start;
+  padding: 20px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.top-farmer-card:hover,
+.top-farmer-card:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px rgba(20, 65, 38, 0.14);
+}
+
+.top-farmer-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--green-900);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.top-farmer-arrow:hover {
+  background: var(--green-50);
+}
+
+.top-farmer-arrow.left {
+  left: 0;
+}
+
+.top-farmer-arrow.right {
+  right: 0;
+}
+
+.top-farmer-avatar {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  color: white;
+  background: linear-gradient(135deg, var(--green-600), var(--green-800));
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.top-farmer-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.top-farmer-card h3 {
+  color: var(--green-900);
+  font-size: 1.05rem;
+}
+
+.top-farmer-farm {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.top-farmer-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.top-farmer-rating-count {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.top-farmer-empty {
+  text-align: center;
+  color: var(--muted);
+}
+
+.public-farmer-page {
+  max-width: 1180px;
+  margin: 32px auto 0;
+  display: grid;
+  gap: 24px;
+}
+
+.public-farmer-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green-800);
+  font-weight: 700;
+  width: fit-content;
+}
+
+.public-farmer-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.public-farmer-avatar-lg {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  font-size: 2rem;
+  margin-bottom: 0;
+}
+
+.public-farmer-header h1 {
+  color: var(--green-900);
+  font-size: 1.8rem;
+}
+
+.public-farmer-farm {
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.public-farmer-header .top-farmer-location {
+  margin-top: 6px;
+}
+
+.public-farmer-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.public-farmer-signin-note {
+  margin-top: 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.public-farmer-signin-note a {
+  color: var(--green-800);
+  font-weight: 700;
 }
 
 .landing-steps {
@@ -280,7 +529,7 @@ p {
   gap: 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--panel);
   box-shadow: var(--shadow);
 }
 
@@ -355,7 +604,7 @@ p {
   padding: 12px 18px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--panel);
   color: var(--green-800);
   font-weight: 750;
 }
@@ -367,7 +616,7 @@ p {
 .auth-card {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--panel);
   box-shadow: var(--shadow);
 }
 
@@ -471,7 +720,7 @@ p {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: white;
+  background: var(--panel);
   color: var(--text);
   min-width: 0;
 }
@@ -491,6 +740,13 @@ a.sidebar-user:hover {
   color: white;
   font-weight: 800;
   background: var(--green-700);
+  overflow: hidden;
+}
+
+.sidebar-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .sidebar-user > div {
@@ -665,7 +921,7 @@ a.sidebar-user:hover {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: white;
+  background: var(--panel);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -926,7 +1182,7 @@ a.user-chip:hover {
   border: 1px solid #cfded4;
   border-radius: var(--radius);
   padding: 8px 10px;
-  background: #fbfdfb;
+  background: var(--panel);
 }
 
 .discount-input-wrap {
@@ -936,7 +1192,7 @@ a.user-chip:hover {
   border: 1px solid #cfded4;
   border-radius: var(--radius);
   padding: 0 10px;
-  background: #fbfdfb;
+  background: var(--panel);
 }
 
 .discount-input-wrap input {
@@ -1056,6 +1312,11 @@ a.user-chip:hover {
   background: var(--amber-100);
 }
 
+.badge-low-stock {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
 .badge-grade-a {
   color: var(--green-800);
   background: var(--green-100);
@@ -1123,7 +1384,7 @@ a.user-chip:hover {
 .btn-secondary {
   color: var(--green-800);
   border-color: #bfe4ca;
-  background: white;
+  background: var(--panel);
 }
 
 .btn-ghost {
@@ -1168,7 +1429,7 @@ a.user-chip:hover {
   border: 1px solid #cfded4;
   border-radius: var(--radius);
   color: var(--text);
-  background: #fbfdfb;
+  background: var(--panel);
   padding: 11px 12px;
   outline: none;
 }
@@ -1303,7 +1564,7 @@ a.user-chip:hover {
   border-radius: var(--radius);
   padding: 10px 12px;
   color: #40564a;
-  background: white;
+  background: var(--panel);
   cursor: pointer;
   font-weight: 800;
 }
@@ -1311,66 +1572,6 @@ a.user-chip:hover {
 .payment-grid button.active {
   color: white;
   background: var(--green-700);
-}
-
-.order-total-breakdown {
-  display: grid;
-  gap: 4px;
-  padding: 2px 14px;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.order-total-breakdown div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.order-total {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  background: var(--soft);
-  color: var(--green-900);
-}
-
-.order-total strong {
-  font-size: 1.2rem;
-}
-
-.payment-confirm {
-  display: grid;
-  gap: 12px;
-  justify-items: center;
-  text-align: center;
-  padding: 10px 6px;
-}
-
-.payment-confirm-icon {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  color: var(--green-800);
-  background: var(--green-100);
-}
-
-.payment-confirm-total {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: var(--radius);
-  background: var(--soft);
-}
-
-.payment-confirm-total strong {
-  font-size: 1.3rem;
-  color: var(--green-900);
 }
 
 .thread-list {
@@ -1536,7 +1737,7 @@ a.user-chip:hover {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 5px 8px;
-  background: #fbfdfb;
+  background: var(--panel);
   font-size: 0.82rem;
 }
 
@@ -1550,7 +1751,7 @@ a.user-chip:hover {
   border: 1px solid #cfded4;
   border-radius: var(--radius);
   padding: 11px 12px;
-  background: #fbfdfb;
+  background: var(--panel);
 }
 
 .order-tracker {
@@ -1565,7 +1766,7 @@ a.user-chip:hover {
 
 .delivery-map-wrapper.fullscreen,
 .farmer-map-wrapper.fullscreen {
-  background: white;
+  background: var(--panel);
   padding: 12px;
 }
 
@@ -1585,7 +1786,7 @@ a.user-chip:hover {
   height: 34px;
   border: 1px solid #cfded4;
   border-radius: var(--radius);
-  background: white;
+  background: var(--panel);
   color: var(--green-800);
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
@@ -1650,9 +1851,16 @@ a.user-chip:hover {
   display: grid;
   place-items: center;
   border-radius: 999px;
+  overflow: hidden;
   color: white;
   font-weight: 800;
   background: linear-gradient(135deg, var(--green-600), var(--green-800));
+}
+
+.farmer-list-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .farmer-list-avatar.buyer {
@@ -1758,6 +1966,10 @@ a.user-chip:hover {
   background: #b45309;
 }
 
+.legend-dot.buyer {
+  background: #7c3aed;
+}
+
 .legend-dot.donation,
 .legend-dot.stakeholder {
   background: #db2777;
@@ -1810,7 +2022,7 @@ a.user-chip:hover {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: white;
+  background: var(--panel);
   border: 2px solid var(--line);
   color: var(--muted);
 }
@@ -1848,6 +2060,17 @@ a.user-chip:hover {
 .table-wrap {
   width: 100%;
   overflow-x: auto;
+}
+
+.stacked-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.table-substatus {
+  font-size: 0.78rem;
 }
 
 table {
@@ -2072,10 +2295,26 @@ th {
 
 .profile-identity {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 18px;
   padding: 0 24px 22px;
+}
+
+.profile-identity-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.profile-avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .profile-avatar-lg {
@@ -2092,12 +2331,98 @@ th {
   font-size: 1.7rem;
   font-weight: 800;
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.profile-avatar-lg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar-menu-wrap {
+  position: relative;
+}
+
+.profile-avatar-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--green-900);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.profile-avatar-menu-toggle:hover {
+  background: var(--green-50);
+}
+
+.profile-avatar-menu-toggle:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Deliberately NOT position:absolute — an overlay here would float on top of the name/
+   email text beside it (they sit in the same row) and there's no width narrow enough to
+   avoid that at every viewport size. Sitting in normal flow instead pushes that text down
+   when open rather than covering it, which holds up at any screen width. */
+.profile-avatar-menu {
+  margin-top: 6px;
+  width: 180px;
+  background: var(--panel);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-avatar-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-avatar-menu-item:hover {
+  background: var(--green-50);
+}
+
+.profile-avatar-menu-item.danger {
+  color: var(--red-700);
+}
+
+.profile-avatar-menu-item input {
+  display: none;
+}
+
+.profile-avatar-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.profile-avatar-status.error {
+  color: var(--red-700);
 }
 
 .profile-identity-text {
-  flex: 1;
   min-width: 200px;
-  padding-top: 12px;
 }
 
 .profile-identity-text h2 {
@@ -2117,7 +2442,6 @@ th {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  padding-top: 12px;
 }
 
 .profile-badges .badge {
@@ -2230,7 +2554,7 @@ th {
   max-height: 180px;
   object-fit: contain;
   border-radius: var(--radius);
-  background: white;
+  background: var(--panel);
   border: 1px solid var(--line);
 }
 
@@ -2419,8 +2743,19 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .landing-links {
+  /* Two per view instead of four, matching how .top-farmer-grid used to lay out as
+     2 columns at this width. */
+  .top-farmer-card {
+    flex: 0 0 calc((100% - 16px) / 2);
+  }
+
+  .landing-links,
+  .landing-actions {
     display: none;
+  }
+
+  .landing-mobile-menu {
+    display: block;
   }
 
   .stakeholder-banner {
@@ -2443,10 +2778,18 @@ th {
     padding: 18px;
   }
 
-  .landing-nav,
   .page-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  /* Unlike .page-header, .landing-nav keeps its row layout even here — by this width
+     .landing-links/.landing-actions are already hidden in favor of the hamburger menu
+     (see the max-width: 900px block), so the row only ever holds the brand and the
+     menu toggle, which always fit side by side without needing to stack. */
+  .landing-nav {
+    align-items: center;
+    flex-direction: row;
   }
 
   /* .page-header switching to a column above moves the bell to the LEFT edge of the
@@ -2479,6 +2822,16 @@ th {
   .form-grid,
   .form-grid.three {
     grid-template-columns: 1fr;
+  }
+
+  /* One per view, peeking the next card's edge to hint the row scrolls — matching how
+     .top-farmer-grid used to collapse to a single column at this width. */
+  .top-farmer-card {
+    flex: 0 0 88%;
+  }
+
+  .top-farmer-carousel {
+    padding: 0 36px;
   }
 
   .product-grid,
@@ -2606,7 +2959,7 @@ th {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 7px 10px;
-  background: #fbfdfb;
+  background: var(--panel);
   font-size: 0.85rem;
 }
 
@@ -2650,7 +3003,7 @@ th {
   border: 1px solid #cfded4;
   border-radius: var(--radius);
   color: var(--text);
-  background: #fbfdfb;
+  background: var(--panel);
   padding: 8px 10px;
   outline: none;
 }
@@ -2767,6 +3120,10 @@ th {
   font-family: inherit;
 }
 
+.chart-area {
+  pointer-events: none;
+}
+
 .chart-line {
   stroke: var(--green-700);
   stroke-width: 2;
@@ -2778,6 +3135,10 @@ th {
   fill: var(--green-700);
   stroke: white;
   stroke-width: 2;
+}
+
+.chart-dot.peak {
+  fill: var(--green-900);
 }
 
 .chart-hit-target {
@@ -2816,6 +3177,41 @@ th {
   font-size: 1rem;
 }
 
+.chart-callout {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -6px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--green-900);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+.chart-callout-change {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.chart-callout-change.up {
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.chart-callout-change.down {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
 .chart-tooltip span {
   color: rgba(255, 255, 255, 0.75);
 }
@@ -2847,6 +3243,19 @@ th {
   fill: var(--text);
   font-weight: 700;
   text-anchor: start;
+}
+
+.vertical-bar-chart {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.vertical-bar-value {
+  fill: var(--text);
+  font-weight: 800;
 }
 
 @media (max-width: 640px) {
@@ -3041,7 +3450,7 @@ th {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #fbfdfb;
+  background: var(--panel);
 }
 
 .tracking-info-card-icon {

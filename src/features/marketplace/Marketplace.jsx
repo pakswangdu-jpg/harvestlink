@@ -1,4 +1,4 @@
-import { Award, MapPin, Search, Tag, Wallet, X } from 'lucide-react';
+import { Award, MapPin, Navigation, Search, Tag, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -6,8 +6,20 @@ import ProductCard from '../../components/cards/ProductCard';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getActiveProducts } from '../../services/productService';
-import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, getMunicipalityCoords, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
+import { haversineKm } from '../../utils/geo';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+
+// Straight-line distance from the buyer's own municipality, same geographic model
+// deliveryFee.js/estimateDeliveryFee already use for the checkout fee estimate — a rough
+// proxy for delivery cost/time, not a routed distance.
+const DISTANCE_OPTIONS = [
+  { value: '', label: 'Any distance' },
+  { value: '10', label: 'Within 10 km' },
+  { value: '25', label: 'Within 25 km' },
+  { value: '50', label: 'Within 50 km' },
+  { value: '100', label: 'Within 100 km' },
+];
 
 export default function Marketplace() {
   const { currentUser } = useAuth();
@@ -32,8 +44,10 @@ export default function Marketplace() {
   const [sellingType, setSellingType] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [maxDistanceKm, setMaxDistanceKm] = useState('');
   const [products, setProducts] = useState([]);
   const navItems = getNavItemsForRole(currentUser.role);
+  const buyerCoords = useMemo(() => getMunicipalityCoords(currentUser.municipality), [currentUser.municipality]);
 
   useEffect(() => {
     getActiveProducts().then(setProducts);
@@ -51,12 +65,17 @@ export default function Marketplace() {
       const matchesSellingType = !sellingType || product.sellingType === sellingType;
       const matchesMinPrice = !minPrice || product.price >= Number(minPrice);
       const matchesMaxPrice = !maxPrice || product.price <= Number(maxPrice);
+      const matchesDistance = !maxDistanceKm
+        || haversineKm(buyerCoords, getMunicipalityCoords(product.location)) <= Number(maxDistanceKm);
       const matchesFarmer = !farmerIdFilter || product.farmerId === farmerIdFilter;
-      return matchesQuery && matchesLocation && matchesGrade && matchesSellingType && matchesMinPrice && matchesMaxPrice && matchesFarmer;
+      return matchesQuery && matchesLocation && matchesGrade && matchesSellingType && matchesMinPrice
+        && matchesMaxPrice && matchesDistance && matchesFarmer;
     });
-  }, [products, query, location, grade, sellingType, minPrice, maxPrice, farmerIdFilter]);
+  }, [products, query, location, grade, sellingType, minPrice, maxPrice, maxDistanceKm, buyerCoords, farmerIdFilter]);
 
-  const hasActiveFilters = Boolean(query || location || grade || sellingType || minPrice || maxPrice || farmerIdFilter);
+  const hasActiveFilters = Boolean(
+    query || location || grade || sellingType || minPrice || maxPrice || maxDistanceKm || farmerIdFilter,
+  );
   const clearFilters = () => {
     setQuery('');
     setLocation('');
@@ -64,6 +83,7 @@ export default function Marketplace() {
     setSellingType('');
     setMinPrice('');
     setMaxPrice('');
+    setMaxDistanceKm('');
     setFarmerIdFilter('');
   };
 
@@ -137,6 +157,12 @@ export default function Marketplace() {
               aria-label="Maximum price"
             />
           </div>
+          <label className="location-filter" htmlFor="marketplace-distance">
+            <Navigation size={16} />
+            <select id="marketplace-distance" value={maxDistanceKm} onChange={(event) => setMaxDistanceKm(event.target.value)}>
+              {DISTANCE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          </label>
         </div>
       </section>
 

@@ -17,6 +17,7 @@ import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderSe
 import { matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials } from '../../utils/formatters';
+import { nearestByMunicipality } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 
 const EMPTY_STATE = { products: [], orders: [], verifiedFarmers: [], activeDeliveryRoutes: [] };
@@ -85,6 +86,10 @@ export default function BuyerDashboard() {
   // Same "paid orders" definition used for the farmer's total income and the admin's
   // platform-wide revenue — just scoped to this buyer's own orders (see reportService.js).
   const totalSpend = getTotalRevenue(orders);
+  // The dashboard map is a small "who's nearby" widget, not the full directory — nearest-
+  // first and capped, unlike verifiedFarmers above (kept platform-wide for the ratings-based
+  // recommendation list).
+  const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
 
   return (
     <AppShell
@@ -105,7 +110,7 @@ export default function BuyerDashboard() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Map</p>
-            <h2>Active deliveries</h2>
+            <h2>Active Users</h2>
             <p className="map-legend">
               <span className="legend-dot origin" /> Farmer/pickup
               <span className="legend-dot destination" /> Delivery to you
@@ -114,7 +119,7 @@ export default function BuyerDashboard() {
           </div>
           <span className="live-indicator"><span className="live-dot" /> Live</span>
         </div>
-        <DeliveryMap routes={activeDeliveryRoutes} farmers={verifiedFarmers} />
+        <DeliveryMap routes={activeDeliveryRoutes} farmers={nearbyFarmers} viewerMunicipality={currentUser.municipality} />
       </section>
 
       <MarketPricePanel commodityId={marketCommodityId} perspective="buyer" />
@@ -175,7 +180,9 @@ export default function BuyerDashboard() {
                 className="recommended-farm-card"
                 to={`/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(farmer.farmName || farmer.name)}`}
               >
-                <span className="farmer-list-avatar">{getInitials(farmer.name)}</span>
+                <span className="farmer-list-avatar">
+                  {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
+                </span>
                 <span className="farmer-list-text">
                   <strong>{farmer.farmName || farmer.name}</strong>
                   <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>

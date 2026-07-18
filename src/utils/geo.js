@@ -44,6 +44,18 @@ export function findNearestMunicipality(lat, lng) {
   return nearest;
 }
 
+// Scopes a "who's nearby" widget (the dashboard's reference farmer/buyer pins) to the
+// people actually local to the viewer instead of every registered account nationwide —
+// nearest N by straight-line distance from the viewer's own municipality, rather than a
+// hard km cutoff, so the widget never goes empty just because everyone happens to be
+// slightly further out than some arbitrary radius.
+export function nearestByMunicipality(originMunicipality, people, limit = 8) {
+  const origin = getMunicipalityCoords(originMunicipality);
+  return [...people]
+    .sort((a, b) => haversineKm(origin, getMunicipalityCoords(a.municipality)) - haversineKm(origin, getMunicipalityCoords(b.municipality)))
+    .slice(0, limit);
+}
+
 function hashString(value) {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {

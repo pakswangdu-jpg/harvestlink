@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Edit3, Lock, Mail, MapPin, Phone, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { BadgeCheck, Building2, Calendar, Camera, Edit3, Lock, Mail, MapPin, Phone, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
@@ -8,7 +8,7 @@ import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import { useAuth } from '../auth/AuthContext';
 import { changePassword, updateUserProfile } from '../../services/authService';
-import { getSignedDocumentUrl } from '../../services/uploadService';
+import { getSignedDocumentUrl, uploadAvatar } from '../../services/uploadService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
@@ -40,6 +40,64 @@ export default function Profile() {
   const [passwordDraft, setPasswordDraft] = useState(EMPTY_PASSWORD_DRAFT);
   const [passwordErrors, setPasswordErrors] = useState({});
   const [passwordNotice, setPasswordNotice] = useState('');
+
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const avatarMenuRef = useRef(null);
+
+  // Same click-outside-to-close pattern as NotificationBell.
+  useEffect(() => {
+    if (!isAvatarMenuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target)) setIsAvatarMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isAvatarMenuOpen]);
+
+  // Uploads immediately on picking a file — a profile picture isn't a form field that
+  // needs a Save click, it's a single self-contained action (same as the file picker
+  // pattern already used for gov ID/accreditation uploads).
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setIsAvatarMenuOpen(false);
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      return;
+    }
+    setAvatarError('');
+    setIsUploadingAvatar(true);
+    try {
+      const avatarUrl = await uploadAvatar(file, currentUser.id);
+      await updateUserProfile(currentUser.id, { avatarUrl });
+      await refreshUser();
+    } catch (error) {
+      // Storage/RLS errors are raw Postgres text and not something a user can act on —
+      // log the real one for debugging, show a plain message instead.
+      console.error('Avatar upload failed:', error);
+      setAvatarError('Could not upload photo right now. Please try again later.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setIsAvatarMenuOpen(false);
+    setAvatarError('');
+    setIsUploadingAvatar(true);
+    try {
+      await updateUserProfile(currentUser.id, { avatarUrl: null });
+      await refreshUser();
+    } catch (error) {
+      console.error('Avatar removal failed:', error);
+      setAvatarError('Could not remove photo right now. Please try again later.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const updateProfileField = (field, value) => {
     setProfileDraft((previous) => ({ ...previous, [field]: value }));
@@ -109,10 +167,51 @@ export default function Profile() {
       <section className="panel profile-header">
         <div className="profile-banner" />
         <div className="profile-identity">
-          <div className="profile-avatar-lg">{getInitials(currentUser.name)}</div>
-          <div className="profile-identity-text">
-            <h2>{currentUser.name}</h2>
-            <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
+          <div className="profile-identity-main">
+            <div className="profile-avatar-block">
+              <div className="profile-avatar-lg">
+                {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" /> : getInitials(currentUser.name)}
+              </div>
+              <div className="profile-avatar-menu-wrap" ref={avatarMenuRef}>
+                <button
+                  type="button"
+                  className="profile-avatar-menu-toggle"
+                  onClick={() => setIsAvatarMenuOpen((previous) => !previous)}
+                  disabled={isUploadingAvatar}
+                >
+                  <Camera size={14} /> Change photo
+                </button>
+                {isAvatarMenuOpen ? (
+                  <div className="profile-avatar-menu">
+                    <label className="profile-avatar-menu-item">
+                      Upload new photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingAvatar}
+                        onChange={handleAvatarChange}
+                      />
+                    </label>
+                    {currentUser.avatarUrl ? (
+                      <button
+                        type="button"
+                        className="profile-avatar-menu-item danger"
+                        disabled={isUploadingAvatar}
+                        onClick={handleRemoveAvatar}
+                      >
+                        Remove photo
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            <div className="profile-identity-text">
+              <h2>{currentUser.name}</h2>
+              <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
+              {isUploadingAvatar ? <span className="profile-avatar-status">Saving…</span> : null}
+              {avatarError ? <span className="profile-avatar-status error">{avatarError}</span> : null}
+            </div>
           </div>
           <div className="profile-badges">
             <StatusBadge value={currentUser.role} />

@@ -2,7 +2,7 @@
 // donationService.js (not yet migrated to the backend) still has a synchronous
 // getStakeholders() to call. Do not add new features here; this file exists purely to
 // avoid breaking donations while auth/products/orders move to the real backend.
-import { ADMIN_CREDENTIALS, ADMIN_USER, STORAGE_KEYS } from '../../utils/constants';
+import { STORAGE_KEYS } from '../../utils/constants';
 import { createId, readSession, readStorage, removeSession, writeSession, writeStorage } from '../storageService';
 import { createNotification } from './notificationServiceLocal';
 
@@ -244,16 +244,3 @@ export function setAccountStatus(id, status) {
   return updated.find((user) => user.id === id) || null;
 }
 
-export function loginUser(emailValue, password) {
-  const email = emailValue.trim().toLowerCase();
-
-  if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-    return setCurrentUser(ADMIN_USER);
-  }
-
-  const user = getUsers().find((candidate) => candidate.email === email && candidate.password === password);
-  if (!user) throw new Error('Login failed. Check your email and password.');
-  if (user.accountStatus === 'suspended') throw new Error('This account has been suspended. Contact support for assistance.');
-
-  return setCurrentUser(user);
-}

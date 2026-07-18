@@ -51,7 +51,6 @@ export default function FarmerMap({
   donationFarmers = [],
   selectedId,
   onSelectPin,
-  contactableFarmerOrderIds = {},
   farmersWithProducts = EMPTY_SET,
 }) {
   const wrapperRef = useRef(null);
@@ -168,22 +167,15 @@ export default function FarmerMap({
       if (!coords) return;
 
       const displayName = farmer.farmName || farmer.name;
-      // Messaging is always scoped to an order (see src/services/messageService.js) —
-      // there's no such thing as a message thread with no order behind it — so "Contact
-      // farmer" only links to a real conversation when the viewer actually has one with
-      // this farmer. Otherwise it explains why: either the farmer has nothing listed yet,
-      // or they do but this viewer hasn't ordered from them — different next steps, so
-      // different messages, instead of one generic line covering both cases.
-      const orderId = contactableFarmerOrderIds[farmer.id];
+      // Messaging no longer requires a shared order — see supabase/schema.sql's messages
+      // table (order_id OR recipient_id, either works) — so "Contact farmer" is always a
+      // real, clickable conversation now, continuing whatever's already there if the viewer
+      // has messaged this farmer before. Whether they currently have listings is a separate,
+      // unrelated fact, shown alongside it rather than gating it.
       const hasProducts = farmersWithProducts.has(farmer.id);
-      let contactLine;
-      if (orderId) {
-        contactLine = `<br/><a href="/messages/${orderId}">Contact farmer</a>`;
-      } else if (hasProducts) {
-        contactLine = `<br/><small class="muted">Place an order to unlock messaging</small>`;
-      } else {
-        contactLine = `<br/><small class="muted">No products available</small>`;
-      }
+      const productsLine = hasProducts
+        ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>`
+        : `<br/><small class="muted">No products available</small>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
@@ -191,8 +183,8 @@ export default function FarmerMap({
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
         `<br/>${presenceHtml(farmer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>` +
-        contactLine;
+        productsLine +
+        `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`;
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#15803d'), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
@@ -205,7 +197,8 @@ export default function FarmerMap({
         `${buyer.municipality}` +
         (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
         `<br/>${presenceHtml(buyer)}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
+        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+        `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`;
       upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, '#1d4ed8'), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
     });
 
@@ -220,7 +213,8 @@ export default function FarmerMap({
         `${stakeholder.municipality}` +
         (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
         `<br/>${presenceHtml(stakeholder)}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`;
+        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+        `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`;
       upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, '#db2777'), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
@@ -238,6 +232,7 @@ export default function FarmerMap({
         `${farmer.municipality}` +
         (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+        `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>` +
         `<br/><br/><strong>Available donations</strong><br/>${donationList}`;
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#db2777', { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
@@ -281,7 +276,6 @@ export default function FarmerMap({
     stakeholderCoordsById,
     donationFarmerCoordsById,
     onSelectPin,
-    contactableFarmerOrderIds,
     farmersWithProducts,
   ]);
 

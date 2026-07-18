@@ -99,7 +99,12 @@ export default function OrderReceipt() {
 
         <div className="receipt-totals">
           <div><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-          <div><span>Delivery fee</span><span>{formatCurrency(order.deliveryFee)}</span></div>
+          <div>
+            <span>
+              Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}
+            </span>
+            <span>{formatCurrency(order.deliveryFee)}</span>
+          </div>
           <div className="receipt-total-line"><span>Total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
         </div>
 
@@ -107,6 +112,12 @@ export default function OrderReceipt() {
           <div><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
           <div><span>Payment status</span><strong>{paymentStatusLabel(order.paymentStatus)}</strong></div>
           <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+          {order.deliveryDistanceKm ? (
+            <div><span>Delivery distance</span><strong>{order.deliveryDistanceKm.toFixed(1)} km</strong></div>
+          ) : null}
+          {order.transactionId ? (
+            <div><span>GCash transaction ID</span><strong>{order.transactionId}</strong></div>
+          ) : null}
         </div>
 
         <p className="receipt-footer muted">Thank you for supporting local Cebu farmers.</p>

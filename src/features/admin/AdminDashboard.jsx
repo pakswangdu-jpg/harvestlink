@@ -28,7 +28,7 @@ import EmptyState from '../../components/common/EmptyState';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import RevenueTrendChart from '../../components/charts/RevenueTrendChart';
-import StatusBarChart from '../../components/charts/StatusBarChart';
+import VerticalBarChart from '../../components/charts/VerticalBarChart';
 import { useAuth } from '../auth/AuthContext';
 import { getUsers, getVerificationDocuments, setAccountStatus, setUserVerification } from '../../services/authService';
 import {
@@ -738,7 +738,7 @@ function AdminReports({ users, orders, donations }) {
               <h2>Orders by status</h2>
             </div>
           </div>
-          <StatusBarChart
+          <VerticalBarChart
             data={orderStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
             labelFor={(entry) => entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
             toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
@@ -752,7 +752,7 @@ function AdminReports({ users, orders, donations }) {
               <h2>Donations by status</h2>
             </div>
           </div>
-          <StatusBarChart
+          <VerticalBarChart
             data={donationStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
             labelFor={(entry) => donationStatusLabel(entry.status)}
             toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
@@ -791,7 +791,7 @@ function AdminReports({ users, orders, donations }) {
               <h2>Users by role</h2>
             </div>
           </div>
-          <StatusBarChart
+          <VerticalBarChart
             data={userRoleBreakdown.map((entry) => ({ key: entry.role, count: entry.count, role: entry.role }))}
             labelFor={(entry) => entry.role.charAt(0).toUpperCase() + entry.role.slice(1)}
             toneClassFor={() => 'status-bar-neutral'}

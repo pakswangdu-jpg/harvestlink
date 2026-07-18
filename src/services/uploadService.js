@@ -24,6 +24,16 @@ export async function uploadProductImage(file, farmerId) {
   return data.publicUrl;
 }
 
+// avatars is a PUBLIC bucket, same shape as product-images — any of the three roles
+// (farmer/buyer/stakeholder) can upload their own profile picture. Returns a
+// directly-usable URL, which Profile.jsx then PATCHes onto the profile as avatarUrl.
+export async function uploadAvatar(file, userId) {
+  const path = `${userId}/${crypto.randomUUID()}.${extensionFor(file)}`;
+  await uploadToBucket('avatars', path, file);
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // verification-documents is a PRIVATE bucket — the stored value is the bucket-relative
 // PATH, not a URL (a private bucket has no directly-fetchable public URL). Reading it back
 // requires a signed URL: the owner can generate their own (see getSignedDocumentUrl below,

@@ -1,11 +1,26 @@
-import { useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
-import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, ONLINE_PAYMENT_METHODS, PAYMENT_METHODS, matchMunicipality } from '../../utils/constants';
-import { estimateDeliveryFee } from '../../utils/geo';
-import { formatCurrency } from '../../utils/formatters';
+import DeliveryFeeSummary from '../checkout/DeliveryFeeSummary';
+import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
+import { estimateDeliveryFee, haversineKm } from '../../utils/geo';
+import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
+
+// Used only if the live backend estimate (Smart Distance-Based Delivery Fee System — see
+// backend/src/lib/deliveryFee.js) fails to load, e.g. a network blip — a straight-line
+// distance and the old flat per-km formula, clearly not the real tiered pricing, just enough
+// to keep checkout usable and honest about it (see the warning banner in
+// DeliveryFeeSummary.jsx) rather than blocking the buyer entirely.
+function buildFallbackEstimate(originMunicipality, deliveryMunicipality) {
+  return {
+    fee: estimateDeliveryFee(originMunicipality, deliveryMunicipality, 'farmer_delivery'),
+    distanceKm: haversineKm(getMunicipalityCoords(originMunicipality), getMunicipalityCoords(deliveryMunicipality)),
+    durationMinutes: null,
+    tierLabel: 'Estimated',
+    source: 'straight-line',
+  };
+}
 
 export default function CheckoutForm({ product, currentUser, onSubmit }) {
   const [values, setValues] = useState(() => ({
@@ -16,8 +31,50 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     deliveryMunicipality: currentUser.municipality || CEBU_MUNICIPALITIES[0],
   }));
   const [errors, setErrors] = useState({});
-  const [stage, setStage] = useState('details');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const originMunicipality = matchMunicipality(product.location);
+  const isPickup = values.deliveryMethod === 'buyer_pickup';
+
+  const [feeEstimate, setFeeEstimate] = useState(null);
+  const [isEstimating, setIsEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState('');
+
+  // Instantly recalculates distance/ETA/fee whenever the buyer changes delivery method or
+  // municipality — no page refresh, no "recalculate" button. Skipped entirely for pickup,
+  // which has no delivery leg to price.
+  useEffect(() => {
+    if (isPickup) {
+      setFeeEstimate(null);
+      setEstimateError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setIsEstimating(true);
+    setEstimateError('');
+    getDeliveryFeeEstimate({
+      originMunicipality,
+      deliveryMunicipality: values.deliveryMunicipality,
+      deliveryMethod: values.deliveryMethod,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setFeeEstimate(result);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEstimateError('Could not reach the delivery pricing service — showing a rough estimate instead.');
+        setFeeEstimate(buildFallbackEstimate(originMunicipality, values.deliveryMunicipality));
+      })
+      .finally(() => {
+        if (!cancelled) setIsEstimating(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [originMunicipality, values.deliveryMunicipality, values.deliveryMethod, isPickup]);
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
@@ -25,16 +82,19 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
   };
 
   const subtotal = (Number(values.quantity) || 0) * Number(product.price);
-  // Estimate only — shown so the buyer isn't surprised at the total, but the fee actually
-  // charged is always computed server-side at order creation (see
-  // backend/src/lib/deliveryFee.js), never trusted from anything calculated here.
-  const originMunicipality = matchMunicipality(product.location);
-  const deliveryFeeEstimate = estimateDeliveryFee(originMunicipality, values.deliveryMunicipality, values.deliveryMethod);
-  const total = subtotal + deliveryFeeEstimate;
-  const isOnlinePayment = ONLINE_PAYMENT_METHODS.includes(values.paymentMethod);
-  const paymentLabel = PAYMENT_METHODS.find((method) => method.value === values.paymentMethod)?.label;
+  const isGcash = values.paymentMethod === 'gcash';
 
-  const submitOrder = async () => {
+  // The order is created immediately either way — for GCash, the caller (ProductDetails.jsx)
+  // routes the buyer on to the dedicated GCash payment page (src/features/payments/
+  // GcashPaymentPage.jsx) afterward instead of straight to order tracking; that page is what
+  // actually collects "payment" and marks the order paid.
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const nextErrors = validateCheckoutForm(values, product, currentUser);
+    if (hasErrors(nextErrors)) {
+      setErrors(nextErrors);
+      return;
+    }
     setIsSubmitting(true);
     try {
       await onSubmit(values);
@@ -46,49 +106,8 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     }
   };
 
-  const handleDetailsSubmit = (event) => {
-    event.preventDefault();
-    const nextErrors = validateCheckoutForm(values, product, currentUser);
-    if (hasErrors(nextErrors)) {
-      setErrors(nextErrors);
-      return;
-    }
-    if (isOnlinePayment) {
-      setStage('payment');
-    } else {
-      submitOrder();
-    }
-  };
-
-  const handleConfirmPayment = () => {
-    submitOrder();
-  };
-
-  if (stage === 'payment') {
-    return (
-      <div className="payment-confirm">
-        <div className="payment-confirm-icon">
-          <ShieldCheck size={26} />
-        </div>
-        <h3>Confirm your {paymentLabel} payment</h3>
-        <p>This is a simulated checkout for the prototype — no real payment is processed.</p>
-        <div className="payment-confirm-total">
-          <span>Amount to pay</span>
-          <strong>{formatCurrency(total)}</strong>
-        </div>
-        {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
-        <div className="form-actions">
-          <Button variant="secondary" onClick={() => setStage('details')} disabled={isSubmitting}>Back</Button>
-          <Button onClick={handleConfirmPayment} disabled={isSubmitting}>
-            {isSubmitting ? 'Confirming…' : 'Confirm payment'}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <form className="form-stack" onSubmit={handleDetailsSubmit}>
+    <form className="form-stack" onSubmit={handleSubmit}>
       {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
 
       <FormField
@@ -127,7 +146,7 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
         </div>
       </FormField>
 
-      {values.deliveryMethod !== 'buyer_pickup' ? (
+      {!isPickup ? (
         <FormField label="Deliver to (municipality)" name="deliveryMunicipality" error={errors.deliveryMunicipality}>
           <select
             id="deliveryMunicipality"
@@ -164,20 +183,16 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
         />
       </FormField>
 
-      {values.deliveryMethod !== 'buyer_pickup' ? (
-        <div className="order-total-breakdown">
-          <div><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
-          <div><span>Delivery fee (estimate)</span><span>{formatCurrency(deliveryFeeEstimate)}</span></div>
-        </div>
-      ) : null}
-
-      <div className="order-total">
-        <span>Order total</span>
-        <strong>{formatCurrency(total)}</strong>
-      </div>
+      <DeliveryFeeSummary
+        subtotal={subtotal}
+        estimate={feeEstimate}
+        isLoading={isEstimating}
+        error={estimateError}
+        isPickup={isPickup}
+      />
 
       <Button type="submit" className="full-width" disabled={isSubmitting}>
-        {isSubmitting ? 'Placing order…' : isOnlinePayment ? 'Continue to payment' : 'Place order — pay on delivery'}
+        {isSubmitting ? 'Placing order…' : isGcash ? 'Continue to GCash payment' : 'Place order — pay on delivery'}
       </Button>
     </form>
   );

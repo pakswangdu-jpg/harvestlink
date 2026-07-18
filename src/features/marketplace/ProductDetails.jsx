@@ -8,6 +8,7 @@ import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
+import { isLowStock } from '../../utils/constants';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
@@ -50,6 +51,13 @@ export default function ProductDetails() {
 
   const handleOrder = async (values) => {
     const order = await createOrder({ ...values, productId: product.id });
+    // GCash orders are created pending, same as COD — the demo GCash payment module
+    // (src/features/payments/GcashPaymentPage.jsx) is what actually collects "payment" and
+    // marks this same order paid, so route there instead of straight to tracking.
+    if (order.paymentMethod === 'gcash') {
+      navigate(`/orders/${order.id}/pay/gcash`);
+      return;
+    }
     navigate(`/orders/${order.id}`, { state: { notice: 'Order placed. Track its progress below.' } });
   };
 
@@ -71,6 +79,7 @@ export default function ProductDetails() {
               <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
               {product.sellingType === 'bulk' ? <span className="badge badge-bulk">Bulk</span> : null}
               {product.discountPercent ? <span className="badge badge-sale">-{product.discountPercent}%</span> : null}
+              {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
               <StatusBadge value={product.status} />
             </div>
             <h2>{product.name}</h2>

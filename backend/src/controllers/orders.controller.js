@@ -5,7 +5,7 @@ import { reduceProductQuantity, restoreProductQuantity } from './products.contro
 import { getDeliverySequence, getNextDeliveryStatus, isCancellable } from '../lib/deliverySequence.js';
 import { matchMunicipality } from '../lib/geo.js';
 import { calculateDeliveryFee } from '../lib/deliveryFee.js';
-import { ONLINE_PAYMENT_METHODS } from '../utils/constants.js';
+import { PAYMENT_METHODS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
 
 async function fetchOrderOr404(id) {
@@ -70,15 +70,21 @@ export async function createOrder(req, res) {
   const quantity = Number(values.quantity);
   if (!(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
   if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
+  if (!PAYMENT_METHODS.includes(values.paymentMethod)) throw new ApiError('Choose a valid payment method.', 400);
 
   const { data: farmer } = await supabaseAdmin.from('profiles').select('name').eq('id', product.farmer_id).single();
 
-  const isOnlinePayment = ONLINE_PAYMENT_METHODS.includes(values.paymentMethod);
   const originMunicipality = matchMunicipality(product.location);
   const deliveryMunicipality = values.deliveryMethod === 'buyer_pickup' ? originMunicipality : values.deliveryMunicipality;
   // Computed server-side, never trusted from the client — a buyer could otherwise submit
-  // any fee they like alongside a real distance.
-  const deliveryFee = calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
+  // any fee they like alongside a real distance. See lib/deliveryFee.js for the actual
+  // road-distance + configurable-tier calculation.
+  const {
+    fee: deliveryFee,
+    distanceKm: deliveryDistanceKm,
+    durationMinutes: deliveryDurationMinutes,
+    tierLabel: deliveryFeeTier,
+  } = await calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
   const now = new Date().toISOString();
 
   const row = {
@@ -95,10 +101,19 @@ export async function createOrder(req, res) {
     buyer_name: req.profile.name,
     quantity,
     delivery_fee: deliveryFee,
+    // Snapshotted alongside the fee itself — see the Smart Distance-Based Delivery Fee
+    // System (lib/deliveryFee.js) — so a placed order's breakdown stays exactly reproducible
+    // even if the road distance or pricing tiers change later.
+    delivery_distance_km: deliveryDistanceKm,
+    delivery_duration_minutes: deliveryDurationMinutes,
+    delivery_fee_tier: deliveryFeeTier,
     total_amount: quantity * Number(product.price) + deliveryFee,
     message: values.message?.trim() || '',
     payment_method: values.paymentMethod,
-    payment_status: isOnlinePayment ? 'paid' : 'pending',
+    // GCash starts pending too, same as COD — it only becomes 'paid' once the buyer
+    // completes the demo GCash payment flow (see payments.controller.js), not automatically
+    // here at order creation.
+    payment_status: 'pending',
     delivery_method: values.deliveryMethod,
     delivery_status: 'pending',
     origin_municipality: originMunicipality,
@@ -256,20 +271,6 @@ export async function updateOrderLocation(req, res) {
   const { data: order, error } = await supabaseAdmin
     .from('orders')
     .update({ current_lat: lat, current_lng: lng, location_updated_at: new Date().toISOString() })
-    .eq('id', existing.id)
-    .select()
-    .single();
-  if (error) throw new ApiError(error.message, 400);
-  res.json(serializeOrder(order));
-}
-
-export async function payOrder(req, res) {
-  const existing = await fetchOrderOr404(req.params.id);
-  if (req.profile.id !== existing.buyer_id) throw new ApiError('You do not have permission to modify this order.', 403);
-
-  const { data: order, error } = await supabaseAdmin
-    .from('orders')
-    .update({ payment_status: 'paid' })
     .eq('id', existing.id)
     .select()
     .single();

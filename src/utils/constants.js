@@ -9,19 +9,6 @@ export const STORAGE_KEYS = {
   legacyRequests: 'harvestlink_purchase_requests',
 };
 
-export const ADMIN_CREDENTIALS = {
-  email: 'admin@harvestlink.com',
-  password: 'admin',
-};
-
-export const ADMIN_USER = {
-  id: 'admin',
-  name: 'HarvestLink Admin',
-  email: ADMIN_CREDENTIALS.email,
-  role: 'admin',
-  createdAt: '2026-01-01T00:00:00.000Z',
-};
-
 export const PRODUCT_CATEGORIES = [
   'Vegetables',
   'Fruits',
@@ -87,6 +74,18 @@ export const SELLING_TYPES = [
   { value: 'retail', label: 'Retail' },
   { value: 'bulk', label: 'Bulk / Wholesale' },
 ];
+
+// A single, easy-to-adjust cutoff for the "low stock" warning shown to buyers/stakeholders
+// on the marketplace card and product detail page — not per-product, since there's no
+// per-listing threshold field to configure one from.
+export const LOW_STOCK_THRESHOLD = 10;
+
+// Zero/negative quantity isn't "low stock" — that's out of stock, already surfaced via the
+// product's own status instead of this warning.
+export function isLowStock(quantity) {
+  const value = Number(quantity);
+  return value > 0 && value <= LOW_STOCK_THRESHOLD;
+}
 
 export const ORGANIZATION_TYPES = [
   'Orphanage',
@@ -228,9 +227,6 @@ export function getMunicipalityCoords(municipality) {
 export const PAYMENT_METHODS = [
   { value: 'cod', label: 'Cash on delivery' },
   { value: 'gcash', label: 'GCash' },
-  { value: 'maya', label: 'Maya' },
-  { value: 'card', label: 'Credit / Debit card' },
-  { value: 'bank', label: 'Bank transfer' },
 ];
 
 export const ONLINE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method.value !== 'cod').map((method) => method.value);

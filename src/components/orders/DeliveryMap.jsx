@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { getMunicipalityCoords } from '../../utils/constants';
 import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
@@ -98,9 +99,21 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
 // as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
 // `buyers`: optional [{ id, name, municipality }] — registered buyers plotted the same way
 // (e.g. on the farmer dashboard, so a farmer can see who's nearby).
-// `alertStyle`: when true, the farmer/buyer reference pins (not the route pins) get the
-// alert-ring treatment, the same one used for surplus-donation pins on the farmer map.
-export default function DeliveryMap({ routes, farmers = [], buyers = [], alertStyle = false }) {
+// `stakeholders`: optional [{ id, name, organizationName, municipality }] — registered
+// partner organizations plotted the same way (e.g. on the stakeholder dashboard).
+// `alertStyle`: when true, the farmer/buyer/stakeholder reference pins (not the route pins)
+// get the alert-ring treatment, the same one used for surplus-donation pins on the farmer map.
+// `viewerMunicipality`: the signed-in account's own municipality — folded into the camera
+// framing below so an idle dashboard (no active deliveries yet) still opens centered on the
+// viewer's own area with nearby accounts in view, instead of a generic whole-Cebu view.
+export default function DeliveryMap({
+  routes,
+  farmers = [],
+  buyers = [],
+  stakeholders = [],
+  alertStyle = false,
+  viewerMunicipality = null,
+}) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -108,6 +121,7 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
   const routeLayerRef = useRef([]);
   const farmerMarkersRef = useRef([]);
   const buyerMarkersRef = useRef([]);
+  const stakeholderMarkersRef = useRef([]);
   const fittedSignatureRef = useRef(null);
   const requestedRouteKeysRef = useRef(new Set());
   // Truck markers are persisted (not recreated every render, unlike every other marker here)
@@ -125,6 +139,7 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
+  const stakeholderCoordsById = useMapCoordinates(stakeholders);
 
   // Cancels any in-flight marker animation on unmount — otherwise a rAF loop could keep
   // calling setPosition on a marker whose map context is already gone. Deliberately reads
@@ -216,7 +231,8 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
         content:
           `<strong>${displayName}</strong><br/>${farmer.name}<br/>${farmer.municipality}` +
           `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-          `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>`,
+          `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>` +
+          `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`,
       });
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       farmerMarkersRef.current.push(marker);
@@ -233,22 +249,57 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
+      // Purple, not the route-destination blue (#1d4ed8) — a dashboard showing both an
+      // active "delivery to you" route AND registered-buyer reference pins at the same time
+      // would otherwise render two different things in the same color.
       const marker = new mapsApi.Marker({
         position: coords,
         map,
-        icon: buildPinIcon(mapsApi, '#1d4ed8', { alert: alertStyle }),
+        icon: buildPinIcon(mapsApi, '#7c3aed', { alert: alertStyle }),
         title: buyer.name,
       });
       const infoWindow = new mapsApi.InfoWindow({
         content:
           `<strong>${buyer.name}</strong><br/>${buyer.municipality}` +
           (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>`,
+          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+          `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`,
       });
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       buyerMarkersRef.current.push(marker);
     });
   }, [mapReady, buyers, buyerCoordsById, alertStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
+
+    stakeholderMarkersRef.current.forEach((marker) => marker.setMap(null));
+    stakeholderMarkersRef.current = [];
+    stakeholders.forEach((stakeholder) => {
+      const coords = stakeholderCoordsById[stakeholder.id];
+      if (!coords) return;
+      const displayName = stakeholder.organizationName || stakeholder.name;
+      const marker = new mapsApi.Marker({
+        position: coords,
+        map,
+        icon: buildPinIcon(mapsApi, '#db2777', { alert: alertStyle }),
+        title: displayName,
+      });
+      const infoWindow = new mapsApi.InfoWindow({
+        content:
+          `<strong>${displayName}</strong><br/>` +
+          (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
+          `${stakeholder.municipality}` +
+          (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
+          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
+          `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`,
+      });
+      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
+      stakeholderMarkersRef.current.push(marker);
+    });
+  }, [mapReady, stakeholders, stakeholderCoordsById, alertStyle]);
 
   // Fetches the actual road path for each distinct origin/destination pair once, so the
   // route line follows real streets/bridges instead of cutting a straight line across
@@ -409,10 +460,26 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
       delete truckMarkersRef.current[routeId];
     });
 
+    // Reference pins (and the viewer's own municipality) are part of the "what's around me"
+    // view too — without this, a dashboard with zero active deliveries fell back to a
+    // generic, unfocused whole-Cebu view instead of framing the viewer's own area and the
+    // nearby accounts actually being shown.
+    Object.values(farmerCoordsById).forEach((coords) => allPoints.push(coords));
+    Object.values(buyerCoordsById).forEach((coords) => allPoints.push(coords));
+    Object.values(stakeholderCoordsById).forEach((coords) => allPoints.push(coords));
+    if (viewerMunicipality) allPoints.push(getMunicipalityCoords(viewerMunicipality));
+
     // Live polling rebuilds `routes` every few seconds even when nothing but a truck's
     // progress ticked forward — only reset the camera when the actual set of tracked
-    // orders changes, so recentering never overrides a pan/zoom the user just made.
-    const signature = routes.map((route) => route.id).sort().join(',');
+    // orders/reference pins changes, so recentering never overrides a pan/zoom the user
+    // just made.
+    const signature = [
+      routes.map((route) => route.id).sort().join(','),
+      farmers.map((farmer) => farmer.id).sort().join(','),
+      buyers.map((buyer) => buyer.id).sort().join(','),
+      stakeholders.map((stakeholder) => stakeholder.id).sort().join(','),
+      viewerMunicipality || '',
+    ].join('|');
     if (signature === fittedSignatureRef.current) return;
     fittedSignatureRef.current = signature;
 
@@ -424,10 +491,22 @@ export default function DeliveryMap({ routes, farmers = [], buyers = [], alertSt
       allPoints.forEach((point) => bounds.extend(point));
       map.fitBounds(bounds, 36);
     } else {
-      map.setCenter(CEBU_CENTER);
+      map.setCenter(viewerMunicipality ? getMunicipalityCoords(viewerMunicipality) : CEBU_CENTER);
       map.setZoom(10);
     }
-  }, [mapReady, routes, roadGeometries, liveRouteGeometries]);
+  }, [
+    mapReady,
+    routes,
+    roadGeometries,
+    liveRouteGeometries,
+    farmers,
+    buyers,
+    stakeholders,
+    farmerCoordsById,
+    buyerCoordsById,
+    stakeholderCoordsById,
+    viewerMunicipality,
+  ]);
 
   return (
     <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>

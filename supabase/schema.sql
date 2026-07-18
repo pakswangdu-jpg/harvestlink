@@ -32,6 +32,9 @@ create table if not exists public.profiles (
   zip_code text,
   municipality text,
   account_status text not null default 'active' check (account_status in ('active','suspended')),
+  -- Shared by every role (farmer/buyer/stakeholder) — a public-bucket URL, same shape as
+  -- products.image_url. Nullable: falls back to initials (see getInitials) until set.
+  avatar_url text,
 
   -- farmer-only
   farm_name text,
@@ -61,6 +64,7 @@ create index if not exists profiles_role_idx on public.profiles (role);
 
 -- Safe to re-run against an already-created table from an earlier version of this schema.
 alter table public.profiles add column if not exists last_active_at timestamptz;
+alter table public.profiles add column if not exists avatar_url text;
 
 -- ============================================================================
 -- products
@@ -124,14 +128,19 @@ create table if not exists public.orders (
   buyer_id uuid not null references public.profiles(id),
   buyer_name text not null,
   quantity numeric(12,2) not null,
-  -- Computed server-side from municipality-to-municipality distance at order creation (see
-  -- backend/src/lib/deliveryFee.js) — 0 for buyer_pickup, since the buyer travels there on
-  -- their own schedule. Already folded into total_amount; stored separately too so the
-  -- checkout/order-detail UI can show a "product cost + delivery fee" breakdown.
+  -- Computed server-side via the Smart Distance-Based Delivery Fee System — real road
+  -- distance (OSRM) priced against configurable tiers (see backend/src/lib/deliveryFee.js
+  -- and deliveryFeeConfig.js) — 0/null for buyer_pickup, since the buyer travels there on
+  -- their own schedule. delivery_fee is already folded into total_amount; all four are
+  -- stored separately too so the checkout/order-detail/receipt UI can show the full
+  -- distance/duration/tier/fee breakdown exactly as it was at order time.
   delivery_fee numeric(12,2) not null default 0,
+  delivery_distance_km numeric(8,2),
+  delivery_duration_minutes numeric(8,2),
+  delivery_fee_tier text,
   total_amount numeric(12,2) not null,
   message text,
-  payment_method text not null check (payment_method in ('cod','gcash','maya','card','bank')),
+  payment_method text not null check (payment_method in ('cod','gcash')),
   payment_status text not null default 'pending' check (payment_status in ('pending','paid','failed','refunded')),
   delivery_method text not null check (delivery_method in ('farmer_delivery','buyer_pickup','courier')),
   delivery_status text not null default 'pending' check (delivery_status in
@@ -180,6 +189,24 @@ alter table public.orders add column if not exists location_updated_at timestamp
 alter table public.orders add column if not exists transit_started_at timestamptz;
 alter table public.orders add column if not exists unit_cost_price numeric(12,2);
 
+-- Demo GCash payment module — set only by backend/src/controllers/payments.controller.js
+-- once the simulated payment flow completes, never by the client directly.
+alter table public.orders add column if not exists transaction_id text;
+alter table public.orders add column if not exists paid_at timestamptz;
+
+-- Maya/card/bank transfer were removed as selectable payment methods — HarvestLink now
+-- only offers GCash (via the demo payment module) and Cash on Delivery.
+alter table public.orders drop constraint if exists orders_payment_method_check;
+alter table public.orders add constraint orders_payment_method_check check (payment_method in ('cod','gcash'));
+
+-- Smart Distance-Based Delivery Fee System — snapshotted alongside delivery_fee at order
+-- creation (see backend/src/lib/deliveryFee.js) so a placed order's breakdown stays exactly
+-- reproducible even if the road distance or pricing tiers change afterward. All three are
+-- null for a buyer-pickup order, which has no delivery leg to measure or price.
+alter table public.orders add column if not exists delivery_distance_km numeric(8,2);
+alter table public.orders add column if not exists delivery_duration_minutes numeric(8,2);
+alter table public.orders add column if not exists delivery_fee_tier text;
+
 -- Lets a farmer delete a product even after orders exist against it — previously this FK
 -- had no ON DELETE clause (defaulting to RESTRICT), which silently blocked every such
 -- delete with a foreign-key-violation error the frontend didn't surface either. Orders
@@ -206,23 +233,34 @@ create table if not exists public.notifications (
 create index if not exists notifications_user_id_read_idx on public.notifications (user_id, read);
 
 -- ============================================================================
--- messages — order-scoped chat between the buyer and farmer on that order. There is no
--- such thing as a message with no order behind it (see backend/src/controllers/
--- messages.controller.js) — sender_name/sender_role are snapshotted at send time, same
--- reasoning as orders' own snapshotted product_name/farmer_name/buyer_name.
+-- messages — either order-scoped (order_id set, recipient_id null: chat between the buyer
+-- and farmer on that order) OR a general direct conversation between any two accounts
+-- (order_id null, recipient_id set: e.g. contacting someone from the map before any order
+-- exists between you). Exactly one of the two is set, never both, never neither — see
+-- backend/src/controllers/messages.controller.js. sender_name/sender_role are snapshotted
+-- at send time, same reasoning as orders' own snapshotted product_name/farmer_name/buyer_name.
 -- ============================================================================
 create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
+  order_id uuid references public.orders(id) on delete cascade,
+  recipient_id uuid references public.profiles(id) on delete cascade,
   sender_id uuid not null references public.profiles(id),
   sender_name text not null,
   sender_role text not null,
   text text not null,
   read boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null))
 );
 
 create index if not exists messages_order_id_idx on public.messages (order_id, created_at);
+create index if not exists messages_direct_idx on public.messages (recipient_id, sender_id, created_at) where order_id is null;
+
+-- Safe to re-run against an already-created table from an earlier version of this schema.
+alter table public.messages alter column order_id drop not null;
+alter table public.messages add column if not exists recipient_id uuid references public.profiles(id) on delete cascade;
+alter table public.messages drop constraint if exists messages_exactly_one_target;
+alter table public.messages add constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null));
 
 -- ============================================================================
 -- ratings — a buyer rates the farmer after confirming receipt of a completed order
@@ -312,10 +350,15 @@ end $$;
 -- ============================================================================
 -- Storage buckets
 --   product-images        public  — product photos, freely viewable in the marketplace
+--   avatars                public  — farmer/buyer/stakeholder profile pictures
 --   verification-documents private — gov ID / accreditation proof, sensitive
 -- ============================================================================
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
 on conflict (id) do nothing;
 
 insert into storage.buckets (id, name, public)
@@ -359,6 +402,40 @@ create policy "product-images delete own folder"
   on storage.objects for delete
   using (
     bucket_id = 'product-images'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- avatars: same owner-folder convention as product-images (upload path convention:
+-- avatars/{userId}/{uuid}.{ext}) — any of the three roles may upload their own.
+drop policy if exists "avatars insert own folder" on storage.objects;
+create policy "avatars insert own folder"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'avatars'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "avatars select own folder" on storage.objects;
+create policy "avatars select own folder"
+  on storage.objects for select
+  using (
+    bucket_id = 'avatars'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "avatars update own folder" on storage.objects;
+create policy "avatars update own folder"
+  on storage.objects for update
+  using (
+    bucket_id = 'avatars'
+    and (select auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "avatars delete own folder" on storage.objects;
+create policy "avatars delete own folder"
+  on storage.objects for delete
+  using (
+    bucket_id = 'avatars'
     and (select auth.uid())::text = (storage.foldername(name))[1]
   );
 
