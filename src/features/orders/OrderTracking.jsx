@@ -21,7 +21,6 @@ import {
   getOrderById,
   isCancellable,
   mapOrderRealtimeRow,
-  payOrder,
   updateOrderStatus,
 } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS } from '../../utils/constants';
@@ -275,7 +274,12 @@ export default function OrderTracking() {
             <div><span>Farmer</span><strong>{order.farmerName}</strong></div>
             <div><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
             <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
-            {order.deliveryFee > 0 ? <div><span>Delivery fee</span><strong>{formatCurrency(order.deliveryFee)}</strong></div> : null}
+            {order.deliveryFee > 0 ? (
+              <div>
+                <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
+                <strong>{formatCurrency(order.deliveryFee)}</strong>
+              </div>
+            ) : null}
             {order.status === 'confirmed' && displayEstimatedTotalMinutes != null ? (
               <div>
                 <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
@@ -318,7 +322,7 @@ export default function OrderTracking() {
             ) : null}
 
             {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) ? (
-              <Button onClick={() => run(() => payOrder(order.id), 'Payment confirmed.')}>Pay now</Button>
+              <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
             ) : null}
 
             {isBuyer && isCancellable(order) ? (

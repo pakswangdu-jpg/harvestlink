@@ -11,6 +11,7 @@ import {
   getPendingPriceReviews,
   getProduct,
   listProducts,
+  listPublicProducts,
   reactivatePriceReview,
   removeDiscount,
   setProductStatus,
@@ -21,6 +22,9 @@ const router = Router();
 
 router.get('/price-reviews/pending', requireAuth, requireRole('admin'), getPendingPriceReviews);
 router.get('/price-reviews/declined', requireAuth, requireRole('admin'), getDeclinedPriceReviews);
+// Public, no requireAuth — must stay above GET /:id below, or Express would match "public"
+// as an :id instead of this handler.
+router.get('/public', listPublicProducts);
 
 router.get('/', requireAuth, listProducts);
 router.post('/', requireAuth, requireRole('farmer'), createProduct);

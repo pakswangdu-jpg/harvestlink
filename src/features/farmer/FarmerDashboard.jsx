@@ -10,17 +10,19 @@ import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getUserById, getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getStakeholders, getUserById, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getProfitCoverage, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
+import { nearestByMunicipality } from '../../utils/geo';
 import { farmerNavItems } from './farmerNav';
 
 const EMPTY_STATE = {
-  products: [], orders: [], donations: [], otherFarmers: [], registeredBuyers: [], activeDeliveryRoutes: [],
+  products: [], orders: [], donations: [], otherFarmers: [], registeredBuyers: [],
+  registeredStakeholders: [], activeDeliveryRoutes: [],
 };
 
 export default function FarmerDashboard() {
@@ -32,12 +34,13 @@ export default function FarmerDashboard() {
     let cancelled = false;
 
     const reload = async () => {
-      const [products, orders, donations, verifiedFarmers, registeredBuyers] = await Promise.all([
+      const [products, orders, donations, verifiedFarmers, registeredBuyers, registeredStakeholders] = await Promise.all([
         getProductsByFarmer(currentUser.id),
         getOrdersByFarmer(currentUser.id),
         getDonationsByFarmer(currentUser.id),
         getVerifiedFarmers(),
         getBuyers(),
+        getStakeholders(),
       ]);
       if (cancelled) return;
 
@@ -70,12 +73,19 @@ export default function FarmerDashboard() {
         };
       });
 
+      // Nearest-first and capped, not every registered account nationwide — the dashboard's
+      // map is a small "who's around me" widget, not the full directory (that's what View
+      // Map/Marketplace are for).
       setState({
         products,
         orders,
         donations,
-        otherFarmers: verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id),
-        registeredBuyers,
+        otherFarmers: nearestByMunicipality(
+          currentUser.municipality,
+          verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id),
+        ),
+        registeredBuyers: nearestByMunicipality(currentUser.municipality, registeredBuyers),
+        registeredStakeholders: nearestByMunicipality(currentUser.municipality, registeredStakeholders),
         activeDeliveryRoutes,
       });
     };
@@ -86,9 +96,9 @@ export default function FarmerDashboard() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [currentUser.id]);
+  }, [currentUser.id, currentUser.municipality]);
 
-  const { products, orders, donations, otherFarmers, registeredBuyers, activeDeliveryRoutes } = state;
+  const { products, orders, donations, otherFarmers, registeredBuyers, registeredStakeholders, activeDeliveryRoutes } = state;
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
@@ -146,17 +156,23 @@ export default function FarmerDashboard() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Map</p>
-            <h2>Active deliveries</h2>
+            <h2>Active Users</h2>
             <p className="map-legend">
-              <span className="legend-dot origin" /> Farmer/pickup
-              <span className="legend-dot destination" /> Delivery to buyer
-              <span className="legend-dot farmer" /> Other farmers
-              <span className="legend-dot destination" /> Registered buyers
+              <span className="legend-dot farmer" /> Registered farmer
+              <span className="legend-dot buyer" /> Registered buyer
+              <span className="legend-dot stakeholder" /> Registered stakeholder
             </p>
           </div>
           <span className="live-indicator"><span className="live-dot" /> Live</span>
         </div>
-        <DeliveryMap routes={activeDeliveryRoutes} farmers={otherFarmers} buyers={registeredBuyers} alertStyle />
+        <DeliveryMap
+          routes={activeDeliveryRoutes}
+          farmers={otherFarmers}
+          buyers={registeredBuyers}
+          stakeholders={registeredStakeholders}
+          alertStyle
+          viewerMunicipality={currentUser.municipality}
+        />
       </section>
 
       <MarketPricePanel commodityId={marketCommodityId} perspective="farmer" />

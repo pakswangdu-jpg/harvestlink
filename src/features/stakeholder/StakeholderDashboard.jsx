@@ -10,10 +10,11 @@ import EmptyState from '../../components/common/EmptyState';
 import FarmerMap from '../../components/map/FarmerMap';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
-import { getUserById, getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getStakeholders, getUserById, getVerifiedFarmers } from '../../services/authService';
 import { getAvailableDonations, getDonationsForStakeholder } from '../../services/donationService';
 import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { formatDate } from '../../utils/formatters';
+import { nearestByMunicipality } from '../../utils/geo';
 import { stakeholderNavItems } from './stakeholderNav';
 
 // Donation farmer profiles are resolved from the real backend (donation records
@@ -74,7 +75,8 @@ function buildActiveDeliveryRoutes(orders, currentUser) {
 }
 
 const EMPTY_STATE = {
-  available: [], myRequests: [], donationFarmers: [], activeDeliveryRoutes: [], verifiedFarmers: [],
+  available: [], myRequests: [], donationFarmers: [], activeDeliveryRoutes: [],
+  verifiedFarmers: [], buyers: [], stakeholders: [],
 };
 
 export default function StakeholderDashboard() {
@@ -87,12 +89,14 @@ export default function StakeholderDashboard() {
     const reload = async () => {
       const available = getAvailableDonations();
       const myRequests = getDonationsForStakeholder(currentUser.id);
-      const [donationFarmers, orders, verifiedFarmers] = await Promise.all([
+      const [donationFarmers, orders, verifiedFarmers, buyers, stakeholders] = await Promise.all([
         buildDonationFarmers(available),
         // Real marketplace purchases (not donation requests) — placed the same way a
         // buyer account would, so they're tracked the same way: by buyerId ownership.
         getOrdersByBuyer(currentUser.id),
         getVerifiedFarmers(),
+        getBuyers(),
+        getStakeholders(),
       ]);
       if (cancelled) return;
 
@@ -102,6 +106,8 @@ export default function StakeholderDashboard() {
         donationFarmers,
         activeDeliveryRoutes: buildActiveDeliveryRoutes(orders, currentUser),
         verifiedFarmers,
+        buyers,
+        stakeholders: stakeholders.filter((stakeholder) => stakeholder.id !== currentUser.id),
       });
     };
 
@@ -114,9 +120,13 @@ export default function StakeholderDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id, currentUser.municipality]);
 
-  const { available, myRequests, donationFarmers, activeDeliveryRoutes, verifiedFarmers } = state;
+  const { available, myRequests, donationFarmers, activeDeliveryRoutes, verifiedFarmers, buyers, stakeholders } = state;
   const scheduled = myRequests.filter((donation) => donation.status === 'scheduled');
   const completed = myRequests.filter((donation) => donation.status === 'completed');
+  // The dashboard map is a small "who's nearby" widget, not the full directory.
+  const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
+  const nearbyBuyers = nearestByMunicipality(currentUser.municipality, buyers);
+  const nearbyStakeholders = nearestByMunicipality(currentUser.municipality, stakeholders);
 
   return (
     <AppShell
@@ -176,16 +186,22 @@ export default function StakeholderDashboard() {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Map</p>
-            <h2>Active deliveries</h2>
+            <h2>Active Users</h2>
             <p className="map-legend">
-              <span className="legend-dot origin" /> Farmer/pickup
-              <span className="legend-dot destination" /> Delivery to you
-              <span className="legend-dot farmer" /> Verified farmer
+              <span className="legend-dot farmer" /> Registered farmer
+              <span className="legend-dot buyer" /> Registered buyer
+              <span className="legend-dot stakeholder" /> Registered stakeholder
             </p>
           </div>
           <span className="live-indicator"><span className="live-dot" /> Live</span>
         </div>
-        <DeliveryMap routes={activeDeliveryRoutes} farmers={verifiedFarmers} />
+        <DeliveryMap
+          routes={activeDeliveryRoutes}
+          farmers={nearbyFarmers}
+          buyers={nearbyBuyers}
+          stakeholders={nearbyStakeholders}
+          viewerMunicipality={currentUser.municipality}
+        />
         {!activeDeliveryRoutes.length ? (
           <p className="muted map-empty-note">Confirmed marketplace orders will show up here with a live delivery route.</p>
         ) : null}

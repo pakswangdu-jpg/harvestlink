@@ -1,29 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, Users } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import FarmerMap from '../../components/map/FarmerMap';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
-import { getOrdersByBuyer } from '../../services/orderService';
 import { getActiveProducts } from '../../services/productService';
 import { getInitials } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 // Matches the ~4s live-refresh cadence used everywhere else in the app (orders, messages,
-// notifications) — keeps presence dots and the contactable-farmer set from going stale
-// while the map is left open.
+// notifications) — keeps presence dots current while the map is left open.
 const REFRESH_MS = 4000;
 
 export default function FarmerMapPage() {
   const { currentUser } = useAuth();
   const navItems = getNavItemsForRole(currentUser.role);
   const [query, setQuery] = useState('');
+  // Lets someone jump straight to just the group they care about instead of scrolling past
+  // the other two directories to find it — 'all' keeps today's combined view as the default.
+  const [typeFilter, setTypeFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [farmers, setFarmers] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [stakeholders, setStakeholders] = useState([]);
-  const [contactableFarmerOrderIds, setContactableFarmerOrderIds] = useState({});
   const [farmersWithProducts, setFarmersWithProducts] = useState(() => new Set());
 
   useEffect(() => {
@@ -34,46 +34,42 @@ export default function FarmerMapPage() {
       getActiveProducts().then((products) => {
         setFarmersWithProducts(new Set(products.map((product) => product.farmerId)));
       });
-      if (currentUser.role === 'buyer') {
-        // Newest-first (see backend/src/controllers/orders.controller.js) — first
-        // occurrence wins, so each farmer maps to the buyer's most recent order with them.
-        getOrdersByBuyer(currentUser.id).then((orders) => {
-          const lookup = {};
-          orders.forEach((order) => {
-            if (!(order.farmerId in lookup)) lookup[order.farmerId] = order.id;
-          });
-          setContactableFarmerOrderIds(lookup);
-        });
-      }
     };
     reload();
     const interval = setInterval(reload, REFRESH_MS);
     return () => clearInterval(interval);
-  }, [currentUser.id, currentUser.role]);
+  }, []);
+
+  const showFarmers = typeFilter === 'all' || typeFilter === 'farmer';
+  const showBuyers = typeFilter === 'all' || typeFilter === 'buyer';
+  const showStakeholders = typeFilter === 'all' || typeFilter === 'stakeholder';
 
   const filteredFarmers = useMemo(() => {
+    if (!showFarmers) return [];
     const normalized = query.trim().toLowerCase();
     if (!normalized) return farmers;
     return farmers.filter((farmer) =>
       [farmer.name, farmer.farmName, farmer.municipality].join(' ').toLowerCase().includes(normalized)
     );
-  }, [farmers, query]);
+  }, [farmers, query, showFarmers]);
 
   const filteredBuyers = useMemo(() => {
+    if (!showBuyers) return [];
     const normalized = query.trim().toLowerCase();
     if (!normalized) return buyers;
     return buyers.filter((buyer) =>
       [buyer.name, buyer.municipality].join(' ').toLowerCase().includes(normalized)
     );
-  }, [buyers, query]);
+  }, [buyers, query, showBuyers]);
 
   const filteredStakeholders = useMemo(() => {
+    if (!showStakeholders) return [];
     const normalized = query.trim().toLowerCase();
     if (!normalized) return stakeholders;
     return stakeholders.filter((stakeholder) =>
       [stakeholder.organizationName, stakeholder.name, stakeholder.municipality].join(' ').toLowerCase().includes(normalized)
     );
-  }, [stakeholders, query]);
+  }, [stakeholders, query, showStakeholders]);
 
   const hasAnyAccounts = farmers.length > 0 || buyers.length > 0 || stakeholders.length > 0;
 
@@ -96,6 +92,15 @@ export default function FarmerMapPage() {
                 placeholder="Search by name, farm name, or municipality"
               />
             </label>
+            <label className="location-filter" htmlFor="farmer-map-type">
+              <Users size={16} />
+              <select id="farmer-map-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                <option value="all">All types</option>
+                <option value="farmer">Farmers</option>
+                <option value="buyer">Buyers</option>
+                <option value="stakeholder">Stakeholders</option>
+              </select>
+            </label>
           </section>
 
           <section className="content-grid two uneven">
@@ -111,92 +116,113 @@ export default function FarmerMapPage() {
                 stakeholders={filteredStakeholders}
                 selectedId={selectedId}
                 onSelectPin={setSelectedId}
-                contactableFarmerOrderIds={contactableFarmerOrderIds}
                 farmersWithProducts={farmersWithProducts}
               />
             </div>
 
             <div className="panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Directory</p>
-                  <h2>{filteredFarmers.length} approved farmer{filteredFarmers.length === 1 ? '' : 's'}</h2>
-                </div>
-              </div>
-              {filteredFarmers.length ? (
-                <div className="farmer-list">
-                  {filteredFarmers.map((farmer) => (
-                    <button
-                      key={farmer.id}
-                      type="button"
-                      className={`farmer-list-item ${selectedId === farmer.id ? 'active' : ''}`}
-                      onClick={() => setSelectedId(farmer.id)}
-                    >
-                      <span className="farmer-list-avatar">{getInitials(farmer.name)}</span>
-                      <span className="farmer-list-text">
-                        <strong>{farmer.farmName || farmer.name}</strong>
-                        <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No matching farmers" message="Try a different search term." />
-              )}
+              {showFarmers ? (
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Directory</p>
+                      <h2>{filteredFarmers.length} approved farmer{filteredFarmers.length === 1 ? '' : 's'}</h2>
+                    </div>
+                  </div>
+                  {filteredFarmers.length ? (
+                    <div className="farmer-list">
+                      {filteredFarmers.map((farmer) => (
+                        <button
+                          key={farmer.id}
+                          type="button"
+                          className={`farmer-list-item ${selectedId === farmer.id ? 'active' : ''}`}
+                          onClick={() => setSelectedId(farmer.id)}
+                        >
+                          <span className="farmer-list-avatar">
+                            {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
+                          </span>
+                          <span className="farmer-list-text">
+                            <strong>{farmer.farmName || farmer.name}</strong>
+                            <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState title="No matching farmers" message="Try a different search term." />
+                  )}
+                </>
+              ) : null}
 
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Directory</p>
-                  <h2>{filteredBuyers.length} registered buyer{filteredBuyers.length === 1 ? '' : 's'}</h2>
-                </div>
-              </div>
-              {filteredBuyers.length ? (
-                <div className="farmer-list">
-                  {filteredBuyers.map((buyer) => (
-                    <button
-                      key={buyer.id}
-                      type="button"
-                      className={`farmer-list-item ${selectedId === buyer.id ? 'active' : ''}`}
-                      onClick={() => setSelectedId(buyer.id)}
-                    >
-                      <span className="farmer-list-avatar buyer">{getInitials(buyer.name)}</span>
-                      <span className="farmer-list-text">
-                        <strong>{buyer.name}</strong>
-                        <span className="muted"><MapPin size={13} /> {buyer.municipality}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No matching buyers" message="Try a different search term." />
-              )}
+              {showBuyers ? (
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Directory</p>
+                      <h2>{filteredBuyers.length} registered buyer{filteredBuyers.length === 1 ? '' : 's'}</h2>
+                    </div>
+                  </div>
+                  {filteredBuyers.length ? (
+                    <div className="farmer-list">
+                      {filteredBuyers.map((buyer) => (
+                        <button
+                          key={buyer.id}
+                          type="button"
+                          className={`farmer-list-item ${selectedId === buyer.id ? 'active' : ''}`}
+                          onClick={() => setSelectedId(buyer.id)}
+                        >
+                          <span className="farmer-list-avatar buyer">
+                            {buyer.avatarUrl ? <img src={buyer.avatarUrl} alt="" /> : getInitials(buyer.name)}
+                          </span>
+                          <span className="farmer-list-text">
+                            <strong>{buyer.name}</strong>
+                            <span className="muted"><MapPin size={13} /> {buyer.municipality}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState title="No matching buyers" message="Try a different search term." />
+                  )}
+                </>
+              ) : null}
 
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Directory</p>
-                  <h2>{filteredStakeholders.length} registered stakeholder{filteredStakeholders.length === 1 ? '' : 's'}</h2>
-                </div>
-              </div>
-              {filteredStakeholders.length ? (
-                <div className="farmer-list">
-                  {filteredStakeholders.map((stakeholder) => (
-                    <button
-                      key={stakeholder.id}
-                      type="button"
-                      className={`farmer-list-item ${selectedId === stakeholder.id ? 'active' : ''}`}
-                      onClick={() => setSelectedId(stakeholder.id)}
-                    >
-                      <span className="farmer-list-avatar stakeholder">{getInitials(stakeholder.organizationName || stakeholder.name)}</span>
-                      <span className="farmer-list-text">
-                        <strong>{stakeholder.organizationName || stakeholder.name}</strong>
-                        <span className="muted"><MapPin size={13} /> {stakeholder.municipality}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState title="No matching stakeholders" message="Try a different search term." />
-              )}
+              {showStakeholders ? (
+                <>
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">Directory</p>
+                      <h2>{filteredStakeholders.length} registered stakeholder{filteredStakeholders.length === 1 ? '' : 's'}</h2>
+                    </div>
+                  </div>
+                  {filteredStakeholders.length ? (
+                    <div className="farmer-list">
+                      {filteredStakeholders.map((stakeholder) => (
+                        <button
+                          key={stakeholder.id}
+                          type="button"
+                          className={`farmer-list-item ${selectedId === stakeholder.id ? 'active' : ''}`}
+                          onClick={() => setSelectedId(stakeholder.id)}
+                        >
+                          <span className="farmer-list-avatar stakeholder">
+                            {stakeholder.avatarUrl ? (
+                              <img src={stakeholder.avatarUrl} alt="" />
+                            ) : (
+                              getInitials(stakeholder.organizationName || stakeholder.name)
+                            )}
+                          </span>
+                          <span className="farmer-list-text">
+                            <strong>{stakeholder.organizationName || stakeholder.name}</strong>
+                            <span className="muted"><MapPin size={13} /> {stakeholder.municipality}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState title="No matching stakeholders" message="Try a different search term." />
+                  )}
+                </>
+              ) : null}
             </div>
           </section>
         </>

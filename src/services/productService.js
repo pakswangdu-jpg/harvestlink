@@ -21,6 +21,12 @@ export async function getProductsByFarmer(farmerId) {
   return apiClient.get(`/products?farmerId=${farmerId}`);
 }
 
+// GET /products/public is public (no auth) — backs the signed-out "view farmer" page
+// linked from the landing page's 5-star showcase.
+export async function getPublicFarmerProducts(farmerId) {
+  return apiClient.get(`/products/public?farmerId=${farmerId}`);
+}
+
 // `farmer` is no longer needed — the backend infers the owner from the authenticated
 // session — but the parameter is kept so call sites don't need to change.
 export async function createProduct(values) {

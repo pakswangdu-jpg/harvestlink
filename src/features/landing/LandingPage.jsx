@@ -1,16 +1,25 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Gift,
   HeartHandshake,
   LayoutDashboard,
   Mail,
+  MapPin,
+  Menu,
   Phone,
   Search,
   ShieldCheck,
   Truck,
+  X,
 } from 'lucide-react';
+import StarRating from '../../components/common/StarRating';
+import { getTopRatedFarmers } from '../../services/authService';
+import { getInitials } from '../../utils/formatters';
 import logo from '../../assets/logo.png';
 
 const FEATURES = [
@@ -32,6 +41,65 @@ const STEPS = [
 ];
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef(null);
+
+  // Same click-outside-to-close pattern used by NotificationBell/the profile avatar menu.
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) setIsMobileMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileMenuOpen]);
+
+  const [topFarmers, setTopFarmers] = useState([]);
+  // Distinguishes "haven't fetched yet" from "fetched, zero qualify" — without this, the
+  // empty-state message would flash for a moment on every page load before real farmers
+  // (if any) show up.
+  const [isLoadingFarmers, setIsLoadingFarmers] = useState(true);
+
+  // Public endpoint (no login needed) — a showcase for signed-out visitors, so a failure
+  // here should never crash the rest of the landing page, just fall back to the empty state.
+  useEffect(() => {
+    getTopRatedFarmers()
+      .then(setTopFarmers)
+      .catch(() => setTopFarmers([]))
+      .finally(() => setIsLoadingFarmers(false));
+  }, []);
+
+  // Arrow-navigated carousel instead of a growing multi-row grid — with more than a
+  // handful of 5-star farmers, the section stays a clean single row and the arrows page
+  // through the rest, rather than the page getting taller with every extra farmer.
+  const farmerTrackRef = useRef(null);
+  const [canScrollFarmersLeft, setCanScrollFarmersLeft] = useState(false);
+  const [canScrollFarmersRight, setCanScrollFarmersRight] = useState(false);
+
+  const updateFarmerScrollButtons = () => {
+    const track = farmerTrackRef.current;
+    if (!track) return;
+    setCanScrollFarmersLeft(track.scrollLeft > 4);
+    setCanScrollFarmersRight(track.scrollLeft + track.clientWidth < track.scrollWidth - 4);
+  };
+
+  // Re-check once the farmers are in (a fresh scrollWidth to measure) and on resize, since
+  // how many cards fit per view — and therefore whether there's anything left to scroll to
+  // — depends on viewport width.
+  useEffect(() => {
+    updateFarmerScrollButtons();
+    window.addEventListener('resize', updateFarmerScrollButtons);
+    return () => window.removeEventListener('resize', updateFarmerScrollButtons);
+  }, [topFarmers]);
+
+  const scrollFarmers = (direction) => {
+    const track = farmerTrackRef.current;
+    if (!track) return;
+    const cardWidth = track.firstElementChild?.getBoundingClientRect().width || 260;
+    track.scrollBy({ left: direction * (cardWidth + 16), behavior: 'smooth' });
+  };
+
   return (
     <main className="landing-page">
       <nav className="landing-nav">
@@ -51,6 +119,28 @@ export default function LandingPage() {
         <div className="landing-actions">
           <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
           <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+        </div>
+        <div className="landing-mobile-menu" ref={mobileMenuRef}>
+          <button
+            type="button"
+            className="landing-mobile-menu-toggle"
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setIsMobileMenuOpen((previous) => !previous)}
+          >
+            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+          {isMobileMenuOpen ? (
+            <div className="landing-mobile-menu-panel">
+              <a href="#features" onClick={() => setIsMobileMenuOpen(false)}>Features</a>
+              <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)}>How It Works</a>
+              <a href="#about" onClick={() => setIsMobileMenuOpen(false)}>About</a>
+              <a href="#contact" onClick={() => setIsMobileMenuOpen(false)}>Contact</a>
+              <div className="landing-mobile-menu-actions">
+                <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
+                <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+              </div>
+            </div>
+          ) : null}
         </div>
       </nav>
 
@@ -96,6 +186,72 @@ export default function LandingPage() {
           </article>
         ))}
       </section>
+
+      {isLoadingFarmers ? null : (
+        <section className="landing-top-farmers">
+          <div className="landing-section-heading">
+            <p className="eyebrow">Trusted by buyers</p>
+            <h2>5-star rated farmers</h2>
+          </div>
+          {topFarmers.length === 0 ? (
+            <p className="top-farmer-empty">No rated farmers yet — check back soon.</p>
+          ) : (
+          <div className="top-farmer-carousel">
+            {canScrollFarmersLeft ? (
+              <button
+                type="button"
+                className="top-farmer-arrow left"
+                onClick={() => scrollFarmers(-1)}
+                aria-label="Show previous farmers"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            ) : null}
+
+            <div className="top-farmer-track" ref={farmerTrackRef} onScroll={updateFarmerScrollButtons}>
+              {topFarmers.map((farmer) => (
+                // Not a <Link> — StarRating renders disabled <button> stars even in read-only
+                // mode, and nesting those inside an <a> is invalid HTML that leaves a dead
+                // click zone right over the stars (disabled buttons don't emit clicks that
+                // bubble). A click/keyboard-activatable div sidesteps that entirely.
+                <article
+                  key={farmer.id}
+                  className="top-farmer-card"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/farmers/${farmer.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') navigate(`/farmers/${farmer.id}`);
+                  }}
+                >
+                  <span className="top-farmer-avatar">
+                    {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
+                  </span>
+                  <h3>{farmer.name}</h3>
+                  {farmer.farmName ? <p className="top-farmer-farm">{farmer.farmName}</p> : null}
+                  <p className="top-farmer-location"><MapPin size={14} /> {farmer.municipality}</p>
+                  <StarRating value={farmer.avgRating} size={16} />
+                  <span className="top-farmer-rating-count">
+                    {farmer.ratingCount} rating{farmer.ratingCount === 1 ? '' : 's'}
+                  </span>
+                </article>
+              ))}
+            </div>
+
+            {canScrollFarmersRight ? (
+              <button
+                type="button"
+                className="top-farmer-arrow right"
+                onClick={() => scrollFarmers(1)}
+                aria-label="Show more farmers"
+              >
+                <ChevronRight size={20} />
+              </button>
+            ) : null}
+          </div>
+          )}
+        </section>
+      )}
 
       <section id="how-it-works" className="landing-steps">
         <div className="landing-section-heading">

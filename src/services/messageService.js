@@ -31,3 +31,27 @@ export async function getThreadsForOrders(orders, currentUser) {
     return bTime - aTime;
   });
 }
+
+// A direct conversation isn't tied to any order — this is how farmers, buyers, and
+// stakeholders can contact each other from the map (or anywhere else) before any order
+// exists between them. Same messages table, just order_id null / recipientId set instead
+// (see supabase/schema.sql and backend/src/controllers/messages.controller.js).
+export async function getDirectMessages(otherUserId) {
+  return apiClient.get(`/messages?otherUserId=${otherUserId}`);
+}
+
+export async function sendDirectMessage(recipientId, text) {
+  const trimmed = text.trim();
+  if (!trimmed) throw new Error('Enter a message before sending.');
+  return apiClient.post('/messages', { recipientId, text: trimmed });
+}
+
+export async function markDirectThreadRead(otherUserId) {
+  return apiClient.patch(`/messages/direct/${otherUserId}/read`, {});
+}
+
+// Every direct conversation the caller is part of, one entry per partner, newest first —
+// backs the "Messages" inbox alongside order threads.
+export async function getDirectThreads() {
+  return apiClient.get('/messages/direct-threads');
+}

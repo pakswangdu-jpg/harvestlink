@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { MapPin, Package } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency } from '../../utils/formatters';
+import { isLowStock } from '../../utils/constants';
 
 export default function ProductCard({ product, actions, showStatus = false }) {
   return (
@@ -17,6 +18,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
           <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
           {product.sellingType === 'bulk' ? <span className="badge badge-bulk">Bulk</span> : null}
           {product.discountPercent ? <span className="badge badge-sale">-{product.discountPercent}%</span> : null}
+          {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
           {showStatus ? <StatusBadge value={product.status} /> : null}
         </div>
         <h3>{product.name}</h3>

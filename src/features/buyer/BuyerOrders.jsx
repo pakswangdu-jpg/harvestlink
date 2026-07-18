@@ -6,9 +6,9 @@ import DataTable from '../../components/dashboard/DataTable';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useAuth } from '../auth/AuthContext';
-import { cancelOrder, getOrdersByBuyer, isCancellable, payOrder } from '../../services/orderService';
+import { cancelOrder, getOrdersByBuyer, isCancellable } from '../../services/orderService';
 import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
-import { formatDate } from '../../utils/formatters';
+import { deliveryStepLabel, formatDate } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function BuyerOrders() {
@@ -61,13 +61,44 @@ export default function BuyerOrders() {
         {orders.length ? (
           <DataTable
             columns={[
-              { key: 'productName', label: 'Product' },
-              { key: 'quantity', label: 'Quantity', render: (row) => `${row.quantity} ${row.unit}` },
+              {
+                key: 'productName',
+                label: 'Product',
+                render: (row) => (
+                  <div>
+                    <strong>{row.productName}</strong>
+                    <br />
+                    <span className="muted">{row.quantity} {row.unit}</span>
+                  </div>
+                ),
+              },
               { key: 'farmerName', label: 'Farmer' },
-              { key: 'paymentMethod', label: 'Payment', render: (row) => <StatusBadge value={row.paymentMethod} type="payment" /> },
-              { key: 'paymentStatus', label: 'Payment status', render: (row) => <StatusBadge value={row.paymentStatus} type="paymentStatus" /> },
-              { key: 'deliveryStatus', label: 'Delivery', render: (row) => <StatusBadge value={row.deliveryStatus} type="deliveryStatus" /> },
-              { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+              {
+                key: 'payment',
+                label: 'Payment',
+                render: (row) => (
+                  <div className="stacked-badges">
+                    <StatusBadge value={row.paymentMethod} type="payment" />
+                    <StatusBadge value={row.paymentStatus} type="paymentStatus" />
+                  </div>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                render: (row) => (
+                  <div className="stacked-badges">
+                    <StatusBadge value={row.status} />
+                    {/* Delivery progress only means anything once the farmer has actually
+                        confirmed the order — for pending/rejected/cancelled orders,
+                        deliveryStatus is just its untouched default and showing it (e.g.
+                        "Order confirmed" for a REJECTED order) is actively misleading. */}
+                    {row.status === 'confirmed' ? (
+                      <span className="muted table-substatus">{deliveryStepLabel(row.deliveryStatus)}</span>
+                    ) : null}
+                  </div>
+                ),
+              },
               { key: 'updatedAt', label: 'Updated', render: (row) => formatDate(row.updatedAt) },
               {
                 key: 'actions',
@@ -76,7 +107,7 @@ export default function BuyerOrders() {
                   <div className="table-actions">
                     <Link className="btn btn-secondary btn-sm" to={`/orders/${row.id}`}>Track</Link>
                     {row.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(row.paymentMethod) ? (
-                      <Button size="sm" onClick={() => run(() => payOrder(row.id), 'Payment confirmed.')}>Pay now</Button>
+                      <Link className="btn btn-primary btn-sm" to={`/orders/${row.id}/pay/gcash`}>Pay now</Link>
                     ) : null}
                     {isCancellable(row) ? (
                       <Button size="sm" variant="danger" onClick={() => run(() => cancelOrder(row.id), 'Order cancelled.')}>Cancel</Button>

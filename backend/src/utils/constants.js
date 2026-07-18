@@ -116,8 +116,9 @@ export function getMunicipalityCoords(municipality) {
   return CEBU_MUNICIPALITY_COORDS[municipality] || CEBU_MUNICIPALITY_COORDS[DEFAULT_MUNICIPALITY];
 }
 
-export const ONLINE_PAYMENT_METHODS = ['gcash', 'maya', 'card', 'bank'];
-export const PAYMENT_METHODS = ['cod', ...ONLINE_PAYMENT_METHODS];
+// Only GCash (via the demo payment module — see payments.controller.js) and Cash on
+// Delivery are offered.
+export const PAYMENT_METHODS = ['cod', 'gcash'];
 
 export const DELIVERY_METHODS = ['farmer_delivery', 'buyer_pickup', 'courier'];
 

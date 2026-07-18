@@ -6,6 +6,9 @@ import { ROLE_DASHBOARDS } from '../../utils/constants';
 import { getInitials } from '../../utils/formatters';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
+import { useFarmerNavBadges } from '../../hooks/useFarmerNavBadges';
+import { useBuyerNavBadges } from '../../hooks/useBuyerNavBadges';
+import { useStakeholderNavBadges } from '../../hooks/useStakeholderNavBadges';
 import logo from '../../assets/logo.png';
 
 export default function AppShell({ user, navItems, title, subtitle, children }) {
@@ -15,6 +18,27 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
   // goes "out for delivery" no matter which page the farmer used to mark it that way — the
   // order detail page, the orders list, etc. all call the same backend action.
   const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null);
+  // Same "pending action" badge concept as the admin sidebar (see AdminDashboard.jsx), just
+  // computed here instead of inside one page so it shows up regardless of which page of
+  // theirs is currently open. Each hook is a no-op (returns 0, does nothing) unless the
+  // signed-in account is actually that role, so all three can always be called.
+  const farmerBadges = useFarmerNavBadges(user.role === 'farmer' ? user.id : null);
+  const buyerBadges = useBuyerNavBadges(user.role === 'buyer' ? user.id : null);
+  const stakeholderBadges = useStakeholderNavBadges(user.role === 'stakeholder' ? user.id : null);
+
+  const BADGE_TARGETS_BY_ROLE = {
+    farmer: { '/farmer-orders': farmerBadges.ordersBadge, '/farmer-donations': farmerBadges.donationsBadge },
+    buyer: { '/buyer-orders': buyerBadges.ordersBadge },
+    stakeholder: {
+      '/stakeholder-orders': stakeholderBadges.ordersBadge,
+      '/stakeholder-donations': stakeholderBadges.donationsBadge,
+      '/stakeholder-requests': stakeholderBadges.requestsBadge,
+    },
+  };
+  const badgesByPath = BADGE_TARGETS_BY_ROLE[user.role];
+  const navItemsWithBadges = badgesByPath
+    ? navItems.map((item) => (item.to in badgesByPath ? { ...item, badge: badgesByPath[item.to] } : item))
+    : navItems;
 
   const handleLogout = () => {
     // A client-side navigate() here raced with ProtectedRoute's own "no user -> /login"
@@ -39,7 +63,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
         </Link>
 
         <nav className="side-nav">
-          {navItems.map((item) => (
+          {navItemsWithBadges.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <item.icon size={18} />
               <span>{item.label}</span>
@@ -50,7 +74,9 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
 
         {hasProfile ? (
           <Link className="sidebar-user" to="/profile">
-            <span className="sidebar-user-avatar">{getInitials(user.name)}</span>
+            <span className="sidebar-user-avatar">
+              {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : getInitials(user.name)}
+            </span>
             <div>
               <strong>{user.name}</strong>
               <small>{user.email}</small>
@@ -58,7 +84,9 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
           </Link>
         ) : (
           <div className="sidebar-user">
-            <span className="sidebar-user-avatar">{getInitials(user.name)}</span>
+            <span className="sidebar-user-avatar">
+              {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : getInitials(user.name)}
+            </span>
             <div>
               <strong>{user.name}</strong>
               <small>{user.email}</small>
@@ -87,7 +115,7 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
 
       <nav className="mobile-bottom-nav">
         <div className="mobile-bottom-nav-scroll">
-          {navItems.map((item) => (
+          {navItemsWithBadges.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <item.icon size={18} />
               <span>{item.label}</span>

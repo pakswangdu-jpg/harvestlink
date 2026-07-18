@@ -44,6 +44,20 @@ export async function registerUser(values) {
     : apiClient.get('/profiles/me');
 }
 
+// GET /profiles/top-farmers is public (no requireAuth on the backend) — safe to call from
+// the signed-out landing page. apiClient still runs its normal getSession() check first,
+// it just won't find one and simply skips the Authorization header, which the route
+// doesn't need anyway.
+export async function getTopRatedFarmers() {
+  return apiClient.get('/profiles/top-farmers');
+}
+
+// GET /profiles/:id/public is also public — backs the "view farmer" page reached by
+// clicking a card in the landing page's showcase.
+export async function getPublicFarmerProfile(id) {
+  return apiClient.get(`/profiles/${id}/public`);
+}
+
 export async function loginUser(emailValue, password) {
   const email = emailValue.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({ email, password });

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
+import PublicFarmerProfile from '../features/landing/PublicFarmerProfile';
 import AuthPage from '../features/auth/AuthPage';
 import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../features/auth/ResetPasswordPage';
@@ -15,8 +16,10 @@ import Marketplace from '../features/marketplace/Marketplace';
 import ProductDetails from '../features/marketplace/ProductDetails';
 import OrderTracking from '../features/orders/OrderTracking';
 import OrderReceipt from '../features/orders/OrderReceipt';
+import GcashPaymentPage from '../features/payments/GcashPaymentPage';
 import MessageThreads from '../features/messages/MessageThreads';
 import MessageThread from '../features/messages/MessageThread';
+import DirectMessageThread from '../features/messages/DirectMessageThread';
 import Profile from '../features/profile/Profile';
 import MarketInsights from '../features/market/MarketInsights';
 import FarmerMapPage from '../features/map/FarmerMapPage';
@@ -29,6 +32,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/farmers/:id" element={<PublicFarmerProfile />} />
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -52,7 +56,9 @@ export default function AppRoutes() {
         <Route path="/products/:id" element={<ProductDetails />} />
         <Route path="/orders/:id" element={<OrderTracking />} />
         <Route path="/orders/:id/receipt" element={<OrderReceipt />} />
+        <Route path="/orders/:id/pay/gcash" element={<GcashPaymentPage />} />
         <Route path="/messages" element={<MessageThreads />} />
+        <Route path="/messages/direct/:userId" element={<DirectMessageThread />} />
         <Route path="/messages/:orderId" element={<MessageThread />} />
         <Route path="/market-insights" element={<MarketInsights />} />
         <Route path="/farmer-map" element={<FarmerMapPage />} />

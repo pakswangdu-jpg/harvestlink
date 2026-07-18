@@ -166,10 +166,6 @@ export async function advanceDelivery(id) {
   return apiClient.patch(`/orders/${id}/advance-delivery`);
 }
 
-export async function payOrder(id) {
-  return apiClient.patch(`/orders/${id}/pay`);
-}
-
 export async function updateOrderLocation(id, { lat, lng }) {
   return apiClient.patch(`/orders/${id}/location`, { lat, lng });
 }
