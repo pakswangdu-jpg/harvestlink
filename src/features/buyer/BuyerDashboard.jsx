@@ -11,7 +11,7 @@ import StarRating from '../../components/common/StarRating';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
-import { getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
 import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
@@ -20,7 +20,9 @@ import { formatCurrency, formatDate, getFirstName, getInitials } from '../../uti
 import { nearestByMunicipality } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 
-const EMPTY_STATE = { products: [], orders: [], verifiedFarmers: [], activeDeliveryRoutes: [] };
+const EMPTY_STATE = {
+  products: [], orders: [], verifiedFarmers: [], registeredBuyers: [], registeredStakeholders: [], activeDeliveryRoutes: [],
+};
 
 export default function BuyerDashboard() {
   const { currentUser } = useAuth();
@@ -30,10 +32,12 @@ export default function BuyerDashboard() {
     let cancelled = false;
 
     const reload = async () => {
-      const [products, orders, verifiedFarmers] = await Promise.all([
+      const [products, orders, verifiedFarmers, buyers, stakeholders] = await Promise.all([
         getActiveProducts(),
         getOrdersByBuyer(currentUser.id),
         getVerifiedFarmers(),
+        getBuyers(),
+        getStakeholders(),
       ]);
       if (cancelled) return;
 
@@ -59,7 +63,14 @@ export default function BuyerDashboard() {
         };
       });
 
-      setState({ products, orders, verifiedFarmers, activeDeliveryRoutes });
+      setState({
+        products,
+        orders,
+        verifiedFarmers,
+        registeredBuyers: buyers.filter((buyer) => buyer.id !== currentUser.id),
+        registeredStakeholders: stakeholders,
+        activeDeliveryRoutes,
+      });
     };
 
     reload();
@@ -70,7 +81,7 @@ export default function BuyerDashboard() {
     };
   }, [currentUser.id, currentUser.municipality]);
 
-  const { products, orders, verifiedFarmers, activeDeliveryRoutes } = state;
+  const { products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders, activeDeliveryRoutes } = state;
   // Fresh listings only spotlights Grade A produce — Grade B is still buyable from the full
   // Marketplace, just not featured in this at-a-glance dashboard preview.
   const freshListings = products.filter((product) => product.grade === 'A');
@@ -90,6 +101,8 @@ export default function BuyerDashboard() {
   // first and capped, unlike verifiedFarmers above (kept platform-wide for the ratings-based
   // recommendation list).
   const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
+  const nearbyBuyers = nearestByMunicipality(currentUser.municipality, registeredBuyers);
+  const nearbyStakeholders = nearestByMunicipality(currentUser.municipality, registeredStakeholders);
 
   return (
     <AppShell
@@ -112,14 +125,20 @@ export default function BuyerDashboard() {
             <p className="eyebrow">Map</p>
             <h2>Active Users</h2>
             <p className="map-legend">
-              <span className="legend-dot origin" /> Farmer/pickup
-              <span className="legend-dot destination" /> Delivery to you
-              <span className="legend-dot farmer" /> Verified farmer
+              <span className="legend-dot farmer" /> Registered farmer
+              <span className="legend-dot buyer" /> Registered buyer
+              <span className="legend-dot stakeholder" /> Registered stakeholder
             </p>
           </div>
           <span className="live-indicator"><span className="live-dot" /> Live</span>
         </div>
-        <DeliveryMap routes={activeDeliveryRoutes} farmers={nearbyFarmers} viewerMunicipality={currentUser.municipality} />
+        <DeliveryMap
+          routes={activeDeliveryRoutes}
+          farmers={nearbyFarmers}
+          buyers={nearbyBuyers}
+          stakeholders={nearbyStakeholders}
+          viewerMunicipality={currentUser.municipality}
+        />
       </section>
 
       <MarketPricePanel commodityId={marketCommodityId} perspective="buyer" />
