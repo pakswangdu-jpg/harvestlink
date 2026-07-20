@@ -1,5 +1,5 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Eye, EyeOff, Lock, LocateFixed, Mail, Sparkles } from 'lucide-react';
+import { LocateFixed } from 'lucide-react';
 import { useState } from 'react';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
@@ -11,23 +11,6 @@ import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
-
-// Convenience only — re-fills the email field on a later visit, never the session itself.
-// Kept separate from the real login() call so "Do the login logic" stays untouched.
-const REMEMBERED_EMAIL_KEY = 'harvestlink:rememberedEmail';
-
-const LOGIN_FEATURE_BADGES = ['AI Price Recommendation', 'Secure Payments', 'Real-Time Delivery Tracking', 'Surplus Donation Program'];
-
-function GoogleMark() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.87 2.69-6.62Z" />
-      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.96v2.33A9 9 0 0 0 9 18Z" />
-      <path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.96a9 9 0 0 0 0 8.08l3-2.33Z" />
-      <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3 2.33C4.67 5.16 6.66 3.58 9 3.58Z" />
-    </svg>
-  );
-}
 
 function buildEmptyForm(preselectedRole) {
   return {
@@ -58,21 +41,12 @@ export default function AuthPage({ mode }) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { currentUser, loading: authLoading, login, register } = useAuth();
-  const [form, setForm] = useState(() => {
-    const base = buildEmptyForm(searchParams.get('role'));
-    const rememberedEmail = !isRegister && localStorage.getItem(REMEMBERED_EMAIL_KEY);
-    if (rememberedEmail) base.email = rememberedEmail;
-    return base;
-  });
+  const [form, setForm] = useState(() => buildEmptyForm(searchParams.get('role')));
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
-  const [rememberMe, setRememberMe] = useState(() => !isRegister && Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY)));
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [googleNotice, setGoogleNotice] = useState('');
 
   if (!authLoading && currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
 
@@ -153,10 +127,6 @@ export default function AuthPage({ mode }) {
     setIsSubmitting(true);
     try {
       const user = isRegister ? await register(form) : await login(form.email, form.password);
-      if (!isRegister) {
-        if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, form.email.trim().toLowerCase());
-        else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-      }
       const fallback = ROLE_DASHBOARDS[user.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
@@ -165,10 +135,6 @@ export default function AuthPage({ mode }) {
       setIsSubmitting(false);
     }
   };
-
-  // No Google OAuth provider is configured on this Supabase project yet — clicking shows an
-  // honest inline notice instead of silently doing nothing or faking a working sign-in.
-  const handleGoogleClick = () => setGoogleNotice("Google sign-in isn't available yet — please use your email and password.");
 
   return (
     <main className="auth-page">
@@ -182,46 +148,21 @@ export default function AuthPage({ mode }) {
             <small>Cebu farm-to-market</small>
           </span>
         </Link>
-
-        {isRegister ? (
-          <div className="auth-hero-decor">
-            <p className="eyebrow">Prototype access</p>
-            <h1>Create your trading account.</h1>
-            <p>
-              Farmers manage produce, orders, and surplus donations. Buyers browse harvests, check out with
-              payment and delivery tracking. Partner organizations (orphanages, elder-care homes, NGOs, food
-              banks) can request surplus produce donations.
-            </p>
-          </div>
-        ) : (
-          <div className="auth-hero-decor">
-            <span className="lp-badge"><Sparkles size={14} /> AI-Assisted Agricultural Marketplace</span>
-            <h1>Welcome back to HarvestLink</h1>
-            <p>
-              Manage products, monitor orders, track deliveries, receive AI-powered pricing recommendations,
-              and connect directly with buyers across Cebu.
-            </p>
-            <ul className="lp-trust-list auth-hero-features">
-              {LOGIN_FEATURE_BADGES.map((item) => (
-                <li key={item}><CheckCircle2 size={16} /> {item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {!isRegister ? (
-          <div className="auth-hero-preview">
-            <span className="category-pill">Vegetables</span>
-            <strong>Fresh Cabbage</strong>
-            <span className="auth-hero-preview-price">₱55.00/kg <em>AI recommended</em></span>
-          </div>
-        ) : null}
+        <div>
+          <p className="eyebrow">Prototype access</p>
+          <h1>{isRegister ? 'Create your trading account.' : 'Welcome back to HarvestLink.'}</h1>
+          <p>
+            Farmers manage produce, orders, and surplus donations. Buyers browse harvests, check out with
+            payment and delivery tracking. Partner organizations (orphanages, elder-care homes, NGOs, food
+            banks) can request surplus produce donations.
+          </p>
+        </div>
       </section>
 
       <section className="auth-card">
         <div className="auth-card-header">
-          <h2>{isRegister ? 'Register' : 'Welcome Back'}</h2>
-          <p>{isRegister ? 'Choose your role and start trading locally.' : 'Sign in to continue to your HarvestLink account.'}</p>
+          <h2>{isRegister ? 'Register' : 'Login'}</h2>
+          <p>{isRegister ? 'Choose your role and start trading locally.' : 'Log in to your account.'}</p>
         </div>
 
         <form className="form-stack" onSubmit={handleSubmit}>
@@ -435,96 +376,48 @@ export default function AuthPage({ mode }) {
           ) : null}
 
           <FormField label="Email address" name="email" error={errors.email}>
-            <div className="input-icon-field">
-              <Mail size={17} aria-hidden="true" />
-              <input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(event) => updateField('email', event.target.value)}
-                onBlur={() => handleBlur('email')}
-                placeholder="name@example.com"
-                autoComplete="email"
-              />
-            </div>
+            <input
+              id="email"
+              type="email"
+              value={form.email}
+              onChange={(event) => updateField('email', event.target.value)}
+              onBlur={() => handleBlur('email')}
+              placeholder="name@example.com"
+            />
           </FormField>
           <FormField label="Password" name="password" error={errors.password}>
-            <div className="input-icon-field has-toggle">
-              <Lock size={17} aria-hidden="true" />
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={(event) => updateField('password', event.target.value)}
-                onBlur={() => handleBlur('password')}
-                placeholder="Enter password"
-                autoComplete={isRegister ? 'new-password' : 'current-password'}
-              />
-              <button
-                type="button"
-                className="input-icon-toggle"
-                onClick={() => setShowPassword((previous) => !previous)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
+            <input
+              id="password"
+              type="password"
+              value={form.password}
+              onChange={(event) => updateField('password', event.target.value)}
+              onBlur={() => handleBlur('password')}
+              placeholder="Enter password"
+            />
           </FormField>
 
           {!isRegister ? (
-            <div className="auth-remember-row">
-              <label className="auth-checkbox">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) => setRememberMe(event.target.checked)}
-                />
-                <span>Remember me</span>
-              </label>
-              <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link>
-            </div>
+            <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link>
           ) : null}
 
           {isRegister ? (
             <FormField label="Confirm password" name="confirmPassword" error={errors.confirmPassword}>
-              <div className="input-icon-field has-toggle">
-                <Lock size={17} aria-hidden="true" />
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={form.confirmPassword}
-                  onChange={(event) => updateField('confirmPassword', event.target.value)}
-                  onBlur={() => handleBlur('confirmPassword')}
-                  placeholder="Re-enter password"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className="input-icon-toggle"
-                  onClick={() => setShowConfirmPassword((previous) => !previous)}
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={form.confirmPassword}
+                onChange={(event) => updateField('confirmPassword', event.target.value)}
+                onBlur={() => handleBlur('confirmPassword')}
+                placeholder="Re-enter password"
+              />
             </FormField>
           ) : null}
 
-          <Button type="submit" size="lg" className="full-width" disabled={isSubmitting}>
+          <Button type="submit" className="full-width" disabled={isSubmitting}>
             {isSubmitting
               ? (isRegister ? 'Creating account…' : 'Signing in…')
               : (isRegister ? 'Create account' : 'Sign in')}
           </Button>
-
-          {!isRegister ? (
-            <>
-              <div className="auth-divider"><span>or continue with</span></div>
-              <button type="button" className="btn btn-google btn-lg full-width" onClick={handleGoogleClick}>
-                <GoogleMark /> Continue with Google
-              </button>
-              {googleNotice ? <div className="form-alert info">{googleNotice}</div> : null}
-            </>
-          ) : null}
         </form>
 
         <p className="auth-switch">
