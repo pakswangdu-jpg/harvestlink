@@ -36,6 +36,22 @@
   --soft: #eef6ef;
   --shadow: 0 18px 40px rgba(20, 65, 38, 0.08);
   --radius: 8px;
+
+  /* Landing/public-marketing-page-only design tokens — deliberately separate from the
+     --radius/--shadow pair above (used everywhere in the signed-in app) so this premium
+     treatment stays scoped to .landing-page instead of rippling into every dashboard
+     panel/card/button. */
+  --lp-accent: #22c55e;
+  --lp-dark: #065f46;
+  --lp-bg: #f8faf8;
+  --lp-radius-sm: 14px;
+  --lp-radius: 20px;
+  --lp-radius-lg: 24px;
+  --lp-shadow-sm: 0 4px 16px rgba(6, 95, 70, 0.06);
+  --lp-shadow: 0 12px 32px rgba(6, 95, 70, 0.1);
+  --lp-shadow-lg: 0 24px 64px rgba(6, 95, 70, 0.16);
+  --lp-glass-bg: rgba(255, 255, 255, 0.72);
+  --lp-line: rgba(6, 95, 70, 0.1);
 }
 
 * {
@@ -85,10 +101,11 @@ p {
 
 .landing-page {
   min-height: 100vh;
-  padding: 24px clamp(18px, 4vw, 56px) 56px;
+  padding: 20px clamp(18px, 4vw, 56px) 0;
   background:
-    linear-gradient(rgba(244, 250, 244, 0.92), rgba(244, 250, 244, 0.97)),
-    url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1800&q=80") center / cover;
+    radial-gradient(1100px 520px at 12% -10%, rgba(34, 197, 94, 0.1), transparent),
+    radial-gradient(900px 480px at 100% 10%, rgba(6, 95, 70, 0.06), transparent),
+    var(--lp-bg);
 }
 
 .landing-nav,
@@ -110,6 +127,21 @@ p {
   gap: 16px;
   max-width: 1180px;
   margin: 0 auto;
+  position: sticky;
+  top: 14px;
+  z-index: 40;
+  padding: 10px 18px;
+  border-radius: 999px;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  border: 1px solid transparent;
+}
+
+.landing-nav.is-scrolled {
+  background: var(--lp-glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-color: var(--lp-line);
+  box-shadow: var(--lp-shadow);
 }
 
 .brand {
@@ -147,10 +179,10 @@ p {
 
 .landing-hero {
   max-width: 1180px;
-  margin: 72px auto 0;
+  margin: 56px auto 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.82fr);
-  gap: 44px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.86fr);
+  gap: 56px;
   align-items: center;
 }
 
@@ -167,18 +199,56 @@ p {
   text-transform: uppercase;
 }
 
+.lp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--lp-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .landing-hero h1 {
   max-width: 720px;
   color: var(--green-900);
-  font-size: clamp(2.1rem, 4vw, 3.6rem);
-  line-height: 1.1;
-  letter-spacing: 0;
+  font-size: clamp(2.3rem, 4.2vw, 3.7rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
 }
 
 .landing-hero p {
-  max-width: 660px;
+  max-width: 620px;
   color: #3d5146;
-  font-size: 1.06rem;
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.lp-trust-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 20px;
+}
+
+.lp-trust-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-dark);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.lp-trust-list svg {
+  flex-shrink: 0;
+  color: var(--lp-accent);
 }
 
 .hero-actions,
@@ -190,60 +260,270 @@ p {
   flex-wrap: wrap;
 }
 
-.market-preview {
+/* Landing/public-farmer-page-only button polish — scoped under .landing-page so the
+   global .btn used throughout the signed-in dashboards is untouched. */
+.landing-page .btn {
+  border-radius: 999px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.landing-page .btn-primary {
+  box-shadow: 0 10px 24px rgba(21, 128, 61, 0.28);
+}
+
+.landing-page .btn:hover {
+  transform: translateY(-2px);
+}
+
+.landing-page .btn-primary:hover {
+  box-shadow: 0 14px 30px rgba(21, 128, 61, 0.34);
+}
+
+.lp-preview {
   position: relative;
-  min-height: 540px;
-  border-radius: 24px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: var(--shadow);
+}
+
+.lp-preview-card {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--lp-radius-lg);
   background: var(--panel);
+  border: 1px solid var(--lp-line);
+  box-shadow: var(--lp-shadow-lg);
 }
 
-.preview-photo,
-.preview-photo img {
-  width: 100%;
-  height: 100%;
+.lp-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
-.preview-photo img {
-  min-height: 540px;
-  object-fit: cover;
+.lp-preview-avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--green-600), var(--green-800));
+  color: white;
+  font-weight: 800;
+  font-size: 0.9rem;
 }
 
-.preview-card {
-  position: absolute;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
-  padding: 18px;
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-}
-
-.preview-card h2 {
+.lp-preview-header strong {
+  display: block;
   color: var(--green-900);
+  font-size: 0.95rem;
 }
 
-.preview-card p {
-  margin: 6px 0 10px;
+.lp-preview-farm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.lp-preview-farm svg {
+  color: var(--lp-accent);
+}
+
+.lp-preview-product h3 {
+  margin-top: 6px;
+  color: var(--green-900);
+  font-size: 1.15rem;
+}
+
+.lp-preview-product p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.lp-preview-price-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.lp-preview-price {
+  padding: 10px 12px;
+  border-radius: var(--lp-radius-sm);
+  background: var(--soft);
+  display: grid;
+  gap: 2px;
+}
+
+.lp-preview-price span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.lp-preview-price strong {
+  color: var(--green-900);
+  font-size: 1.02rem;
+}
+
+.lp-preview-price.ai {
+  background: var(--green-100);
+}
+
+.lp-preview-price.ai span {
+  color: var(--lp-dark);
+}
+
+.lp-preview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lp-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--lp-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.lp-preview-chip svg {
+  color: var(--lp-accent);
+}
+
+.lp-preview-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.lp-preview-step {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.lp-preview-step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.lp-preview-step.done {
+  color: var(--lp-dark);
+}
+
+.lp-preview-step.done .lp-preview-step-dot {
+  background: var(--lp-accent);
+}
+
+.lp-preview-step.current .lp-preview-step-dot {
+  box-shadow: 0 0 0 4px var(--green-100);
+}
+
+.lp-float-stat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: var(--lp-radius-sm);
+  background: var(--panel);
+  border: 1px solid var(--lp-line);
+  box-shadow: var(--lp-shadow);
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.lp-float-stat strong {
+  color: var(--green-900);
+  font-size: 1rem;
+  margin-right: 3px;
+}
+
+.lp-float-stat em {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line);
+  font-style: normal;
+}
+
+.lp-float-stat.top {
+  top: -22px;
+  left: 24px;
+}
+
+.lp-float-stat.bottom {
+  bottom: -22px;
+  right: 24px;
 }
 
 .landing-feature-grid {
   max-width: 1180px;
-  margin: 32px auto 0;
+  margin: 96px auto 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
 .landing-links {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 26px;
   color: #40564a;
   font-weight: 700;
+}
+
+.landing-links a {
+  position: relative;
+  padding: 6px 2px;
+  transition: color 0.15s ease;
+}
+
+.landing-links a:hover {
+  color: var(--green-800);
+}
+
+.landing-links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--lp-accent);
+  transition: right 0.2s ease;
+}
+
+.landing-links a:hover::after,
+.landing-links a.active::after {
+  right: 0;
+}
+
+.landing-links a.active {
+  color: var(--green-800);
 }
 
 /* Hidden by default (desktop shows .landing-links / .landing-actions instead) — the
@@ -306,94 +586,62 @@ p {
 
 .landing-section-heading {
   max-width: 1180px;
-  margin: 0 auto 24px;
+  margin: 0 auto 32px;
   text-align: center;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   justify-items: center;
 }
 
 .landing-section-heading h2 {
   color: var(--green-900);
-  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+  letter-spacing: -0.01em;
 }
 
 .landing-top-farmers {
   max-width: 1180px;
-  margin: 64px auto 0;
+  margin: 96px auto 0;
 }
 
-.top-farmer-carousel {
+.lp-farmer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lp-farmer-card {
   position: relative;
-  /* Room for the arrow buttons (see .top-farmer-arrow) to sit just outside the track
-     without overlapping the first/last card. */
-  padding: 0 44px;
-}
-
-.top-farmer-track {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.top-farmer-track::-webkit-scrollbar {
-  display: none;
-}
-
-/* Four per view on desktop — the same count .top-farmer-grid used to lay out as fixed
-   columns, just scrollable now instead of wrapping into extra rows as the farmer list
-   grows. See the max-width: 900px/640px blocks below for how many show per view there. */
-.top-farmer-card {
-  flex: 0 0 calc((100% - 3 * 16px) / 4);
-  scroll-snap-align: start;
-  padding: 20px;
+  padding: 28px 24px 24px;
   display: grid;
   justify-items: center;
-  gap: 4px;
+  gap: 6px;
   text-align: center;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius);
   background: var(--panel);
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--lp-shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.top-farmer-card:hover,
-.top-farmer-card:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 22px 44px rgba(20, 65, 38, 0.14);
+.lp-farmer-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--lp-shadow-lg);
 }
 
-.top-farmer-arrow {
+.lp-verified-badge {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--green-900);
-  box-shadow: var(--shadow);
-  cursor: pointer;
-  z-index: 2;
-}
-
-.top-farmer-arrow:hover {
-  background: var(--green-50);
-}
-
-.top-farmer-arrow.left {
-  left: 0;
-}
-
-.top-farmer-arrow.right {
-  right: 0;
+  background: var(--green-100);
+  color: var(--lp-dark);
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 
 .top-farmer-avatar {
@@ -416,9 +664,9 @@ p {
   object-fit: cover;
 }
 
-.top-farmer-card h3 {
+.lp-farmer-card h3 {
   color: var(--green-900);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
 }
 
 .top-farmer-farm {
@@ -442,6 +690,19 @@ p {
 .top-farmer-empty {
   text-align: center;
   color: var(--muted);
+}
+
+.lp-farmer-rating {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 4px 0 8px;
+}
+
+.lp-farmer-card-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 6px;
 }
 
 .public-farmer-page {
@@ -510,106 +771,475 @@ p {
 }
 
 .landing-steps {
-  max-width: 1180px;
-  margin: 64px auto 0;
+  max-width: 900px;
+  margin: 96px auto 0;
 }
 
-.step-grid {
+.lp-timeline {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 4px;
 }
 
-.step-tile {
-  padding: 20px;
+.lp-timeline-item {
+  position: relative;
   display: grid;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  grid-template-columns: 48px 1fr;
+  gap: 20px;
+  padding-bottom: 32px;
 }
 
-.step-number {
-  width: 32px;
-  height: 32px;
+.lp-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.lp-timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 48px;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(var(--lp-accent), var(--lp-line));
+  opacity: 0.5;
+}
+
+.lp-timeline-marker {
+  position: relative;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
   border-radius: 999px;
+  background: linear-gradient(135deg, var(--green-600), var(--green-800));
   color: white;
-  background: var(--green-700);
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.lp-timeline-number {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--green-800);
+  border: 1px solid var(--lp-line);
+  font-size: 0.65rem;
   font-weight: 800;
 }
 
-.step-tile h3 {
+.lp-timeline-content {
+  padding: 14px 20px;
+  border-radius: var(--lp-radius);
+  background: var(--panel);
+  border: 1px solid var(--lp-line);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lp-timeline-item:hover .lp-timeline-content {
+  transform: translateX(4px);
+  box-shadow: var(--lp-shadow);
+}
+
+.lp-timeline-content h3 {
   color: var(--green-900);
+  font-size: 1.05rem;
 }
 
-.step-tile p {
+.lp-timeline-content p {
+  margin-top: 4px;
   color: var(--muted);
+  font-size: 0.92rem;
 }
 
-.stakeholder-banner {
+.lp-donation-cta {
   max-width: 1180px;
-  margin: 56px auto 0;
-  padding: 28px;
+  margin: 96px auto 0;
+  padding: 40px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  border-radius: 20px;
+  gap: 28px;
+  border-radius: var(--lp-radius-lg);
   color: white;
-  background: linear-gradient(135deg, var(--green-700), var(--green-900));
-  box-shadow: var(--shadow);
+  background: linear-gradient(135deg, var(--green-700), var(--lp-dark));
+  box-shadow: var(--lp-shadow-lg);
 }
 
-.stakeholder-banner h2 {
-  font-size: 1.3rem;
+.lp-donation-icon {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
 }
 
-.stakeholder-banner p {
-  color: rgba(255, 255, 255, 0.86);
-  margin-top: 4px;
-}
-
-.stakeholder-banner > div {
+.lp-donation-copy {
   flex: 1;
 }
 
-.landing-about,
-.landing-contact {
-  max-width: 900px;
-  margin: 56px auto 0;
-  text-align: center;
+.lp-donation-copy h2 {
+  font-size: 1.4rem;
+  line-height: 1.3;
 }
 
-.landing-about p {
-  color: #3d5146;
-  font-size: 1.02rem;
+.lp-donation-copy p {
+  color: rgba(255, 255, 255, 0.86);
+  margin-top: 6px;
 }
 
-.contact-grid {
+.lp-donation-actions {
   display: flex;
-  justify-content: center;
-  gap: 20px;
+  gap: 10px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-.contact-item {
+.lp-donation-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.lp-about {
+  max-width: 1180px;
+  margin: 96px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+/* Source photo is a wide 3:2 landscape shot — a taller portrait crop (e.g. 4:5) can only
+   trim its width (object-fit: cover crops whichever axis has slack; a container narrower
+   than 3:2 always has height as the constraining axis here), leaving the sky-heavy top of
+   the frame fully intact instead of cropping it out. Matching the container to ~3:2 keeps
+   the crop faithful to the photo's real composition instead of exaggerating the sky. */
+.lp-about-image {
+  border-radius: var(--lp-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--lp-shadow);
+  aspect-ratio: 3 / 2;
+}
+
+.lp-about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lp-about-content h2 {
+  margin-top: 6px;
+  color: var(--green-900);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  letter-spacing: -0.01em;
+}
+
+.lp-about-block {
+  margin-top: 22px;
+}
+
+.lp-about-block h4 {
+  color: var(--lp-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lp-about-block p {
+  margin-top: 6px;
+  color: #3d5146;
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.lp-about-highlights {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.lp-about-highlights li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #3d5146;
+  font-size: 0.92rem;
+}
+
+.lp-about-highlights svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--lp-accent);
+}
+
+.lp-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.lp-pill-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--green-800);
-  font-weight: 750;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: var(--soft);
+  border: 1px solid var(--lp-line);
+  color: var(--lp-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
-.feature-tile,
+.lp-pill-badge svg {
+  color: var(--lp-accent);
+}
+
+.lp-contact {
+  max-width: 1180px;
+  margin: 96px auto 0;
+}
+
+.lp-contact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 20px;
+}
+
+.lp-contact-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+
+.lp-contact-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border-radius: var(--lp-radius);
+  background: var(--panel);
+  border: 1px solid var(--lp-line);
+  box-shadow: var(--lp-shadow-sm);
+  color: inherit;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+a.lp-contact-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--lp-shadow);
+}
+
+.lp-contact-card svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--lp-accent);
+}
+
+.lp-contact-card strong {
+  display: block;
+  color: var(--green-900);
+  font-size: 0.86rem;
+}
+
+.lp-contact-card span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.lp-contact-form {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  padding: 22px;
+  border-radius: var(--lp-radius);
+  background: var(--panel);
+  border: 1px solid var(--lp-line);
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.lp-contact-form h3 {
+  color: var(--green-900);
+  font-size: 1.05rem;
+}
+
+.lp-contact-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--lp-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.lp-contact-form input,
+.lp-contact-form textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  font-family: inherit;
+  font-size: 0.92rem;
+  resize: vertical;
+}
+
+.lp-contact-form input:focus,
+.lp-contact-form textarea:focus {
+  outline: 2px solid var(--lp-accent);
+  outline-offset: 1px;
+}
+
+.lp-contact-form button {
+  justify-self: start;
+}
+
+.lp-contact-map {
+  grid-column: 1 / -1;
+  border-radius: var(--lp-radius);
+  overflow: hidden;
+  border: 1px solid var(--lp-line);
+  box-shadow: var(--lp-shadow-sm);
+  min-height: 260px;
+}
+
+.lp-contact-map iframe {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  border: 0;
+  display: block;
+}
+
+.lp-footer {
+  margin-top: 96px;
+  padding: 48px clamp(18px, 4vw, 56px) 24px;
+  background: linear-gradient(180deg, transparent, var(--green-50) 40%);
+  border-top: 1px solid var(--lp-line);
+}
+
+.lp-footer-top {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, 1fr);
+  gap: 28px;
+}
+
+.lp-footer-brand {
+  display: flex;
+  gap: 12px;
+}
+
+.lp-footer-brand strong {
+  display: block;
+  color: var(--green-900);
+  font-size: 1.05rem;
+}
+
+.lp-footer-brand p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+.lp-footer-col {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.lp-footer-col h4 {
+  color: var(--green-900);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.lp-footer-col a,
+.lp-footer-col span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  width: fit-content;
+}
+
+.lp-footer-col a:hover {
+  color: var(--green-800);
+}
+
+.lp-footer-bottom {
+  max-width: 1180px;
+  margin: 36px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--lp-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lp-footer-bottom p {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.lp-back-to-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--lp-line);
+  background: var(--panel);
+  color: var(--green-800);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.lp-back-to-top:hover {
+  background: var(--green-100);
+}
+
+.lp-floating-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: none;
+  background: var(--green-700);
+  color: white;
+  box-shadow: var(--lp-shadow);
+  cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.lp-floating-top:hover {
+  background: var(--green-800);
+  transform: translateY(-2px);
+}
+
 .panel,
 .stat-card,
 .product-card,
@@ -620,24 +1250,51 @@ p {
   box-shadow: var(--shadow);
 }
 
-.feature-tile {
-  padding: 22px;
+.lp-feature-card {
+  padding: 26px 24px;
   display: grid;
-  gap: 10px;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid var(--lp-line);
+  border-radius: var(--lp-radius);
+  background: var(--panel);
+  box-shadow: var(--lp-shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.feature-tile svg {
-  color: var(--green-700);
+.lp-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--lp-shadow-lg);
+  border-color: transparent;
 }
 
-.feature-tile h3,
+.lp-feature-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--green-100);
+  color: var(--lp-dark);
+}
+
+.lp-feature-card h3 {
+  color: var(--green-900);
+  font-size: 1.05rem;
+}
+
+.lp-feature-card p {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
 .panel h2,
 .product-card h3,
 .auth-card h2 {
   color: var(--green-900);
 }
 
-.feature-tile p,
 .muted,
 .panel > p,
 .auth-card p,
@@ -2130,53 +2787,307 @@ th {
 .auth-page {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 440px);
-  gap: 32px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(400px, 1fr);
+  gap: 24px;
   align-items: center;
-  padding: 32px clamp(18px, 4vw, 56px);
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px clamp(18px, 4vw, 48px);
   background:
-    linear-gradient(rgba(240, 253, 244, 0.92), rgba(240, 253, 244, 0.96)),
-    url("https://images.unsplash.com/photo-1499529112087-3cb3b73cec95?auto=format&fit=crop&w=1800&q=80") center / cover;
+    radial-gradient(900px 460px at 100% 0%, rgba(34, 197, 94, 0.09), transparent),
+    linear-gradient(160deg, var(--green-50), #fdfcf5);
 }
 
+/* The photo + dark-green overlay lives on .auth-hero itself now (not the whole page) so
+   the right-hand card sits on the soft light gradient above instead of on top of a photo —
+   matches the "readable card, decorative hero" split the redesign asks for. .auth-page's
+   align-items: center (not stretch) is what lets this panel's natural height and the
+   card's natural height share the same vertical center in the row. */
 .auth-hero {
-  max-width: 760px;
+  position: relative;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(32px, 3vw, 44px);
+  border-radius: 28px;
+  overflow: hidden;
+  color: white;
+  background:
+    linear-gradient(165deg, rgba(4, 56, 42, 0.9), rgba(3, 28, 21, 0.95)),
+    url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1800&q=80") center / cover;
+  box-shadow: 0 20px 48px rgba(6, 46, 33, 0.22);
+}
+
+.auth-hero .auth-brand {
+  color: white;
+}
+
+.auth-hero .brand small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.auth-hero-decor {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 500px;
+}
+
+.auth-hero-decor .eyebrow {
+  color: var(--green-100);
+}
+
+.auth-hero-decor h1 {
+  color: white;
+  font-size: clamp(1.9rem, 2.7vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.auth-hero-decor > p {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.auth-hero-decor .lp-trust-list {
+  margin-top: 4px;
+}
+
+.auth-hero-decor .lp-trust-list li {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.auth-hero-decor .lp-trust-list svg {
+  color: #4ade80;
+}
+
+/* The single "floating dashboard preview" — margin-top: auto pushes it to the bottom of
+   the (flex-column) hero panel, and align-self: flex-end keeps it anchored to the right,
+   without resorting to fragile absolute positioning. */
+.auth-hero-preview {
+  align-self: flex-end;
+  margin-top: auto;
+  width: 200px;
   display: grid;
-  gap: 36px;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
 }
 
-.auth-hero h1 {
+.auth-hero-preview strong {
   color: var(--green-900);
-  font-size: clamp(2.2rem, 5vw, 4.2rem);
-  line-height: 1;
-  letter-spacing: 0;
+  font-size: 1rem;
 }
 
-.auth-hero p {
-  margin-top: 14px;
-  color: #3d5146;
-  font-size: 1.04rem;
+.auth-hero-preview-price {
+  color: var(--green-800);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.auth-hero-preview-price em {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .auth-card {
-  padding: 24px;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 48px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid var(--lp-line);
+  box-shadow: 0 16px 40px rgba(6, 46, 33, 0.12);
 }
 
 .auth-card-header {
-  margin-bottom: 18px;
+  margin-bottom: 28px;
+}
+
+.auth-card-header h2 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.auth-card-header p {
+  margin-top: 6px;
+  font-size: 1rem;
+}
+
+/* Scoped to .auth-card so the rest of the app's forms (product forms, profile, etc.) keep
+   their existing .form-field look — only the four auth pages that share this card get the
+   larger radius / height / green focus ring. */
+.auth-card .form-stack {
+  gap: 20px;
+}
+
+.auth-card .form-field {
+  gap: 8px;
+}
+
+.auth-card .form-field span {
+  font-size: 1rem;
+}
+
+.auth-card .form-field input,
+.auth-card .form-field select {
+  min-height: 56px;
+  border-radius: 14px;
+  padding: 12px 16px;
+  border-color: #e2e6e3;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-card .form-field input:focus,
+.auth-card .form-field select:focus {
+  border-color: var(--lp-accent);
+  box-shadow: 0 0 0 4px var(--green-100);
+}
+
+.auth-card .btn {
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 750;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.auth-card .btn:hover {
+  transform: translateY(-2px);
+}
+
+.auth-card .btn-lg {
+  min-height: 56px;
+}
+
+.input-icon-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon-field > svg:first-child {
+  position: absolute;
+  left: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.auth-card .input-icon-field input {
+  padding-left: 44px;
+}
+
+.auth-card .input-icon-field.has-toggle input {
+  padding-right: 44px;
+}
+
+.input-icon-toggle {
+  position: absolute;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.input-icon-toggle:hover {
+  background: var(--soft);
+  color: var(--green-800);
+}
+
+.auth-remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.auth-checkbox input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--lp-accent);
+  cursor: pointer;
 }
 
 .auth-forgot-link {
   display: inline-block;
-  margin-top: -8px;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--green-700);
 }
 
-.auth-switch {
-  margin-top: 16px;
+.auth-divider {
+  position: relative;
   text-align: center;
+  margin: 4px 0;
+}
+
+.auth-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+
+.auth-divider span {
+  position: relative;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-google {
+  background: white;
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.btn-google:hover {
+  background: var(--soft);
+  border-color: #cfded4;
+}
+
+.auth-switch {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 0.95rem;
 }
 
 .auth-switch a {
@@ -2719,6 +3630,17 @@ th {
   }
 }
 
+@media (max-width: 1080px) {
+  .lp-about {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-about-image {
+    aspect-ratio: 16 / 9;
+    max-height: 320px;
+  }
+}
+
 @media (max-width: 900px) {
   /* minmax(0, 1fr), not a bare 1fr — several of these wrap wide children (data tables,
      maps) whose min-content width would otherwise blow this column out past the viewport
@@ -2729,7 +3651,9 @@ th {
   .content-grid.two,
   .content-grid.two.uneven,
   .landing-feature-grid,
-  .step-grid {
+  .lp-farmer-grid,
+  .lp-contact-grid,
+  .lp-contact-cards {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2743,12 +3667,6 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* Two per view instead of four, matching how .top-farmer-grid used to lay out as
-     2 columns at this width. */
-  .top-farmer-card {
-    flex: 0 0 calc((100% - 16px) / 2);
-  }
-
   .landing-links,
   .landing-actions {
     display: none;
@@ -2758,17 +3676,46 @@ th {
     display: block;
   }
 
-  .stakeholder-banner {
+  .lp-donation-cta {
     flex-direction: column;
     text-align: center;
+    padding: 32px 24px;
   }
 
-  .market-preview {
-    min-height: 420px;
+  .lp-donation-actions {
+    width: 100%;
+    justify-content: center;
   }
 
-  .preview-photo img {
-    min-height: 420px;
+  .lp-float-stat {
+    padding: 10px 12px;
+    font-size: 0.72rem;
+  }
+
+  .lp-footer-top {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-hero {
+    padding: 28px;
+  }
+
+  .auth-hero-decor h1 {
+    font-size: clamp(1.7rem, 4vw, 2.2rem);
+  }
+
+  .auth-card {
+    padding: 32px 28px;
+  }
+}
+
+/* "Tablet: reduce hero width" — a step between the 1400px desktop split and the full
+   stack below, so a tablet viewport narrows the hero relative to the card instead of
+   jumping straight from side-by-side to fully stacked. */
+@media (max-width: 1180px) {
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+    gap: 20px;
   }
 }
 
@@ -2776,6 +3723,56 @@ th {
   .landing-page,
   .auth-page {
     padding: 18px;
+  }
+
+  /* Mobile shows logo + welcome text + login card only — the feature checklist and the
+     floating preview card are the "hero illustration" the spec says to hide here. */
+  .auth-page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .auth-hero {
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+    gap: 16px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-hero .auth-brand {
+    color: inherit;
+  }
+
+  .auth-hero .brand small {
+    color: var(--muted);
+  }
+
+  .auth-hero-decor {
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-hero-decor h1 {
+    color: var(--green-900);
+  }
+
+  .auth-hero-decor > p {
+    color: #3d5146;
+  }
+
+  .auth-hero-features,
+  .auth-hero-preview {
+    display: none;
+  }
+
+  .auth-card {
+    max-width: 460px;
+    margin: 0 auto;
+    padding: 32px 24px;
   }
 
   .page-header {
@@ -2790,6 +3787,7 @@ th {
   .landing-nav {
     align-items: center;
     flex-direction: row;
+    top: 8px;
   }
 
   /* .page-header switching to a column above moves the bell to the LEFT edge of the
@@ -2824,16 +3822,6 @@ th {
     grid-template-columns: 1fr;
   }
 
-  /* One per view, peeking the next card's edge to hint the row scrolls — matching how
-     .top-farmer-grid used to collapse to a single column at this width. */
-  .top-farmer-card {
-    flex: 0 0 88%;
-  }
-
-  .top-farmer-carousel {
-    padding: 0 36px;
-  }
-
   .product-grid,
   .product-grid.compact,
   .product-grid.preview {
@@ -2862,8 +3850,40 @@ th {
     grid-template-columns: 1fr;
   }
 
-  .contact-grid {
+  .lp-trust-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lp-float-stat.top,
+  .lp-float-stat.bottom {
+    position: static;
+    margin-top: 10px;
+    width: fit-content;
+  }
+
+  .lp-timeline-item {
+    grid-template-columns: 40px 1fr;
+    gap: 14px;
+  }
+
+  .lp-timeline-marker {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lp-timeline-item:not(:last-child)::before {
+    left: 19px;
+  }
+
+  .lp-footer-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .lp-footer-bottom {
     flex-direction: column;
+    gap: 12px;
+    text-align: center;
   }
 }
 
