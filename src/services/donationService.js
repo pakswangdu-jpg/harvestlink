@@ -43,6 +43,7 @@ export function createDonation(product, farmer) {
     quantity: Number(product.quantity),
     location: product.location,
     image: product.image || '',
+    expirationDate: product.expirationDate || null,
     farmerId: farmer.id,
     farmerName: farmer.name,
     status: 'available',

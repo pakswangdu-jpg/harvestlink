@@ -8,6 +8,8 @@ import messagesRoutes from './messages.routes.js';
 import ratingsRoutes from './ratings.routes.js';
 import paymentsRoutes from './payments.routes.js';
 import deliveryFeeRoutes from './deliveryFee.routes.js';
+import forecastRoutes from './forecast.routes.js';
+import catalogRoutes from './catalog.routes.js';
 
 const router = Router();
 
@@ -20,5 +22,7 @@ router.use('/messages', messagesRoutes);
 router.use('/ratings', ratingsRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/delivery-fee', deliveryFeeRoutes);
+router.use('/forecast', forecastRoutes);
+router.use('/catalog', catalogRoutes);
 
 export default router;

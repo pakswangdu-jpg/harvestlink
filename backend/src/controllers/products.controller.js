@@ -1,8 +1,35 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeProduct } from '../lib/serialize.js';
 import { buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
-import { getUnitsForCategory, PRODUCT_CATEGORIES } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
+import { getCatalog } from '../lib/catalogRepo.js';
+
+// Validates category/product/unit against the live categories/products_catalog/units/
+// product_units tables (see supabase/schema.sql) — the source of truth that replaced the old
+// hardcoded PRODUCT_CATEGORIES array. Units are scoped to the selected PRODUCT, not just the
+// category (a farmer picking "Rice" only ever sees kg/sack/ton, never "stem" or "bouquet") —
+// falls back to the full master unit list for the "Other" category (administrator-defined
+// units, per spec) or any product name that isn't in the catalog at all.
+//
+// `existing` (an in-flight update's current row) is optional: when present, a category/unit
+// that matches what's ALREADY saved on this product is always accepted even if that
+// category/product has since been renamed/deactivated, so editing an unrelated field (price,
+// quantity, description) on an older listing never breaks — only actually CHANGING to a new
+// category/unit is checked against the current catalog.
+async function assertValidCategoryAndUnit(values, existing) {
+  const catalog = await getCatalog();
+  const category = catalog.categories.find((entry) => entry.name === values.category);
+  const categoryUnchanged = Boolean(existing) && values.category === existing.category;
+  if (!category && !categoryUnchanged) throw new ApiError('Choose a valid category.', 400);
+
+  const product = category?.products.find((entry) => entry.name === String(values.name || '').trim());
+  const allowedUnitValues = product ? product.units.map((unit) => unit.value) : catalog.units.map((unit) => unit.value);
+
+  const unitUnchanged = Boolean(existing) && categoryUnchanged && values.unit === existing.unit;
+  if (!allowedUnitValues.includes(values.unit) && !unitUnchanged) {
+    throw new ApiError('Choose a unit valid for this product.', 400);
+  }
+}
 
 // Batch-resolves farmer names for a list of products in one query, instead of joining —
 // keeps products a lean table (see supabase/schema.sql) while still returning the flat
@@ -76,7 +103,7 @@ export async function listPublicProducts(req, res) {
     category: product.category,
     grade: product.grade,
     sellingType: product.sellingType,
-    bulkMinQuantity: product.bulkMinQuantity,
+    moq: product.moq,
     price: product.price,
     unit: product.unit,
     kgPerUnit: product.kgPerUnit,
@@ -100,8 +127,7 @@ export async function getProduct(req, res) {
 
 export async function createProduct(req, res) {
   const values = req.body;
-  if (!PRODUCT_CATEGORIES.includes(values.category)) throw new ApiError('Choose a valid category.', 400);
-  if (!getUnitsForCategory(values.category).includes(values.unit)) throw new ApiError('Choose a unit valid for this category.', 400);
+  await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
   const now = new Date().toISOString();
@@ -111,7 +137,7 @@ export async function createProduct(req, res) {
     category: values.category,
     grade: values.grade || 'A',
     selling_type: values.sellingType || 'retail',
-    bulk_min_quantity: values.sellingType === 'bulk' ? Number(values.bulkMinQuantity) : null,
+    moq: values.sellingType === 'wholesale' ? Number(values.moq) : null,
     price: Number(values.price),
     unit: values.unit,
     kg_per_unit: values.unit === 'kg' ? null : kgPerUnit,
@@ -122,6 +148,7 @@ export async function createProduct(req, res) {
     status: 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
+    expiration_date: values.expirationDate || null,
     created_at: now,
     updated_at: now,
   };
@@ -138,6 +165,9 @@ export async function updateProduct(req, res) {
 
   const values = req.body;
   const unit = values.unit ?? existing.unit;
+  const category = values.category ?? existing.category;
+  await assertValidCategoryAndUnit({ category, unit }, existing);
+
   const kgPerUnit = resolveKgPerUnit(unit, values.kgPerUnit ?? existing.kg_per_unit);
   const price = values.price !== undefined ? Number(values.price) : Number(existing.price);
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
@@ -149,10 +179,10 @@ export async function updateProduct(req, res) {
 
   const row = {
     name: values.name?.trim() ?? existing.name,
-    category: values.category ?? existing.category,
+    category,
     grade: values.grade ?? existing.grade,
     selling_type: sellingType,
-    bulk_min_quantity: sellingType === 'bulk' ? Number(values.bulkMinQuantity ?? existing.bulk_min_quantity) : null,
+    moq: sellingType === 'wholesale' ? Number(values.moq ?? existing.moq) : null,
     price,
     unit,
     kg_per_unit: unit === 'kg' ? null : kgPerUnit,
@@ -163,6 +193,7 @@ export async function updateProduct(req, res) {
     status: values.status || (quantity > 0 ? existing.status : 'inactive'),
     price_review: priceReview,
     cost_price: values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price,
+    expiration_date: values.expirationDate !== undefined ? (values.expirationDate || null) : existing.expiration_date,
   };
 
   const { data, error } = await supabaseAdmin.from('products').update(row).eq('id', existing.id).select().single();

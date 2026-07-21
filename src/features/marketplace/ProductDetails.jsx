@@ -77,7 +77,7 @@ export default function ProductDetails() {
             <div className="product-card-top">
               <span className="category-pill">{product.category}</span>
               <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
-              {product.sellingType === 'bulk' ? <span className="badge badge-bulk">Bulk</span> : null}
+              {product.sellingType === 'wholesale' ? <span className="badge badge-wholesale">Wholesale</span> : null}
               {product.discountPercent ? <span className="badge badge-sale">-{product.discountPercent}%</span> : null}
               {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
               <StatusBadge value={product.status} />
@@ -93,9 +93,9 @@ export default function ProductDetails() {
                 </strong>
               </div>
               <div><span>Available</span><strong>{product.quantity} {product.unit}</strong></div>
-              <div><span>Selling type</span><strong>{product.sellingType === 'bulk' ? 'Bulk / Wholesale' : 'Retail'}</strong></div>
-              {product.sellingType === 'bulk' && product.bulkMinQuantity ? (
-                <div><span>Minimum bulk order</span><strong>{product.bulkMinQuantity} {product.unit}</strong></div>
+              <div><span>Sales type</span><strong>{product.sellingType === 'wholesale' ? 'Wholesale' : 'Retail'}</strong></div>
+              {product.sellingType === 'wholesale' && product.moq ? (
+                <div><span>Minimum order (MOQ)</span><strong>{product.moq} {product.unit}</strong></div>
               ) : null}
               <div><span>Location</span><strong><MapPin size={15} /> {product.location}</strong></div>
               <div><span>Farmer</span><strong>{product.farmerName}</strong></div>

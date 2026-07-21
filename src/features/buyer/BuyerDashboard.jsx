@@ -87,11 +87,13 @@ export default function BuyerDashboard() {
   const freshListings = products.filter((product) => product.grade === 'A');
   const matchedCommodity = orders.map((order) => matchCommodity(order.productName)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
-  // Platform-wide recommendation, not personalized to this buyer's own order history —
-  // just the best-reviewed farms overall. Only farms with at least one real rating qualify,
-  // so an unrated farm never shows up ranked above ones buyers have actually vouched for.
+  // Platform-wide recommendation, not personalized to this buyer's own order history — just
+  // the best-reviewed farms overall. avgRating is recomputed fresh on every read (see
+  // listProfiles in profiles.controller.js, never stored/cached), so a farmer starts showing
+  // up here the moment their average crosses into 4-5 stars, no manual step required. Only a
+  // genuinely well-reviewed farm qualifies — an unrated or poorly-rated one never appears.
   const recommendedFarmers = [...verifiedFarmers]
-    .filter((farmer) => farmer.ratingCount > 0)
+    .filter((farmer) => farmer.avgRating >= 4)
     .sort((a, b) => b.avgRating - a.avgRating || b.ratingCount - a.ratingCount)
     .slice(0, 4);
   // Same "paid orders" definition used for the farmer's total income and the admin's

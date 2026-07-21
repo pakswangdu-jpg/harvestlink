@@ -1,8 +1,11 @@
 import { MapPin, Package } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { formatDate } from '../../utils/formatters';
+import { getExpiryStatus } from '../../utils/constants';
 
 export default function DonationCard({ donation, actions }) {
+  const expiryStatus = getExpiryStatus(donation.expirationDate);
+
   return (
     <article className="product-card donation-card">
       <div className="product-image">
@@ -12,12 +15,15 @@ export default function DonationCard({ donation, actions }) {
         <div className="product-card-top">
           <span className="category-pill">Surplus donation</span>
           <StatusBadge value={donation.status} type="donation" />
+          {expiryStatus === 'expiring_soon' ? <span className="badge badge-expiring-soon">Expiring soon</span> : null}
+          {expiryStatus === 'expired' ? <span className="badge badge-expired">Expired</span> : null}
         </div>
         <h3>{donation.productName}</h3>
         <p className="muted">From {donation.farmerName}</p>
         <div className="product-meta">
           <span><MapPin size={15} /> {donation.location}</span>
           <span>{donation.quantity} {donation.unit} available</span>
+          {donation.expirationDate ? <span>Expires: {formatDate(donation.expirationDate)}</span> : null}
           {donation.pickupDate ? <span>Pickup: {formatDate(donation.pickupDate)}</span> : null}
           {donation.requestedByName ? <span>Requested by: {donation.requestedByName}</span> : null}
         </div>

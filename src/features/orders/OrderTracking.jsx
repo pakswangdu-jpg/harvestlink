@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Check, Clock3, Gauge, MapPin, Navigation, Truck, User, X } from 'lucide-react';
+import { BadgeCheck, Check, FileText, MessageCircle, Navigation, Package, Truck, X } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import StarRating from '../../components/common/StarRating';
-import StatCard from '../../components/cards/StatCard';
+import StatusBadge from '../../components/common/StatusBadge';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import { useAuth } from '../auth/AuthContext';
@@ -29,6 +29,7 @@ import {
   formatCurrency,
   formatDate,
   formatDurationMinutes,
+  getInitials,
   paymentLabel,
   shortOrderId,
 } from '../../utils/formatters';
@@ -230,204 +231,246 @@ export default function OrderTracking() {
   const displayEtaMinutes = liveRoute?.etaMinutes ?? etaMinutes;
   const displayEstimatedTotalMinutes = liveRoute?.etaMinutes ?? estimatedTotalMinutes;
   const displayRemainingKm = liveRoute?.isInTransit ? (liveRoute.remainingKm ?? remainingKm) : remainingKm;
-  // The device's real instantaneous speed, reported up from LiveDeliveryMap — no fallback to
-  // any route-average figure: that's a different, older number and would misrepresent a
-  // "Current Speed" label as if it were live when it's just an upfront estimate.
-  const displayCurrentSpeedKmh = liveRoute?.isInTransit ? liveRoute.currentSpeedKmh : null;
 
   return (
     <AppShell
       user={currentUser}
       navItems={navItems}
       title={`Order — ${order.productName}`}
-      subtitle={`Order #${shortOrderId(order.id)} • ${order.quantity} ${order.unit} • ${formatCurrency(order.totalAmount)} • placed ${formatDate(order.createdAt)}`}
     >
-      {notice ? <div className="form-alert success">{notice}</div> : null}
-      {error ? <div className="form-alert error">{error}</div> : null}
+      <div className="ot-page">
+        {notice ? <div className="form-alert success">{notice}</div> : null}
+        {error ? <div className="form-alert error">{error}</div> : null}
 
-      <section className="content-grid two uneven">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Tracking</p>
-              <h2>Order progress</h2>
-            </div>
-            <span className="live-indicator"><span className="live-dot" /> Live</span>
+        <div className="ot-header-bar">
+          <div className="ot-header-badges">
+            <span className="ot-chip"><FileText size={13} /> #{shortOrderId(order.id)}</span>
+            <span className="ot-chip"><Package size={13} /> {order.quantity} {order.unit}</span>
+            <span className="ot-chip">{formatCurrency(order.totalAmount)}</span>
+            <span className="ot-chip">{formatDate(order.createdAt)}</span>
           </div>
-          <OrderTracker order={order} />
-        </div>
-
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Details</p>
-              <h2>Order details</h2>
-            </div>
-            <div className="table-actions">
-              <Link className="btn btn-secondary btn-md" to={`/orders/${order.id}/receipt`}>View receipt</Link>
-              <Link className="btn btn-secondary btn-md" to={`/messages/${order.id}`}>Message {isFarmer ? order.buyerName : order.farmerName}</Link>
-            </div>
-          </div>
-          <div className="detail-list">
-            <div><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
-            <div><span>Buyer</span><strong>{order.buyerName}</strong></div>
-            <div><span>Farmer</span><strong>{order.farmerName}</strong></div>
-            <div><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
-            <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
-            {order.deliveryFee > 0 ? (
-              <div>
-                <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
-                <strong>{formatCurrency(order.deliveryFee)}</strong>
-              </div>
-            ) : null}
-            {order.status === 'confirmed' && displayEstimatedTotalMinutes != null ? (
-              <div>
-                <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
-                <strong>
-                  {isInTransit
-                    ? `~${displayEtaMinutes} min${displayEtaMinutes === 1 ? '' : 's'} left`
-                    : `~${formatDurationMinutes(displayEstimatedTotalMinutes)}`}
-                </strong>
-              </div>
-            ) : null}
-            {order.message ? <div><span>Message</span><strong>{order.message}</strong></div> : null}
-          </div>
-
-          <div className="form-actions">
-            {isFarmer && order.status === 'pending' ? (
-              <>
-                <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
-                  <Check size={15} /> Confirm order
-                </Button>
-                <Button variant="danger" onClick={() => run(() => updateOrderStatus(order.id, 'rejected'), 'Order rejected.')}>
-                  <X size={15} /> Reject order
-                </Button>
-              </>
-            ) : null}
-
-            {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep ? (
-              <Button onClick={() => run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
-                {nextStep === 'out_for_delivery' ? (
-                  <><Navigation size={15} /> Start Delivery</>
-                ) : (
-                  <>Mark {DELIVERY_STEP_LABELS[nextStep]}</>
-                )}
-              </Button>
-            ) : null}
-
-            {isBuyer && order.status === 'confirmed' && isFinalNextStep ? (
-              <Button onClick={() => run(() => advanceDelivery(order.id), 'The order is received! Thank you for confirming.')}>
-                <Check size={15} /> Got it
-              </Button>
-            ) : null}
-
-            {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) ? (
-              <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
-            ) : null}
-
-            {isBuyer && isCancellable(order) ? (
-              <Button variant="danger" onClick={() => run(() => cancelOrder(order.id), 'Order cancelled.')}>Cancel order</Button>
-            ) : null}
+          <div className="ot-header-statuses">
+            <StatusBadge value={order.deliveryStatus} type="deliveryStatus" />
+            <StatusBadge value={order.paymentStatus} type="paymentStatus" />
           </div>
         </div>
-      </section>
 
-      {isBuyer && order.status === 'completed' ? (
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Feedback</p>
-              <h2>Rate {order.farmerName}</h2>
+        <section className="ot-main-grid">
+          <div className="panel ot-progress-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Tracking</p>
+                <h2>Order progress</h2>
+              </div>
+              <span className="live-indicator"><span className="live-dot" /> Live</span>
+            </div>
+            <OrderTracker order={order} />
+          </div>
+
+          <div className="panel ot-details-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Details</p>
+                <h2>Order details</h2>
+              </div>
+            </div>
+
+            <div className="ot-detail-groups">
+              <div className="ot-detail-group">
+                <h4>General Information</h4>
+                <div className="ot-detail-row"><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
+                <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
+                <div className="ot-detail-row"><span>Farmer</span><strong>{order.farmerName}</strong></div>
+              </div>
+
+              <div className="ot-detail-group">
+                <h4>Payment</h4>
+                <div className="ot-detail-row"><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
+                <div className="ot-detail-row"><span>Payment status</span><StatusBadge value={order.paymentStatus} type="paymentStatus" /></div>
+              </div>
+
+              <div className="ot-detail-group">
+                <h4>Delivery</h4>
+                <div className="ot-detail-row"><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+                {order.deliveryFee > 0 ? (
+                  <div className="ot-detail-row">
+                    <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
+                    <strong>{formatCurrency(order.deliveryFee)}</strong>
+                  </div>
+                ) : null}
+                {order.status === 'confirmed' && displayEstimatedTotalMinutes != null ? (
+                  <div className="ot-detail-row">
+                    <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
+                    <strong>
+                      {isInTransit
+                        ? `~${displayEtaMinutes} min${displayEtaMinutes === 1 ? '' : 's'} left`
+                        : `~${formatDurationMinutes(displayEstimatedTotalMinutes)}`}
+                    </strong>
+                  </div>
+                ) : null}
+              </div>
+
+              {order.message ? (
+                <div className="ot-detail-group">
+                  <h4>Additional Information</h4>
+                  <div className="ot-detail-row ot-detail-row-message"><span>Message</span><strong>{order.message}</strong></div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="ot-action-links">
+              <Link className="btn btn-secondary btn-md" to={`/orders/${order.id}/receipt`}>
+                <FileText size={15} /> View Receipt
+              </Link>
+              <Link className="btn btn-primary btn-md" to={`/messages/${order.id}`}>
+                <MessageCircle size={15} /> Message {isFarmer ? order.buyerName : order.farmerName}
+              </Link>
+            </div>
+
+            <div className="form-actions">
+              {isFarmer && order.status === 'pending' ? (
+                <>
+                  <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
+                    <Check size={15} /> Confirm order
+                  </Button>
+                  <Button variant="danger" onClick={() => run(() => updateOrderStatus(order.id, 'rejected'), 'Order rejected.')}>
+                    <X size={15} /> Reject order
+                  </Button>
+                </>
+              ) : null}
+
+              {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep ? (
+                <Button onClick={() => run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
+                  {nextStep === 'out_for_delivery' ? (
+                    <><Navigation size={15} /> Start Delivery</>
+                  ) : (
+                    <>Mark {DELIVERY_STEP_LABELS[nextStep]}</>
+                  )}
+                </Button>
+              ) : null}
+
+              {isBuyer && order.status === 'confirmed' && isFinalNextStep ? (
+                <Button onClick={() => run(() => advanceDelivery(order.id), 'The order is received! Thank you for confirming.')}>
+                  <Check size={15} /> Got it
+                </Button>
+              ) : null}
+
+              {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) ? (
+                <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
+              ) : null}
+
+              {isBuyer && isCancellable(order) ? (
+                <Button variant="danger" onClick={() => run(() => cancelOrder(order.id), 'Order cancelled.')}>Cancel order</Button>
+              ) : null}
             </div>
           </div>
-          {existingRating ? (
-            <div className="rating-summary">
-              <StarRating value={existingRating.rating} />
-              <span>You rated this farm {existingRating.rating} star{existingRating.rating === 1 ? '' : 's'}.</span>
-              {existingRating.comment ? <p className="muted">"{existingRating.comment}"</p> : null}
-            </div>
-          ) : (
-            <div className="form-stack">
-              {ratingError ? <div className="form-alert error">{ratingError}</div> : null}
-              <StarRating value={ratingValue} onChange={setRatingValue} size={26} />
-              <textarea
-                rows="3"
-                value={ratingComment}
-                onChange={(event) => setRatingComment(event.target.value)}
-                placeholder="Optional — how was the produce and the farmer's service?"
-              />
-              <Button onClick={handleSubmitRating} disabled={isSubmittingRating}>
-                {isSubmittingRating ? 'Submitting…' : 'Submit rating'}
-              </Button>
-            </div>
-          )}
         </section>
-      ) : null}
 
-      {isTrackable && !isPickup ? (
-        <section className="tracking-info-cards-wrap">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Delivery tracking</p>
-              <h2 className="tracking-info-heading">Live overview</h2>
+        {isBuyer && order.status === 'completed' ? (
+          <section className="panel ot-feedback-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Feedback</p>
+                <h2>Rate {order.farmerName}</h2>
+              </div>
             </div>
-          </div>
-          <div className="stats-grid">
-            <StatCard label="Farmer" value={order.farmerName} icon={<User size={20} />} />
-            <StatCard label="Buyer" value={order.buyerName} icon={<User size={20} />} />
-            <StatCard
-              label="Current Status"
-              value={(
+            {existingRating ? (
+              <div className="ot-review-card">
+                <div className="ot-review-header">
+                  <StarRating value={existingRating.rating} />
+                  <span className="ot-verified-badge"><BadgeCheck size={14} /> Verified Purchase</span>
+                </div>
+                {existingRating.comment ? <p className="ot-review-comment">&quot;{existingRating.comment}&quot;</p> : null}
+                {existingRating.createdAt ? <p className="ot-review-date">Reviewed {formatDate(existingRating.createdAt)}</p> : null}
+              </div>
+            ) : (
+              <div className="form-stack">
+                {ratingError ? <div className="form-alert error">{ratingError}</div> : null}
+                <StarRating value={ratingValue} onChange={setRatingValue} size={26} />
+                <textarea
+                  rows="3"
+                  value={ratingComment}
+                  onChange={(event) => setRatingComment(event.target.value)}
+                  placeholder="Optional — how was the produce and the farmer's service?"
+                />
+                <Button onClick={handleSubmitRating} disabled={isSubmittingRating}>
+                  {isSubmittingRating ? 'Submitting…' : 'Submit rating'}
+                </Button>
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        {isTrackable && !isPickup ? (
+          <section className="ot-summary-cards-wrap">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Delivery tracking</p>
+                <h2 className="tracking-info-heading">Live overview</h2>
+              </div>
+            </div>
+            <div className="ot-summary-cards">
+              <div className="ot-summary-card">
+                <span className="farmer-list-avatar">{getInitials(order.farmerName)}</span>
+                <div>
+                  <p>Farmer</p>
+                  <strong>{order.farmerName}</strong>
+                </div>
+              </div>
+              <div className="ot-summary-card">
+                <span className="farmer-list-avatar buyer">{getInitials(order.buyerName)}</span>
+                <div>
+                  <p>Buyer</p>
+                  <strong>{order.buyerName}</strong>
+                </div>
+              </div>
+              <div className="ot-summary-card">
+                <span className="ot-summary-icon"><Truck size={18} /></span>
+                <div>
+                  <p>Delivery Status</p>
+                  <span className={`tracking-badge tracking-${trackingStatus.key}`}>
+                    {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {isTrackable ? (
+          <section className="panel ot-map-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Map</p>
+                <h2>{isPickup ? 'Route to pickup location' : 'Delivery route'}</h2>
+              </div>
+              {isInTransit ? (
+                <span className="live-indicator">
+                  <span className="live-dot" /> {isLiveGps ? 'Live GPS' : 'Estimated'}
+                  {displayRemainingKm != null ? ` · ${displayRemainingKm.toFixed(1)} km left` : ''} · ETA ~{displayEtaMinutes} min{displayEtaMinutes === 1 ? '' : 's'}
+                </span>
+              ) : (
+                <span className="live-indicator"><span className="live-dot" /> Live</span>
+              )}
+            </div>
+
+            <LiveDeliveryMap
+              order={order}
+              destinationMunicipalityOverride={isPickup
+                ? (isBuyer ? currentUser.municipality : pickupBuyerMunicipality) || order.deliveryMunicipality
+                : undefined}
+              onRouteUpdate={setLiveRoute}
+              deliveryStatusBadge={!isPickup ? (
                 <span className={`tracking-badge tracking-${trackingStatus.key}`}>
                   {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
                 </span>
-              )}
-              icon={<Truck size={20} />}
+              ) : null}
             />
-            {order.status === 'confirmed' && (isInTransit ? displayEtaMinutes != null : displayEstimatedTotalMinutes != null) ? (
-              <StatCard
-                label="Estimated Arrival"
-                value={isInTransit ? `${displayEtaMinutes} min${displayEtaMinutes === 1 ? '' : 's'}` : formatDurationMinutes(displayEstimatedTotalMinutes)}
-                icon={<Clock3 size={20} />}
-              />
-            ) : null}
-            {displayRemainingKm != null ? (
-              <StatCard label="Remaining Distance" value={`${displayRemainingKm.toFixed(1)} km`} icon={<MapPin size={20} />} />
-            ) : null}
-            {isInTransit && displayCurrentSpeedKmh != null ? (
-              <StatCard label="Current Speed" value={`${displayCurrentSpeedKmh.toFixed(0)} km/h`} icon={<Gauge size={20} />} />
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
-      {isTrackable ? (
-        <section className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Map</p>
-              <h2>{isPickup ? 'Route to pickup location' : 'Delivery route'}</h2>
-            </div>
-            {isInTransit ? (
-              <span className="live-indicator">
-                <span className="live-dot" /> {isLiveGps ? 'Live GPS' : 'Estimated'}
-                {displayRemainingKm != null ? ` · ${displayRemainingKm.toFixed(1)} km left` : ''} · ETA ~{displayEtaMinutes} min{displayEtaMinutes === 1 ? '' : 's'}
-              </span>
-            ) : (
-              <span className="live-indicator"><span className="live-dot" /> Live</span>
-            )}
-          </div>
-          <LiveDeliveryMap
-            order={order}
-            destinationMunicipalityOverride={isPickup
-              ? (isBuyer ? currentUser.municipality : pickupBuyerMunicipality) || order.deliveryMunicipality
-              : undefined}
-            onRouteUpdate={setLiveRoute}
-          />
-        </section>
-      ) : null}
-
-      <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
+      </div>
     </AppShell>
   );
 }

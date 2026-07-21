@@ -1,43 +1,12 @@
 // Mirrors the small, stable value lists from the frontend's src/utils/constants.js that
 // the backend needs for validation/derivation. Kept manually in sync (not imported across
 // the frontend/backend boundary — they're two separate deployable projects) since these
-// lists change rarely. If you add/rename a category, unit, municipality, or payment/delivery
-// value on the frontend, mirror the change here too.
-
-export const PRODUCT_CATEGORIES = [
-  'Vegetables', 'Fruits', 'Grains & Cereals', 'Root & Tuber Crops', 'Legumes & Pulses',
-  'Herbs', 'Spices', 'Nuts', 'Oil Crops', 'Sugar Crops', 'Beverage Crops', 'Mushrooms',
-  'Flowers & Ornamentals', 'Medicinal Plants', 'Fiber Crops', 'Seeds, Seedlings & Nursery',
-  'Fodder & Forage', 'Livestock Products', 'Other',
-];
-
-const PRODUCT_UNITS = ['kg', 'sack', 'bundle', 'piece'];
-
-const UNITS_BY_CATEGORY = {
-  Vegetables: ['kg', 'sack', 'bundle', 'piece', 'crate'],
-  Fruits: ['kg', 'sack', 'piece', 'dozen', 'crate'],
-  'Grains & Cereals': ['kg', 'sack', 'cavan'],
-  'Root & Tuber Crops': ['kg', 'sack'],
-  'Legumes & Pulses': ['kg', 'sack'],
-  Herbs: ['kg', 'bundle', 'piece'],
-  Spices: ['kg', 'sack', 'piece'],
-  Nuts: ['kg', 'sack', 'piece'],
-  'Oil Crops': ['kg', 'sack', 'liter'],
-  'Sugar Crops': ['kg', 'sack'],
-  'Beverage Crops': ['kg', 'sack', 'piece'],
-  Mushrooms: ['kg', 'piece', 'tray'],
-  'Flowers & Ornamentals': ['stem', 'bouquet', 'pot', 'piece'],
-  'Medicinal Plants': ['kg', 'bundle', 'piece'],
-  'Fiber Crops': ['kg', 'sack', 'bale'],
-  'Seeds, Seedlings & Nursery': ['pack', 'seedling', 'piece', 'tray'],
-  'Fodder & Forage': ['kg', 'sack', 'bale'],
-  'Livestock Products': ['head', 'kg', 'piece', 'dozen'],
-  Other: PRODUCT_UNITS,
-};
-
-export function getUnitsForCategory(category) {
-  return UNITS_BY_CATEGORY[category] || PRODUCT_UNITS;
-}
+// lists change rarely. If you add/rename a municipality or payment/delivery value on the
+// frontend, mirror the change here too.
+//
+// Crop categories/units used to live here as a hardcoded PRODUCT_CATEGORIES array — they're
+// now admin-editable data in Supabase (public.crop_categories / public.crops), read via
+// lib/catalogRepo.js instead (see supabase/schema.sql for why).
 
 export const CEBU_MUNICIPALITIES = [
   'Alcantara', 'Alcoy', 'Alegria', 'Aloguinsan', 'Argao', 'Asturias', 'Badian', 'Balamban',
