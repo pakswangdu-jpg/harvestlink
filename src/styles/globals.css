@@ -1459,6 +1459,10 @@ a.lp-contact-card:hover {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* At higher browser zoom levels (or simply more nav items than fit), the sidebar's own
+     content can exceed the 100vh box above — without this, the overflow was just clipped
+     with no way to reach the rest (see the logout link/nav items becoming unreachable). */
+  overflow-y: auto;
 }
 
 .side-nav {
