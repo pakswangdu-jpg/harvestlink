@@ -16,5 +16,7 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGIN
         sync: false
+      - key: OPENWEATHERMAP_API_KEY
+        sync: false
       - key: NODE_ENV
         value: production
