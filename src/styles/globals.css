@@ -1463,6 +1463,24 @@ a.lp-contact-card:hover {
      content can exceed the 100vh box above — without this, the overflow was just clipped
      with no way to reach the rest (see the logout link/nav items becoming unreachable). */
   overflow-y: auto;
+  /* A deliberately visible scrollbar (not the OS's auto-hide/overlay default, which can be
+     easy to miss entirely) — so it's obvious at a glance that the sidebar scrolls once its
+     content no longer fits, instead of it just quietly looking cut off. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--green-600) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--green-600);
+  border-radius: 999px;
 }
 
 .side-nav {
