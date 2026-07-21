@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock3, Crosshair, Gauge, MapPin, Wifi, WifiOff } from 'lucide-react';
+import { Clock3, Crosshair, Gauge, MapPin, Truck, Wifi, WifiOff } from 'lucide-react';
 import { loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { haversineKm } from '../../utils/geo';
 import { distanceToPolylineKm } from '../../services/routingService';
@@ -90,7 +90,7 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
   entry.animationFrameId = requestAnimationFrame(step);
 }
 
-export default function LiveDeliveryMap({ order, destinationMunicipalityOverride, onRouteUpdate }) {
+export default function LiveDeliveryMap({ order, destinationMunicipalityOverride, onRouteUpdate, deliveryStatusBadge }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const mapsApiRef = useRef(null);
@@ -339,6 +339,12 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
           <div className="tracking-info-card-icon"><Gauge size={18} /></div>
           <div><p>Current Speed</p><strong>{speedCardValue}</strong></div>
         </div>
+        {deliveryStatusBadge ? (
+          <div className="tracking-info-card">
+            <div className="tracking-info-card-icon"><Truck size={18} /></div>
+            <div><p>Delivery Status</p>{deliveryStatusBadge}</div>
+          </div>
+        ) : null}
       </div>
 
       {!isPickup && transit.isInTransit ? (

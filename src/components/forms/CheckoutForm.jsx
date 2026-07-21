@@ -115,8 +115,8 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
         name="quantity"
         error={errors.quantity}
         helper={
-          product.sellingType === 'bulk' && product.bulkMinQuantity
-            ? `${product.quantity} ${product.unit} available — bulk listing, minimum order ${product.bulkMinQuantity} ${product.unit}`
+          product.sellingType === 'wholesale' && product.moq
+            ? `${product.quantity} ${product.unit} available — wholesale listing, minimum order ${product.moq} ${product.unit}`
             : `${product.quantity} ${product.unit} available`
         }
       >

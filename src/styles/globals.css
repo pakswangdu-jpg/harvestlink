@@ -604,9 +604,13 @@ p {
   margin: 96px auto 0;
 }
 
+/* auto-fit + a bounded (not 1fr) column width + justify-content:center — still lays out as
+   a clean 3-per-row grid once there are enough farmers to fill it, but centers the row
+   instead of left-packing it into column 1 when there are fewer (including just one). */
 .lp-farmer-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 340px));
+  justify-content: center;
   gap: 20px;
 }
 
@@ -707,43 +711,100 @@ p {
 
 .public-farmer-page {
   max-width: 1180px;
-  margin: 32px auto 0;
+  margin: 24px auto 0;
   display: grid;
-  gap: 24px;
+  gap: 20px;
 }
 
-.public-farmer-back {
-  display: inline-flex;
+.public-farmer-breadcrumb {
+  display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--green-800);
-  font-weight: 700;
-  width: fit-content;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
 }
 
+.public-farmer-breadcrumb a {
+  color: var(--muted);
+}
+
+.public-farmer-breadcrumb a:hover {
+  color: var(--green-800);
+  text-decoration: underline;
+}
+
+.public-farmer-breadcrumb svg {
+  flex-shrink: 0;
+  color: #b9c4bd;
+}
+
+.public-farmer-breadcrumb [aria-current='page'] {
+  color: var(--green-900);
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A compact storefront banner, not the old oversized empty .panel card — a soft green-tinted
+   band instead of plain white, everything on one row with the rating stats pushed to the
+   right on wide screens instead of trailing off into empty space. */
 .public-farmer-header {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 22px;
   flex-wrap: wrap;
+  padding: 22px 26px;
+  border: 1px solid var(--green-100);
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--green-100), #f3faf4);
 }
 
 .public-farmer-avatar-lg {
-  width: 96px;
-  height: 96px;
+  width: 84px;
+  height: 84px;
   flex-shrink: 0;
-  font-size: 2rem;
+  font-size: 1.8rem;
   margin-bottom: 0;
+  border: 3px solid var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.public-farmer-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.public-farmer-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .public-farmer-header h1 {
   color: var(--green-900);
-  font-size: 1.8rem;
+  font-size: 1.6rem;
+}
+
+.public-farmer-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--green-700);
+  font-size: 0.74rem;
+  font-weight: 800;
+  box-shadow: var(--shadow);
 }
 
 .public-farmer-farm {
   color: var(--muted);
   margin-top: 2px;
+  font-weight: 650;
 }
 
 .public-farmer-header .top-farmer-location {
@@ -753,14 +814,67 @@ p {
 .public-farmer-rating {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-top: 8px;
   color: var(--muted);
   font-size: 0.85rem;
 }
 
+.public-farmer-rating strong {
+  color: var(--green-900);
+}
+
+.public-farmer-stats {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.public-farmer-stat {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.public-farmer-stat strong {
+  color: var(--green-900);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.public-farmer-stat span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Bounded width, not 1fr — the base .product-grid stretches every column (including empty
+   auto-fill tracks) to share the row evenly, which is fine for a fully-stocked grid but
+   makes a lone product look like it's shrunk into a corner. Capping the max width means a
+   short row just packs to the left instead, like Etsy/Shopify's own storefront grids do. */
+.public-farmer-product-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 280px));
+}
+
+.public-farmer-product-grid .product-card {
+  border-radius: 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.public-farmer-product-grid .product-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--green-100);
+  box-shadow: 0 12px 28px rgba(20, 65, 38, 0.12);
+}
+
 .public-farmer-signin-note {
-  margin-top: 20px;
+  margin-top: 4px;
   text-align: center;
   color: var(--muted);
 }
@@ -768,6 +882,32 @@ p {
 .public-farmer-signin-note a {
   color: var(--green-800);
   font-weight: 700;
+}
+
+@media (max-width: 860px) {
+  .public-farmer-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .public-farmer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  .public-farmer-stats {
+    width: 100%;
+  }
+
+  .public-farmer-stat {
+    flex: 1;
+  }
+
+  .public-farmer-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .landing-steps {
@@ -1651,11 +1791,6 @@ a.user-chip:hover {
   font-weight: 500;
 }
 
-.tracking-info-cards-wrap {
-  display: grid;
-  gap: 10px;
-}
-
 .tracking-info-heading {
   font-size: 1.4rem;
   color: var(--green-900);
@@ -1703,6 +1838,249 @@ a.user-chip:hover {
 .tracking-badge.tracking-cancelled {
   background: var(--red-100);
   color: var(--red-700);
+}
+
+/* ==========================================================================
+   Order Tracking page (src/features/orders/OrderTracking.jsx) — every class
+   below is prefixed .ot- and scoped to this page only; nothing here changes
+   .panel/.stats-grid/.stat-card/etc. for any other page that uses them.
+   ========================================================================== */
+
+.ot-page {
+  display: grid;
+  gap: 18px;
+}
+
+.ot-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.ot-header-badges,
+.ot-header-statuses {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ot-chip svg {
+  color: var(--green-700);
+  flex-shrink: 0;
+}
+
+.ot-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.ot-progress-panel,
+.ot-details-panel {
+  margin: 0;
+}
+
+.ot-detail-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.ot-detail-group h4 {
+  color: var(--green-900);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.ot-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.ot-detail-group:last-child .ot-detail-row:last-child {
+  border-bottom: none;
+}
+
+.ot-detail-row span {
+  color: var(--muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ot-detail-row strong {
+  color: var(--text);
+  font-weight: 750;
+  text-align: right;
+}
+
+.ot-detail-row-message strong {
+  text-align: left;
+  font-weight: 600;
+}
+
+.ot-action-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 4px;
+}
+
+.ot-action-links .btn {
+  flex: 1;
+  min-width: 160px;
+  justify-content: center;
+}
+
+/* Review card — replaces the plain .rating-summary block once a rating already exists. */
+.ot-review-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.ot-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ot-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.ot-review-comment {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.ot-review-date {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ot-summary-cards-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.ot-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ot-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  min-height: 68px;
+}
+
+.ot-summary-card p {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ot-summary-card strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.ot-summary-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.ot-map-panel .live-delivery-map {
+  height: 460px;
+}
+
+@media (max-width: 1100px) {
+  .ot-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ot-summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .ot-header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ot-summary-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ot-action-links .btn {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .ot-map-panel .live-delivery-map {
+    height: 320px;
+  }
 }
 
 .content-grid.two {
@@ -1984,14 +2362,256 @@ a.user-chip:hover {
   background: var(--soft);
 }
 
-.badge-bulk {
+.badge-wholesale {
   color: var(--blue-700);
   background: var(--blue-100);
 }
 
-.bulk-min-note {
+.wholesale-min-note {
   font-size: 0.82rem;
   margin-top: -4px;
+}
+
+.badge-out-of-stock,
+.badge-expired {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
+.badge-expiring-soon {
+  color: var(--amber-700);
+  background: var(--amber-100);
+}
+
+/* ===== Farmer "My Products" seller dashboard — all scoped to classes that only render on
+   this page, so the shared ProductCard (used by the buyer-facing Marketplace/BuyerDashboard/
+   PublicFarmerProfile) and the rest of the app's forms/panels stay exactly as they were. ===== */
+
+.farmer-products-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 35%) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.farmer-products-listings {
+  display: grid;
+  gap: 20px;
+}
+
+.seller-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.seller-toolbar {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.6fr) repeat(3, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.seller-toolbar .search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.seller-toolbar .search-field svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.seller-toolbar .search-field input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  outline: none;
+}
+
+.seller-toolbar select {
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.seller-product-list {
+  display: grid;
+  gap: 14px;
+}
+
+.seller-product-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.seller-product-card:hover {
+  box-shadow: 0 20px 40px rgba(20, 65, 38, 0.12);
+  transform: translateY(-2px);
+}
+
+.seller-product-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+}
+
+.seller-product-image {
+  flex-shrink: 0;
+  width: 108px;
+  height: 108px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  color: var(--green-800);
+  background: linear-gradient(135deg, #fef3c7, #bbf7d0);
+}
+
+.seller-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.seller-product-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.seller-product-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.seller-product-top h3 {
+  color: var(--green-900);
+  font-size: 1.1rem;
+}
+
+.seller-product-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.seller-product-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.seller-product-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.seller-product-price {
+  flex-shrink: 0;
+  display: grid;
+  gap: 2px;
+  min-width: 96px;
+  text-align: right;
+}
+
+.seller-product-price strong {
+  color: var(--green-800);
+  font-size: 1.3rem;
+}
+
+.seller-product-price span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.seller-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--soft);
+}
+
+/* ===== Add Product form — section grouping ===== */
+
+.form-section {
+  display: grid;
+  gap: 14px;
+}
+
+.form-section + .form-section {
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.form-section-heading {
+  color: var(--green-800);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 1080px) {
+  .farmer-products-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .seller-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .seller-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .seller-product-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .seller-product-image {
+    width: 100%;
+    height: 160px;
+  }
+
+  .seller-product-price {
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .seller-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .btn {
@@ -2132,6 +2752,25 @@ a.user-chip:hover {
 .form-alert.info {
   color: var(--blue-700);
   background: var(--blue-100);
+}
+
+/* Opt-in modifier — only alerts that render an icon get the flex layout, so every
+   other .form-alert (elsewhere in the app, some of which contain a plain <ul>) keeps
+   its original block layout untouched. */
+.form-alert.has-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 12px;
+}
+
+.form-alert.has-icon svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.form-alert.has-icon span {
+  line-height: 1.45;
 }
 
 .farmer-filter-banner {
@@ -2658,9 +3297,9 @@ a.user-chip:hover {
 
 .tracker-step {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 10px 0;
+  padding: 8px 0 20px;
   border-left: 2px solid var(--line);
   padding-left: 18px;
   margin-left: 11px;
@@ -2669,11 +3308,13 @@ a.user-chip:hover {
 
 .tracker-step:last-child {
   border-left-color: transparent;
+  padding-bottom: 0;
 }
 
 .tracker-icon {
   position: absolute;
   left: -13px;
+  top: 6px;
   width: 24px;
   height: 24px;
   display: grid;
@@ -2682,6 +3323,13 @@ a.user-chip:hover {
   background: var(--panel);
   border: 2px solid var(--line);
   color: var(--muted);
+}
+
+.tracker-icon-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .tracker-step.done .tracker-icon {
@@ -2700,14 +3348,31 @@ a.user-chip:hover {
   border-left-color: var(--green-700);
 }
 
+.tracker-step-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
 .tracker-label {
   font-weight: 750;
   color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .tracker-step.done .tracker-label,
 .tracker-step.active .tracker-label {
   color: var(--green-900);
+}
+
+.tracker-timestamp {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
 }
 
 .tracker-inactive {
@@ -2825,10 +3490,230 @@ th {
 
 .auth-forgot-link {
   display: inline-block;
-  margin-top: -8px;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--green-700);
+}
+
+.auth-remember-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -8px;
+}
+
+.auth-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.auth-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green-600);
+  cursor: pointer;
+}
+
+/* Registration-only, appears the moment a password is typed (see PasswordRequirements in
+   AuthPage.jsx — it returns null for an empty value, so this never shows until then). */
+.password-requirements {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.password-requirements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.password-requirements li svg {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.password-requirements li.met {
+  color: var(--green-800);
+}
+
+.password-requirements li.met svg {
+  color: var(--green-600);
+  transform: scale(1.05);
+}
+
+.password-strong-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  color: var(--green-700);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.otp-stage {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.otp-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.otp-instructions {
+  color: var(--muted);
+  font-size: 0.92rem;
+  max-width: 320px;
+}
+
+.otp-instructions strong {
+  color: var(--text);
+}
+
+.otp-input-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.otp-digit {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  color: var(--green-900);
+  background: var(--panel);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.otp-digit:focus {
+  outline: none;
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.otp-footer {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 0.85rem;
+}
+
+.otp-footer button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--green-700);
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.otp-footer button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.otp-footer button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+@media (max-width: 400px) {
+  .otp-digit {
+    width: 38px;
+    height: 46px;
+  }
+}
+
+/* Modern replacement for the raw <input type="file"> chrome — the real input still sits
+   on top (transparent, full size) so it stays natively clickable/keyboard-focusable and
+   fires the exact same change event; only its default OS-styled button is hidden. */
+.file-upload {
+  position: relative;
+}
+
+.file-upload-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.file-upload-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 11px 14px;
+  border: 1.5px dashed #b9d9c2;
+  border-radius: var(--radius);
+  background: #f8fcf9;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 650;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.file-upload:hover .file-upload-dropzone {
+  border-color: var(--green-600);
+  background: var(--green-100);
+}
+
+.file-upload-input:focus-visible + .file-upload-dropzone {
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.file-upload-icon {
+  flex-shrink: 0;
+  color: var(--green-700);
+}
+
+.file-upload-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-upload-filename {
+  color: var(--text);
+  font-weight: 750;
 }
 
 .auth-switch {
@@ -2839,6 +3724,354 @@ th {
 .auth-switch a {
   color: var(--green-700);
   font-weight: 800;
+}
+
+/* Registration-only compaction — scoped so login/forgot/reset (which share .auth-page/
+   .auth-card) keep their original untouched layout. Widens just the register card's grid
+   column. The card itself has no fixed/max height — it grows with its content and the
+   whole page scrolls naturally, same as every other page. */
+.auth-page-register {
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 560px);
+}
+
+.auth-card-register {
+  display: flex;
+  flex-direction: column;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.register-fields-scroll {
+  display: grid;
+  gap: 18px;
+}
+
+.register-form .btn[type='submit'] {
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.register-form .form-field input,
+.register-form .form-field select {
+  min-height: 50px;
+}
+
+.register-form .form-grid {
+  gap: 14px 16px;
+}
+
+@media (max-width: 860px) {
+  .register-form .form-grid.three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Glassmorphism treatment specifically for the Partner Organization Registration card
+   (role === 'stakeholder', see StakeholderRegisterFields in AuthPage.jsx) — a premium
+   SaaS look for that one flow; login/forgot/reset and farmer/buyer registration keep the
+   plain opaque card untouched. */
+.auth-card-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 24px 64px rgba(20, 65, 38, 0.14), 0 2px 8px rgba(20, 65, 38, 0.06);
+}
+
+/* Wider card + tighter internal spacing than the plain register-form default — this page
+   has 6 sections (vs. farmer/buyer's flat field list), so both matter for keeping it to a
+   reasonable scroll length on desktop. Scoped to stakeholder registration only. */
+.auth-page-stakeholder {
+  grid-template-columns: minmax(0, 1fr) minmax(560px, 660px);
+}
+
+.stakeholder-register {
+  display: grid;
+  gap: 16px;
+}
+
+.form-section {
+  display: grid;
+  gap: 12px;
+}
+
+.form-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.form-section-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--green-100), #ffffff);
+  border: 1px solid var(--green-100);
+  color: var(--green-700);
+}
+
+.form-section-header h3 {
+  color: var(--green-900);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.form-section-header p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.form-section-divider {
+  border: none;
+  height: 1px;
+  margin: 2px 0;
+  background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
+}
+
+/* Premium input treatment scoped to the stakeholder section only — larger radius, a soft
+   lift-and-glow on focus. Everything else (farmer/buyer register, login) keeps the app's
+   normal .form-field input styling untouched. */
+.stakeholder-register .form-field input,
+.stakeholder-register .form-field select {
+  border-radius: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.stakeholder-register .form-field input:hover,
+.stakeholder-register .form-field select:hover {
+  border-color: #b9d9c2;
+}
+
+.stakeholder-register .form-field input:focus,
+.stakeholder-register .form-field select:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12), 0 6px 16px rgba(20, 65, 38, 0.08);
+}
+
+.verification-upload-dropzone {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 28px 20px;
+  border: 1.5px dashed #b9d9c2;
+  border-radius: 14px;
+  background: #f8fcf9;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.verification-upload-dropzone:hover {
+  border-color: var(--green-600);
+  background: var(--green-100);
+}
+
+/* The "smooth drag-and-drop animation" — a gentle lift + stronger highlight the moment a
+   dragged file crosses into the dropzone, settling back down on drop/leave. */
+.verification-upload-dropzone.dragging {
+  border-color: var(--green-600);
+  background: var(--green-100);
+  transform: scale(1.015);
+  box-shadow: 0 8px 24px rgba(20, 65, 38, 0.12);
+}
+
+.verification-upload-dropzone.has-error {
+  border-color: var(--red-700);
+  background: var(--red-100);
+}
+
+.verification-upload-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.verification-upload-input:focus-visible ~ .verification-upload-cloud {
+  outline: 2px solid var(--green-600);
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+.verification-upload-cloud {
+  color: var(--green-700);
+}
+
+.verification-upload-dropzone p {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.verification-upload-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Selected-file state — replaces the dropzone entirely until removed. */
+.verification-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--green-100);
+  border-radius: 14px;
+  background: #f8fcf9;
+}
+
+.verification-upload-preview.has-error {
+  border-color: var(--red-700);
+  background: var(--red-100);
+}
+
+.verification-upload-thumb {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+.verification-upload-icon {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.verification-upload-meta {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.verification-upload-meta strong {
+  color: var(--text);
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verification-upload-meta span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.verification-upload-remove {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--red-100);
+  color: var(--red-700);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.verification-upload-remove:hover {
+  background: #fecaca;
+  transform: scale(1.06);
+}
+
+.verification-upload-remove:focus-visible {
+  outline: 2px solid var(--red-700);
+  outline-offset: 2px;
+}
+
+.verification-accepted-docs {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fcf9;
+  border: 1px solid var(--line);
+}
+
+.verification-accepted-docs strong {
+  color: var(--green-900);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.verification-accepted-docs ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.verification-accepted-docs li {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.verification-notice {
+  font-size: 0.8rem;
+}
+
+.auth-terms-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f8fcf9;
+  border: 1px solid #e3f0e6;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.auth-terms-row input {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: var(--green-600);
+  cursor: pointer;
+}
+
+.auth-terms-row strong {
+  color: var(--green-800);
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .form-section-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  /* Higher specificity than the generic .register-form .form-grid.three rule (which only
+     drops to 2 columns at this width) — the spec for this page calls for a genuine single
+     column on mobile, so this wins without touching farmer/buyer's own name row. */
+  .stakeholder-register .form-grid.three {
+    grid-template-columns: 1fr;
+  }
 }
 
 .marketplace-toolbar {
@@ -2886,23 +4119,135 @@ th {
   outline: none;
 }
 
-.price-range-filter input {
-  width: 64px;
-  border: 0;
-  background: transparent;
-  color: var(--text);
+/* Price Range — dual-handle slider, built from two overlaid native range inputs (see the
+   pointer-events trick on .price-range-input below) rather than a slider library, kept as
+   compact as the other toolbar filters: one label row, one thin track, one values row. */
+.price-range-filter {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  padding: 4px 14px 4px;
+  border-left: 1px solid var(--line);
+}
+
+.price-range-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
   font-weight: 700;
+}
+
+.price-range-header svg {
+  color: var(--green-700);
+  flex-shrink: 0;
+}
+
+.price-range-slider {
+  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.price-range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8e4;
+}
+
+.price-range-track-active {
+  position: absolute;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--green-600);
+}
+
+.price-range-input {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: 0;
+  height: 18px;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.price-range-input:focus {
   outline: none;
 }
 
-.price-range-separator {
-  color: var(--muted);
+.price-range-input::-webkit-slider-runnable-track {
+  background: none;
+}
+
+.price-range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--green-700);
+  border: 2px solid var(--panel);
+  box-shadow: 0 1px 4px rgba(20, 65, 38, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.price-range-input::-webkit-slider-thumb:hover,
+.price-range-input:focus::-webkit-slider-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(20, 65, 38, 0.45);
+}
+
+.price-range-input::-moz-range-track {
+  background: none;
+  border: none;
+}
+
+.price-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--green-700);
+  border: 2px solid var(--panel);
+  box-shadow: 0 1px 4px rgba(20, 65, 38, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.price-range-input::-moz-range-thumb:hover,
+.price-range-input:focus::-moz-range-thumb {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(20, 65, 38, 0.45);
+}
+
+.price-range-values {
+  display: flex;
+  justify-content: space-between;
+  color: var(--green-800);
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 @media (max-width: 640px) {
-  .location-filter {
+  .location-filter,
+  .price-range-filter {
     padding-left: 0;
     border-left: 0;
+  }
+
+  .price-range-filter {
+    width: 100%;
   }
 }
 
@@ -2959,11 +4304,15 @@ th {
   padding: 0 24px 22px;
 }
 
+.profile-edit-btn {
+  flex-shrink: 0;
+}
+
 .profile-identity-main {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 18px;
 }
 
 .profile-avatar-block {
@@ -2975,17 +4324,17 @@ th {
 }
 
 .profile-avatar-lg {
-  width: 88px;
-  height: 88px;
+  width: 104px;
+  height: 104px;
   flex-shrink: 0;
-  margin-top: -44px;
+  margin-top: -52px;
   display: grid;
   place-items: center;
   border-radius: 999px;
   border: 4px solid white;
   color: white;
   background: linear-gradient(135deg, var(--green-600), var(--green-800));
-  font-size: 1.7rem;
+  font-size: 2rem;
   font-weight: 800;
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -3099,15 +4448,115 @@ th {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 .profile-badges .badge {
   gap: 5px;
 }
 
+/* Sits right under the header's identity row, inside the same .profile-header card — a
+   compact "stat strip" (thin dividers via the gap+background trick, not individual
+   standalone cards like .stat-card elsewhere) since it's a quick-glance summary of facts
+   already detailed in the Personal Information panel below, not a dashboard metric. */
+.profile-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+}
+
+.profile-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: var(--panel);
+  min-width: 0;
+}
+
+.profile-summary-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.profile-summary-item small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+.profile-summary-item strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--text);
+  text-transform: capitalize;
+  overflow-wrap: anywhere;
+}
+
 .info-grid {
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 20px;
+}
+
+.verification-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.verification-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--soft);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.verification-checklist li svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.verification-checklist li.done {
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.verification-checklist li.done svg {
+  color: var(--green-600);
+}
+
+.security-panel .section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.security-lock-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--green-800);
+  background: var(--green-100);
 }
 
 .info-row {
@@ -3182,6 +4631,27 @@ th {
 .profile-file-meta span {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.profile-file-meta .profile-file-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.profile-file-status.uploaded {
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.profile-file-status.missing {
+  color: var(--amber-700);
+  background: var(--amber-100);
 }
 
 .profile-file-top a,
@@ -3464,6 +4934,38 @@ th {
     top: 8px;
   }
 
+  .profile-identity {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 18px 20px;
+  }
+
+  .profile-identity-main {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-badges {
+    justify-content: center;
+  }
+
+  .profile-edit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Single column, not 2 — at this width "Lapu-Lapu City" etc. wrap to two lines in a
+     half-width cell, cramped against the icon. Full width per row matches the spec's
+     "mobile: single-column layout" directive anyway. */
+  .profile-summary-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-summary-item {
+    padding: 12px 18px;
+  }
+
   /* .page-header switching to a column above moves the bell to the LEFT edge of the
      screen (it's the second stacked child now, not a right-aligned one) — the panel's
      desktop `right: 0` would still anchor to that same bell, pushing most of its 340px
@@ -3707,6 +5209,24 @@ th {
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
 }
 
+/* A table cell that behaves like a link (e.g. AdminCatalog's category-name cell, which
+   selects that row's detail panel below) without pulling in Button's filled/bordered chrome. */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--green-700);
+  font-weight: 700;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-button:hover {
+  color: var(--green-800);
+}
+
 .market-panel {
   display: grid;
   gap: 4px;
@@ -3939,6 +5459,269 @@ th {
   text-anchor: start;
 }
 
+/* ==========================================================================
+   Demand Forecast dashboard (src/features/farmer/FarmerDemandForecast.jsx)
+   ========================================================================== */
+
+.supply-demand-chart-wrap {
+  display: grid;
+  gap: 14px;
+}
+
+.supply-demand-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.supply-demand-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot.supply {
+  background: var(--green-700);
+}
+
+.legend-dot.demand {
+  background: #f59e0b;
+}
+
+.supply-demand-bar.supply {
+  fill: var(--green-700);
+}
+
+.supply-demand-bar.demand {
+  fill: #f59e0b;
+}
+
+.forecast-filters {
+  display: grid;
+  gap: 12px;
+}
+
+.forecast-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.forecast-filters-pending {
+  padding-top: 4px;
+  border-top: 1px dashed var(--line);
+}
+
+.forecast-pending-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: not-allowed;
+}
+
+.forecast-summary-grid .stat-card strong {
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.forecast-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.forecast-status-opportunity {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.forecast-status-stable {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+.forecast-status-low {
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.forecast-status-risk {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+.forecast-diff-up {
+  color: var(--green-700);
+  font-weight: 750;
+}
+
+.forecast-diff-down {
+  color: var(--red-700);
+  font-weight: 750;
+}
+
+.forecast-featured-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 18px;
+  margin: 18px 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.forecast-featured-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
+.forecast-featured-grid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.forecast-featured-grid strong {
+  color: var(--green-900);
+  font-size: 1.05rem;
+}
+
+.forecast-recommendation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.forecast-recommendation svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--green-700);
+}
+
+.forecast-explanation {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.forecast-weather-condition {
+  text-transform: capitalize;
+  font-weight: 650;
+}
+
+.forecast-weather-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.forecast-weather-grid > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+
+.forecast-weather-grid svg {
+  flex-shrink: 0;
+  color: var(--blue-700);
+}
+
+.forecast-weather-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.forecast-weather-grid strong {
+  color: var(--green-900);
+  font-size: 1rem;
+}
+
+.forecast-weather-note {
+  margin-top: 14px;
+  font-size: 0.8rem;
+}
+
+.forecast-pending-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--soft);
+}
+
+.forecast-pending-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  box-shadow: var(--shadow);
+}
+
+.forecast-pending-panel h3 {
+  color: var(--text);
+  font-size: 0.98rem;
+}
+
+.forecast-pending-panel p {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.forecast-table-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  max-width: 220px;
+  display: inline-block;
+}
+
+@media (max-width: 900px) {
+  .forecast-featured-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .forecast-featured-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .vertical-bar-chart {
   width: 100%;
   max-width: 420px;
@@ -4131,9 +5914,12 @@ th {
   font-weight: 500;
 }
 
+/* auto-fit, not a fixed column count — LiveTrackingModal.jsx renders 3 of these cards,
+   LiveDeliveryMap.jsx (OrderTracking.jsx's redesigned map section) renders 4 (adds a
+   Delivery Status card) — this adapts to either without leaving a gap in the 3-card case. */
 .tracking-info-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 
@@ -4145,6 +5931,7 @@ th {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--panel);
+  box-shadow: var(--shadow);
 }
 
 .tracking-info-card-icon {

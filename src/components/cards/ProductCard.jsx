@@ -16,7 +16,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
         <div className="product-card-top">
           <span className="category-pill">{product.category}</span>
           <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
-          {product.sellingType === 'bulk' ? <span className="badge badge-bulk">Bulk</span> : null}
+          {product.sellingType === 'wholesale' ? <span className="badge badge-wholesale">Wholesale</span> : null}
           {product.discountPercent ? <span className="badge badge-sale">-{product.discountPercent}%</span> : null}
           {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
           {showStatus ? <StatusBadge value={product.status} /> : null}
@@ -29,8 +29,8 @@ export default function ProductCard({ product, actions, showStatus = false }) {
           </span>
           <span>{product.quantity} {product.unit} available</span>
         </div>
-        {product.sellingType === 'bulk' && product.bulkMinQuantity ? (
-          <p className="muted bulk-min-note">Min. bulk order: {product.bulkMinQuantity} {product.unit}</p>
+        {product.sellingType === 'wholesale' && product.moq ? (
+          <p className="muted wholesale-min-note">Min. order (MOQ): {product.moq} {product.unit}</p>
         ) : null}
       </div>
       <div className="product-card-footer">

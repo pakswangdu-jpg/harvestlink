@@ -2,26 +2,29 @@ import { useEffect, useState } from 'react';
 import { Gift, Info, TriangleAlert } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
-import { CEBU_MUNICIPALITIES, getUnitsForCategory, matchMunicipality, PRODUCT_CATEGORIES, PRODUCT_GRADES, SELLING_TYPES } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
+import { useCatalog } from '../../contexts/CatalogContext';
 import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
 import { uploadProductImage } from '../../services/uploadService';
 import { hasErrors, validateProductForm } from '../../utils/validators';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
+const OTHER_CATEGORY = 'Other';
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'bulkMinQuantity', 'price', 'unit', 'quantity', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 const FIELD_LABELS = {
-  name: 'Product name',
+  name: 'Product',
   category: 'Category',
   grade: 'Grade',
-  sellingType: 'Selling type',
-  bulkMinQuantity: 'Minimum bulk order quantity',
+  sellingType: 'Sales type',
+  moq: 'Minimum Order Quantity (MOQ)',
   price: 'Price',
   unit: 'Unit',
   quantity: 'Quantity available',
+  expirationDate: 'Expiration date',
   costPrice: 'Cost per unit',
   kgPerUnit: 'Unit weight in kg',
   location: 'Location',
@@ -42,11 +45,12 @@ function buildDefaultValues(product, currentUser) {
     category: 'Vegetables',
     grade: 'A',
     sellingType: 'retail',
-    bulkMinQuantity: '',
+    moq: '',
     price: '',
-    unit: 'kg',
+    unit: '',
     kgPerUnit: '',
     quantity: '',
+    expirationDate: '',
     location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
     description: '',
     image: '',
@@ -59,11 +63,20 @@ function buildDefaultValues(product, currentUser) {
 }
 
 export default function ProductForm({ product, currentUser, onSubmit, onCancel }) {
+  const { getCategoryOptions, getProductsForCategory, getProductOptions, getUnitOptions, getDefaultUnitValue } = useCatalog();
   const [values, setValues] = useState(() => buildDefaultValues(product, currentUser));
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
+
+  const isOtherCategory = values.category === OTHER_CATEGORY;
+  const isWholesale = values.sellingType === 'wholesale';
+  const categoryOptions = getCategoryOptions(values.category);
+  const productsForCategory = getProductsForCategory(values.category);
+  const productOptions = getProductOptions(values.category, values.name);
+  const hasChosenProduct = values.name.trim().length > 0;
+  const availableUnits = getUnitOptions(values.category, values.name, values.unit);
 
   const matchedCommodity = matchCommodity(values.name);
   const marketReference = matchedCommodity && marketResult.commodityId === matchedCommodity.id ? marketResult.reference : null;
@@ -94,6 +107,22 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
       cancelled = true;
     };
   }, [matchedCommodity, values.isDonation]);
+
+  // The catalog loads asynchronously (see CatalogContext) — the moment this category's
+  // product list becomes non-empty for a brand-new listing that hasn't chosen a product yet,
+  // auto-select its first product (and that product's default unit). React's documented
+  // "adjust state during render" pattern (same as Marketplace's PriceRangeSlider) rather than
+  // an effect — self-guarding: once values.name is set below, this condition goes false on
+  // the very next render, so it only ever fires once. Never runs for an edit (the existing
+  // product/unit is respected as-is, orphan-safe) or for "Other" (no catalog product to pick).
+  if (!product && !isOtherCategory && !values.name && productsForCategory.length > 0) {
+    const first = productsForCategory[0];
+    setValues((previous) => (previous.name ? previous : {
+      ...previous,
+      name: first.name,
+      unit: getDefaultUnitValue(previous.category, first.name),
+    }));
+  }
 
   // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so
   // any comparison against PSA (deviation check, recommendation) has to go through a
@@ -144,33 +173,53 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
     <p className="price-recommendation">Enter your cost per {values.unit} below to see a recommended price for this product.</p>
   );
 
-  // The unit list is scoped to the selected category (e.g. Livestock Products sells by
-  // "head", Flowers & Ornamentals by "stem") — switching category can leave the previously
-  // chosen unit invalid, so fall back to that category's first unit whenever the current one
-  // no longer applies, instead of silently keeping a mismatched value.
+  // Category -> Product -> Unit cascade: switching category invalidates whatever Product/Unit
+  // were selected, since neither necessarily applies to the new category. Other has no
+  // catalog products at all (Specify Product is free text instead), so it always resets to
+  // blank rather than auto-picking anything.
   const handleCategoryChange = (event) => {
     const nextCategory = event.target.value;
-    const nextUnits = getUnitsForCategory(nextCategory);
-    const unitChanged = !nextUnits.includes(values.unit);
+    const isNextOther = nextCategory === OTHER_CATEGORY;
+    const nextProducts = getProductsForCategory(nextCategory);
+    const nextName = isNextOther ? '' : (nextProducts[0]?.name || '');
+    const nextUnit = nextName ? getDefaultUnitValue(nextCategory, nextName) : '';
     setValues((previous) => ({
-      ...previous,
-      category: nextCategory,
-      unit: nextUnits.includes(previous.unit) ? previous.unit : nextUnits[0],
-      // A stale "1 [old unit] = Xkg" figure would silently misapply to the new unit.
-      ...(unitChanged ? { kgPerUnit: '' } : null),
+      ...previous, category: nextCategory, name: nextName, unit: nextUnit, kgPerUnit: '',
     }));
-    setErrors((previous) => ({ ...previous, category: undefined, unit: undefined }));
+    setErrors((previous) => ({ ...previous, category: undefined, name: undefined, unit: undefined }));
   };
 
-  // Same reasoning as handleCategoryChange — a kg-per-unit figure entered for "sack"
-  // doesn't apply once the farmer switches to "bundle", so it's cleared on every change.
+  // A closed-catalog Product change always has a known default unit to jump to — same
+  // reasoning as handleCategoryChange, since the old unit may not even apply to the newly
+  // chosen product (e.g. switching from "Rice" to "Banana").
+  const handleProductChange = (event) => {
+    const nextName = event.target.value;
+    setValues((previous) => ({
+      ...previous, name: nextName, unit: getDefaultUnitValue(previous.category, nextName), kgPerUnit: '',
+    }));
+    setErrors((previous) => ({ ...previous, name: undefined, unit: undefined }));
+  };
+
+  // "Other" has no catalog product to look up a default unit from — a sensible default is
+  // only picked once, the moment free-text entry first goes from empty to non-empty, not on
+  // every keystroke (which would keep yanking the farmer's unit choice away while typing).
+  const handleSpecifyProductChange = (event) => {
+    const nextName = event.target.value;
+    setValues((previous) => {
+      const next = { ...previous, name: nextName };
+      if (!previous.name.trim() && nextName.trim() && !previous.unit) {
+        next.unit = getDefaultUnitValue(previous.category, nextName);
+        next.kgPerUnit = '';
+      }
+      return next;
+    });
+    setErrors((previous) => ({ ...previous, name: undefined }));
+  };
+
   const handleUnitChange = (event) => {
-    const nextUnit = event.target.value;
-    setValues((previous) => ({ ...previous, unit: nextUnit, kgPerUnit: '' }));
-    setErrors((previous) => ({ ...previous, unit: undefined, kgPerUnit: undefined }));
+    updateField('unit', event.target.value);
+    updateField('kgPerUnit', '');
   };
-
-  const availableUnits = getUnitsForCategory(values.category);
 
   const handleImageChange = async (event) => {
     const file = event.target.files?.[0];
@@ -189,7 +238,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const nextErrors = validateProductForm(values);
+    const nextErrors = validateProductForm(values, availableUnits);
     if (hasErrors(nextErrors)) {
       setErrors(nextErrors);
       focusFirstError(nextErrors);
@@ -232,210 +281,252 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         </div>
       ) : null}
 
-      <div className="form-grid">
-        <FormField label="Product name" name="name" error={errors.name}>
-          <input id="name" value={values.name} onChange={(event) => updateField('name', event.target.value)} placeholder="Fresh cabbage" />
-        </FormField>
-        <FormField label="Category" name="category" error={errors.category}>
-          <select id="category" value={values.category} onChange={handleCategoryChange}>
-            {PRODUCT_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
-          </select>
-        </FormField>
-      </div>
-
-      <FormField label="Grade" name="grade" error={errors.grade}>
-        <div className="segmented-control" role="radiogroup" aria-label="Product grade">
-          {PRODUCT_GRADES.map((grade) => (
-            <button
-              key={grade.value}
-              type="button"
-              className={values.grade === grade.value ? 'active' : ''}
-              onClick={() => updateField('grade', grade.value)}
-            >
-              {grade.label}
-            </button>
-          ))}
+      <div className="form-section">
+        <p className="form-section-heading">Basic information</p>
+        <div className="form-grid">
+          <FormField label="Category" name="category" error={errors.category}>
+            <select id="category" value={values.category} onChange={handleCategoryChange}>
+              {categoryOptions.map((category) => <option key={category}>{category}</option>)}
+            </select>
+          </FormField>
+          {isOtherCategory ? (
+            <FormField label="Specify product" name="name" error={errors.name} helper="Not in the catalog yet? Type it here.">
+              <input id="name" value={values.name} onChange={handleSpecifyProductChange} placeholder="e.g. Dragon fruit" />
+            </FormField>
+          ) : (
+            <FormField label="Product" name="name" error={errors.name}>
+              <select id="name" value={values.name} onChange={handleProductChange}>
+                {!productOptions.length ? <option value="">No products in this category yet</option> : null}
+                {productOptions.map((productName) => <option key={productName} value={productName}>{productName}</option>)}
+              </select>
+            </FormField>
+          )}
         </div>
-      </FormField>
 
-      {!product ? (
-        <label className="price-hint donation-toggle">
-          <input
-            type="checkbox"
-            checked={values.isDonation}
-            onChange={(event) => updateField('isDonation', event.target.checked)}
-          />
-          <div>
-            <strong><Gift size={15} /> Donate this listing</strong>
-            <span> — Skips pricing and goes straight to partner organizations (orphanages, elder-care homes, NGOs, food banks) instead of the marketplace.</span>
-          </div>
-        </label>
-      ) : null}
-
-      {!values.isDonation ? (
-        <FormField label="Selling type" name="sellingType" error={errors.sellingType}>
-          <div className="segmented-control" role="radiogroup" aria-label="Selling type">
-            {SELLING_TYPES.map((type) => (
+        <FormField label="Grade" name="grade" error={errors.grade}>
+          <div className="segmented-control" role="radiogroup" aria-label="Product grade">
+            {PRODUCT_GRADES.map((grade) => (
               <button
-                key={type.value}
+                key={grade.value}
                 type="button"
-                className={values.sellingType === type.value ? 'active' : ''}
-                onClick={() => updateField('sellingType', type.value)}
+                className={values.grade === grade.value ? 'active' : ''}
+                onClick={() => updateField('grade', grade.value)}
               >
-                {type.label}
+                {grade.label}
               </button>
             ))}
           </div>
         </FormField>
-      ) : null}
+      </div>
 
-      {!values.isDonation && values.sellingType === 'bulk' ? (
-        <FormField
-          label="Minimum bulk order quantity"
-          name="bulkMinQuantity"
-          error={errors.bulkMinQuantity}
-          helper={`Buyers must order at least this much ${values.unit} to purchase.`}
-        >
-          <input
-            id="bulkMinQuantity"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.bulkMinQuantity}
-            onChange={(event) => updateField('bulkMinQuantity', event.target.value)}
-            placeholder="50"
-          />
-        </FormField>
-      ) : null}
+      <div className="form-section">
+        <p className="form-section-heading">Pricing</p>
 
-      <div className={values.isDonation ? 'form-grid' : 'form-grid three'}>
+        {!product ? (
+          <label className="price-hint donation-toggle">
+            <input
+              type="checkbox"
+              checked={values.isDonation}
+              onChange={(event) => updateField('isDonation', event.target.checked)}
+            />
+            <div>
+              <strong><Gift size={15} /> Donate this listing</strong>
+              <span> — Skips pricing and goes straight to partner organizations (orphanages, elder-care homes, NGOs, food banks) instead of the marketplace.</span>
+            </div>
+          </label>
+        ) : null}
+
         {!values.isDonation ? (
-          <FormField label="Price" name="price" error={errors.price}>
-            <input id="price" type="number" min="0" step="0.01" value={values.price} onChange={(event) => updateField('price', event.target.value)} placeholder="55.00" />
+          <FormField label="Sales type" name="sellingType" error={errors.sellingType}>
+            <div className="segmented-control" role="radiogroup" aria-label="Sales type">
+              {SALES_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  className={values.sellingType === type.value ? 'active' : ''}
+                  onClick={() => updateField('sellingType', type.value)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
           </FormField>
         ) : null}
-        <FormField label="Unit" name="unit" error={errors.unit}>
-          <select id="unit" value={values.unit} onChange={handleUnitChange}>
-            {availableUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+
+        {!values.isDonation && isWholesale ? (
+          <FormField
+            label="Minimum Order Quantity (MOQ)"
+            name="moq"
+            error={errors.moq}
+            helper={`Buyers must order at least this much ${values.unit} to purchase.`}
+          >
+            <input
+              id="moq"
+              type="number"
+              min="0"
+              step="0.01"
+              value={values.moq}
+              onChange={(event) => updateField('moq', event.target.value)}
+              placeholder="50"
+            />
+          </FormField>
+        ) : null}
+
+        <div className={values.isDonation ? 'form-grid' : 'form-grid three'}>
+          {!values.isDonation ? (
+            <FormField label={isWholesale ? 'Wholesale price' : 'Price'} name="price" error={errors.price}>
+              <input id="price" type="number" min="0" step="0.01" value={values.price} onChange={(event) => updateField('price', event.target.value)} placeholder="55.00" />
+            </FormField>
+          ) : null}
+          <FormField
+            label="Unit"
+            name="unit"
+            error={errors.unit}
+            helper={!hasChosenProduct ? `Choose a ${isOtherCategory ? 'product name' : 'product'} first.` : undefined}
+          >
+            <select id="unit" value={values.unit} onChange={handleUnitChange} disabled={!hasChosenProduct}>
+              {!hasChosenProduct ? <option value="">Select a product first</option> : null}
+              {availableUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Quantity available" name="quantity" error={errors.quantity}>
+            <input id="quantity" type="number" min="0" step="0.01" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
+          </FormField>
+        </div>
+
+        <FormField
+          label="Expiration date (optional)"
+          name="expirationDate"
+          error={errors.expirationDate}
+          helper={values.isDonation ? 'Helps partner organizations prioritize pickup before it spoils.' : 'Shows an expiring-soon warning on your listing as the date approaches.'}
+        >
+          <input
+            id="expirationDate"
+            type="date"
+            value={values.expirationDate}
+            onChange={(event) => updateField('expirationDate', event.target.value)}
+          />
+        </FormField>
+
+        {!values.isDonation ? (
+          <FormField
+            label="Cost per unit (optional)"
+            name="costPrice"
+            error={errors.costPrice}
+            helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
+          >
+            <input
+              id="costPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              value={values.costPrice}
+              onChange={(event) => updateField('costPrice', event.target.value)}
+              placeholder="e.g. 30.00"
+            />
+          </FormField>
+        ) : null}
+
+        {!values.isDonation && !isKgUnit && values.unit ? (
+          <FormField
+            label={`How many kg is 1 ${values.unit}?`}
+            name="kgPerUnit"
+            error={errors.kgPerUnit}
+            helper="PSA market prices are per kg — this converts them to a fair price for your unit."
+          >
+            <input
+              id="kgPerUnit"
+              type="number"
+              min="0"
+              step="0.01"
+              value={values.kgPerUnit}
+              onChange={(event) => updateField('kgPerUnit', event.target.value)}
+              placeholder="e.g. 2"
+            />
+          </FormField>
+        ) : null}
+
+        {!values.isDonation && hasTypedName ? (
+          <div className={`price-hint ${isOverThreshold ? 'warning' : ''}`}>
+            {isOverThreshold ? <TriangleAlert size={16} /> : <Info size={16} />}
+            <div>
+              {isLoadingReference ? (
+                <strong>Checking PSA market prices…</strong>
+              ) : marketReference ? (
+                <>
+                  <strong>PSA farmgate reference: ₱{marketReference.referencePrice.toFixed(2)}/kg</strong>
+                  <span> — {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})</span>
+                  {recommendedPrice ? (
+                    <p className="price-recommendation">
+                      <strong>Recommended price: ₱{recommendedPrice.price.toFixed(2)}/{values.unit}</strong>
+                      <span>
+                        {' '}— {recommendedPrice.marginPercent}% above the PSA farmgate reference (converted using your
+                        1 {values.unit} = {kgPerUnitValue}kg). That reference is what a trader would pay you, not what a
+                        buyer pays; local wholesale/retail markups over it commonly run 40-60%+, so this keeps you
+                        profitable after harvesting, packing, and delivery while still pricing below typical retail.
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => updateField('price', String(recommendedPrice.price))}
+                      >
+                        Use this price
+                      </Button>
+                    </p>
+                  ) : !isKgUnit ? (
+                    <p className="price-recommendation">
+                      Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
+                    </p>
+                  ) : null}
+                  {isOverThreshold ? (
+                    <p>Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.</p>
+                  ) : null}
+                </>
+              ) : matchedCommodity ? (
+                <>
+                  <strong>No recent PSA price data</strong>
+                  <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years.</span>
+                  {costRecommendationSection}
+                </>
+              ) : (
+                <>
+                  <strong>No PSA market reference available</strong>
+                  <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet.</span>
+                  {costRecommendationSection}
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="form-section">
+        <p className="form-section-heading">Location &amp; description</p>
+        <FormField label="Location" name="location" error={errors.location} helper="Cebu municipality where this product is available.">
+          <select id="location" value={values.location} onChange={(event) => updateField('location', event.target.value)}>
+            {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
           </select>
         </FormField>
-        <FormField label="Quantity available" name="quantity" error={errors.quantity}>
-          <input id="quantity" type="number" min="0" step="0.01" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
+
+        <FormField label="Description" name="description" error={errors.description}>
+          <textarea id="description" rows="4" value={values.description} onChange={(event) => updateField('description', event.target.value)} placeholder="Describe freshness, harvest date, pickup notes, or handling requirements." />
         </FormField>
       </div>
 
-      {!values.isDonation ? (
-        <FormField
-          label="Cost per unit (optional)"
-          name="costPrice"
-          error={errors.costPrice}
-          helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
-        >
-          <input
-            id="costPrice"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.costPrice}
-            onChange={(event) => updateField('costPrice', event.target.value)}
-            placeholder="e.g. 30.00"
-          />
+      <div className="form-section">
+        <p className="form-section-heading">Product image</p>
+        <FormField label="Product image" name="image" error={errors.image} helper="Visible to every buyer browsing the marketplace.">
+          <input id="image" type="file" accept="image/*" onChange={handleImageChange} />
         </FormField>
-      ) : null}
 
-      {!values.isDonation && !isKgUnit ? (
-        <FormField
-          label={`How many kg is 1 ${values.unit}?`}
-          name="kgPerUnit"
-          error={errors.kgPerUnit}
-          helper="PSA market prices are per kg — this converts them to a fair price for your unit."
-        >
-          <input
-            id="kgPerUnit"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.kgPerUnit}
-            onChange={(event) => updateField('kgPerUnit', event.target.value)}
-            placeholder="e.g. 2"
-          />
-        </FormField>
-      ) : null}
-
-      {!values.isDonation && hasTypedName ? (
-        <div className={`price-hint ${isOverThreshold ? 'warning' : ''}`}>
-          {isOverThreshold ? <TriangleAlert size={16} /> : <Info size={16} />}
-          <div>
-            {isLoadingReference ? (
-              <strong>Checking PSA market prices…</strong>
-            ) : marketReference ? (
-              <>
-                <strong>PSA farmgate reference: ₱{marketReference.referencePrice.toFixed(2)}/kg</strong>
-                <span> — {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})</span>
-                {recommendedPrice ? (
-                  <p className="price-recommendation">
-                    <strong>Recommended price: ₱{recommendedPrice.price.toFixed(2)}/{values.unit}</strong>
-                    <span>
-                      {' '}— {recommendedPrice.marginPercent}% above the PSA farmgate reference (converted using your
-                      1 {values.unit} = {kgPerUnitValue}kg). That reference is what a trader would pay you, not what a
-                      buyer pays; local wholesale/retail markups over it commonly run 40-60%+, so this keeps you
-                      profitable after harvesting, packing, and delivery while still pricing below typical retail.
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => updateField('price', String(recommendedPrice.price))}
-                    >
-                      Use this price
-                    </Button>
-                  </p>
-                ) : !isKgUnit ? (
-                  <p className="price-recommendation">
-                    Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
-                  </p>
-                ) : null}
-                {isOverThreshold ? (
-                  <p>Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.</p>
-                ) : null}
-              </>
-            ) : matchedCommodity ? (
-              <>
-                <strong>No recent PSA price data</strong>
-                <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years.</span>
-                {costRecommendationSection}
-              </>
-            ) : (
-              <>
-                <strong>No PSA market reference available</strong>
-                <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet.</span>
-                {costRecommendationSection}
-              </>
-            )}
+        {values.image ? (
+          <div className="image-preview">
+            <img src={values.image} alt="Product preview" />
+            <Button variant="ghost" onClick={() => updateField('image', '')}>Remove image</Button>
           </div>
-        </div>
-      ) : null}
-
-      <FormField label="Location" name="location" error={errors.location} helper="Cebu municipality where this product is available.">
-        <select id="location" value={values.location} onChange={(event) => updateField('location', event.target.value)}>
-          {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-        </select>
-      </FormField>
-
-      <FormField label="Description" name="description" error={errors.description}>
-        <textarea id="description" rows="4" value={values.description} onChange={(event) => updateField('description', event.target.value)} placeholder="Describe freshness, harvest date, pickup notes, or handling requirements." />
-      </FormField>
-
-      <FormField label="Product image" name="image" error={errors.image} helper="Visible to every buyer browsing the marketplace.">
-        <input id="image" type="file" accept="image/*" onChange={handleImageChange} />
-      </FormField>
-
-      {values.image ? (
-        <div className="image-preview">
-          <img src={values.image} alt="Product preview" />
-          <Button variant="ghost" onClick={() => updateField('image', '')}>Remove image</Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <div className="form-actions">
         {onCancel ? <Button variant="secondary" onClick={onCancel}>Cancel</Button> : null}

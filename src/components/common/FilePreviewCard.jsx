@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, X, ZoomIn } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileText, X, ZoomIn } from 'lucide-react';
 
 // `file` is either:
 //  - a directly-usable value: a data: URL (legacy pre-migration records) or a full
@@ -45,12 +45,15 @@ export default function FilePreviewCard({ label, file, resolveUrl, large = false
   };
 
   return (
-    <div className={`profile-file-card${large ? ' large' : ''}`}>
+    <div className={`profile-file-card${large ? ' large' : ''}${file ? '' : ' empty'}`}>
       <div className="profile-file-top">
         <span className="profile-file-icon"><FileText size={19} /></span>
         <div className="profile-file-meta">
           <strong>{label}</strong>
-          <span>{file ? 'Uploaded' : 'Not provided'}</span>
+          <span className={`profile-file-status ${file ? 'uploaded' : 'missing'}`}>
+            {file ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+            {file ? 'Uploaded' : 'Not uploaded'}
+          </span>
         </div>
         {file && !isImage ? (
           <button type="button" className="profile-file-view-btn" onClick={handleView} disabled={isResolving}>

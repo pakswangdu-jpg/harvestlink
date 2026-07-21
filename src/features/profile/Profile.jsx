@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Camera, Edit3, Lock, Mail, MapPin, Phone, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, Edit3, Lock, Mail, MapPin, Phone, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
@@ -209,17 +209,53 @@ export default function Profile() {
             <div className="profile-identity-text">
               <h2>{currentUser.name}</h2>
               <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
+              <div className="profile-badges">
+                <StatusBadge value={currentUser.role} />
+                {currentUser.verificationStatus ? (
+                  <StatusBadge value={currentUser.verificationStatus} type="verification" />
+                ) : (
+                  <span className="badge badge-active"><BadgeCheck size={13} /> Active account</span>
+                )}
+              </div>
               {isUploadingAvatar ? <span className="profile-avatar-status">Saving…</span> : null}
               {avatarError ? <span className="profile-avatar-status error">{avatarError}</span> : null}
             </div>
           </div>
-          <div className="profile-badges">
-            <StatusBadge value={currentUser.role} />
-            {currentUser.verificationStatus ? (
-              <StatusBadge value={currentUser.verificationStatus} type="verification" />
-            ) : (
-              <span className="badge badge-active"><BadgeCheck size={13} /> Active account</span>
-            )}
+          {!isEditing ? (
+            <Button variant="secondary" onClick={startEditing} className="profile-edit-btn">
+              <Edit3 size={15} /> Edit Profile
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="profile-summary-row">
+          <div className="profile-summary-item">
+            <span className="profile-summary-icon"><ShieldCheck size={16} /></span>
+            <div>
+              <small>Account status</small>
+              <strong>{currentUser.verificationStatus ? currentUser.verificationStatus : 'Active'}</strong>
+            </div>
+          </div>
+          <div className="profile-summary-item">
+            <span className="profile-summary-icon"><UserSquare size={16} /></span>
+            <div>
+              <small>Role</small>
+              <strong>{currentUser.role}</strong>
+            </div>
+          </div>
+          <div className="profile-summary-item">
+            <span className="profile-summary-icon"><MapPin size={16} /></span>
+            <div>
+              <small>Location</small>
+              <strong>{currentUser.municipality || 'Not provided'}</strong>
+            </div>
+          </div>
+          <div className="profile-summary-item">
+            <span className="profile-summary-icon"><Calendar size={16} /></span>
+            <div>
+              <small>Member since</small>
+              <strong>{formatDate(currentUser.createdAt)}</strong>
+            </div>
           </div>
         </div>
       </section>
@@ -380,21 +416,30 @@ export default function Profile() {
                   <h2>Verification</h2>
                 </div>
               </div>
-              <div className="info-grid">
-                <InfoRow icon={ShieldCheck} label="Account type" value="Individual buyer" />
-                <InfoRow icon={Phone} label="Contact on file" value={currentUser.contactNumber ? 'Verified' : 'Not provided'} />
-                <InfoRow icon={MapPin} label="Delivery area on file" value={currentUser.municipality ? 'Verified' : 'Not provided'} />
-              </div>
+              <ul className="verification-checklist">
+                <li className={currentUser.contactNumber ? 'done' : ''}>
+                  {currentUser.contactNumber ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                  Contact verified
+                </li>
+                <li className={currentUser.municipality ? 'done' : ''}>
+                  {currentUser.municipality ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                  Delivery address verified
+                </li>
+                <li className={currentUser.accountStatus === 'active' ? 'done' : ''}>
+                  {currentUser.accountStatus === 'active' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                  Buyer account active
+                </li>
+              </ul>
             </>
           )}
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel security-panel">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Security</p>
-            <h2>Password</h2>
+            <h2><span className="security-lock-icon"><Lock size={16} /></span> Password</h2>
           </div>
           {!isChangingPassword ? (
             <Button size="sm" variant="secondary" onClick={startChangingPassword}>

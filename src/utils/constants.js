@@ -9,70 +9,19 @@ export const STORAGE_KEYS = {
   legacyRequests: 'harvestlink_purchase_requests',
 };
 
-export const PRODUCT_CATEGORIES = [
-  'Vegetables',
-  'Fruits',
-  'Grains & Cereals',
-  'Root & Tuber Crops',
-  'Legumes & Pulses',
-  'Herbs',
-  'Spices',
-  'Nuts',
-  'Oil Crops',
-  'Sugar Crops',
-  'Beverage Crops',
-  'Mushrooms',
-  'Flowers & Ornamentals',
-  'Medicinal Plants',
-  'Fiber Crops',
-  'Seeds, Seedlings & Nursery',
-  'Fodder & Forage',
-  'Livestock Products',
-  'Other',
-];
-
-// Master list of every unit offered anywhere in the app — used as the category-agnostic
-// fallback (e.g. for the 'Other' category, or a category with no explicit mapping below).
-export const PRODUCT_UNITS = ['kg', 'sack', 'bundle', 'piece'];
-
-// Which units make sense to sell a category in varies a lot — livestock sells by the head,
-// cut flowers by the stem, rice/corn by the cavan, seedlings by the pack — so the "Unit"
-// field on the product form is scoped to the selected category instead of offering one
-// generic list for everything from mushrooms to cattle.
-const UNITS_BY_CATEGORY = {
-  Vegetables: ['kg', 'sack', 'bundle', 'piece', 'crate'],
-  Fruits: ['kg', 'sack', 'piece', 'dozen', 'crate'],
-  'Grains & Cereals': ['kg', 'sack', 'cavan'],
-  'Root & Tuber Crops': ['kg', 'sack'],
-  'Legumes & Pulses': ['kg', 'sack'],
-  Herbs: ['kg', 'bundle', 'piece'],
-  Spices: ['kg', 'sack', 'piece'],
-  Nuts: ['kg', 'sack', 'piece'],
-  'Oil Crops': ['kg', 'sack', 'liter'],
-  'Sugar Crops': ['kg', 'sack'],
-  'Beverage Crops': ['kg', 'sack', 'piece'],
-  Mushrooms: ['kg', 'piece', 'tray'],
-  'Flowers & Ornamentals': ['stem', 'bouquet', 'pot', 'piece'],
-  'Medicinal Plants': ['kg', 'bundle', 'piece'],
-  'Fiber Crops': ['kg', 'sack', 'bale'],
-  'Seeds, Seedlings & Nursery': ['pack', 'seedling', 'piece', 'tray'],
-  'Fodder & Forage': ['kg', 'sack', 'bale'],
-  'Livestock Products': ['head', 'kg', 'piece', 'dozen'],
-  Other: PRODUCT_UNITS,
-};
-
-export function getUnitsForCategory(category) {
-  return UNITS_BY_CATEGORY[category] || PRODUCT_UNITS;
-}
+// Crop categories/products/units used to live here as hardcoded arrays — they're now
+// admin-editable data in Supabase (public.categories / public.products_catalog /
+// public.units / public.product_units), read via src/contexts/CatalogContext.jsx's
+// useCatalog() hook instead (see supabase/schema.sql for why).
 
 export const PRODUCT_GRADES = [
   { value: 'A', label: 'Grade A — Premium' },
   { value: 'B', label: 'Grade B — Standard' },
 ];
 
-export const SELLING_TYPES = [
+export const SALES_TYPES = [
   { value: 'retail', label: 'Retail' },
-  { value: 'bulk', label: 'Bulk / Wholesale' },
+  { value: 'wholesale', label: 'Wholesale' },
 ];
 
 // A single, easy-to-adjust cutoff for the "low stock" warning shown to buyers/stakeholders
@@ -85,6 +34,23 @@ export const LOW_STOCK_THRESHOLD = 10;
 export function isLowStock(quantity) {
   const value = Number(quantity);
   return value > 0 && value <= LOW_STOCK_THRESHOLD;
+}
+
+// How many days out an expiration date starts showing an "Expiring soon" warning, instead
+// of only flagging it once it's already too late to act on.
+export const EXPIRING_SOON_DAYS = 3;
+
+// 'expired' | 'expiring_soon' | null — null covers both "no expiration date set" and "expires
+// comfortably later," so callers can do a single truthy check before rendering a badge.
+export function getExpiryStatus(expirationDate) {
+  if (!expirationDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expirationDate);
+  const diffDays = Math.round((expiry - today) / 86400000);
+  if (diffDays < 0) return 'expired';
+  if (diffDays <= EXPIRING_SOON_DAYS) return 'expiring_soon';
+  return null;
 }
 
 export const ORGANIZATION_TYPES = [

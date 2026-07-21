@@ -144,7 +144,7 @@ export async function getProfileById(req, res) {
 }
 
 // GET /api/profiles/top-farmers — public, no auth (used by the logged-out landing page to
-// show off verified 5-star farmers). Deliberately hand-picks a public-safe field list here
+// show off well-rated farmers). Deliberately hand-picks a public-safe field list here
 // instead of reusing serializeProfile — a signed-out visitor must never see a farmer's
 // email, contact number, address, or gov ID file, only what a buyer would want to browse.
 export async function getTopRatedFarmers(req, res) {
@@ -184,10 +184,11 @@ export async function getTopRatedFarmers(req, res) {
         ratingCount: entry ? entry.count : 0,
       };
     })
-    // A perfect, unrounded 5.0 average — not "rounds to 5" — AND at least 5 ratings behind
-    // it, so a single lucky review can't land a farmer in the showcase.
-    .filter((farmer) => farmer.ratingCount >= 5 && farmer.avgRating === 5)
-    .sort((a, b) => b.ratingCount - a.ratingCount)
+    // Same 4-5 star bar as the buyer dashboard's "Recommended farms" (see recommendedFarmers
+    // in BuyerDashboard.jsx) — a farmer starts showing up here automatically the moment their
+    // average crosses into that range, computed fresh on every request, never cached.
+    .filter((farmer) => farmer.avgRating >= 4)
+    .sort((a, b) => b.avgRating - a.avgRating || b.ratingCount - a.ratingCount)
     .slice(0, 8);
 
   res.json(topFarmers);

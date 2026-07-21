@@ -1,5 +1,3 @@
-import { getUnitsForCategory } from './constants';
-
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
@@ -38,9 +36,18 @@ export function validateAuthForm(values, mode) {
   if (mode === 'register' && values.role === 'stakeholder') {
     if (!required(values.organizationName)) errors.organizationName = 'Enter your organization name.';
     if (!required(values.organizationType)) errors.organizationType = 'Choose an organization type.';
-    if (!required(values.contactPerson)) errors.contactPerson = 'Enter a contact person.';
+    // contactPerson is labeled "Position / Role" on the registration form (see
+    // StakeholderRegisterFields in AuthPage.jsx) — same field/column, just describing the
+    // representative's title instead of duplicating their name (already firstName/lastName).
+    if (!required(values.contactPerson)) errors.contactPerson = 'Enter your position or role in the organization.';
     if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
     if (!required(values.municipality)) errors.municipality = 'Choose a municipality.';
+    // Type/size are validated inline as soon as a file is picked (see
+    // VerificationDocumentUpload in AuthPage.jsx) — this only catches never having picked
+    // one at all.
+    if (!(values.accreditationFile instanceof File)) {
+      errors.accreditationFile = 'Upload a verification document to continue.';
+    }
   }
   if (mode === 'register' && values.role === 'farmer') {
     if (!required(values.birthday)) errors.birthday = 'Enter your birthday.';
@@ -55,31 +62,41 @@ export function validateAuthForm(values, mode) {
   return errors;
 }
 
-export function validateProductForm(values) {
+// `availableUnits` is the caller's own live, product-scoped unit list (see CatalogContext's
+// getUnitOptions) rather than something this module looks up itself — the catalog is
+// admin-editable data in Supabase now, not a static import, so the caller (which already has
+// it via useCatalog()) is the one source of truth for what counts as valid here.
+export function validateProductForm(values, availableUnits) {
   const errors = {};
-  if (!required(values.name)) errors.name = 'Enter a product name.';
+  if (!required(values.name)) errors.name = 'Choose or specify a product.';
   if (!required(values.category)) errors.category = 'Choose a category.';
   if (!['A', 'B'].includes(values.grade)) errors.grade = 'Choose a grade.';
   if (!values.isDonation) {
-    if (!['retail', 'bulk'].includes(values.sellingType)) errors.sellingType = 'Choose a selling type.';
+    if (!['retail', 'wholesale'].includes(values.sellingType)) errors.sellingType = 'Choose a sales type.';
     if (toPositiveNumber(values.price) === null) errors.price = 'Enter a positive price.';
     if (required(values.costPrice) && toPositiveNumber(values.costPrice) === null) {
       errors.costPrice = 'Enter a positive cost, or leave it blank.';
     }
-    if (values.sellingType === 'bulk') {
-      const bulkMin = toPositiveNumber(values.bulkMinQuantity);
-      if (bulkMin === null) errors.bulkMinQuantity = 'Enter a positive minimum bulk quantity.';
-      else if (bulkMin > Number(values.quantity)) errors.bulkMinQuantity = 'Minimum bulk quantity cannot exceed the quantity available.';
+    if (values.sellingType === 'wholesale') {
+      const moq = toPositiveNumber(values.moq);
+      if (moq === null) errors.moq = 'Enter a positive minimum order quantity.';
+      else if (moq > Number(values.quantity)) errors.moq = 'MOQ cannot exceed the quantity available.';
     }
   }
   if (!required(values.unit)) errors.unit = 'Choose a unit.';
-  else if (!getUnitsForCategory(values.category).includes(values.unit)) errors.unit = 'Choose a unit valid for this category.';
+  else if (Array.isArray(availableUnits) && !availableUnits.includes(values.unit)) errors.unit = 'Choose a unit valid for this product.';
   else if (!values.isDonation && values.unit !== 'kg' && toPositiveNumber(values.kgPerUnit) === null) {
     errors.kgPerUnit = `Enter how many kg 1 ${values.unit} is.`;
   }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
+  if (required(values.expirationDate)) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(values.expirationDate) < today) errors.expirationDate = 'Expiration date cannot be in the past.';
+  }
   if (!required(values.location)) errors.location = 'Enter the product location.';
   if (!required(values.description)) errors.description = 'Add a short product description.';
+  if (!required(values.image)) errors.image = 'Add a product photo before listing.';
   return errors;
 }
 
@@ -90,8 +107,8 @@ export function validateCheckoutForm(values, product, currentUser) {
   if (quantity === null) errors.quantity = 'Enter a positive request quantity.';
   else if (product && quantity > Number(product.quantity)) {
     errors.quantity = `Only ${product.quantity} ${product.unit} available.`;
-  } else if (product?.sellingType === 'bulk' && product.bulkMinQuantity && quantity < Number(product.bulkMinQuantity)) {
-    errors.quantity = `This is a bulk listing — minimum order is ${product.bulkMinQuantity} ${product.unit}.`;
+  } else if (product?.sellingType === 'wholesale' && product.moq && quantity < Number(product.moq)) {
+    errors.quantity = `This is a wholesale listing — minimum order is ${product.moq} ${product.unit}.`;
   }
 
   if (!required(values.paymentMethod)) errors.paymentMethod = 'Choose a payment method.';

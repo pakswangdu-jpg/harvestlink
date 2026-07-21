@@ -9,11 +9,13 @@ import { uploadAccreditationFile, uploadGovIdFile } from './uploadService';
 
 // Account creation goes through the backend's admin-privileged /auth/register endpoint
 // instead of calling supabase.auth.signUp() directly from here — see
-// backend/src/controllers/auth.controller.js for why: the public signUp() path sends a
-// confirmation email on every call whenever "Confirm email" is on for the project, and
-// Supabase's default email sending is capped at just a couple of emails per hour, so a
-// handful of test registrations reliably exhausts it. The admin API creates the account
-// already-confirmed without sending anything, so registration is never rate-limited.
+// backend/src/controllers/auth.controller.js for the full reasoning. The account is
+// created instant-confirmed (no OTP email step) — that flow (registerUser returning
+// { pendingVerification }, AuthPage.jsx's OTP screen, verifyRegistrationOtp/
+// resendRegistrationOtp below) is dormant, not deleted, in case OTP verification is
+// turned back on again later; it was disabled because Supabase's default ~2-emails/hour
+// sending cap kept locking users out mid-registration. Configuring custom SMTP in the
+// Supabase dashboard would remove that cap if OTP is ever re-enabled.
 export async function registerUser(values) {
   const email = values.email.trim().toLowerCase();
   // confirmPassword rides along harmlessly in profileFields — the backend only ever picks
@@ -22,14 +24,12 @@ export async function registerUser(values) {
 
   await apiClient.post('/auth/register', { ...profileFields, email, password });
 
-  // The account now exists — sign in normally to establish a real session (plain
-  // password sign-in never sends an email, so it's never subject to that limit either).
+  // The admin API above creates the account server-side but doesn't establish a browser
+  // session — sign in here so the file upload below (Storage requires an authenticated
+  // session) and everything after registration has one, same as a normal login.
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
   if (signInError) throw new Error(signInError.message);
 
-  // Uploads need an authenticated session (Storage's bucket policy checks auth.uid()) —
-  // only reachable now that sign-in above established one. AuthPage.jsx keeps the raw
-  // File object in form state until this point.
   const { data: { user } } = await supabase.auth.getUser();
   const filePatch = {};
   if (values.role === 'farmer' && govIdFile instanceof File) {
@@ -39,9 +39,35 @@ export async function registerUser(values) {
     filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
   }
 
-  return Object.keys(filePatch).length
-    ? apiClient.patch('/profiles/me', { ...profileFields, ...filePatch })
-    : apiClient.get('/profiles/me');
+  return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
+}
+
+// Dormant — see registerUser's comment above. Verifies the 6-digit code, which — on
+// success — both confirms the email AND establishes a real session (Supabase does both as
+// one step for an 'email' OTP), then performs the gov-ID/accreditation upload that
+// registerUser would otherwise defer for lack of a session.
+export async function verifyRegistrationOtp(email, token, pendingFiles = {}) {
+  const { error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  if (verifyError) throw new Error('That code is invalid or has expired. Please try again or resend a new one.');
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const { govIdFile, accreditationFile, role } = pendingFiles;
+  const filePatch = {};
+  if (role === 'farmer' && govIdFile instanceof File) {
+    filePatch.govIdFile = await uploadGovIdFile(govIdFile, user.id);
+  }
+  if (role === 'stakeholder' && accreditationFile instanceof File) {
+    filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
+  }
+
+  return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
+}
+
+// Also used to re-send when a returning, still-unverified user hits "Email not confirmed"
+// on the login page (see AuthPage.jsx) — the same call either way, just a different caller.
+export async function resendRegistrationOtp(email) {
+  const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: false } });
+  if (error) throw new Error(error.message);
 }
 
 // GET /profiles/top-farmers is public (no requireAuth on the backend) — safe to call from
@@ -61,7 +87,19 @@ export async function getPublicFarmerProfile(id) {
 export async function loginUser(emailValue, password) {
   const email = emailValue.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error('Login failed. Check your email and password.');
+  if (error) {
+    // Deliberately the ONE Supabase failure reason not flattened into the generic message
+    // below — AuthPage.jsx checks this exact code to offer "verify your email" instead of
+    // just telling an otherwise-correct password to try again. Every other failure (wrong
+    // password, no such account, ...) stays intentionally vague, so a login attempt can't
+    // be used to probe which emails are registered.
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      const unconfirmedError = new Error('Email not confirmed');
+      unconfirmedError.code = 'email_not_confirmed';
+      throw unconfirmedError;
+    }
+    throw new Error('Login failed. Check your email and password.');
+  }
   // requireAuth on the backend rejects a suspended account's session with a clear
   // message, which surfaces here exactly like any other apiClient error.
   return apiClient.get('/profiles/me');

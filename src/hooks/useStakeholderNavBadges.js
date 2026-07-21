@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getAvailableDonations, getDonationsForStakeholder } from '../services/donationService';
 import { getOrdersByBuyer } from '../services/orderService';
+import { getExpiryStatus } from '../utils/constants';
 import { needsBuyerAction } from './useBuyerNavBadges';
 
 const POLL_INTERVAL_MS = 6000;
@@ -18,14 +19,19 @@ export function useStakeholderNavBadges(stakeholderId) {
     const refresh = () => {
       // Donations are still localStorage-backed (see donationService.js), not a network
       // call, so these are cheap synchronous reads to redo on every tick.
-      // "Browse donations" — new surplus a farmer has put up since this stakeholder last
-      // looked, platform-wide (not scoped to them — donations go to whoever requests first).
+      // "Browse donations" — platform-wide (not scoped to them — donations go to whoever
+      // requests first), but only the ones actually worth an alert: available surplus that's
+      // expiring soon or already past its date. A plain "new donations exist" count would sit
+      // at odds with every other badge in this app, which all mean "something needs YOUR
+      // decision now" — an ordinary available donation with no urgency doesn't qualify, but
+      // one about to spoil does.
       const available = getAvailableDonations();
+      const urgent = available.filter((donation) => getExpiryStatus(donation.expirationDate));
       // "My requests" — a farmer already accepted and scheduled a pickup date; the ball is
       // now in THIS stakeholder's court to actually go collect it.
       const myRequests = getDonationsForStakeholder(stakeholderId);
       if (!cancelled) {
-        setDonationsBadge(available.length);
+        setDonationsBadge(urgent.length);
         setRequestsBadge(myRequests.filter((donation) => donation.status === 'scheduled').length);
       }
 

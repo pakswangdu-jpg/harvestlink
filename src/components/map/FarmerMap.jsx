@@ -52,6 +52,7 @@ export default function FarmerMap({
   selectedId,
   onSelectPin,
   farmersWithProducts = EMPTY_SET,
+  currentUserId,
 }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
@@ -166,7 +167,9 @@ export default function FarmerMap({
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
 
-      const displayName = farmer.farmName || farmer.name;
+      const isYou = farmer.id === currentUserId;
+      const realDisplayName = farmer.farmName || farmer.name;
+      const displayName = isYou ? 'You' : realDisplayName;
       // Messaging no longer requires a shared order — see supabase/schema.sql's messages
       // table (order_id OR recipient_id, either works) — so "Contact farmer" is always a
       // real, clickable conversation now, continuing whatever's already there if the viewer
@@ -174,7 +177,7 @@ export default function FarmerMap({
       // unrelated fact, shown alongside it rather than gating it.
       const hasProducts = farmersWithProducts.has(farmer.id);
       const productsLine = hasProducts
-        ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>`
+        ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}">View products</a>`
         : `<br/><small class="muted">No products available</small>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
@@ -184,7 +187,7 @@ export default function FarmerMap({
         `<br/>${presenceHtml(farmer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         productsLine +
-        `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`;
+        (isYou ? '' : `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`);
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#15803d'), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
@@ -192,13 +195,14 @@ export default function FarmerMap({
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
 
+      const isYou = buyer.id === currentUserId;
       const popupHtml =
-        `<strong>${buyer.name}</strong><br/>` +
+        `<strong>${isYou ? 'You' : buyer.name}</strong><br/>` +
         `${buyer.municipality}` +
         (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
         `<br/>${presenceHtml(buyer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`;
+        (isYou ? '' : `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`);
       upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, '#1d4ed8'), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
     });
 
@@ -206,7 +210,8 @@ export default function FarmerMap({
       const coords = stakeholderCoordsById[stakeholder.id];
       if (!coords) return;
 
-      const displayName = stakeholder.organizationName || stakeholder.name;
+      const isYou = stakeholder.id === currentUserId;
+      const displayName = isYou ? 'You' : (stakeholder.organizationName || stakeholder.name);
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
@@ -214,7 +219,7 @@ export default function FarmerMap({
         (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
         `<br/>${presenceHtml(stakeholder)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`;
+        (isYou ? '' : `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`);
       upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, '#db2777'), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
@@ -277,6 +282,7 @@ export default function FarmerMap({
     donationFarmerCoordsById,
     onSelectPin,
     farmersWithProducts,
+    currentUserId,
   ]);
 
   useEffect(() => {

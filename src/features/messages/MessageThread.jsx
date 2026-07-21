@@ -8,7 +8,7 @@ import { getOrderById } from '../../services/orderService';
 import { getUserById } from '../../services/authService';
 import { getMessagesForOrder, markThreadRead, sendMessage } from '../../services/messageService';
 import { MESSAGE_TRANSLATION_LANGUAGES, translateText } from '../../services/translateService';
-import { formatDate, formatRelativeTime, isRecentlyActive } from '../../utils/formatters';
+import { formatDate, formatRelativeTime, getInitials, isRecentlyActive } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function MessageThread() {
@@ -150,6 +150,11 @@ export default function MessageThread() {
       <section className="panel chat-panel">
         <div className="chat-header-row">
           <span className="chat-presence">
+            <span className="farmer-list-avatar">
+              {otherParty ? (
+                otherParty.avatarUrl ? <img src={otherParty.avatarUrl} alt="" /> : getInitials(otherPartyName)
+              ) : null}
+            </span>
             <span className={`presence-dot ${online ? 'online' : 'offline'}`} /> {presenceLabel}
           </span>
           <div className="chat-header-actions">

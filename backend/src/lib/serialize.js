@@ -46,7 +46,7 @@ export function serializeProduct(row, farmerName = null) {
     category: row.category,
     grade: row.grade,
     sellingType: row.selling_type,
-    bulkMinQuantity: row.bulk_min_quantity == null ? null : Number(row.bulk_min_quantity),
+    moq: row.moq == null ? null : Number(row.moq),
     price: Number(row.price),
     unit: row.unit,
     kgPerUnit: row.kg_per_unit == null ? null : Number(row.kg_per_unit),
@@ -59,6 +59,7 @@ export function serializeProduct(row, farmerName = null) {
     discountPercent: row.discount_percent == null ? null : Number(row.discount_percent),
     priceReview: row.price_review,
     costPrice: row.cost_price == null ? null : Number(row.cost_price),
+    expirationDate: row.expiration_date,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -58,9 +58,11 @@ import {
 } from '../../services/reportService';
 import { donationStatusLabel, formatCurrency, formatDate, getInitials, statusTone } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
+import AdminCatalog from './AdminCatalog';
 
 function sectionFromPath(pathname) {
   if (pathname.includes('admin-users')) return 'users';
+  if (pathname.includes('admin-catalog')) return 'catalog';
   if (pathname.includes('admin-price-monitoring')) return 'price-monitoring';
   if (pathname.includes('admin-orders')) return 'orders';
   if (pathname.includes('admin-donations')) return 'donations';
@@ -160,6 +162,7 @@ export default function AdminDashboard() {
         </>
       ) : null}
       {section === 'users' ? <AdminUsersDetail /> : null}
+      {section === 'catalog' ? <AdminCatalog /> : null}
       {section === 'price-monitoring' ? <AdminPriceMonitoring products={products} /> : null}
       {section === 'orders' ? <AdminOrders orders={orders} /> : null}
       {section === 'donations' ? <AdminDonations donations={donations} /> : null}
@@ -656,7 +659,7 @@ function AdminPriceMonitoring({ products }) {
             { key: 'name', label: 'Product' },
             { key: 'farmerName', label: 'Farmer' },
             { key: 'grade', label: 'Grade', render: (row) => `Grade ${row.grade || 'A'}` },
-            { key: 'sellingType', label: 'Selling type', render: (row) => (row.sellingType === 'bulk' ? `Bulk (min ${row.bulkMinQuantity || 0} ${row.unit})` : 'Retail') },
+            { key: 'sellingType', label: 'Sales type', render: (row) => (row.sellingType === 'wholesale' ? `Wholesale (MOQ ${row.moq || 0} ${row.unit})` : 'Retail') },
             { key: 'price', label: 'Price', render: (row) => `${formatCurrency(row.price)} / ${row.unit}` },
             { key: 'quantity', label: 'Available', render: (row) => `${row.quantity} ${row.unit}` },
             { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },

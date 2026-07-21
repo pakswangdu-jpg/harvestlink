@@ -300,7 +300,7 @@ export default function LandingPage() {
         <section className="landing-top-farmers">
           <div className="landing-section-heading">
             <p className="eyebrow">Trusted by buyers</p>
-            <h2>5-star rated farmers</h2>
+            <h2>Top-rated farmers</h2>
           </div>
           {topFarmers.length === 0 ? (
             <p className="top-farmer-empty">No rated farmers yet — check back soon.</p>

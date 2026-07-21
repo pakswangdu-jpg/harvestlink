@@ -117,6 +117,7 @@ export default function FarmerMapPage() {
                 selectedId={selectedId}
                 onSelectPin={setSelectedId}
                 farmersWithProducts={farmersWithProducts}
+                currentUserId={currentUser.id}
               />
             </div>
 
@@ -142,7 +143,7 @@ export default function FarmerMapPage() {
                             {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
                           </span>
                           <span className="farmer-list-text">
-                            <strong>{farmer.farmName || farmer.name}</strong>
+                            <strong>{farmer.farmName || farmer.name}{farmer.id === currentUser.id ? ' (You)' : ''}</strong>
                             <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>
                           </span>
                         </button>
@@ -175,7 +176,7 @@ export default function FarmerMapPage() {
                             {buyer.avatarUrl ? <img src={buyer.avatarUrl} alt="" /> : getInitials(buyer.name)}
                           </span>
                           <span className="farmer-list-text">
-                            <strong>{buyer.name}</strong>
+                            <strong>{buyer.name}{buyer.id === currentUser.id ? ' (You)' : ''}</strong>
                             <span className="muted"><MapPin size={13} /> {buyer.municipality}</span>
                           </span>
                         </button>
@@ -212,7 +213,7 @@ export default function FarmerMapPage() {
                             )}
                           </span>
                           <span className="farmer-list-text">
-                            <strong>{stakeholder.organizationName || stakeholder.name}</strong>
+                            <strong>{stakeholder.organizationName || stakeholder.name}{stakeholder.id === currentUser.id ? ' (You)' : ''}</strong>
                             <span className="muted"><MapPin size={13} /> {stakeholder.municipality}</span>
                           </span>
                         </button>
