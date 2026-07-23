@@ -8,7 +8,7 @@
 
 :root {
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Inter Variable", "Inter", "SF Pro Display", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #16251d;
@@ -1445,7 +1445,7 @@ a.lp-contact-card:hover {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
   background: linear-gradient(135deg, #f8fcf8, #edf6ef);
 }
 
@@ -1453,59 +1453,54 @@ a.lp-contact-card:hover {
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 18px;
-  border-right: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.9);
+  padding: 24px;
+  border-right: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  /* At higher browser zoom levels (or simply more nav items than fit), the sidebar's own
-     content can exceed the 100vh box above — without this, the overflow was just clipped
-     with no way to reach the rest (see the logout link/nav items becoming unreachable). */
-  overflow-y: auto;
-  /* A deliberately visible scrollbar (not the OS's auto-hide/overlay default, which can be
-     easy to miss entirely) — so it's obvious at a glance that the sidebar scrolls once its
-     content no longer fits, instead of it just quietly looking cut off. */
+  gap: 20px;
+}
+
+/* Scoped to the sidebar only — .brand-mark/.brand strong/.brand small are shared with the
+   landing page navbar and public farmer profile, which keep their own square-logo look. */
+.sidebar .brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--green-50);
+}
+
+.sidebar .brand strong {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sidebar .brand small {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* Only the middle (nav + general) region scrolls — the logo stays pinned at the top and
+   Logout stays pinned at the bottom no matter how many nav items/zoom level squeezes things. */
+.sidebar-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--green-600) transparent;
 }
 
-.sidebar::-webkit-scrollbar {
-  width: 8px;
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebar-scroll::-webkit-scrollbar-thumb {
   background: var(--green-600);
   border-radius: 999px;
-}
-
-.side-nav {
-  display: grid;
-  gap: 8px;
-}
-
-.side-nav a,
-.logout-link {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: var(--radius);
-  color: #40564a;
-  background: transparent;
-  cursor: pointer;
-}
-
-.side-nav a.active,
-.side-nav a:hover {
-  color: white;
-  background: var(--green-700);
 }
 
 .nav-badge {
@@ -1520,73 +1515,6 @@ a.lp-contact-card:hover {
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
-}
-
-.side-nav a .nav-badge {
-  margin-left: auto;
-}
-
-.logout-link {
-  color: var(--red-700);
-  background: #fff7f7;
-}
-
-.sidebar-user {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--text);
-  min-width: 0;
-}
-
-a.sidebar-user:hover {
-  border-color: #bfe4ca;
-  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.12);
-}
-
-.sidebar-user-avatar {
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius);
-  color: white;
-  font-weight: 800;
-  background: var(--green-700);
-  overflow: hidden;
-}
-
-.sidebar-user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.sidebar-user > div {
-  min-width: 0;
-}
-
-.sidebar-user strong {
-  display: block;
-  font-size: 0.9rem;
-  color: var(--green-900);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-user small {
-  display: block;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .main-content {
@@ -2113,13 +2041,6 @@ a.user-chip:hover {
   grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
 }
 
-/* Registered accounts is a 6-column table (name/role/verification/account/created/actions)
-   — the default 0.8fr list panel is too narrow for it to lay out without an awkward inner
-   horizontal scroll, so it gets the larger share instead of the detail panel next to it. */
-.content-grid.two.uneven.admin-users-grid {
-  grid-template-columns: minmax(420px, 1.6fr) minmax(300px, 1fr);
-}
-
 .panel {
   padding: 18px;
 }
@@ -2296,8 +2217,7 @@ a.user-chip:hover {
   justify-content: flex-end;
 }
 
-.category-pill,
-.badge {
+.category-pill {
   display: inline-flex;
   align-items: center;
   width: fit-content;
@@ -2306,11 +2226,20 @@ a.user-chip:hover {
   border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 800;
-}
-
-.category-pill {
   color: var(--green-800);
   background: var(--green-100);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .badge-active,
@@ -2600,6 +2529,22 @@ a.user-chip:hover {
   letter-spacing: 0.05em;
 }
 
+/* Product drawer only — each .form-section becomes its own white card instead of the plain
+   divider-separated flow used by every other .form-section consumer (e.g. stakeholder
+   registration), which is left completely untouched. */
+.product-drawer-body .form-section {
+  padding: 18px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.product-drawer-body .form-section + .form-section {
+  margin-top: 0;
+  padding-top: 18px;
+  border-top: none;
+}
+
 @media (max-width: 1080px) {
   .farmer-products-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -2678,6 +2623,10 @@ a.user-chip:hover {
   color: white;
   background: var(--green-700);
   box-shadow: 0 12px 24px rgba(21, 128, 61, 0.18);
+}
+
+.btn-primary:hover {
+  background: var(--green-800);
 }
 
 .btn-secondary {
@@ -3425,16 +3374,81 @@ table {
 th,
 td {
   padding: 12px 10px;
-  border-bottom: 1px solid #edf3ef;
+  border-bottom: 1px solid #f3f4f6;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
-  color: #5a6f63;
-  font-size: 0.76rem;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
+}
+
+td {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.table-wrap td strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.table-wrap tbody tr {
+  height: 68px;
+  transition: background-color 0.2s ease;
+}
+
+.table-wrap tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.table-row-clickable {
+  cursor: pointer;
+}
+
+.table-row-selected {
+  background-color: #f0fdf4;
+}
+
+.table-row-selected:hover {
+  background-color: #dcfce7;
+}
+
+.table-wrap .muted,
+.table-wrap .table-substatus {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.panel:has(.table-wrap) {
+  border-radius: 16px;
+  border-color: #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.table-wrap .btn {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.table-wrap .btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .table-empty {
@@ -4895,12 +4909,6 @@ th {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* Same specificity as .admin-users-grid's desktop rule above, so this wins on mobile
-     via source order rather than losing to it. */
-  .content-grid.two.uneven.admin-users-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5214,6 +5222,7 @@ th {
   max-width: 320px;
   color: var(--muted);
   font-size: 0.82rem;
+  white-space: normal;
 }
 
 .reference-price-input {
@@ -5229,24 +5238,6 @@ th {
 .reference-price-input:focus {
   border-color: var(--green-600);
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
-}
-
-/* A table cell that behaves like a link (e.g. AdminCatalog's category-name cell, which
-   selects that row's detail panel below) without pulling in Button's filled/bordered chrome. */
-.link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--green-700);
-  font-weight: 700;
-  font-size: inherit;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.link-button:hover {
-  color: var(--green-800);
 }
 
 .market-panel {
@@ -5450,311 +5441,6 @@ th {
 
 .chart-tooltip span {
   color: rgba(255, 255, 255, 0.75);
-}
-
-.status-bar-chart {
-  width: 100%;
-  max-width: 480px;
-  height: auto;
-  display: block;
-}
-
-.status-bar-good {
-  fill: var(--green-700);
-}
-
-.status-bar-warning {
-  fill: var(--amber-700);
-}
-
-.status-bar-critical {
-  fill: var(--red-700);
-}
-
-.status-bar-neutral {
-  fill: var(--muted);
-}
-
-.status-bar-value {
-  fill: var(--text);
-  font-weight: 700;
-  text-anchor: start;
-}
-
-/* ==========================================================================
-   Demand Forecast dashboard (src/features/farmer/FarmerDemandForecast.jsx)
-   ========================================================================== */
-
-.supply-demand-chart-wrap {
-  display: grid;
-  gap: 14px;
-}
-
-.supply-demand-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-  font-size: 0.82rem;
-  color: var(--muted);
-  font-weight: 650;
-}
-
-.supply-demand-legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.legend-dot.supply {
-  background: var(--green-700);
-}
-
-.legend-dot.demand {
-  background: #f59e0b;
-}
-
-.supply-demand-bar.supply {
-  fill: var(--green-700);
-}
-
-.supply-demand-bar.demand {
-  fill: #f59e0b;
-}
-
-.forecast-filters {
-  display: grid;
-  gap: 12px;
-}
-
-.forecast-filters-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-}
-
-.forecast-filters-pending {
-  padding-top: 4px;
-  border-top: 1px dashed var(--line);
-}
-
-.forecast-pending-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: var(--soft);
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 650;
-  cursor: not-allowed;
-}
-
-.forecast-summary-grid .stat-card strong {
-  font-size: 1.1rem;
-  overflow-wrap: anywhere;
-}
-
-.forecast-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.forecast-status-opportunity {
-  background: var(--green-100);
-  color: var(--green-800);
-}
-
-.forecast-status-stable {
-  background: var(--blue-100);
-  color: var(--blue-700);
-}
-
-.forecast-status-low {
-  background: var(--soft);
-  color: var(--muted);
-}
-
-.forecast-status-risk {
-  background: var(--red-100);
-  color: var(--red-700);
-}
-
-.forecast-diff-up {
-  color: var(--green-700);
-  font-weight: 750;
-}
-
-.forecast-diff-down {
-  color: var(--red-700);
-  font-weight: 750;
-}
-
-.forecast-featured-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 18px;
-  margin: 18px 0;
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-
-.forecast-featured-grid > div {
-  display: grid;
-  gap: 4px;
-}
-
-.forecast-featured-grid span {
-  color: var(--muted);
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.forecast-featured-grid strong {
-  color: var(--green-900);
-  font-size: 1.05rem;
-}
-
-.forecast-recommendation {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--text);
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.forecast-recommendation svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--green-700);
-}
-
-.forecast-explanation {
-  margin-top: 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--soft);
-  color: var(--text);
-  font-size: 0.85rem;
-  line-height: 1.6;
-}
-
-.forecast-weather-condition {
-  text-transform: capitalize;
-  font-weight: 650;
-}
-
-.forecast-weather-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 14px;
-}
-
-.forecast-weather-grid > div {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--soft);
-}
-
-.forecast-weather-grid svg {
-  flex-shrink: 0;
-  color: var(--blue-700);
-}
-
-.forecast-weather-grid span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.forecast-weather-grid strong {
-  color: var(--green-900);
-  font-size: 1rem;
-}
-
-.forecast-weather-note {
-  margin-top: 14px;
-  font-size: 0.8rem;
-}
-
-.forecast-pending-panel {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  background: var(--soft);
-}
-
-.forecast-pending-icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--muted);
-  box-shadow: var(--shadow);
-}
-
-.forecast-pending-panel h3 {
-  color: var(--text);
-  font-size: 0.98rem;
-}
-
-.forecast-pending-panel p {
-  margin-top: 4px;
-  font-size: 0.85rem;
-  line-height: 1.55;
-}
-
-.forecast-table-note {
-  color: var(--muted);
-  font-size: 0.82rem;
-  max-width: 220px;
-  display: inline-block;
-}
-
-@media (max-width: 900px) {
-  .forecast-featured-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .forecast-featured-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.vertical-bar-chart {
-  width: 100%;
-  max-width: 420px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-}
-
-.vertical-bar-value {
-  fill: var(--text);
-  font-weight: 800;
 }
 
 @media (max-width: 640px) {

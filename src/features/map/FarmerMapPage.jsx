@@ -6,6 +6,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
+import { getDirectThreads } from '../../services/messageService';
 import { getInitials } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
@@ -25,6 +26,9 @@ export default function FarmerMapPage() {
   const [buyers, setBuyers] = useState([]);
   const [stakeholders, setStakeholders] = useState([]);
   const [farmersWithProducts, setFarmersWithProducts] = useState(() => new Set());
+  // Who "Contact X" is allowed to reach from the map — anyone the viewer already has a real
+  // direct-message thread with, not the whole directory (see FarmerMap.jsx's per-pin gate).
+  const [existingThreadIds, setExistingThreadIds] = useState(() => new Set());
 
   useEffect(() => {
     const reload = () => {
@@ -33,6 +37,9 @@ export default function FarmerMapPage() {
       getStakeholders().then(setStakeholders);
       getActiveProducts().then((products) => {
         setFarmersWithProducts(new Set(products.map((product) => product.farmerId)));
+      });
+      getDirectThreads().then((threads) => {
+        setExistingThreadIds(new Set(threads.map((thread) => thread.otherUserId)));
       });
     };
     reload();
@@ -118,6 +125,7 @@ export default function FarmerMapPage() {
                 onSelectPin={setSelectedId}
                 farmersWithProducts={farmersWithProducts}
                 currentUserId={currentUser.id}
+                existingThreadIds={existingThreadIds}
               />
             </div>
 

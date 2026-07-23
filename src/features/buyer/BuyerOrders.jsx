@@ -99,7 +99,7 @@ export default function BuyerOrders() {
                   </div>
                 ),
               },
-              { key: 'updatedAt', label: 'Updated', render: (row) => formatDate(row.updatedAt) },
+              { key: 'updatedAt', label: 'Updated', render: (row) => <span className="muted">{formatDate(row.updatedAt)}</span> },
               {
                 key: 'actions',
                 label: 'Action',

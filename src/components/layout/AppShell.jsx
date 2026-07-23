@@ -1,15 +1,22 @@
 import { Link, NavLink } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { LogOut, Settings } from 'lucide-react';
 import Button from '../common/Button';
 import NotificationBell from '../notifications/NotificationBell';
+import SidebarNavItem from './SidebarNavItem';
+import SidebarUserCard from './SidebarUserCard';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
-import { getInitials } from '../../utils/formatters';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
 import { useFarmerNavBadges } from '../../hooks/useFarmerNavBadges';
 import { useBuyerNavBadges } from '../../hooks/useBuyerNavBadges';
 import { useStakeholderNavBadges } from '../../hooks/useStakeholderNavBadges';
 import logo from '../../assets/logo.png';
+
+const navListVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04 } },
+};
 
 export default function AppShell({ user, navItems, title, subtitle, children }) {
   const { logout } = useAuth();
@@ -40,6 +47,11 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
     ? navItems.map((item) => (item.to in badgesByPath ? { ...item, badge: badgesByPath[item.to] } : item))
     : navItems;
 
+  // The desktop sidebar promotes Profile into a rich user card under GENERAL instead of a
+  // plain menu row; the mobile bottom nav keeps the full list (Profile included) unchanged.
+  const menuItems = navItemsWithBadges.filter((item) => item.label !== 'Profile');
+  const profileItem = navItemsWithBadges.find((item) => item.label === 'Profile');
+
   const handleLogout = () => {
     // A client-side navigate() here raced with ProtectedRoute's own "no user -> /login"
     // redirect and lost (React Router kept matching the old protected route for a beat
@@ -51,7 +63,12 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <motion.aside
+        className="sidebar"
+        initial={{ opacity: 0, x: -24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
         <Link className="brand" to={ROLE_DASHBOARDS[user.role]}>
           <span className="brand-mark">
             <img src={logo} alt="" />
@@ -62,43 +79,32 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
           </span>
         </Link>
 
-        <nav className="side-nav">
-          {navItemsWithBadges.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <item.icon size={18} />
-              <span>{item.label}</span>
-              {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
-            </NavLink>
-          ))}
-        </nav>
-
-        {hasProfile ? (
-          <Link className="sidebar-user" to="/profile">
-            <span className="sidebar-user-avatar">
-              {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : getInitials(user.name)}
-            </span>
-            <div>
-              <strong>{user.name}</strong>
-              <small>{user.email}</small>
-            </div>
-          </Link>
-        ) : (
-          <div className="sidebar-user">
-            <span className="sidebar-user-avatar">
-              {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : getInitials(user.name)}
-            </span>
-            <div>
-              <strong>{user.name}</strong>
-              <small>{user.email}</small>
-            </div>
+        <div className="sidebar-scroll flex flex-1 flex-col gap-6 overflow-y-auto">
+          <div>
+            <p className="px-3.5 pb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Menu</p>
+            <motion.nav className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
+              {menuItems.map((item) => (
+                <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} badge={item.badge} />
+              ))}
+            </motion.nav>
           </div>
-        )}
 
-        <button className="logout-link" type="button" onClick={handleLogout}>
-          <LogOut size={18} />
+          <div className="flex flex-col gap-2">
+            <p className="px-3.5 pb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">General</p>
+            {profileItem ? <SidebarUserCard user={user} to={profileItem.to} /> : null}
+            {profileItem ? <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} /> : null}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="group flex h-11 items-center gap-3 rounded-xl border-0 bg-transparent px-3.5 text-[15px] font-medium text-gray-600 transition-colors duration-200 hover:bg-red-50 hover:text-red-700"
+        >
+          <LogOut size={20} strokeWidth={2} className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
           Logout
         </button>
-      </aside>
+      </motion.aside>
 
       <main className="main-content">
         <header className="page-header">
@@ -117,14 +123,14 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
         <div className="mobile-bottom-nav-scroll">
           {navItemsWithBadges.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <item.icon size={18} />
+              <item.icon size={20} strokeWidth={2} />
               <span>{item.label}</span>
               {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
             </NavLink>
           ))}
         </div>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut size={16} />
+          <LogOut size={20} strokeWidth={2} />
         </Button>
       </nav>
     </div>

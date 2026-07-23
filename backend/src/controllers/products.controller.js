@@ -4,16 +4,22 @@ import { buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 
-// Validates category/product/unit against the live categories/products_catalog/units/
-// product_units tables (see supabase/schema.sql) — the source of truth that replaced the old
-// hardcoded PRODUCT_CATEGORIES array. Units are scoped to the selected PRODUCT, not just the
-// category (a farmer picking "Rice" only ever sees kg/sack/ton, never "stem" or "bouquet") —
-// falls back to the full master unit list for the "Other" category (administrator-defined
-// units, per spec) or any product name that isn't in the catalog at all.
+// The product name is free text (see ProductForm.jsx) — title-casing it here keeps listings
+// consistent ("Cabbage" not "cabbage") regardless of how the farmer typed it, matching the
+// same normalization already used for crop names in forecast.controller.js.
+function titleCaseName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+// Validates category/unit against the live categories/units tables (see
+// supabase/schema.sql) — the source of truth that replaced the old hardcoded
+// PRODUCT_CATEGORIES array. The product NAME itself is free text (see ProductForm.jsx),
+// not picked from a catalog, so there's nothing to validate it against here. Units are the
+// flat master list, not scoped per-product (products_catalog/product_units were removed).
 //
 // `existing` (an in-flight update's current row) is optional: when present, a category/unit
 // that matches what's ALREADY saved on this product is always accepted even if that
-// category/product has since been renamed/deactivated, so editing an unrelated field (price,
+// category has since been renamed/deactivated, so editing an unrelated field (price,
 // quantity, description) on an older listing never breaks — only actually CHANGING to a new
 // category/unit is checked against the current catalog.
 async function assertValidCategoryAndUnit(values, existing) {
@@ -22,12 +28,10 @@ async function assertValidCategoryAndUnit(values, existing) {
   const categoryUnchanged = Boolean(existing) && values.category === existing.category;
   if (!category && !categoryUnchanged) throw new ApiError('Choose a valid category.', 400);
 
-  const product = category?.products.find((entry) => entry.name === String(values.name || '').trim());
-  const allowedUnitValues = product ? product.units.map((unit) => unit.value) : catalog.units.map((unit) => unit.value);
-
-  const unitUnchanged = Boolean(existing) && categoryUnchanged && values.unit === existing.unit;
+  const allowedUnitValues = catalog.units.map((unit) => unit.value);
+  const unitUnchanged = Boolean(existing) && values.unit === existing.unit;
   if (!allowedUnitValues.includes(values.unit) && !unitUnchanged) {
-    throw new ApiError('Choose a unit valid for this product.', 400);
+    throw new ApiError('Choose a valid unit.', 400);
   }
 }
 
@@ -133,7 +137,7 @@ export async function createProduct(req, res) {
   const now = new Date().toISOString();
   const row = {
     farmer_id: req.profile.id,
-    name: values.name.trim(),
+    name: titleCaseName(values.name),
     category: values.category,
     grade: values.grade || 'A',
     selling_type: values.sellingType || 'retail',
@@ -178,7 +182,7 @@ export async function updateProduct(req, res) {
     : existing.price_review;
 
   const row = {
-    name: values.name?.trim() ?? existing.name,
+    name: values.name !== undefined ? titleCaseName(values.name) : existing.name,
     category,
     grade: values.grade ?? existing.grade,
     selling_type: sellingType,

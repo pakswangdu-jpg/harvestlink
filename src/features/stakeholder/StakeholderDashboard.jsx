@@ -174,7 +174,7 @@ export default function StakeholderDashboard() {
               { key: 'farmerName', label: 'Farmer' },
               { key: 'quantity', label: 'Qty', render: (row) => `${row.quantity} ${row.unit}` },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} type="donation" /> },
-              { key: 'updatedAt', label: 'Updated', render: (row) => formatDate(row.updatedAt) },
+              { key: 'updatedAt', label: 'Updated', render: (row) => <span className="muted">{formatDate(row.updatedAt)}</span> },
             ]}
             rows={myRequests.slice(0, 5)}
             emptyMessage="No donation requests yet."

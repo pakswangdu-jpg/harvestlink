@@ -1,70 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Edit3, Eye, EyeOff, Gift, Layers, PackagePlus, Search, ShoppingBag, Tag, Trash2, TriangleAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Plus, Sprout } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
-import SellerProductCard from '../../components/cards/SellerProductCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
-import StatusBadge from '../../components/common/StatusBadge';
-import ProductForm from '../../components/forms/ProductForm';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import SellerProductCard from '../../components/cards/SellerProductCard';
+import SummaryCards from '../../components/products/SummaryCards';
+import ProductFilters from '../../components/products/ProductFilters';
+import ProductTable from '../../components/products/ProductTable';
+import ProductDrawer from '../../components/products/ProductDrawer';
 import { useAuth } from '../auth/AuthContext';
 import {
   applyDiscount,
   createProduct,
   deleteProduct,
-  getProductById,
   getProductsByFarmer,
   removeDiscount,
   setProductStatus,
   updateProduct,
 } from '../../services/productService';
 import { createDonation } from '../../services/donationService';
-import { formatCurrency } from '../../utils/formatters';
 import { isLowStock } from '../../utils/constants';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { farmerNavItems } from './farmerNav';
 
-// Farmer types the exact percent they want (rather than picking from presets) and sees the
-// resulting price live before committing — the percent lives in this component's own state
-// since it's a draft that resets once the discount is actually applied (product.discountPercent
-// becomes truthy and this control is swapped for "Remove discount").
-function DiscountControl({ product, onApply }) {
-  const [percent, setPercent] = useState('');
-  const draftPercent = Number(percent);
-  const isValid = percent !== '' && Number.isFinite(draftPercent) && draftPercent > 0 && draftPercent < 100;
-  const previewPrice = isValid ? Number((product.price * (1 - draftPercent / 100)).toFixed(2)) : null;
-
-  return (
-    <div className="discount-picker">
-      <div className="discount-input-wrap">
-        <input
-          type="number"
-          min="1"
-          max="99"
-          step="1"
-          value={percent}
-          onChange={(event) => setPercent(event.target.value)}
-          placeholder="20"
-        />
-        <span>%</span>
-      </div>
-      {previewPrice != null ? (
-        <span className="discount-preview">
-          <span className="price-original">{formatCurrency(product.price)}</span>
-          {' → '}
-          <strong>{formatCurrency(previewPrice)}</strong>
-        </span>
-      ) : null}
-      <Button size="sm" variant="secondary" disabled={!isValid} onClick={() => onApply(draftPercent)}>
-        <Tag size={15} /> Apply discount
-      </Button>
-    </div>
-  );
-}
-
 const STATUS_FILTERS = [
   { value: 'all', label: 'All statuses' },
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Hidden' },
+  { value: 'inactive', label: 'Archived' },
   { value: 'low_stock', label: 'Low stock' },
   { value: 'out_of_stock', label: 'Out of stock' },
   { value: 'discounted', label: 'Discounted' },
@@ -77,6 +42,29 @@ const SORT_OPTIONS = [
   { value: 'price_low', label: 'Price: low to high' },
   { value: 'stock', label: 'Stock: high to low' },
 ];
+
+// Fields a fresh duplicate should start clean with — never carries over another listing's
+// lifecycle state (its own id/status/discount/DTI price review/timestamps).
+function buildDuplicatePayload(product) {
+  return {
+    name: product.name,
+    category: product.category,
+    grade: product.grade,
+    sellingType: product.sellingType,
+    moq: product.sellingType === 'wholesale' ? product.moq : '',
+    price: product.price,
+    unit: product.unit,
+    kgPerUnit: product.kgPerUnit ?? '',
+    quantity: product.quantity,
+    location: product.location,
+    description: product.description,
+    image: product.image,
+    costPrice: product.costPrice ?? '',
+    expirationDate: product.expirationDate || '',
+    status: 'active',
+    isDonation: false,
+  };
+}
 
 function matchesStatusFilter(product, statusFilter) {
   switch (statusFilter) {
@@ -114,15 +102,22 @@ function sortProducts(list, sortBy) {
 
 export default function FarmerProducts() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { categoryNames } = useCatalog();
   const [products, setProducts] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [gradeFilter, setGradeFilter] = useState('all');
+  const [salesTypeFilter, setSalesTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+
+  const isVerified = currentUser.verificationStatus === 'verified';
 
   const reload = () => getProductsByFarmer(currentUser.id).then(setProducts);
 
@@ -153,16 +148,42 @@ export default function FarmerProducts() {
     const filtered = products
       .filter((product) => !query || product.name.toLowerCase().includes(query))
       .filter((product) => categoryFilter === 'all' || product.category === categoryFilter)
-      .filter((product) => matchesStatusFilter(product, statusFilter));
+      .filter((product) => matchesStatusFilter(product, statusFilter))
+      .filter((product) => gradeFilter === 'all' || product.grade === gradeFilter)
+      .filter((product) => salesTypeFilter === 'all' || product.sellingType === salesTypeFilter);
     return sortProducts(filtered, sortBy);
-  }, [products, search, categoryFilter, statusFilter, sortBy]);
+  }, [products, search, categoryFilter, statusFilter, gradeFilter, salesTypeFilter, sortBy]);
+
+  const hasFilters = search.trim() || categoryFilter !== 'all' || statusFilter !== 'all' || gradeFilter !== 'all' || salesTypeFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearch('');
+    setCategoryFilter('all');
+    setStatusFilter('all');
+    setGradeFilter('all');
+    setSalesTypeFilter('all');
+  };
+
+  const openAddDrawer = () => {
+    setEditingProduct(null);
+    setIsDrawerOpen(true);
+  };
+
+  const openEditDrawer = (product) => {
+    setEditingProduct(product);
+    setIsDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setIsDrawerOpen(false);
+    setEditingProduct(null);
+  };
 
   const handleSubmit = async (values) => {
     try {
       setError('');
       if (editingProduct) {
         await updateProduct(editingProduct.id, values);
-        setEditingProduct(null);
         setNotice('Product updated.');
       } else if (values.isDonation) {
         const product = await createProduct({ ...values, price: 0, sellingType: 'retail', moq: '' });
@@ -172,6 +193,7 @@ export default function FarmerProducts() {
         await createProduct(values);
         setNotice('Product added to the marketplace.');
       }
+      closeDrawer();
       reload();
     } catch (submitError) {
       setNotice('');
@@ -179,58 +201,35 @@ export default function FarmerProducts() {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDuplicate = async (product) => {
     try {
-      await deleteProduct(id);
       setError('');
-      setNotice('Product deleted.');
+      const copy = await createProduct(buildDuplicatePayload(product));
+      setNotice(`${copy.name} duplicated as a new listing.`);
       reload();
-    } catch (deleteError) {
+    } catch (duplicateError) {
       setNotice('');
-      setError(deleteError.message);
+      setError(duplicateError.message);
     }
   };
 
-  const handleStatus = async (product) => {
+  const handleArchive = async (product) => {
     try {
-      await setProductStatus(product.id, product.status === 'active' ? 'inactive' : 'active');
       setError('');
-      setNotice(`Product marked ${product.status === 'active' ? 'inactive' : 'active'}.`);
+      await setProductStatus(product.id, product.status === 'active' ? 'inactive' : 'active');
+      setNotice(`${product.name} ${product.status === 'active' ? 'archived' : 'unarchived'}.`);
+      reload();
     } catch (statusError) {
       setNotice('');
       setError(statusError.message);
     }
-    reload();
-  };
-
-  const handleApplyDiscount = async (product, percent) => {
-    try {
-      await applyDiscount(product.id, percent);
-      setError('');
-      setNotice(`${product.name} discounted by ${percent}%.`);
-      reload();
-    } catch (discountError) {
-      setNotice('');
-      setError(discountError.message);
-    }
-  };
-
-  const handleRemoveDiscount = async (product) => {
-    await removeDiscount(product.id);
-    setNotice(`Discount removed from ${product.name}.`);
-    reload();
   };
 
   const handleDonate = async (product) => {
     try {
-      // Re-fetch the current record rather than using this component's possibly-stale
-      // state — another tab could have changed the product's quantity or other fields
-      // since this page last reloaded.
-      const freshProduct = await getProductById(product.id);
-      if (!freshProduct) throw new Error('This product no longer exists.');
-      createDonation(freshProduct, currentUser);
       setError('');
-      setNotice(`${freshProduct.name} listed as a surplus donation for partner organizations.`);
+      createDonation(product, currentUser);
+      setNotice(`${product.name} listed as a surplus donation for partner organizations.`);
       reload();
     } catch (donateError) {
       setNotice('');
@@ -238,187 +237,177 @@ export default function FarmerProducts() {
     }
   };
 
-  const hasFilters = search.trim() || categoryFilter !== 'all' || statusFilter !== 'all';
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteProduct(deleteTarget.id);
+      setError('');
+      setNotice('Product deleted.');
+      setDeleteTarget(null);
+      reload();
+    } catch (deleteError) {
+      setNotice('');
+      setError(deleteError.message);
+    }
+  };
+
+  const handleApplyDiscount = async (percent) => {
+    try {
+      await applyDiscount(editingProduct.id, percent);
+      setNotice(`${editingProduct.name} discounted by ${percent}%.`);
+      const refreshed = await getProductsByFarmer(currentUser.id);
+      setProducts(refreshed);
+      setEditingProduct(refreshed.find((item) => item.id === editingProduct.id) || null);
+    } catch (discountError) {
+      setNotice('');
+      setError(discountError.message);
+    }
+  };
+
+  const handleRemoveDiscount = async () => {
+    await removeDiscount(editingProduct.id);
+    setNotice(`Discount removed from ${editingProduct.name}.`);
+    const refreshed = await getProductsByFarmer(currentUser.id);
+    setProducts(refreshed);
+    setEditingProduct(refreshed.find((item) => item.id === editingProduct.id) || null);
+  };
+
+  const canAddProducts = isVerified;
 
   return (
     <AppShell
       user={currentUser}
       navItems={farmerNavItems}
-      title="My products"
-      subtitle="Add, edit, delete, discount, or donate your produce listings."
+      title="My Products"
+      subtitle="Manage your product listings, inventory, pricing, and availability."
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
 
-      <section className="farmer-products-layout">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Listing form</p>
-              <h2>{editingProduct ? 'Edit product' : 'Add produce'}</h2>
-            </div>
-            <PackagePlus size={24} />
-          </div>
-          {currentUser.verificationStatus === 'verified' || editingProduct ? (
-            <ProductForm
-              key={editingProduct?.id || 'new-product'}
-              product={editingProduct}
-              currentUser={currentUser}
-              onSubmit={handleSubmit}
-              onCancel={editingProduct ? () => setEditingProduct(null) : undefined}
-            />
-          ) : currentUser.verificationStatus === 'rejected' ? (
-            <div className="form-alert error">
+      {!isVerified ? (
+        <div className={`form-alert ${currentUser.verificationStatus === 'rejected' ? 'error' : 'warning'}`}>
+          {currentUser.verificationStatus === 'rejected' ? (
+            <>
               <strong>Your account verification was declined.</strong>
               <p>You can&apos;t add products until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
-            </div>
+            </>
           ) : (
-            <div className="form-alert warning">
+            <>
               <strong>Your account is pending verification.</strong>
               <p>An admin typically reviews and approves new accounts within 24 hours. You&apos;ll be able to add products once your account is verified.</p>
-            </div>
+            </>
           )}
         </div>
+      ) : null}
 
-        <div className="farmer-products-listings">
-          <div className="seller-summary-grid">
-            <div className="stat-card">
-              <span className="stat-icon"><ShoppingBag size={20} /></span>
-              <div>
-                <p>Total products</p>
-                <strong>{summary.total}</strong>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon"><Eye size={20} /></span>
-              <div>
-                <p>Active listings</p>
-                <strong>{summary.active}</strong>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon"><TriangleAlert size={20} /></span>
-              <div>
-                <p>Low stock</p>
-                <strong>{summary.lowStock}</strong>
-              </div>
-            </div>
-            <div className="stat-card">
-              <span className="stat-icon"><Boxes size={20} /></span>
-              <div>
-                <p>Total inventory</p>
-                <strong>{summary.totalInventory}</strong>
-              </div>
-            </div>
+      <div className="flex flex-wrap items-center justify-end gap-4">
+        <Button
+          onClick={openAddDrawer}
+          disabled={!canAddProducts}
+          title={canAddProducts ? undefined : 'Verify your account before adding products.'}
+          className="h-[42px]! gap-2"
+        >
+          <Plus size={18} strokeWidth={2} /> Add Product
+        </Button>
+      </div>
+
+      <div className="mt-5">
+        <SummaryCards summary={summary} />
+      </div>
+
+      <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        {products.length ? (
+          <div className="mb-5">
+            <ProductFilters
+              search={search}
+              onSearchChange={setSearch}
+              categoryFilter={categoryFilter}
+              onCategoryFilterChange={setCategoryFilter}
+              categoryOptions={categoryOptions}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              statusOptions={STATUS_FILTERS}
+              gradeFilter={gradeFilter}
+              onGradeFilterChange={setGradeFilter}
+              salesTypeFilter={salesTypeFilter}
+              onSalesTypeFilterChange={setSalesTypeFilter}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+              sortOptions={SORT_OPTIONS}
+            />
           </div>
+        ) : null}
 
-          <div className="panel">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Inventory</p>
-                <h2>Your listings</h2>
-              </div>
-              <Layers size={22} />
-            </div>
-
-            {products.length ? (
-              <div className="seller-toolbar">
-                <label className="search-field" htmlFor="product-search">
-                  <Search size={16} />
-                  <input
-                    id="product-search"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search your listings"
-                  />
-                </label>
-                <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} aria-label="Filter by category">
-                  <option value="all">All categories</option>
-                  {categoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
-                </select>
-                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status">
-                  {STATUS_FILTERS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="Sort listings">
-                  {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-              </div>
-            ) : null}
-
-            {visibleProducts.length ? (
-              <div className="seller-product-list">
-                {visibleProducts.map((product) => (
-                  <SellerProductCard
-                    key={product.id}
-                    product={product}
-                    actions={(
-                      <>
-                        {product.priceReview ? (
-                          <div className={`price-review-note ${product.priceReview.status}`}>
-                            <StatusBadge value={product.priceReview.status} type="priceReview" />
-                            <p>{product.priceReview.reason}</p>
-                          </div>
-                        ) : null}
-                        <Button size="sm" variant="secondary" onClick={() => setEditingProduct(product)}>
-                          <Edit3 size={15} /> Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={product.status !== 'active' && (Number(product.quantity) <= 0 || product.priceReview?.status === 'declined')}
-                          title={
-                            product.status === 'active'
-                              ? undefined
-                              : Number(product.quantity) <= 0
-                                ? 'Add stock before activating this listing.'
-                                : product.priceReview?.status === 'declined'
-                                  ? 'Edit the price before re-activating — DTI declined the last one.'
-                                  : undefined
-                          }
-                          onClick={() => handleStatus(product)}
-                        >
-                          {product.status === 'active' ? <EyeOff size={15} /> : <Eye size={15} />}
-                          {product.status === 'active' ? 'Hide' : 'Activate'}
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => handleDelete(product.id)}>
-                          <Trash2 size={15} />
-                        </Button>
-
-                        {product.discountPercent ? (
-                          <Button size="sm" variant="ghost" onClick={() => handleRemoveDiscount(product)}>
-                            Remove discount
-                          </Button>
-                        ) : (
-                          <DiscountControl product={product} onApply={(percent) => handleApplyDiscount(product, percent)} />
-                        )}
-
-                        {Number(product.quantity) > 0 ? (
-                          <Button size="sm" variant="ghost" onClick={() => handleDonate(product)}>
-                            <Gift size={15} /> Donate remaining stock
-                          </Button>
-                        ) : null}
-                      </>
-                    )}
-                  />
-                ))}
-              </div>
-            ) : products.length ? (
-              <EmptyState
-                title="No matching products"
-                message="Try a different search term or filter."
-                actionLabel={hasFilters ? 'Clear filters' : undefined}
-                onAction={() => {
-                  setSearch('');
-                  setCategoryFilter('all');
-                  setStatusFilter('all');
-                }}
+        {visibleProducts.length ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+            <div className="hidden lg:block">
+              <ProductTable
+                products={visibleProducts}
+                onView={(product) => navigate(`/products/${product.id}`)}
+                onEdit={openEditDrawer}
+                onDuplicate={handleDuplicate}
+                onArchive={handleArchive}
+                onDonate={handleDonate}
+                onDelete={setDeleteTarget}
               />
-            ) : (
-              <EmptyState title="No listings yet" message="Use the form to add the first product buyers will see." />
-            )}
-          </div>
-        </div>
+            </div>
+            <div className="grid gap-4 lg:hidden">
+              {visibleProducts.map((product) => (
+                <SellerProductCard
+                  key={product.id}
+                  product={product}
+                  actions={(
+                    <>
+                      <Button size="sm" variant="secondary" onClick={() => openEditDrawer(product)}>Edit</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(product)}>Duplicate</Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleArchive(product)}>
+                        {product.status === 'active' ? 'Archive' : 'Unarchive'}
+                      </Button>
+                      {Number(product.quantity) > 0 ? (
+                        <Button size="sm" variant="ghost" onClick={() => handleDonate(product)}>Donate</Button>
+                      ) : null}
+                      <Button size="sm" variant="danger" onClick={() => setDeleteTarget(product)}>Delete</Button>
+                    </>
+                  )}
+                />
+              ))}
+            </div>
+          </motion.div>
+        ) : products.length ? (
+          <EmptyState
+            title="No matching products"
+            message="Try a different search term or filter."
+            actionLabel={hasFilters ? 'Clear filters' : undefined}
+            onAction={clearFilters}
+          />
+        ) : (
+          <EmptyState
+            icon={Sprout}
+            title="No products yet"
+            message="You haven't added any products yet. Click Add Product to create your first listing."
+            actionLabel={canAddProducts ? 'Add Product' : undefined}
+            onAction={openAddDrawer}
+          />
+        )}
       </section>
+
+      <ProductDrawer
+        open={isDrawerOpen}
+        product={editingProduct}
+        currentUser={currentUser}
+        onSubmit={handleSubmit}
+        onClose={closeDrawer}
+        onApplyDiscount={handleApplyDiscount}
+        onRemoveDiscount={handleRemoveDiscount}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={deleteTarget?.name}
+        message="This will permanently delete this product listing. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </AppShell>
   );
 }

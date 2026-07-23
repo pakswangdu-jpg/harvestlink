@@ -63,6 +63,7 @@ export async function getWeatherForMunicipality(municipality) {
   const result = {
     municipality: resolvedMunicipality,
     currentTemp: Math.round(current.main.temp),
+    feelsLike: Math.round(current.main.feels_like),
     forecastTemp: forecastEntry ? Math.round(forecastEntry.main.temp) : null,
     humidity: current.main.humidity,
     windSpeedKmh: Math.round((current.wind?.speed || 0) * 3.6),

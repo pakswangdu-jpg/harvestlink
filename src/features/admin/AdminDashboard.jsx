@@ -25,10 +25,13 @@ import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import SlideOver from '../../components/common/SlideOver';
 import InfoRow from '../../components/common/InfoRow';
-import FilePreviewCard from '../../components/common/FilePreviewCard';
+import InfoCard from '../../components/common/InfoCard';
+import DocumentCard from '../../components/common/DocumentCard';
+import DangerZone from '../../components/common/DangerZone';
 import RevenueTrendChart from '../../components/charts/RevenueTrendChart';
-import VerticalBarChart from '../../components/charts/VerticalBarChart';
+import StatusDistributionChart from '../../components/charts/StatusDistributionChart';
 import { useAuth } from '../auth/AuthContext';
 import { getUsers, getVerificationDocuments, setAccountStatus, setUserVerification } from '../../services/authService';
 import {
@@ -56,13 +59,11 @@ import {
   getTotalRevenue,
   getUserRoleBreakdown,
 } from '../../services/reportService';
-import { donationStatusLabel, formatCurrency, formatDate, getInitials, statusTone } from '../../utils/formatters';
+import { donationStatusLabel, formatCurrency, formatDate, getInitials } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
-import AdminCatalog from './AdminCatalog';
 
 function sectionFromPath(pathname) {
   if (pathname.includes('admin-users')) return 'users';
-  if (pathname.includes('admin-catalog')) return 'catalog';
   if (pathname.includes('admin-price-monitoring')) return 'price-monitoring';
   if (pathname.includes('admin-orders')) return 'orders';
   if (pathname.includes('admin-donations')) return 'donations';
@@ -162,7 +163,6 @@ export default function AdminDashboard() {
         </>
       ) : null}
       {section === 'users' ? <AdminUsersDetail /> : null}
-      {section === 'catalog' ? <AdminCatalog /> : null}
       {section === 'price-monitoring' ? <AdminPriceMonitoring products={products} /> : null}
       {section === 'orders' ? <AdminOrders orders={orders} /> : null}
       {section === 'donations' ? <AdminDonations donations={donations} /> : null}
@@ -188,7 +188,7 @@ function AdminUsers({ users }) {
           { key: 'role', label: 'Role', render: (row) => <StatusBadge value={row.role} /> },
           { key: 'verificationStatus', label: 'Verification', render: (row) => (row.verificationStatus ? <StatusBadge value={row.verificationStatus} type="verification" /> : '—') },
           { key: 'accountStatus', label: 'Account', render: (row) => <StatusBadge value={row.accountStatus === 'suspended' ? 'Suspended' : 'Active'} /> },
-          { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },
+          { key: 'createdAt', label: 'Created', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
         ]}
         rows={users}
         emptyMessage="No registered users yet."
@@ -222,38 +222,36 @@ function AdminUsersDetail() {
   };
 
   return (
-    <section className="content-grid two uneven admin-users-grid">
-      <div className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Users</p>
-            <h2>Registered accounts</h2>
-          </div>
+    <section className="panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Users</p>
+          <h2>Registered accounts</h2>
         </div>
-        {notice ? <div className="form-alert success">{notice}</div> : null}
-        <DataTable
-          columns={[
-            { key: 'name', label: 'Name' },
-            { key: 'role', label: 'Role', render: (row) => <StatusBadge value={row.role} /> },
-            { key: 'verificationStatus', label: 'Verification', render: (row) => (row.verificationStatus ? <StatusBadge value={row.verificationStatus} type="verification" /> : '—') },
-            { key: 'accountStatus', label: 'Account', render: (row) => <StatusBadge value={row.accountStatus === 'suspended' ? 'Suspended' : 'Active'} /> },
-            { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },
-            {
-              key: 'actions',
-              label: '',
-              render: (row) => (
-                <Button size="sm" variant={selectedId === row.id ? 'primary' : 'secondary'} onClick={() => setSelectedId(row.id)}>
-                  View
-                </Button>
-              ),
-            },
-          ]}
-          rows={users}
-          emptyMessage="No registered users yet."
-        />
       </div>
+      {notice ? <div className="form-alert success">{notice}</div> : null}
+      <DataTable
+        columns={[
+          { key: 'name', label: 'Name' },
+          { key: 'role', label: 'Role', render: (row) => <StatusBadge value={row.role} /> },
+          { key: 'verificationStatus', label: 'Verification', render: (row) => (row.verificationStatus ? <StatusBadge value={row.verificationStatus} type="verification" /> : '—') },
+          { key: 'accountStatus', label: 'Account', render: (row) => <StatusBadge value={row.accountStatus === 'suspended' ? 'Suspended' : 'Active'} /> },
+          { key: 'createdAt', label: 'Created', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
+          {
+            key: 'actions',
+            label: '',
+            render: (row) => (
+              <Button size="sm" variant="secondary" onClick={() => setSelectedId(row.id)}>
+                View
+              </Button>
+            ),
+          },
+        ]}
+        rows={users}
+        emptyMessage="No registered users yet."
+      />
 
-      <div className="panel">
+      <SlideOver open={Boolean(selectedUser)} onClose={() => setSelectedId(null)} eyebrow={selectedUser?.role} title={selectedUser?.name}>
         {selectedUser ? (
           <AdminUserDetailCard
             key={selectedUser.id}
@@ -261,10 +259,8 @@ function AdminUsersDetail() {
             onVerify={handleVerify}
             onToggleAccountStatus={handleToggleAccountStatus}
           />
-        ) : (
-          <EmptyState title="Select a user" message="Choose a user from the list to view their full account details." />
-        )}
-      </div>
+        ) : null}
+      </SlideOver>
     </section>
   );
 }
@@ -277,77 +273,81 @@ function AdminUserDetailCard({ user, onVerify, onToggleAccountStatus }) {
   const idLabel = isFarmer ? 'Proof of certification / government ID' : 'Proof of accreditation';
 
   return (
-    <>
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{user.role}</p>
-          <h2>{user.name}</h2>
-        </div>
-        <div className="table-actions">
-          <StatusBadge value={user.role} />
-        </div>
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge value={user.role} />
+        <StatusBadge value={isSuspended ? 'Suspended' : 'Active'} />
+        {user.verificationStatus ? <StatusBadge value={user.verificationStatus} type="verification" /> : null}
       </div>
 
-      <div className="info-grid">
-        <InfoRow icon={Mail} label="Email" value={user.email} />
-        {user.contactNumber ? <InfoRow icon={Phone} label="Contact number" value={user.contactNumber} /> : null}
-        {user.municipality ? <InfoRow icon={MapPin} label={isFarmer ? 'Farm location' : 'Location'} value={user.municipality} /> : null}
-        <InfoRow icon={Calendar} label="Member since" value={formatDate(user.createdAt)} />
-        {isFarmer ? <InfoRow icon={Store} label="Farm name" value={user.farmName} /> : null}
-        {isFarmer && user.birthday ? <InfoRow icon={Calendar} label="Birthday" value={formatDate(user.birthday)} /> : null}
-        {isStakeholder ? <InfoRow icon={Building2} label="Organization" value={user.organizationName} /> : null}
-        {isStakeholder ? <InfoRow icon={ShieldCheck} label="Organization type" value={user.organizationType} /> : null}
-        {isStakeholder ? <InfoRow icon={UserSquare} label="Contact person" value={user.contactPerson} /> : null}
-        <InfoRow icon={MapPin} label="Complete address" value={user.address} />
-        <InfoRow icon={MapPin} label="Zip code" value={user.zipCode} />
+      <div>
+        <h3 className="mb-4 text-[18px] font-semibold text-gray-900">Personal Information</h3>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <InfoCard icon={Mail} label="Email" value={user.email} />
+          {user.contactNumber ? <InfoCard icon={Phone} label="Contact Number" value={user.contactNumber} /> : null}
+          {user.municipality ? <InfoCard icon={MapPin} label={isFarmer ? 'Farm Location' : 'Location'} value={user.municipality} /> : null}
+          <InfoCard icon={Calendar} label="Member Since" value={formatDate(user.createdAt)} />
+          {isFarmer ? <InfoCard icon={Store} label="Farm Name" value={user.farmName} /> : null}
+          {isFarmer && user.birthday ? <InfoCard icon={Calendar} label="Birthday" value={formatDate(user.birthday)} /> : null}
+          {isStakeholder ? <InfoCard icon={Building2} label="Organization" value={user.organizationName} /> : null}
+          {isStakeholder ? <InfoCard icon={ShieldCheck} label="Organization Type" value={user.organizationType} /> : null}
+          {isStakeholder ? <InfoCard icon={UserSquare} label="Contact Person" value={user.contactPerson} /> : null}
+          <InfoCard icon={MapPin} label="Complete Address" value={user.address} />
+          <InfoCard icon={MapPin} label="ZIP Code" value={user.zipCode} />
+        </div>
       </div>
 
       {isFarmer || isStakeholder ? (
-        <FilePreviewCard
-          label={idLabel}
-          file={idFile}
-          large
-          resolveUrl={async () => {
-            const urls = await getVerificationDocuments(user.id);
-            return isFarmer ? urls.govIdFile : urls.accreditationFile;
-          }}
-        />
-      ) : null}
-
-      <div className="form-actions">
-        <StatusBadge value={isSuspended ? 'Suspended' : 'Active'} />
-        {isSuspended ? (
-          <Button size="sm" onClick={() => onToggleAccountStatus(user, 'active')}>
-            <RotateCcw size={15} /> Reactivate account
-          </Button>
-        ) : (
-          <Button size="sm" variant="danger" onClick={() => onToggleAccountStatus(user, 'suspended')}>
-            <Ban size={15} /> Deactivate account
-          </Button>
-        )}
-      </div>
-
-      {user.verificationStatus ? (
-        <div className="form-actions">
-          <StatusBadge value={user.verificationStatus} type="verification" />
-          {user.verificationStatus === 'pending' ? (
-            <>
-              <Button size="sm" onClick={() => onVerify(user, 'verified')}>
-                <Check size={15} /> Verify
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => onVerify(user, 'rejected')}>
-                <X size={15} /> Reject
-              </Button>
-            </>
-          ) : null}
-          {user.verificationStatus === 'rejected' ? (
-            <Button size="sm" onClick={() => onVerify(user, 'verified')}>
-              <RotateCcw size={15} /> Reactivate
-            </Button>
-          ) : null}
+        <div>
+          <h3 className="mb-4 text-[18px] font-semibold text-gray-900">Verification Document</h3>
+          <DocumentCard
+            label={idLabel}
+            file={idFile}
+            resolveUrl={async () => {
+              const urls = await getVerificationDocuments(user.id);
+              return isFarmer ? urls.govIdFile : urls.accreditationFile;
+            }}
+          />
         </div>
       ) : null}
-    </>
+
+      {user.verificationStatus === 'pending' || user.verificationStatus === 'rejected' ? (
+        <div>
+          <h3 className="mb-3 text-[18px] font-semibold text-gray-900">Verification</h3>
+          <div className="flex flex-wrap gap-2.5">
+            {user.verificationStatus === 'pending' ? (
+              <>
+                <Button size="sm" onClick={() => onVerify(user, 'verified')}>
+                  <Check size={15} /> Verify Account
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => onVerify(user, 'rejected')}>
+                  <X size={15} /> Reject
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={() => onVerify(user, 'verified')}>
+                <RotateCcw size={15} /> Reactivate Verification
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {isSuspended ? (
+        <div>
+          <h3 className="mb-3 text-[18px] font-semibold text-gray-900">Account Actions</h3>
+          <Button size="sm" onClick={() => onToggleAccountStatus(user, 'active')}>
+            <RotateCcw size={15} /> Reactivate Account
+          </Button>
+        </div>
+      ) : (
+        <DangerZone>
+          <Button size="sm" variant="danger" onClick={() => onToggleAccountStatus(user, 'suspended')}>
+            <Ban size={15} /> Deactivate Account
+          </Button>
+        </DangerZone>
+      )}
+    </div>
   );
 }
 
@@ -369,7 +369,7 @@ function AdminOrders({ orders }) {
           { key: 'paymentStatus', label: 'Payment status', render: (row) => <StatusBadge value={row.paymentStatus} type="paymentStatus" /> },
           { key: 'deliveryStatus', label: 'Delivery', render: (row) => <StatusBadge value={row.deliveryStatus} type="deliveryStatus" /> },
           { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
-          { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },
+          { key: 'createdAt', label: 'Created', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
         ]}
         rows={orders}
         emptyMessage="No orders yet."
@@ -393,7 +393,7 @@ function AdminDonations({ donations }) {
           { key: 'farmerName', label: 'Farmer' },
           { key: 'quantity', label: 'Qty', render: (row) => `${row.quantity} ${row.unit}` },
           { key: 'requestedByName', label: 'Organization', render: (row) => row.requestedByName || '—' },
-          { key: 'pickupDate', label: 'Pickup', render: (row) => (row.pickupDate ? formatDate(row.pickupDate) : '—') },
+          { key: 'pickupDate', label: 'Pickup', render: (row) => <span className="muted">{row.pickupDate ? formatDate(row.pickupDate) : '—'}</span> },
           { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} type="donation" /> },
         ]}
         rows={donations}
@@ -626,7 +626,7 @@ function AdminPriceMonitoring({ products }) {
               { key: 'farmerName', label: 'Farmer' },
               { key: 'farmerPrice', label: 'Listed price', render: (row) => `${formatCurrency(row.priceReview.farmerPrice)} / ${row.unit}` },
               { key: 'referencePrice', label: 'PSA reference', render: (row) => `${formatCurrency(row.priceReview.referencePrice)} (${row.priceReview.referenceYear})` },
-              { key: 'decidedAt', label: 'Declined', render: (row) => formatDate(row.priceReview.decidedAt) },
+              { key: 'decidedAt', label: 'Declined', render: (row) => <span className="muted">{formatDate(row.priceReview.decidedAt)}</span> },
               {
                 key: 'actions',
                 label: 'Action',
@@ -708,9 +708,6 @@ function AdminProfile({ user }) {
 function AdminReports({ users, orders, donations }) {
   const totalRevenue = getTotalRevenue(orders);
   const monthlyRevenue = getMonthlyRevenue(orders, 6);
-  const orderStatusBreakdown = getOrderStatusBreakdown(orders);
-  const donationStatusBreakdown = getDonationStatusBreakdown(donations);
-  const userRoleBreakdown = getUserRoleBreakdown(users);
   const topProducts = getTopProducts(orders, 5);
   const completedDonations = donations.filter((donation) => donation.status === 'completed').length;
 
@@ -734,33 +731,29 @@ function AdminReports({ users, orders, donations }) {
       </section>
 
       <section className="content-grid two">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Issues</p>
-              <h2>Orders by status</h2>
-            </div>
-          </div>
-          <VerticalBarChart
-            data={orderStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
-            labelFor={(entry) => entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
-            toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
-          />
-        </div>
+        <StatusDistributionChart
+          eyebrow="Issues"
+          title="Orders by status"
+          records={orders}
+          computeBreakdown={(filteredOrders) => getOrderStatusBreakdown(filteredOrders).map((entry) => ({
+            key: entry.status,
+            status: entry.status,
+            label: entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
+            count: entry.count,
+          }))}
+        />
 
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Surplus</p>
-              <h2>Donations by status</h2>
-            </div>
-          </div>
-          <VerticalBarChart
-            data={donationStatusBreakdown.map((entry) => ({ key: entry.status, count: entry.count, status: entry.status }))}
-            labelFor={(entry) => donationStatusLabel(entry.status)}
-            toneClassFor={(entry) => `status-bar-${statusTone(entry.status)}`}
-          />
-        </div>
+        <StatusDistributionChart
+          eyebrow="Surplus"
+          title="Donations by status"
+          records={donations}
+          computeBreakdown={(filteredDonations) => getDonationStatusBreakdown(filteredDonations).map((entry) => ({
+            key: entry.status,
+            status: entry.status,
+            label: donationStatusLabel(entry.status),
+            count: entry.count,
+          }))}
+        />
       </section>
 
       <section className="content-grid two uneven">
@@ -787,19 +780,19 @@ function AdminReports({ users, orders, donations }) {
           )}
         </div>
 
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Market</p>
-              <h2>Users by role</h2>
-            </div>
-          </div>
-          <VerticalBarChart
-            data={userRoleBreakdown.map((entry) => ({ key: entry.role, count: entry.count, role: entry.role }))}
-            labelFor={(entry) => entry.role.charAt(0).toUpperCase() + entry.role.slice(1)}
-            toneClassFor={() => 'status-bar-neutral'}
-          />
-        </div>
+        <StatusDistributionChart
+          eyebrow="Market"
+          title="Users by role"
+          records={users}
+          computeBreakdown={(filteredUsers) => getUserRoleBreakdown(filteredUsers)
+            .filter((entry) => entry.count > 0)
+            .map((entry) => ({
+              key: entry.role,
+              status: entry.role,
+              label: entry.role.charAt(0).toUpperCase() + entry.role.slice(1),
+              count: entry.count,
+            }))}
+        />
       </section>
     </>
   );
