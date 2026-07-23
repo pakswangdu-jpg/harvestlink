@@ -18,5 +18,11 @@ services:
         sync: false
       - key: OPENWEATHERMAP_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
       - key: NODE_ENV
         value: production

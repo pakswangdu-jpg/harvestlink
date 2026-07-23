@@ -67,7 +67,7 @@ export default function FarmerOrders() {
               { key: 'paymentStatus', label: 'Payment status', render: (row) => <StatusBadge value={row.paymentStatus} type="paymentStatus" /> },
               { key: 'deliveryMethod', label: 'Delivery', render: (row) => <StatusBadge value={row.deliveryMethod} type="deliveryMethod" /> },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
-              { key: 'createdAt', label: 'Date', render: (row) => formatDate(row.createdAt) },
+              { key: 'createdAt', label: 'Date', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
               {
                 key: 'actions',
                 label: 'Action',

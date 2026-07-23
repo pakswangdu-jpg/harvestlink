@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Package } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
 import { getExpiryStatus, isLowStock } from '../../utils/constants';
 
 // Seller-facing inventory row — deliberately its own component rather than a restyle of
@@ -21,7 +21,7 @@ export default function SellerProductCard({ product, actions }) {
 
         <div className="seller-product-main">
           <div className="seller-product-top">
-            <h3>{product.name}</h3>
+            <h3>{titleCase(product.name)}</h3>
             <div className="seller-product-badges">
               <span className="category-pill">{product.category}</span>
               <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>

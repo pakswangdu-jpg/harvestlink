@@ -9,7 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
 import { isLowStock } from '../../utils/constants';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 const ORDERING_ROLES = ['buyer', 'stakeholder'];
@@ -65,7 +65,7 @@ export default function ProductDetails() {
     <AppShell
       user={currentUser}
       navItems={navItems}
-      title={product.name}
+      title={titleCase(product.name)}
       subtitle={`${product.farmerName} • ${product.location}`}
     >
       <section className="content-grid two uneven">
@@ -82,7 +82,7 @@ export default function ProductDetails() {
               {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
               <StatusBadge value={product.status} />
             </div>
-            <h2>{product.name}</h2>
+            <h2>{titleCase(product.name)}</h2>
             <p>{product.description}</p>
             <div className="detail-list">
               <div>

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Package } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, titleCase } from '../../utils/formatters';
 import { isLowStock } from '../../utils/constants';
 
 export default function ProductCard({ product, actions, showStatus = false }) {
@@ -21,7 +21,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
           {isLowStock(product.quantity) ? <span className="badge badge-low-stock">Only {product.quantity} left</span> : null}
           {showStatus ? <StatusBadge value={product.status} /> : null}
         </div>
-        <h3>{product.name}</h3>
+        <h3>{titleCase(product.name)}</h3>
         <p className="muted">{product.description}</p>
         <div className="product-meta">
           <span>

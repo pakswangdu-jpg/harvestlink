@@ -1,85 +1,139 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle2, Loader2, ShieldCheck, Smartphone, XCircle } from 'lucide-react';
-import DemoQrCode from '../../components/payments/DemoQrCode';
-import { confirmGcashPayment, getGcashCheckout } from '../../services/paymentService';
-import { formatCurrency } from '../../utils/formatters';
+import {
+  AlertTriangle, CheckCircle2, ExternalLink, Lock, Loader2, RefreshCw, ShieldCheck, Sprout, Truck, XCircle,
+} from 'lucide-react';
+import { confirmGcashPayment, startGcashCheckout } from '../../services/paymentService';
+import { deliveryMethodLabel, formatCurrency, shortOrderId } from '../../utils/formatters';
 import logo from '../../assets/logo.png';
 
-// Tuned to feel real without being tediously slow to sit through in a demo/grading context —
-// a genuine GCash redirect has this same "authorizing with your bank" pause.
-const PROCESSING_DURATION_MS = 2600;
 const SUCCESS_REDIRECT_DELAY_MS = 1800;
+// Long enough to read the order summary, short enough that it still feels immediate —
+// matches the brief pause real merchant checkouts (Shopify, PayPal Standard, etc.) take
+// before handing off to the payment processor.
+const AUTO_REDIRECT_SECONDS = 4;
 
-// The demo GCash payment page — reached from checkout (src/components/forms/CheckoutForm.jsx
-// -> src/features/marketplace/ProductDetails.jsx) once an order already exists in Supabase
-// with paymentMethod: 'gcash' and paymentStatus: 'pending'. This page's only job is to
-// simulate the GCash payment experience and then call the backend's demo payment module
-// (src/services/paymentService.js -> backend/src/controllers/payments.controller.js) to mark
-// that same order paid — it never creates or otherwise modifies an order itself.
-//
+// Real GCash checkout — reached from checkout (src/components/forms/CheckoutForm.jsx ->
+// src/features/marketplace/ProductDetails.jsx) once an order already exists in Supabase with
+// paymentMethod: 'gcash' and paymentStatus: 'pending'. This page has two phases on the same
+// route, distinguished by the `return` query param PayMongo's own return_url carries:
+//   1. First visit (no `return` param): asks the backend to create/reuse a real PayMongo
+//      Payment Intent for this order and shows a "Continue to GCash" button that sends the
+//      browser to PayMongo's own hosted checkout — the buyer authorizes there with their
+//      real GCash account, not on this site.
+//   2. Return visit (`?return=1`, set by PayMongo's return_url): asks the backend to confirm
+//      the real payment status directly with PayMongo before showing success.
 // Deliberately doesn't use AppShell — a real payment redirect leaves the merchant's own app
 // chrome behind, so this renders as its own full-page, sidebar-free experience instead.
 export default function GcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReturning = searchParams.get('return') === '1';
 
-  // 'loading' | 'ready' | 'processing' | 'success' | 'error'
+  // 'loading' | 'ready' | 'pending' | 'success' | 'error'
   const [stage, setStage] = useState('loading');
   const [checkout, setCheckout] = useState(null);
-  const [loadError, setLoadError] = useState('');
-  const [payError, setPayError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [paidOrder, setPaidOrder] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(AUTO_REDIRECT_SECONDS);
 
-  useEffect(() => {
-    let cancelled = false;
-    getGcashCheckout(id)
-      .then((result) => {
-        if (cancelled) return;
-        setCheckout(result);
-        setStage('ready');
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        // "Already paid" isn't really an error — it happens if a buyer navigates back to
-        // this URL after already completing payment (e.g. via the browser back button).
-        // Send them straight to tracking instead of showing a scary error screen for it.
-        if (error.message?.toLowerCase().includes('already been paid')) {
-          navigate(`/orders/${id}`, { replace: true });
-          return;
-        }
-        setLoadError(error.message || 'Could not load this payment.');
-        setStage('error');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, navigate]);
+  const handleAlreadyPaidOrError = (error) => {
+    // "Already paid" isn't really an error — it happens if a buyer navigates back to this
+    // URL after already completing payment (e.g. via the browser back button), or the
+    // webhook already confirmed it before the buyer's own browser returned.
+    if (error.message?.toLowerCase().includes('already been paid')) {
+      navigate(`/orders/${id}`, { replace: true });
+      return;
+    }
+    setErrorMessage(error.message || 'Something went wrong.');
+    setStage('error');
+  };
 
-  const handlePayNow = () => {
-    setStage('processing');
-    setPayError('');
-    // The simulated "authorizing" delay happens first, client-side; only once it finishes
-    // does this actually call the backend to mark the order paid. A real GCash integration
-    // would replace this timeout with waiting on GCash's own redirect/webhook instead — the
-    // confirmGcashPayment() call after it wouldn't need to change at all.
-    setTimeout(async () => {
-      try {
-        const order = await confirmGcashPayment(id);
+  // Shared continuation for confirmGcashPayment, used both by the initial return-visit
+  // effect below (where `stage` is already 'loading' from its initial value) and by the
+  // "Check again" button (which sets 'loading' itself first — see checkPaymentStatus).
+  const awaitPaymentConfirmation = () => {
+    confirmGcashPayment(id)
+      .then((order) => {
         setPaidOrder(order);
         setStage('success');
         setTimeout(() => {
           navigate(`/orders/${id}`, { state: { notice: 'Payment successful — your order is confirmed.' } });
         }, SUCCESS_REDIRECT_DELAY_MS);
-      } catch (error) {
-        setPayError(error.message || 'Payment could not be completed.');
-        setStage('ready');
-      }
-    }, PROCESSING_DURATION_MS);
+      })
+      .catch((error) => {
+        if (error.message?.toLowerCase().includes('already been paid')) {
+          handleAlreadyPaidOrError(error);
+          return;
+        }
+        // Not yet confirmed — the buyer may have cancelled in GCash, or the payment is
+        // still processing on PayMongo's side. Let them retry rather than treating this
+        // as a hard failure.
+        setErrorMessage(error.message || 'Payment could not be confirmed yet.');
+        setStage('pending');
+      });
   };
 
-  const phase = stage === 'success' ? 'success' : stage === 'loading' || stage === 'error' ? stage : 'checkout';
+  const checkPaymentStatus = () => {
+    setStage('loading');
+    awaitPaymentConfirmation();
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (isReturning) {
+      if (!cancelled) awaitPaymentConfirmation();
+    } else {
+      startGcashCheckout(id)
+        .then((result) => {
+          if (cancelled) return;
+          setCheckout(result);
+          setSecondsLeft(AUTO_REDIRECT_SECONDS);
+          setStage('ready');
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          handleAlreadyPaidOrError(error);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isReturning]);
+
+  // Auto-advances to PayMongo once the countdown reaches 0 — "Continue to GCash" stays
+  // clickable the whole time as an immediate skip for anyone who doesn't want to wait.
+  useEffect(() => {
+    if (stage !== 'ready' || !checkout) return undefined;
+    const interval = setInterval(() => {
+      setSecondsLeft((current) => {
+        if (current <= 1) {
+          clearInterval(interval);
+          window.location.href = checkout.redirectUrl;
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [stage, checkout]);
+
+  const handleRetry = () => {
+    setStage('loading');
+    setErrorMessage('');
+    startGcashCheckout(id)
+      .then((result) => {
+        setCheckout(result);
+        setSecondsLeft(AUTO_REDIRECT_SECONDS);
+        setStage('ready');
+      })
+      .catch(handleAlreadyPaidOrError);
+  };
 
   return (
     <main className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -95,19 +149,19 @@ export default function GcashPaymentPage() {
               <span className="text-lg font-bold tracking-tight">GCash</span>
               <ShieldCheck size={20} className="opacity-80" aria-hidden="true" />
             </div>
-            <p className="text-xs text-blue-100 mt-1">Secure checkout</p>
+            <p className="text-xs text-blue-100 mt-1">Secure checkout via PayMongo</p>
           </div>
 
           <div className="p-6">
             <AnimatePresence mode="wait">
-              {phase === 'loading' ? (
+              {stage === 'loading' ? (
                 <motion.div key="loading" exit={{ opacity: 0 }} className="py-16 flex flex-col items-center gap-3 text-slate-500">
                   <Loader2 className="animate-spin" size={28} />
-                  <span className="text-sm">Loading payment details…</span>
+                  <span className="text-sm">{isReturning ? 'Confirming your payment…' : 'Preparing secure checkout…'}</span>
                 </motion.div>
               ) : null}
 
-              {phase === 'error' ? (
+              {stage === 'error' ? (
                 <motion.div
                   key="error"
                   initial={{ opacity: 0 }}
@@ -115,63 +169,82 @@ export default function GcashPaymentPage() {
                   className="py-10 flex flex-col items-center gap-3 text-center"
                 >
                   <XCircle className="text-red-500" size={36} aria-hidden="true" />
-                  <p className="text-slate-700 font-medium">{loadError}</p>
+                  <p className="text-slate-700 font-medium">{errorMessage}</p>
                   <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
                 </motion.div>
               ) : null}
 
-              {phase === 'checkout' && checkout ? (
-                <motion.div key="checkout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <div className="flex items-center justify-between text-sm text-slate-500 mb-1">
-                    <span>Merchant</span>
-                    <span className="font-semibold text-slate-800">{checkout.merchantName}</span>
+              {stage === 'pending' ? (
+                <motion.div
+                  key="pending"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="py-10 flex flex-col items-center gap-3 text-center"
+                >
+                  <AlertTriangle className="text-amber-500" size={36} aria-hidden="true" />
+                  <p className="text-slate-700 font-medium">We couldn't confirm your payment yet.</p>
+                  <p className="text-slate-500 text-sm">{errorMessage}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={checkPaymentStatus}
+                      className="btn btn-secondary btn-md inline-flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={15} /> Check again
+                    </button>
+                    <button type="button" onClick={handleRetry} className="btn btn-primary btn-md">
+                      Try GCash again
+                    </button>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-slate-500 mb-1">
-                    <span>Order</span>
-                    <span className="font-semibold text-slate-800 text-right">{checkout.order.productName}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
-                    <span>Reference no.</span>
-                    <span className="font-mono text-slate-800">{checkout.referenceNumber}</span>
-                  </div>
-
-                  <div className="text-center py-4 border-y border-slate-100">
-                    <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Amount to pay</p>
-                    <p className="text-3xl font-extrabold text-[#0038a8]">{formatCurrency(checkout.order.totalAmount)}</p>
-                  </div>
-
-                  <div className="flex justify-center py-4">
-                    <DemoQrCode value={checkout.referenceNumber} />
-                  </div>
-                  <p className="text-center text-xs text-slate-400 mb-4">
-                    Scan with the GCash app, or tap Pay Now below
-                  </p>
-
-                  {payError ? <div className="form-alert error mb-3">{payError}</div> : null}
-
-                  <button
-                    type="button"
-                    onClick={handlePayNow}
-                    disabled={stage === 'processing'}
-                    className="w-full rounded-xl bg-[#0038a8] hover:bg-[#002d87] disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    {stage === 'processing' ? (
-                      <>
-                        <Loader2 className="animate-spin" size={18} /> Processing payment…
-                      </>
-                    ) : (
-                      <>
-                        <Smartphone size={18} /> Pay Now
-                      </>
-                    )}
-                  </button>
-                  <p className="text-center text-[11px] text-slate-400 mt-3">
-                    For capstone project · GCash Mode
-                  </p>
                 </motion.div>
               ) : null}
 
-              {phase === 'success' && paidOrder ? (
+              {stage === 'ready' && checkout ? (
+                <motion.div key="checkout" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
+                    <span>Order #{shortOrderId(checkout.order.id)}</span>
+                    <span>{deliveryMethodLabel(checkout.order.deliveryMethod)}</span>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 space-y-2.5">
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Sprout size={16} className="text-green-600 shrink-0" aria-hidden="true" />
+                      <span className="text-slate-600">
+                        {checkout.order.quantity} {checkout.order.unit} · {checkout.order.productName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-sm">
+                      <Truck size={16} className="text-slate-400 shrink-0" aria-hidden="true" />
+                      <span className="text-slate-600">Sold by {checkout.order.farmerName}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center py-5">
+                    <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">Amount to pay</p>
+                    <p className="text-4xl font-extrabold text-[#0038a8]">{formatCurrency(checkout.order.totalAmount)}</p>
+                  </div>
+
+                  <a
+                    href={checkout.redirectUrl}
+                    className="w-full rounded-xl bg-[#0038a8] hover:bg-[#002d87] text-white font-semibold py-3 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <ExternalLink size={18} /> Continue to GCash
+                  </a>
+                  <p className="text-center text-xs text-slate-400 mt-3">
+                    Redirecting automatically in {secondsLeft}s…
+                  </p>
+
+                  <div className="flex items-start gap-2 mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-400">
+                    <Lock size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
+                    <p>
+                      Processed securely by PayMongo, a licensed Philippine payment gateway. HarvestLink never sees or
+                      stores your GCash PIN or one-time code — you'll only ever be asked for those on GCash's own page.
+                    </p>
+                  </div>
+                </motion.div>
+              ) : null}
+
+              {stage === 'success' && paidOrder ? (
                 <motion.div
                   key="success"
                   initial={{ opacity: 0 }}

@@ -1,15 +1,52 @@
 import { useEffect, useState } from 'react';
-import { Gift, Info, TriangleAlert } from 'lucide-react';
+import { Gift, Info, Tag, TriangleAlert } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
 import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
 import { uploadProductImage } from '../../services/uploadService';
+import { formatCurrency } from '../../utils/formatters';
 import { hasErrors, validateProductForm } from '../../utils/validators';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
-const OTHER_CATEGORY = 'Other';
+
+// Farmer types the exact percent they want (rather than picking from presets) and sees the
+// resulting price live before committing — moved here (from FarmerProducts.jsx) so the
+// discount control lives inside the same Pricing card as everything else price-related.
+function DiscountControl({ product, onApply }) {
+  const [percent, setPercent] = useState('');
+  const draftPercent = Number(percent);
+  const isValid = percent !== '' && Number.isFinite(draftPercent) && draftPercent > 0 && draftPercent < 100;
+  const previewPrice = isValid ? Number((product.price * (1 - draftPercent / 100)).toFixed(2)) : null;
+
+  return (
+    <div className="discount-picker">
+      <div className="discount-input-wrap">
+        <input
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          value={percent}
+          onChange={(event) => setPercent(event.target.value)}
+          placeholder="20"
+        />
+        <span>%</span>
+      </div>
+      {previewPrice != null ? (
+        <span className="discount-preview">
+          <span className="price-original">{formatCurrency(product.price)}</span>
+          {' → '}
+          <strong>{formatCurrency(previewPrice)}</strong>
+        </span>
+      ) : null}
+      <Button type="button" size="sm" variant="secondary" disabled={!isValid} onClick={() => onApply(draftPercent)}>
+        <Tag size={15} /> Apply discount
+      </Button>
+    </div>
+  );
+}
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
@@ -45,12 +82,9 @@ function buildDefaultValues(product, currentUser) {
     category: 'Vegetables',
     grade: 'A',
     sellingType: 'retail',
-    moq: '',
     price: '',
     unit: '',
-    kgPerUnit: '',
     quantity: '',
-    expirationDate: '',
     location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
     description: '',
     image: '',
@@ -58,25 +92,32 @@ function buildDefaultValues(product, currentUser) {
     isDonation: false,
     ...product,
     costPrice: product?.costPrice ?? '',
+    moq: product?.moq ?? '',
+    kgPerUnit: product?.kgPerUnit ?? '',
+    expirationDate: product?.expirationDate ?? '',
     ...(product ? { location: matchMunicipality(product.location) } : {}),
   };
 }
 
-export default function ProductForm({ product, currentUser, onSubmit, onCancel }) {
-  const { getCategoryOptions, getProductsForCategory, getProductOptions, getUnitOptions, getDefaultUnitValue } = useCatalog();
+export default function ProductForm({
+  product, currentUser, onSubmit, onCancel, formId, hideActions = false, onSubmittingChange,
+  onApplyDiscount, onRemoveDiscount,
+}) {
+  const { getCategoryOptions, getUnitOptions } = useCatalog();
   const [values, setValues] = useState(() => buildDefaultValues(product, currentUser));
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
 
-  const isOtherCategory = values.category === OTHER_CATEGORY;
+  useEffect(() => {
+    onSubmittingChange?.(isSubmitting || isReadingImage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSubmitting, isReadingImage]);
+
   const isWholesale = values.sellingType === 'wholesale';
   const categoryOptions = getCategoryOptions(values.category);
-  const productsForCategory = getProductsForCategory(values.category);
-  const productOptions = getProductOptions(values.category, values.name);
-  const hasChosenProduct = values.name.trim().length > 0;
-  const availableUnits = getUnitOptions(values.category, values.name, values.unit);
+  const availableUnits = getUnitOptions(values.unit);
 
   const matchedCommodity = matchCommodity(values.name);
   const marketReference = matchedCommodity && marketResult.commodityId === matchedCommodity.id ? marketResult.reference : null;
@@ -107,22 +148,6 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
       cancelled = true;
     };
   }, [matchedCommodity, values.isDonation]);
-
-  // The catalog loads asynchronously (see CatalogContext) — the moment this category's
-  // product list becomes non-empty for a brand-new listing that hasn't chosen a product yet,
-  // auto-select its first product (and that product's default unit). React's documented
-  // "adjust state during render" pattern (same as Marketplace's PriceRangeSlider) rather than
-  // an effect — self-guarding: once values.name is set below, this condition goes false on
-  // the very next render, so it only ever fires once. Never runs for an edit (the existing
-  // product/unit is respected as-is, orphan-safe) or for "Other" (no catalog product to pick).
-  if (!product && !isOtherCategory && !values.name && productsForCategory.length > 0) {
-    const first = productsForCategory[0];
-    setValues((previous) => (previous.name ? previous : {
-      ...previous,
-      name: first.name,
-      unit: getDefaultUnitValue(previous.category, first.name),
-    }));
-  }
 
   // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so
   // any comparison against PSA (deviation check, recommendation) has to go through a
@@ -172,49 +197,6 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   ) : (
     <p className="price-recommendation">Enter your cost per {values.unit} below to see a recommended price for this product.</p>
   );
-
-  // Category -> Product -> Unit cascade: switching category invalidates whatever Product/Unit
-  // were selected, since neither necessarily applies to the new category. Other has no
-  // catalog products at all (Specify Product is free text instead), so it always resets to
-  // blank rather than auto-picking anything.
-  const handleCategoryChange = (event) => {
-    const nextCategory = event.target.value;
-    const isNextOther = nextCategory === OTHER_CATEGORY;
-    const nextProducts = getProductsForCategory(nextCategory);
-    const nextName = isNextOther ? '' : (nextProducts[0]?.name || '');
-    const nextUnit = nextName ? getDefaultUnitValue(nextCategory, nextName) : '';
-    setValues((previous) => ({
-      ...previous, category: nextCategory, name: nextName, unit: nextUnit, kgPerUnit: '',
-    }));
-    setErrors((previous) => ({ ...previous, category: undefined, name: undefined, unit: undefined }));
-  };
-
-  // A closed-catalog Product change always has a known default unit to jump to — same
-  // reasoning as handleCategoryChange, since the old unit may not even apply to the newly
-  // chosen product (e.g. switching from "Rice" to "Banana").
-  const handleProductChange = (event) => {
-    const nextName = event.target.value;
-    setValues((previous) => ({
-      ...previous, name: nextName, unit: getDefaultUnitValue(previous.category, nextName), kgPerUnit: '',
-    }));
-    setErrors((previous) => ({ ...previous, name: undefined, unit: undefined }));
-  };
-
-  // "Other" has no catalog product to look up a default unit from — a sensible default is
-  // only picked once, the moment free-text entry first goes from empty to non-empty, not on
-  // every keystroke (which would keep yanking the farmer's unit choice away while typing).
-  const handleSpecifyProductChange = (event) => {
-    const nextName = event.target.value;
-    setValues((previous) => {
-      const next = { ...previous, name: nextName };
-      if (!previous.name.trim() && nextName.trim() && !previous.unit) {
-        next.unit = getDefaultUnitValue(previous.category, nextName);
-        next.kgPerUnit = '';
-      }
-      return next;
-    });
-    setErrors((previous) => ({ ...previous, name: undefined }));
-  };
 
   const handleUnitChange = (event) => {
     updateField('unit', event.target.value);
@@ -269,7 +251,7 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
   };
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit}>
+    <form id={formId} className="form-stack" onSubmit={handleSubmit}>
       {hasErrors(errors) ? (
         <div className="form-alert error">
           <strong>{Object.keys(errors).filter((key) => errors[key]).length > 1 ? 'Fix these before adding:' : 'Fix this before adding:'}</strong>
@@ -285,22 +267,13 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         <p className="form-section-heading">Basic information</p>
         <div className="form-grid">
           <FormField label="Category" name="category" error={errors.category}>
-            <select id="category" value={values.category} onChange={handleCategoryChange}>
+            <select id="category" value={values.category} onChange={(event) => updateField('category', event.target.value)}>
               {categoryOptions.map((category) => <option key={category}>{category}</option>)}
             </select>
           </FormField>
-          {isOtherCategory ? (
-            <FormField label="Specify product" name="name" error={errors.name} helper="Not in the catalog yet? Type it here.">
-              <input id="name" value={values.name} onChange={handleSpecifyProductChange} placeholder="e.g. Dragon fruit" />
-            </FormField>
-          ) : (
-            <FormField label="Product" name="name" error={errors.name}>
-              <select id="name" value={values.name} onChange={handleProductChange}>
-                {!productOptions.length ? <option value="">No products in this category yet</option> : null}
-                {productOptions.map((productName) => <option key={productName} value={productName}>{productName}</option>)}
-              </select>
-            </FormField>
-          )}
+          <FormField label="Product" name="name" error={errors.name}>
+            <input id="name" value={values.name} onChange={(event) => updateField('name', event.target.value)} placeholder="e.g. Cabbage" />
+          </FormField>
         </div>
 
         <FormField label="Grade" name="grade" error={errors.grade}>
@@ -378,14 +351,9 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
               <input id="price" type="number" min="0" step="0.01" value={values.price} onChange={(event) => updateField('price', event.target.value)} placeholder="55.00" />
             </FormField>
           ) : null}
-          <FormField
-            label="Unit"
-            name="unit"
-            error={errors.unit}
-            helper={!hasChosenProduct ? `Choose a ${isOtherCategory ? 'product name' : 'product'} first.` : undefined}
-          >
-            <select id="unit" value={values.unit} onChange={handleUnitChange} disabled={!hasChosenProduct}>
-              {!hasChosenProduct ? <option value="">Select a product first</option> : null}
+          <FormField label="Unit" name="unit" error={errors.unit}>
+            <select id="unit" value={values.unit} onChange={handleUnitChange}>
+              <option value="">Select a unit</option>
               {availableUnits.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
             </select>
           </FormField>
@@ -499,6 +467,24 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
             </div>
           </div>
         ) : null}
+
+        {product && !values.isDonation ? (
+          <FormField label="Discount" name="discount" helper="Discounts are visible to every buyer browsing the marketplace.">
+            {product.discountPercent ? (
+              <div className="discount-picker">
+                <span className="badge badge-sale">-{product.discountPercent}%</span>
+                <span className="discount-preview">
+                  <span className="price-original">{formatCurrency(product.originalPrice)}</span>
+                  {' → '}
+                  <strong>{formatCurrency(product.price)}</strong>
+                </span>
+                <Button type="button" size="sm" variant="ghost" onClick={onRemoveDiscount}>Remove discount</Button>
+              </div>
+            ) : (
+              <DiscountControl product={product} onApply={onApplyDiscount} />
+            )}
+          </FormField>
+        ) : null}
       </div>
 
       <div className="form-section">
@@ -528,12 +514,14 @@ export default function ProductForm({ product, currentUser, onSubmit, onCancel }
         ) : null}
       </div>
 
-      <div className="form-actions">
-        {onCancel ? <Button variant="secondary" onClick={onCancel}>Cancel</Button> : null}
-        <Button type="submit" disabled={isReadingImage || isSubmitting}>
-          {isSubmitting ? 'Adding…' : product ? 'Save changes' : values.isDonation ? 'List as donation' : 'Add product'}
-        </Button>
-      </div>
+      {!hideActions ? (
+        <div className="form-actions">
+          {onCancel ? <Button variant="secondary" onClick={onCancel}>Cancel</Button> : null}
+          <Button type="submit" disabled={isReadingImage || isSubmitting}>
+            {isSubmitting ? 'Adding…' : product ? 'Save changes' : values.isDonation ? 'List as donation' : 'Add product'}
+          </Button>
+        </div>
+      ) : null}
     </form>
   );
 }

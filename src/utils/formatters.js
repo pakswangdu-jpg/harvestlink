@@ -9,6 +9,51 @@ export function formatCurrency(value) {
   }).format(number);
 }
 
+// The backend title-cases product names on save (see products.controller.js), but listings
+// created before that normalization existed may still have raw casing — this keeps them
+// displaying consistently everywhere without needing a data migration.
+export function titleCase(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+// Turns the engine's real `bestTimeToSell` ISO date into a plain-language window — still
+// just that same real date, phrased relative to today instead of a bare calendar string.
+export function sellWindowLabel(bestSellingDateIso) {
+  if (!bestSellingDateIso) return 'Not available';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sellDate = new Date(bestSellingDateIso);
+  const diffDays = Math.round((sellDate.getTime() - today.getTime()) / 86400000);
+  if (diffDays <= 1) return 'Sell within 24 hours';
+  if (diffDays <= 3) return `Sell within ${diffDays} days`;
+  if (diffDays <= 14) return `Sell within ${Math.round(diffDays / 7)} week${diffDays > 10 ? 's' : ''}`;
+  return `Sell by ${formatDate(bestSellingDateIso)}`;
+}
+
+// A single Sell/Hold/Plant/Harvest badge distilled from three already-computed real signals
+// (demand-vs-supply signal, harvest season state, market trend) — same priority a farmer
+// would reason through by hand: an actual supply shortage matters most (Plant), then
+// whether harvest is literally happening right now (Harvest), then the real price
+// direction decides whether waiting (rising price) or acting now (flat/falling price) pays
+// off more — matching the same logic priceForecastEngine.js's computeBestSellingDate
+// already uses (increasing trend -> wait for the end of the window; decreasing -> sell
+// tomorrow). Never a new signal, just a compact label for signals already on the row.
+export function cropActionRecommendation({ signal, harvestSeason, marketTrend }) {
+  if (signal === 'opportunity' && harvestSeason !== 'Active') return 'Plant';
+  if (harvestSeason === 'Active') return 'Harvest';
+  if (marketTrend === 'increasing') return 'Hold';
+  return 'Sell';
+}
+
+// The engine's real `bestTimeToHarvest` is already a plain-language string (e.g. "Now —
+// harvest season is active") — this extracts just the short action verb for a compact badge.
+export function harvestActionLabel(bestTimeToHarvest) {
+  if (!bestTimeToHarvest) return 'Hold';
+  if (bestTimeToHarvest.startsWith('Now')) return 'Harvest Now';
+  if (bestTimeToHarvest.startsWith('Approaching')) return 'Prepare to Harvest';
+  return 'Hold Planting';
+}
+
 export function formatDate(value) {
   if (!value) return 'Not available';
   return new Intl.DateTimeFormat('en-PH', {

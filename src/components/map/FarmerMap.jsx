@@ -53,6 +53,7 @@ export default function FarmerMap({
   onSelectPin,
   farmersWithProducts = EMPTY_SET,
   currentUserId,
+  existingThreadIds = EMPTY_SET,
 }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
@@ -170,15 +171,19 @@ export default function FarmerMap({
       const isYou = farmer.id === currentUserId;
       const realDisplayName = farmer.farmName || farmer.name;
       const displayName = isYou ? 'You' : realDisplayName;
-      // Messaging no longer requires a shared order — see supabase/schema.sql's messages
-      // table (order_id OR recipient_id, either works) — so "Contact farmer" is always a
-      // real, clickable conversation now, continuing whatever's already there if the viewer
-      // has messaged this farmer before. Whether they currently have listings is a separate,
-      // unrelated fact, shown alongside it rather than gating it.
       const hasProducts = farmersWithProducts.has(farmer.id);
       const productsLine = hasProducts
         ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}">View products</a>`
         : `<br/><small class="muted">No products available</small>`;
+      // "Contact farmer" only continues an existing conversation — it can't be used to cold-
+      // message a stranger browsed off the map. `existingThreadIds` comes from the viewer's
+      // real direct-message threads (see getDirectThreads()), so this is a real relationship
+      // check, not a guess.
+      const contactLine = isYou
+        ? ''
+        : existingThreadIds.has(farmer.id)
+          ? `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`
+          : `<br/><small class="muted">No conversation yet</small>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
@@ -187,7 +192,7 @@ export default function FarmerMap({
         `<br/>${presenceHtml(farmer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         productsLine +
-        (isYou ? '' : `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`);
+        contactLine;
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#15803d'), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
@@ -196,13 +201,18 @@ export default function FarmerMap({
       if (!coords) return;
 
       const isYou = buyer.id === currentUserId;
+      const contactLine = isYou
+        ? ''
+        : existingThreadIds.has(buyer.id)
+          ? `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`
+          : `<br/><small class="muted">No conversation yet</small>`;
       const popupHtml =
         `<strong>${isYou ? 'You' : buyer.name}</strong><br/>` +
         `${buyer.municipality}` +
         (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
         `<br/>${presenceHtml(buyer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        (isYou ? '' : `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`);
+        contactLine;
       upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, '#1d4ed8'), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
     });
 
@@ -212,6 +222,11 @@ export default function FarmerMap({
 
       const isYou = stakeholder.id === currentUserId;
       const displayName = isYou ? 'You' : (stakeholder.organizationName || stakeholder.name);
+      const contactLine = isYou
+        ? ''
+        : existingThreadIds.has(stakeholder.id)
+          ? `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`
+          : `<br/><small class="muted">No conversation yet</small>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
@@ -219,7 +234,7 @@ export default function FarmerMap({
         (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
         `<br/>${presenceHtml(stakeholder)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        (isYou ? '' : `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`);
+        contactLine;
       upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, '#db2777'), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
@@ -231,6 +246,9 @@ export default function FarmerMap({
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
+      // Deliberately NOT gated on existingThreadIds like the general directory pins above —
+      // a stakeholder spotting a fresh donation on the map needs to be able to make first
+      // contact to arrange pickup; that's the entire point of this pin.
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
@@ -283,6 +301,7 @@ export default function FarmerMap({
     onSelectPin,
     farmersWithProducts,
     currentUserId,
+    existingThreadIds,
   ]);
 
   useEffect(() => {

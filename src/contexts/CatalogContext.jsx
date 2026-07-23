@@ -54,22 +54,6 @@ export function CatalogProvider({ children }) {
 
   const value = useMemo(() => {
     const categoryNames = categories.map((category) => category.name);
-    const byName = new Map(categories.map((category) => [category.name, category]));
-
-    function getProductsForCategory(categoryName) {
-      return byName.get(categoryName)?.products || [];
-    }
-
-    // A product without any catalog entry (the "Other" category, or a legacy/renamed
-    // product name) falls back to the full master unit list — mirrors the backend's own
-    // fallback exactly (see products.controller.js's assertValidCategoryAndUnit), which is
-    // what "Other: allow administrator-defined units" resolves to in practice: admins
-    // already fully control what's in the master unit list via the Catalog admin screen.
-    function getUnitsForProduct(categoryName, productName) {
-      const product = getProductsForCategory(categoryName).find((entry) => entry.name === productName);
-      if (product) return product.units;
-      return units.map((unit) => ({ ...unit, isDefault: false }));
-    }
 
     return {
       categories,
@@ -78,30 +62,20 @@ export function CatalogProvider({ children }) {
       loading,
       error,
       refresh,
-      getProductsForCategory,
-      getUnitsForProduct,
       // A product created before its category was renamed/deactivated can still hold a
       // value no longer in `categoryNames` — appending it here keeps that value selectable
       // (and visibly correct) instead of silently defaulting away the moment an old listing
-      // is opened for editing. Same reasoning for getProductOptions/getUnitOptions below.
+      // is opened for editing. Same reasoning for getUnitOptions below.
       getCategoryOptions(currentValue) {
         if (!currentValue || categoryNames.includes(currentValue)) return categoryNames;
         return [...categoryNames, currentValue];
       },
-      getProductOptions(categoryName, currentValue) {
-        const names = getProductsForCategory(categoryName).map((entry) => entry.name);
-        if (!currentValue || names.includes(currentValue)) return names;
-        return [...names, currentValue];
-      },
-      getUnitOptions(categoryName, productName, currentValue) {
-        const values = getUnitsForProduct(categoryName, productName).map((unit) => unit.value);
+      // The product NAME is free text (see ProductForm.jsx) — units are the flat master
+      // list for every product, not scoped per-product.
+      getUnitOptions(currentValue) {
+        const values = units.map((unit) => unit.value);
         if (!currentValue || values.includes(currentValue)) return values;
         return [...values, currentValue];
-      },
-      getDefaultUnitValue(categoryName, productName) {
-        const list = getUnitsForProduct(categoryName, productName);
-        const found = list.find((unit) => unit.isDefault);
-        return found ? found.value : (list[0]?.value ?? '');
       },
     };
   }, [categories, units, loading, error, refresh]);

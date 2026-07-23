@@ -178,7 +178,7 @@ export default function BuyerDashboard() {
               { key: 'paymentStatus', label: 'Payment', render: (row) => <StatusBadge value={row.paymentStatus} type="paymentStatus" /> },
               { key: 'deliveryStatus', label: 'Delivery', render: (row) => <StatusBadge value={row.deliveryStatus} type="deliveryStatus" /> },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
-              { key: 'createdAt', label: 'Date', render: (row) => formatDate(row.createdAt) },
+              { key: 'createdAt', label: 'Date', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
             ]}
             rows={orders.slice(0, 5)}
             emptyMessage="No orders yet."

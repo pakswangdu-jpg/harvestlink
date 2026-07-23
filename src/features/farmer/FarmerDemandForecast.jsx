@@ -1,60 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  BadgePercent, ChevronDown, CloudRain, Droplets, DollarSign, Gauge, Info, PackageSearch,
-  Sparkles, Thermometer, TrendingUp, Wheat, Wind,
-} from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
-import StatCard from '../../components/cards/StatCard';
-import DataTable from '../../components/dashboard/DataTable';
 import EmptyState from '../../components/common/EmptyState';
-import SupplyDemandChart from '../../components/charts/SupplyDemandChart';
+import ForecastHeader from '../../components/forecast/ForecastHeader';
+import ForecastKpiGrid from '../../components/forecast/ForecastKpiGrid';
+import AiRecommendationHero from '../../components/forecast/AiRecommendationHero';
+import WeatherPanel from '../../components/forecast/WeatherPanel';
+import SupplyDemandBarChart from '../../components/charts/SupplyDemandBarChart';
+import ForecastTable from '../../components/forecast/ForecastTable';
+import CropDetailPanel from '../../components/forecast/CropDetailPanel';
+import InteractiveForecastChart from '../../components/forecast/InteractiveForecastChart';
+import RecommendationCard from '../../components/forecast/RecommendationCard';
+import ForecastSkeleton from '../../components/forecast/ForecastSkeleton';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
-import { getDemandForecast } from '../../services/demandForecastService';
-import { CEBU_MUNICIPALITIES } from '../../utils/constants';
-import { formatCurrency } from '../../utils/formatters';
+import { getCropForecastDetail, getDemandForecast } from '../../services/demandForecastService';
 import { farmerNavItems } from './farmerNav';
-
-const STATUS_TONE_CLASS = {
-  'High Opportunity': 'forecast-status-opportunity',
-  'Stable Market': 'forecast-status-stable',
-  'Low Demand': 'forecast-status-low',
-  'High Risk': 'forecast-status-risk',
-};
-
-const DEMAND_LEVEL_OPTIONS = [
-  { value: '', label: 'All demand levels' },
-  { value: 'opportunity', label: 'High opportunity' },
-  { value: 'steady', label: 'Stable' },
-  { value: 'none', label: 'Low demand' },
-];
-
-// A single, clearly-labeled panel for the handful of items that are genuinely still
-// time-series charts, not point-in-time values — Forecast Price, Confidence Score, and
-// Harvest Season are all real, computed numbers now (see the rule-based engine in
-// backend/src/lib/forecastEngine.js); what's still missing is trend-over-time
-// visualizations of them, which would need a real forecast history to chart against.
-function PendingChartsPanel() {
-  return (
-    <div className="panel forecast-pending-panel">
-      <div className="forecast-pending-icon"><Info size={20} /></div>
-      <div>
-        <h3>Trend visualizations pending</h3>
-        <p className="muted">
-          Historical-vs-forecast price trend lines, a forecast demand trend, and a harvest season timeline need a
-          multi-point forecast history to chart — everything else on this page, including Forecast Price,
-          Confidence Score, and Harvest Season themselves, is already computed from real HarvestLink data.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // A plain, transparent bucketing of OpenWeatherMap's real rainfall-probability percentage.
 function rainRiskLevel(rainfallProbability) {
-  if (rainfallProbability == null) return null;
+  if (rainfallProbability == null) return 'Low';
   if (rainfallProbability >= 60) return 'High';
-  if (rainfallProbability >= 30) return 'Moderate';
+  if (rainfallProbability >= 30) return 'Medium';
   return 'Low';
 }
 
@@ -64,25 +30,41 @@ export default function FarmerDemandForecast() {
   const [category, setCategory] = useState('');
   const [municipality, setMunicipality] = useState('');
   const [demandLevel, setDemandLevel] = useState('');
-  const [data, setData] = useState(null);
-  const [loadError, setLoadError] = useState('');
+  const [period, setPeriod] = useState('30_days');
+  const [selectedCropOverride, setSelectedCropOverride] = useState('');
+
+  // List fetch — same effect this page has always run (category/municipality/period), now
+  // also re-triggered by the header's Refresh button via `refreshToken`, and tracking its
+  // own request key so a refresh never blanks out the previously-loaded dashboard while
+  // the new response is in flight.
+  const [listResult, setListResult] = useState({ key: '', data: null, error: '' });
+  const [refreshToken, setRefreshToken] = useState(0);
+  const listRequestKey = `${category}|${municipality}|${period}|${refreshToken}`;
+  const isRefreshing = listResult.key !== listRequestKey;
+  const data = listResult.data;
+  const loadError = listResult.error;
 
   useEffect(() => {
     let cancelled = false;
-    getDemandForecast({ category, municipality })
+    getDemandForecast({ category, municipality, period })
       .then((result) => {
-        if (!cancelled) setData(result);
+        if (!cancelled) setListResult({ key: listRequestKey, data: result, error: '' });
       })
       .catch((error) => {
-        if (!cancelled) setLoadError(error.message);
+        if (!cancelled) setListResult((previous) => ({ key: listRequestKey, data: previous.data, error: error.message }));
       });
     return () => {
       cancelled = true;
     };
-  }, [category, municipality]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, municipality, period, refreshToken]);
 
   const crops = useMemo(() => data?.crops || [], [data]);
   const weather = data?.weather || null;
+  const periods = data?.periods || [];
+  const periodLabel = data?.periodLabel || '';
+  const weatherRiskLevel = weather ? rainRiskLevel(weather.rainfallProbability) : 'Low';
+
   // Same backward-compat reasoning as Marketplace/FarmerProducts — a crop whose product row
   // still carries a renamed/deactivated category shouldn't become impossible to isolate here.
   const categoryOptions = useMemo(() => {
@@ -94,263 +76,146 @@ export default function FarmerDemandForecast() {
     return crops.filter((entry) => !demandLevel || entry.signal === demandLevel);
   }, [crops, demandLevel]);
 
-  if (data === null && !loadError) {
-    return (
-      <AppShell user={currentUser} navItems={farmerNavItems} title="Demand forecast">
-        <p className="muted">Loading forecast…</p>
-      </AppShell>
-    );
-  }
-
   const highDemandCrops = filtered.filter((entry) => entry.signal === 'opportunity');
-  const bestToPlant = [...highDemandCrops].sort((a, b) => b.demandPerListing - a.demandPerListing).slice(0, 3);
-  const bestToHarvest = filtered.filter((entry) => entry.harvestSeason === 'Active').slice(0, 3);
-  // Highest-opportunity crop by real order volume — falls back to the single highest-volume
-  // crop overall when nothing currently reads as an opportunity.
   const featured = highDemandCrops[0] || filtered[0] || null;
+
+  // Derived, not synced via an effect: the user's clicked-row/card override wins as long as
+  // it's still present in the currently filtered list; otherwise falls back to the
+  // featured/top crop, so a filter change that makes the old selection disappear
+  // re-anchors for free.
+  const selectedCrop = filtered.some((entry) => entry.crop === selectedCropOverride)
+    ? selectedCropOverride
+    : (featured?.crop || filtered[0]?.crop || '');
+  const selectedForecast = filtered.find((entry) => entry.crop === selectedCrop) || null;
 
   const pricedCrops = filtered.filter((entry) => entry.forecastPrice != null);
   const averageForecastPrice = pricedCrops.length
     ? pricedCrops.reduce((sum, entry) => sum + entry.forecastPrice, 0) / pricedCrops.length
     : null;
-  const risingCount = pricedCrops.filter((entry) => entry.forecastPrice > entry.currentPrice).length;
-  const fallingCount = pricedCrops.filter((entry) => entry.forecastPrice < entry.currentPrice).length;
+  const averageCurrentPrice = pricedCrops.length
+    ? pricedCrops.reduce((sum, entry) => sum + entry.currentPrice, 0) / pricedCrops.length
+    : null;
+  const averagePriceChangePercent = averageForecastPrice != null && averageCurrentPrice
+    ? Math.round(((averageForecastPrice - averageCurrentPrice) / averageCurrentPrice) * 1000) / 10
+    : null;
+  const bestCrop = [...pricedCrops].sort((a, b) => (b.expectedChangePercent || 0) - (a.expectedChangePercent || 0))[0] || null;
+  const risingCount = pricedCrops.filter((entry) => entry.marketTrend === 'increasing').length;
+  const fallingCount = pricedCrops.filter((entry) => entry.marketTrend === 'decreasing').length;
   const marketTrend = !pricedCrops.length
-    ? '—'
-    : risingCount > fallingCount ? 'Rising' : fallingCount > risingCount ? 'Softening' : 'Steady';
+    ? 'Steady'
+    : risingCount > fallingCount ? 'Rising' : fallingCount > risingCount ? 'Falling' : 'Steady';
   const averageConfidence = filtered.length
     ? Math.round(filtered.reduce((sum, entry) => sum + (entry.confidence || 0), 0) / filtered.length)
     : null;
 
+  // Both sides are real COUNTS (number of orders vs. number of active listings) — not
+  // order count vs. total quantity ordered, which would compare two different units and
+  // make the bars meaningless next to each other (see SupplyDemandBarChart.jsx).
   const supplyDemandData = filtered.slice(0, 8).map((entry) => ({
-    key: entry.crop,
-    label: entry.crop,
-    supply: entry.activeListings,
-    demand: entry.quantityOrdered,
+    crop: entry.crop, supply: entry.activeListings, demand: entry.orderCount,
   }));
 
+  // Crop-detail drill-down — same "track the key it was fetched for" derived-loading
+  // pattern already used by this page (and originally the retired Price Forecast page).
+  const [detailResult, setDetailResult] = useState({ key: '', detail: null, error: '' });
+  const detailRequestKey = `${selectedCrop}:${period}:${municipality}`;
+  const isDetailLoading = Boolean(selectedCrop) && detailResult.key !== detailRequestKey;
+  const detail = isDetailLoading ? null : detailResult.detail;
+  const detailError = isDetailLoading ? '' : detailResult.error;
+
+  useEffect(() => {
+    if (!selectedCrop) return undefined;
+    let cancelled = false;
+    getCropForecastDetail(selectedCrop, { period, municipality })
+      .then((result) => {
+        if (!cancelled) setDetailResult({ key: detailRequestKey, detail: result, error: '' });
+      })
+      .catch((error) => {
+        if (!cancelled) setDetailResult({ key: detailRequestKey, detail: null, error: error.message });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCrop, period, municipality]);
+
+  if (data === null && !loadError) {
+    return (
+      <AppShell user={currentUser} navItems={farmerNavItems} title="Demand Forecast">
+        <ForecastSkeleton />
+      </AppShell>
+    );
+  }
+
   return (
-    <AppShell
-      user={currentUser}
-      navItems={farmerNavItems}
-      title="Demand forecast"
-      subtitle="Real-time market demand, live weather, and rule-based price/demand forecasts across HarvestLink, crop by crop."
-    >
-      {loadError ? <div className="form-alert error">{loadError}</div> : null}
+    <AppShell user={currentUser} navItems={farmerNavItems} title="Demand Forecast">
+      <div className="flex min-w-0 flex-col gap-6">
+        {loadError ? <div className="form-alert error">{loadError}</div> : null}
 
-      <section className="panel forecast-filters">
-        <div className="forecast-filters-row">
-          <label className="location-filter" htmlFor="forecast-category">
-            <PackageSearch size={16} />
-            <select id="forecast-category" value={category} onChange={(event) => setCategory(event.target.value)}>
-              <option value="">All categories</option>
-              {categoryOptions.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-          <label className="location-filter" htmlFor="forecast-municipality">
-            <Wheat size={16} />
-            <select id="forecast-municipality" value={municipality} onChange={(event) => setMunicipality(event.target.value)}>
-              <option value="">All municipalities</option>
-              {CEBU_MUNICIPALITIES.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-          <label className="location-filter" htmlFor="forecast-demand-level">
-            <TrendingUp size={16} />
-            <select id="forecast-demand-level" value={demandLevel} onChange={(event) => setDemandLevel(event.target.value)}>
-              {DEMAND_LEVEL_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="forecast-filters-row forecast-filters-pending">
-          <span className="forecast-pending-filter" title="Needs a multi-period forecast history">
-            Forecast period <ChevronDown size={13} />
-          </span>
-        </div>
-      </section>
-
-      <section className="stats-grid forecast-summary-grid">
-        <StatCard label="Forecasted High-Demand Crops" value={highDemandCrops.length} icon={<Sparkles size={20} />} />
-        <StatCard
-          label="Average Forecast Price"
-          value={averageForecastPrice != null ? formatCurrency(averageForecastPrice) : '—'}
-          icon={<DollarSign size={20} />}
+        <ForecastHeader
+          municipality={municipality}
+          onMunicipalityChange={setMunicipality}
+          period={period}
+          periods={periods}
+          onPeriodChange={setPeriod}
+          onRefresh={() => setRefreshToken((token) => token + 1)}
+          isRefreshing={isRefreshing}
         />
-        <StatCard
-          label="Best Crops to Plant"
-          value={bestToPlant.length ? bestToPlant.map((entry) => entry.crop).join(', ') : '—'}
-          icon={<Sparkles size={20} />}
-        />
-        <StatCard
-          label="Best Crops to Harvest"
-          value={bestToHarvest.length ? bestToHarvest.map((entry) => entry.crop).join(', ') : '—'}
-          hint="Active-season crops with the most current listings"
-          icon={<Wheat size={20} />}
-        />
-        <StatCard label="Market Trend" value={marketTrend} hint={pricedCrops.length ? `${risingCount} rising, ${fallingCount} falling` : undefined} icon={<TrendingUp size={20} />} />
-        <StatCard label="Confidence Score" value={averageConfidence != null ? `${averageConfidence}%` : '—'} hint="Average across shown crops" icon={<Gauge size={20} />} />
-        <StatCard
-          label="Weather Risk"
-          value={weather ? `${rainRiskLevel(weather.rainfallProbability)} rain risk` : '—'}
-          hint={weather ? `${weather.municipality} · ${weather.condition?.main || 'Unknown'}` : 'OpenWeatherMap not configured'}
-          icon={<CloudRain size={20} />}
-        />
-      </section>
 
-      {weather ? (
-        <section className="panel forecast-weather-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Live conditions</p>
-              <h2>Weather in {weather.municipality}</h2>
-            </div>
-            <span className="muted forecast-weather-condition">{weather.condition?.description || weather.condition?.main}</span>
-          </div>
-          <div className="forecast-weather-grid">
-            <div>
-              <Thermometer size={18} />
-              <div>
-                <span>Current Temp</span>
-                <strong>{weather.currentTemp}°C</strong>
-              </div>
-            </div>
-            <div>
-              <Thermometer size={18} />
-              <div>
-                <span>Forecast Temp (~24h)</span>
-                <strong>{weather.forecastTemp != null ? `${weather.forecastTemp}°C` : '—'}</strong>
-              </div>
-            </div>
-            <div>
-              <CloudRain size={18} />
-              <div>
-                <span>Rainfall Probability</span>
-                <strong>{weather.rainfallProbability != null ? `${weather.rainfallProbability}%` : '—'}</strong>
-              </div>
-            </div>
-            <div>
-              <Droplets size={18} />
-              <div>
-                <span>Humidity</span>
-                <strong>{weather.humidity}%</strong>
-              </div>
-            </div>
-            <div>
-              <Wind size={18} />
-              <div>
-                <span>Wind Speed</span>
-                <strong>{weather.windSpeedKmh} km/h</strong>
-              </div>
-            </div>
-          </div>
-          <p className="muted forecast-weather-note">
-            Real current/forecast conditions from OpenWeatherMap, factored directly into every crop's Forecast
-            Price and Weather Impact below.
-          </p>
-        </section>
-      ) : null}
+        {!crops.length ? (
+          <EmptyState
+            title="No market activity yet"
+            message="Once buyers start ordering and farmers start listing produce, forecasts will appear here."
+          />
+        ) : (
+          <>
+            <ForecastKpiGrid
+              highDemandCrops={highDemandCrops}
+              averageForecastPrice={averageForecastPrice}
+              averagePriceChangePercent={averagePriceChangePercent}
+              bestCrop={bestCrop}
+              marketTrend={marketTrend}
+              weather={weather}
+              weatherRiskLevel={weatherRiskLevel}
+              averageConfidence={averageConfidence}
+              periodLabel={periodLabel}
+            />
 
-      {featured ? (
-        <section className="panel forecast-featured">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Featured opportunity</p>
-              <h2>{featured.crop}</h2>
-            </div>
-            <span className={`forecast-status-badge ${STATUS_TONE_CLASS[featured.status] || ''}`}>
-              <BadgePercent size={14} /> {featured.status}
-            </span>
-          </div>
-          <div className="forecast-featured-grid">
-            <div>
-              <span>Current Price</span>
-              <strong>{featured.currentPrice != null ? `${formatCurrency(featured.currentPrice)}/unit` : '—'}</strong>
-            </div>
-            <div>
-              <span>Forecast Price</span>
-              <strong>{featured.forecastPrice != null ? `${formatCurrency(featured.forecastPrice)}/unit` : '—'}</strong>
-            </div>
-            <div>
-              <span>Expected Demand</span>
-              <strong>{featured.forecastDemand}</strong>
-            </div>
-            <div>
-              <span>Confidence</span>
-              <strong>{featured.confidence}%</strong>
-            </div>
-            <div>
-              <span>Harvest Season</span>
-              <strong>{featured.harvestSeason}</strong>
-            </div>
-            <div>
-              <span>Weather</span>
-              <strong>{weather ? `${weather.currentTemp}°C, ${weather.condition?.main || 'Unknown'}` : '—'}</strong>
-            </div>
-          </div>
-          <p className="forecast-recommendation"><Info size={15} /> {featured.recommendation}</p>
-          <p className="forecast-explanation">{featured.explanation}</p>
-        </section>
-      ) : null}
+            {isDetailLoading ? (
+              <ForecastSkeleton />
+            ) : (
+              <AiRecommendationHero
+                crop={selectedCrop}
+                forecast={detail || selectedForecast}
+                aiSummary={detail?.aiSummary}
+              />
+            )}
+            {detailError ? <div className="form-alert error">{detailError}</div> : null}
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Visualization</p>
-            <h2>Supply vs. demand by crop</h2>
-          </div>
-        </div>
-        <SupplyDemandChart data={supplyDemandData} />
-      </section>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <WeatherPanel weather={weather} isLoading={isRefreshing} />
+              <SupplyDemandBarChart data={supplyDemandData} />
+            </div>
 
-      <PendingChartsPanel />
+            <ForecastTable
+              crops={filtered}
+              selectedCrop={selectedCrop}
+              onSelectCrop={setSelectedCropOverride}
+              category={category}
+              onCategoryChange={setCategory}
+              categoryOptions={categoryOptions}
+              demandLevel={demandLevel}
+              onDemandLevelChange={setDemandLevel}
+            />
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Detail</p>
-            <h2>Forecast by crop</h2>
-          </div>
-        </div>
-        <DataTable
-          columns={[
-            { key: 'crop', label: 'Crop', render: (row) => <strong>{row.crop}</strong> },
-            { key: 'currentPrice', label: 'Current Price', render: (row) => (row.currentPrice != null ? formatCurrency(row.currentPrice) : '—') },
-            { key: 'forecastPrice', label: 'Forecast Price', render: (row) => (row.forecastPrice != null ? formatCurrency(row.forecastPrice) : '—') },
-            {
-              key: 'priceDifference',
-              label: 'Price Difference',
-              render: (row) => {
-                if (row.priceDifference == null) return '—';
-                const sign = row.priceDifference > 0 ? '+' : '';
-                return <span className={row.priceDifference > 0 ? 'forecast-diff-up' : row.priceDifference < 0 ? 'forecast-diff-down' : ''}>{sign}{formatCurrency(row.priceDifference)}</span>;
-              },
-            },
-            {
-              key: 'currentDemand',
-              label: 'Current Demand',
-              render: (row) => (row.signal === 'opportunity' ? 'High' : row.signal === 'steady' ? 'Steady' : 'Low'),
-            },
-            { key: 'forecastDemand', label: 'Forecast Demand', render: (row) => row.forecastDemand },
-            { key: 'confidence', label: 'Confidence', render: (row) => `${row.confidence}%` },
-            { key: 'weatherImpact', label: 'Weather Impact', render: (row) => <span className="forecast-table-note">{row.weatherImpact}</span> },
-            { key: 'harvestSeason', label: 'Harvest Season', render: (row) => row.harvestSeason },
-            { key: 'recommendation', label: 'Recommendation', render: (row) => <span className="forecast-table-note">{row.recommendation}</span> },
-            {
-              key: 'status',
-              label: 'Status',
-              render: (row) => <span className={`forecast-status-badge ${STATUS_TONE_CLASS[row.status] || ''}`}>{row.status}</span>,
-            },
-          ]}
-          rows={filtered.map((entry) => ({ ...entry, id: entry.crop }))}
-          emptyMessage="No crops match these filters yet."
-        />
-      </section>
+            {isDetailLoading ? <ForecastSkeleton /> : <CropDetailPanel crop={selectedCrop} forecast={detail || selectedForecast} />}
 
-      {!crops.length ? (
-        <EmptyState
-          title="No market activity yet"
-          message="Once buyers start ordering and farmers start listing produce, forecasts will appear here."
-        />
-      ) : null}
+            {isDetailLoading ? null : <InteractiveForecastChart detail={detail} forecast={selectedForecast} />}
+
+            {isDetailLoading ? null : <RecommendationCard recommendation={detail?.aiRecommendation} />}
+          </>
+        )}
+      </div>
     </AppShell>
   );
 }

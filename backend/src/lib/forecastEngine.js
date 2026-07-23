@@ -1,36 +1,17 @@
-// Rule-based forecasting engine — computes Forecast Price, Confidence Score, Harvest
-// Season, and a plain-language explanation from real signals gathered elsewhere (current
-// price, demand signal, real OpenWeatherMap data, real historical order prices from
-// Supabase). This is NOT a call to any third-party ML/AI service — ForecastAPI's request/
-// response contract and an OpenAI key were never provided, so this module exists instead:
-// a deterministic, fully-documented set of rules. Every adjustment below is a named,
+// Rule-based demand/supply-side forecasting engine — computes Harvest Season, Confidence
+// Score, Supply Level, Seasonal Impact, and status/recommendation text from real signals
+// gathered elsewhere (demand signal, real OpenWeatherMap data, real active-listing counts).
+// The PRICE/DEMAND trend-projection math (multi-horizon, per period) now lives in
+// priceForecastEngine.js — this file covers everything else the merged Demand Forecast
+// dashboard needs that isn't a price/demand curve. Every adjustment below is a named,
 // tunable constant, never a hidden magic number, and every output is derived from real
 // data already on hand — nothing here is randomized or invented.
 
 // --- Tunable constants -----------------------------------------------------------------
 
-// Demand signal (see forecast.controller.js's real order-vs-listing heuristic) nudges
-// price the most directly — real buyers outpacing real supply is the strongest signal
-// available here.
-const DEMAND_PRICE_ADJUSTMENT = { opportunity: 0.12, steady: 0, none: -0.08 };
-
 // Harvest season is itself inferred from real current supply (see inferHarvestSeason) —
 // this just encodes the standard supply/price relationship the season implies.
 const HARVEST_SEASON_PRICE_ADJUSTMENT = { Active: -0.1, Transitional: 0, 'Off Season': 0.15 };
-
-// Rainfall probability (OpenWeatherMap) above this starts pushing price up — heavy rain
-// makes harvesting/transporting fresh produce harder, tightening supply.
-const RAIN_RISK_THRESHOLD_PCT = 40;
-const RAIN_ADJUSTMENT_PER_POINT = 0.0035;
-const MAX_RAIN_ADJUSTMENT = 0.15;
-const HOT_TEMP_THRESHOLD_C = 34;
-const HOT_TEMP_ADJUSTMENT = 0.03;
-
-// Historical order-price trend (see computePriceTrend) is capped the same as every other
-// factor, and the combined adjustment is capped again below — no single forecast can swing
-// unrealistically far from today's real price.
-const MAX_TREND_ADJUSTMENT = 0.1;
-const MAX_TOTAL_ADJUSTMENT = 0.4;
 
 // Harvest season is inferred from real current active-listing volume for a crop, not a
 // fabricated agricultural calendar (HarvestLink has no authoritative source for one) — the
@@ -45,61 +26,49 @@ export function inferHarvestSeason(activeListings) {
   return 'Off Season';
 }
 
-// `priceHistory`: [{ createdAtMs, unitPrice }] from real order snapshots within the
-// window. Needs at least 2 real price points on EACH side of the window's midpoint to say
-// anything about a trend — otherwise returns 0 (neutral), never a guessed direction.
-export function computePriceTrend(priceHistory, windowStartMs, windowEndMs) {
-  if (priceHistory.length < 4) return { trendPercent: 0, sampleCount: priceHistory.length };
-  const midpoint = (windowStartMs + windowEndMs) / 2;
-  const firstHalf = priceHistory.filter((entry) => entry.createdAtMs < midpoint);
-  const secondHalf = priceHistory.filter((entry) => entry.createdAtMs >= midpoint);
-  if (firstHalf.length < 2 || secondHalf.length < 2) return { trendPercent: 0, sampleCount: priceHistory.length };
-
-  const average = (list) => list.reduce((sum, entry) => sum + entry.unitPrice, 0) / list.length;
-  const firstAvg = average(firstHalf);
-  const secondAvg = average(secondHalf);
-  if (!firstAvg) return { trendPercent: 0, sampleCount: priceHistory.length };
-
-  const trendPercent = (secondAvg - firstAvg) / firstAvg;
-  return {
-    trendPercent: Math.max(-MAX_TREND_ADJUSTMENT, Math.min(MAX_TREND_ADJUSTMENT, trendPercent)),
-    sampleCount: priceHistory.length,
-  };
-}
-
-// Returns null only when there's no current price at all to forecast from (a crop with
-// real order history but zero active listings) — every other case always produces a real,
-// bounded number instead of "Pending."
-export function computeForecastPrice({ currentPrice, signal, harvestSeason, weather, trendPercent }) {
-  if (currentPrice == null) return null;
-
-  let adjustment = DEMAND_PRICE_ADJUSTMENT[signal] || 0;
-  adjustment += HARVEST_SEASON_PRICE_ADJUSTMENT[harvestSeason] || 0;
-
-  if (weather?.rainfallProbability != null && weather.rainfallProbability > RAIN_RISK_THRESHOLD_PCT) {
-    adjustment += Math.min(MAX_RAIN_ADJUSTMENT, (weather.rainfallProbability - RAIN_RISK_THRESHOLD_PCT) * RAIN_ADJUSTMENT_PER_POINT);
-  }
-  if (weather?.currentTemp != null && weather.currentTemp >= HOT_TEMP_THRESHOLD_C) {
-    adjustment += HOT_TEMP_ADJUSTMENT;
-  }
-  adjustment += trendPercent || 0;
-  adjustment = Math.max(-MAX_TOTAL_ADJUSTMENT, Math.min(MAX_TOTAL_ADJUSTMENT, adjustment));
-
-  return Math.round(currentPrice * (1 + adjustment) * 100) / 100;
-}
-
 // A transparent proxy for "how much real data backs this forecast," not a statistical
 // model's true confidence interval — starts at a moderate baseline and adds points for
 // real order volume, real listing volume, real weather availability, and a real detectable
 // price trend, capped to a floor/ceiling so it never claims total certainty or near-zero
-// trust for a forecast that does have some real signal behind it.
-export function computeConfidence({ orderCount, activeListings, hasWeather, hasTrendData }) {
+// trust for a forecast that does have some real signal behind it. `daysAhead` applies an
+// honest decay for longer horizons — a forecast 120 days out is genuinely less certain than
+// one for tomorrow, using the same real signal.
+export function computeConfidence({ orderCount, activeListings, hasWeather, hasTrendData, daysAhead = 1 }) {
   let confidence = 45;
   confidence += Math.min(25, orderCount * 3);
   confidence += Math.min(15, activeListings * 3);
   confidence += hasWeather ? 10 : 0;
   confidence += hasTrendData ? 5 : 0;
+  confidence -= Math.min(20, Math.floor(daysAhead / 15) * 2);
   return Math.max(35, Math.min(95, Math.round(confidence)));
+}
+
+// Real current active-listing volume, bucketed with the exact same thresholds
+// inferHarvestSeason already uses — "how much of this crop is on the market right now,"
+// not a forecast in itself.
+export function computeSupplyLevel(activeListings) {
+  if (activeListings >= ACTIVE_LISTINGS_ACTIVE_SEASON_MIN) return 'High';
+  if (activeListings >= ACTIVE_LISTINGS_TRANSITIONAL_MIN) return 'Moderate';
+  return 'Low';
+}
+
+// Plain-language readout of the exact same HARVEST_SEASON_PRICE_ADJUSTMENT constants the
+// (now-removed) price engine used to apply — the real, named adjustment a harvest-season
+// state implies, not a separate invented figure.
+export function computeSeasonalImpact(harvestSeason) {
+  const percent = Math.round(Math.abs(HARVEST_SEASON_PRICE_ADJUSTMENT[harvestSeason] || 0) * 100);
+  if (harvestSeason === 'Active') return `Active harvest season — increased supply may ease prices by up to ${percent}%.`;
+  if (harvestSeason === 'Off Season') return `Off-season supply squeeze may push prices up by as much as ${percent}%.`;
+  return 'Transitional season — limited seasonal effect on price.';
+}
+
+// Repurposes the same real current-supply signal as inferHarvestSeason into farmer-facing
+// timing guidance — not a fabricated calendar date, just what "harvest season" actually
+// looks like in HarvestLink's live listing data right now.
+export function bestTimeToHarvestLabel(harvestSeason) {
+  if (harvestSeason === 'Active') return 'Now — harvest season is active';
+  if (harvestSeason === 'Transitional') return 'Approaching — season is transitioning';
+  return 'Hold — off-season for this crop';
 }
 
 export function computeForecastDemand(signal, harvestSeason) {
@@ -140,51 +109,4 @@ export function buildRecommendation({ crop, signal, harvestSeason, forecastPrice
   }
   return `Recent buyer demand for ${crop} has been limited — consider diversifying or waiting for demand to pick up `
     + 'before increasing supply.';
-}
-
-// A deterministic, template-assembled explanation — NOT a call to OpenAI (no key
-// configured yet). Takes the same shape of "factors" a real OpenAI prompt would need, so
-// swapping this for a real call later doesn't require touching any other file.
-export function buildExplanation(factors) {
-  const {
-    crop, currentPrice, forecastPrice, signal, harvestSeason, weather, confidence, orderCount, forecastDemand,
-  } = factors;
-  const sentences = [];
-
-  if (forecastPrice != null && currentPrice != null) {
-    const direction = forecastPrice > currentPrice ? 'rise' : forecastPrice < currentPrice ? 'ease' : 'hold steady';
-    const changePercent = currentPrice ? Math.round(((forecastPrice - currentPrice) / currentPrice) * 100) : 0;
-    sentences.push(
-      `${crop} prices are forecast to ${direction} to about ₱${forecastPrice.toFixed(2)}/unit over the next 30 days`
-      + `${changePercent ? ` (${changePercent > 0 ? '+' : ''}${changePercent}% from today's ₱${currentPrice.toFixed(2)})` : ''}.`
-    );
-  }
-
-  if (signal === 'opportunity') {
-    sentences.push(`Recent buyer orders (${orderCount}) have outpaced current active listings, pointing to ${forecastDemand.toLowerCase()} demand ahead.`);
-  } else if (signal === 'steady') {
-    sentences.push('Current active listings have been keeping pace with recent buyer demand.');
-  } else {
-    sentences.push('Buyer demand has been limited in the recent order history.');
-  }
-
-  if (harvestSeason === 'Off Season') {
-    sentences.push('Few farmers currently have this crop actively listed, consistent with an off-season supply squeeze.');
-  } else if (harvestSeason === 'Active') {
-    sentences.push('Multiple farmers currently have active listings, consistent with an active harvest season.');
-  }
-
-  if (weather) {
-    if (weather.rainfallProbability != null && weather.rainfallProbability >= 60) {
-      sentences.push(`A ${weather.rainfallProbability}% chance of rain in ${weather.municipality} over the next day could further limit harvesting and delivery.`);
-    } else if (weather.currentTemp != null && weather.currentTemp >= HOT_TEMP_THRESHOLD_C) {
-      sentences.push(`Elevated temperatures in ${weather.municipality} (${weather.currentTemp}°C) may add heat stress on top of current supply levels.`);
-    } else {
-      sentences.push(`Weather in ${weather.municipality} (${weather.condition?.main || 'stable'}, ${weather.currentTemp}°C) is not expected to significantly disrupt supply.`);
-    }
-  }
-
-  sentences.push(`Confidence: ${confidence}%, based on real recent order activity, active listings, and ${weather ? 'live weather data' : 'available market data'}.`);
-
-  return sentences.join(' ');
 }
