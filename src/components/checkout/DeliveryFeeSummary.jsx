@@ -1,4 +1,4 @@
-import { Clock3, MapPinned, Truck } from 'lucide-react';
+import { Clock3, Loader2, MapPinned, Truck } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 
 // A GrabFood/Foodpanda-style live checkout summary — road distance, ETA, delivery fee (with
@@ -9,8 +9,13 @@ import { formatCurrency } from '../../utils/formatters';
 // `estimate` is `{ fee, distanceKm, durationMinutes, tierLabel, source }` (see
 // backend/src/lib/deliveryFee.js) once loaded — `source: 'straight-line'` means the live
 // backend call failed and the caller substituted a client-side fallback so checkout still
-// shows a sensible total; `error` carries the message to display alongside it.
-export default function DeliveryFeeSummary({ subtotal, estimate, isLoading, error, isPickup }) {
+// shows a sensible total; `error` carries the message to display alongside it. For pickup,
+// `estimate.distanceKm` is the real road distance from the buyer's own live location (not a
+// fee — pickup is always free) — `locationStatus`/`locationNotice`/`onRetryLocation` cover
+// the states before that location is actually available (requesting, denied, unsupported).
+export default function DeliveryFeeSummary({
+  subtotal, estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
+}) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
   const total = subtotal + fee;
 
@@ -23,9 +28,58 @@ export default function DeliveryFeeSummary({ subtotal, estimate, isLoading, erro
 
       <div className="p-4 space-y-3">
         {isPickup ? (
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <MapPinned size={15} aria-hidden="true" /> Buyer pickup — no delivery fee
-          </div>
+          <>
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <MapPinned size={15} aria-hidden="true" /> Buyer pickup — no delivery fee
+            </div>
+
+            {locationStatus === 'locating' ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Detecting your location…
+              </div>
+            ) : null}
+
+            {(locationStatus === 'denied' || locationStatus === 'unsupported') && locationNotice ? (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <span>{locationNotice}</span>
+                {locationStatus === 'denied' ? (
+                  <button type="button" onClick={onRetryLocation} className="font-semibold underline shrink-0">
+                    Try again
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {error ? (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {error}
+              </div>
+            ) : null}
+
+            {isLoading && !estimate ? (
+              <div className="animate-pulse space-y-2" aria-label="Calculating distance to the farm">
+                <div className="h-3 bg-slate-100 rounded w-2/3" />
+                <div className="h-3 bg-slate-100 rounded w-1/2" />
+              </div>
+            ) : estimate && estimate.distanceKm > 0 ? (
+              <>
+                <div className="flex items-center justify-between text-sm text-slate-600">
+                  <span className="flex items-center gap-1.5">
+                    <MapPinned size={14} aria-hidden="true" /> Distance from you to the farm
+                  </span>
+                  <span className="font-medium text-slate-800">{estimate.distanceKm.toFixed(1)} km</span>
+                </div>
+                {estimate.durationMinutes != null ? (
+                  <div className="flex items-center justify-between text-sm text-slate-600">
+                    <span className="flex items-center gap-1.5">
+                      <Clock3 size={14} aria-hidden="true" /> Estimated travel time
+                    </span>
+                    <span className="font-medium text-slate-800">~{Math.round(estimate.durationMinutes)} min</span>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </>
         ) : (
           <>
             {error ? (
