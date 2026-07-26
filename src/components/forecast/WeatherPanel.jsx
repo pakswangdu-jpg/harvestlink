@@ -75,7 +75,7 @@ function WeatherStat({ icon: Icon, label, value, unit }) {
 
 function WeatherSkeleton() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-gray-200 bg-white p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <div className="h-6 w-40 animate-pulse rounded bg-gray-100" />
@@ -101,7 +101,7 @@ export default function WeatherPanel({ weather, isLoading }) {
 
   if (!weather) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
         <div className="flex items-center gap-2">
           <CloudSun size={22} className="text-blue-600" />
           <h3 className="text-[20px] font-bold text-gray-900">Today's Weather</h3>
@@ -122,7 +122,7 @@ export default function WeatherPanel({ weather, isLoading }) {
       : 'bg-gray-50 text-gray-600';
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-gray-200 bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

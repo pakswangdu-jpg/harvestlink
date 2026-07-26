@@ -71,6 +71,11 @@ export function buildRoleFields(role, values, { isCreate }) {
     if (values.farmName !== undefined) fields.farm_name = values.farmName?.trim();
     if (values.contactNumber !== undefined) fields.contact_number = values.contactNumber?.trim() || '';
     if (values.govIdFile !== undefined) fields.gov_id_file_url = values.govIdFile || null;
+    // How buyers pay this farmer via GCash at checkout (see payments.controller.js's
+    // getGcashCheckout) — plain stored fields, no GCash API integration of any kind.
+    if (values.gcashAccountName !== undefined) fields.gcash_account_name = values.gcashAccountName?.trim() || null;
+    if (values.gcashNumber !== undefined) fields.gcash_number = values.gcashNumber?.trim() || null;
+    if (values.gcashQrUrl !== undefined) fields.gcash_qr_url = values.gcashQrUrl || null;
     if (isCreate) {
       fields.verification_status = 'pending';
       fields.verification_acknowledged = true;

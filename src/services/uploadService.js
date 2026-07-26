@@ -34,6 +34,17 @@ export async function uploadAvatar(file, userId) {
   return data.publicUrl;
 }
 
+// chat-attachments is a PUBLIC bucket, same owner-folder convention as avatars/product-images
+// — the uploader's own folder, but the resulting public URL is what actually makes the image
+// or file visible to the other side of the conversation (see supabase/schema.sql's comment
+// on why a public bucket's SELECT policy doesn't restrict who can view the file).
+export async function uploadChatAttachment(file, userId) {
+  const path = `${userId}/${crypto.randomUUID()}.${extensionFor(file)}`;
+  await uploadToBucket('chat-attachments', path, file);
+  const { data } = supabase.storage.from('chat-attachments').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // verification-documents is a PRIVATE bucket — the stored value is the bucket-relative
 // PATH, not a URL (a private bucket has no directly-fetchable public URL). Reading it back
 // requires a signed URL: the owner can generate their own (see getSignedDocumentUrl below,
@@ -48,6 +59,27 @@ export async function uploadGovIdFile(file, userId) {
 export async function uploadAccreditationFile(file, userId) {
   const path = `${userId}/accreditation-${crypto.randomUUID()}.${extensionFor(file)}`;
   return uploadToBucket('verification-documents', path, file);
+}
+
+// payment-qr is a PUBLIC bucket, same owner-folder convention as avatars/product-images —
+// a farmer's own GCash QR code, shown to any buyer checking out with them (see
+// GcashPaymentPage.jsx). Returns a directly-usable URL, PATCHed onto the profile as
+// gcashQrUrl.
+export async function uploadPaymentQr(file, farmerId) {
+  const path = `${farmerId}/${crypto.randomUUID()}.${extensionFor(file)}`;
+  await uploadToBucket('payment-qr', path, file);
+  const { data } = supabase.storage.from('payment-qr').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// payment-receipts is a PUBLIC bucket, owner-folder convention where the "owner" is the
+// BUYER submitting proof of payment (see GcashPaymentPage.jsx). Returns a directly-usable
+// URL, sent to confirmGcashPayment as receiptUrl.
+export async function uploadPaymentReceipt(file, buyerId) {
+  const path = `${buyerId}/${crypto.randomUUID()}.${extensionFor(file)}`;
+  await uploadToBucket('payment-receipts', path, file);
+  const { data } = supabase.storage.from('payment-receipts').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // Lets the file's OWNER view their own gov ID / accreditation upload (Profile.jsx) —

@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, Edit3, Lock, Mail, MapPin, Phone, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import StatusBadge from '../../components/common/StatusBadge';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import { useAuth } from '../auth/AuthContext';
 import { changePassword, updateUserProfile } from '../../services/authService';
-import { getSignedDocumentUrl, uploadAvatar } from '../../services/uploadService';
+import { getSignedDocumentUrl, uploadAvatar, uploadPaymentQr } from '../../services/uploadService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
-import { hasErrors, validatePasswordForm, validateProfileForm } from '../../utils/validators';
+import { hasErrors, validateGcashForm, validatePasswordForm, validateProfileForm } from '../../utils/validators';
 import { farmerNavItems } from '../farmer/farmerNav';
 import { buyerNavItems } from '../buyer/buyerNav';
 import { stakeholderNavItems } from '../stakeholder/stakeholderNav';
@@ -30,6 +31,10 @@ export default function Profile() {
   const navItems = NAV_ITEMS_BY_ROLE[currentUser.role];
   const isFarmer = currentUser.role === 'farmer';
   const isStakeholder = currentUser.role === 'stakeholder';
+  // Roles without a verification workflow (e.g. buyers) have no verificationStatus at all —
+  // that's an "Active" account, same good-standing state as an explicitly verified one.
+  // Only 'pending'/'rejected' should read as anything less than good.
+  const isAccountVerified = !currentUser.verificationStatus || currentUser.verificationStatus === 'verified';
 
   const [isEditing, setIsEditing] = useState(false);
   const [profileDraft, setProfileDraft] = useState(() => buildProfileDraft(currentUser));
@@ -96,6 +101,66 @@ export default function Profile() {
       setAvatarError('Could not remove photo right now. Please try again later.');
     } finally {
       setIsUploadingAvatar(false);
+    }
+  };
+
+  // GCash payment info (farmer-only) — a separate, always-editable form rather than the
+  // Personal/Farm panels' view-then-Edit toggle, since it's just two fields plus the QR
+  // upload below (which, like the avatar photo, saves itself immediately on picking a file).
+  const [gcashDraft, setGcashDraft] = useState({
+    gcashAccountName: currentUser.gcashAccountName || '',
+    gcashNumber: currentUser.gcashNumber || '',
+  });
+  const [gcashErrors, setGcashErrors] = useState({});
+  const [gcashNotice, setGcashNotice] = useState('');
+  const [isSavingGcash, setIsSavingGcash] = useState(false);
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [qrError, setQrError] = useState('');
+
+  const updateGcashField = (field, value) => {
+    setGcashDraft((previous) => ({ ...previous, [field]: value }));
+    setGcashErrors((previous) => ({ ...previous, [field]: undefined }));
+    setGcashNotice('');
+  };
+
+  const handleGcashSubmit = async (event) => {
+    event.preventDefault();
+    const nextErrors = validateGcashForm(gcashDraft);
+    if (hasErrors(nextErrors)) {
+      setGcashErrors(nextErrors);
+      return;
+    }
+    setIsSavingGcash(true);
+    try {
+      await updateUserProfile(currentUser.id, gcashDraft);
+      await refreshUser();
+      setGcashNotice('Payment information saved.');
+    } catch (error) {
+      setGcashErrors({ gcashAccountName: error.message });
+    } finally {
+      setIsSavingGcash(false);
+    }
+  };
+
+  const handleQrChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setQrError('Please choose an image file.');
+      return;
+    }
+    setQrError('');
+    setIsUploadingQr(true);
+    try {
+      const gcashQrUrl = await uploadPaymentQr(file, currentUser.id);
+      await updateUserProfile(currentUser.id, { gcashQrUrl });
+      await refreshUser();
+    } catch (error) {
+      console.error('QR upload failed:', error);
+      setQrError('Could not upload QR code right now. Please try again later.');
+    } finally {
+      setIsUploadingQr(false);
     }
   };
 
@@ -230,7 +295,9 @@ export default function Profile() {
 
         <div className="profile-summary-row">
           <div className="profile-summary-item">
-            <span className="profile-summary-icon"><ShieldCheck size={16} /></span>
+            <span className={`profile-summary-icon${isAccountVerified ? ' status-verified' : ''}`}>
+              <ShieldCheck size={16} />
+            </span>
             <div>
               <small>Account status</small>
               <strong>{currentUser.verificationStatus ? currentUser.verificationStatus : 'Active'}</strong>
@@ -434,6 +501,64 @@ export default function Profile() {
           )}
         </div>
       </section>
+
+      {isFarmer ? (
+        <section className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Payments</p>
+              <h2>Payment Information</h2>
+            </div>
+          </div>
+          <p className="muted gcash-intro">Configure how buyers can send GCash payments directly to your account.</p>
+
+          {gcashNotice ? <div className="form-alert success">{gcashNotice}</div> : null}
+
+          <div className="content-grid two gcash-grid">
+            <form className="form-stack" onSubmit={handleGcashSubmit}>
+              <FormField label="GCash Account Name" name="gcashAccountName" error={gcashErrors.gcashAccountName}>
+                <input
+                  id="gcashAccountName"
+                  value={gcashDraft.gcashAccountName}
+                  onChange={(event) => updateGcashField('gcashAccountName', event.target.value)}
+                  placeholder="Juan Dela Cruz"
+                />
+              </FormField>
+              <FormField label="GCash Mobile Number" name="gcashNumber" error={gcashErrors.gcashNumber}>
+                <input
+                  id="gcashNumber"
+                  value={gcashDraft.gcashNumber}
+                  onChange={(event) => updateGcashField('gcashNumber', event.target.value)}
+                  placeholder="09171234567"
+                  inputMode="numeric"
+                />
+              </FormField>
+              <div className="form-actions">
+                <Button type="submit" disabled={isSavingGcash}>{isSavingGcash ? 'Saving…' : 'Save'}</Button>
+              </div>
+            </form>
+
+            <div className="form-field">
+              <span>Upload Official GCash QR Code</span>
+              {currentUser.gcashQrUrl ? (
+                <div className="gcash-qr-preview">
+                  <ZoomableImage src={currentUser.gcashQrUrl} alt="GCash QR code" />
+                </div>
+              ) : (
+                <div className="gcash-qr-preview empty">
+                  <QrCode size={26} />
+                  <span>No QR code uploaded</span>
+                </div>
+              )}
+              {qrError ? <small className="field-error">{qrError}</small> : null}
+              <label className="btn btn-secondary btn-md gcash-qr-upload-btn">
+                <input type="file" accept="image/*" disabled={isUploadingQr} onChange={handleQrChange} />
+                {isUploadingQr ? 'Uploading…' : currentUser.gcashQrUrl ? 'Replace QR' : 'Upload QR'}
+              </label>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel security-panel">
         <div className="section-heading">

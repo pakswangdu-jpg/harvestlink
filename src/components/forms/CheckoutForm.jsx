@@ -183,11 +183,12 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
             : `${product.quantity} ${product.unit} available`
         }
       >
+        {/* step="any" — a fractional step made the spinner's first click jump to "0.01" before any typing */}
         <input
           id="quantity"
           type="number"
           min="0"
-          step="0.01"
+          step="any"
           value={values.quantity}
           onChange={(event) => updateField('quantity', event.target.value)}
           placeholder="25"

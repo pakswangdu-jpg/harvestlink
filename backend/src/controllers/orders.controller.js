@@ -168,6 +168,20 @@ export async function updateOrderStatus(req, res) {
     link: `/orders/${order.id}`,
   });
 
+  // "Courier Assigned" — this app has no separate courier-assignment step (courier follows
+  // the exact same preparing -> packed -> out_for_delivery -> delivered sequence as
+  // farmer_delivery — see DELIVERY_SEQUENCES), so confirming a courier-method order IS the
+  // moment a courier becomes the plan for this delivery; that's the honest trigger for it.
+  if (status === 'confirmed' && order.delivery_method === 'courier') {
+    await createNotification({
+      userId: order.farmer_id,
+      type: 'order',
+      title: 'Courier assigned',
+      message: `This order will be handled by a courier for delivery to ${order.buyer_name}.`,
+      link: `/orders/${order.id}`,
+    });
+  }
+
   res.json(serializeOrder(order));
 }
 
@@ -227,6 +241,24 @@ export async function advanceDelivery(req, res) {
   const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id).select().single();
   if (error) throw new ApiError(error.message, 400);
 
+  if (nextStatus === 'preparing') {
+    await createNotification({
+      userId: order.buyer_id,
+      type: 'order',
+      title: 'Order preparing',
+      message: `${order.farmer_name} is preparing your order.`,
+      link: `/orders/${order.id}`,
+    });
+  }
+  if (nextStatus === 'ready_for_pickup') {
+    await createNotification({
+      userId: order.buyer_id,
+      type: 'order',
+      title: 'Ready for pickup',
+      message: `Your order from ${order.farmer_name} is ready for pickup.`,
+      link: `/orders/${order.id}`,
+    });
+  }
   if (isTransitStep) {
     await createNotification({
       userId: order.buyer_id,
@@ -245,6 +277,24 @@ export async function advanceDelivery(req, res) {
       message: isPickup
         ? `You confirmed picking up your order from ${order.farmer_name}.`
         : `Your order from ${order.farmer_name} has been delivered.`,
+      link: `/orders/${order.id}`,
+    });
+    // The farmer only learns their delivery actually completed once the BUYER confirms
+    // receipt (see the isFinalStep comment above) — this is that closing-the-loop notice.
+    await createNotification({
+      userId: order.farmer_id,
+      type: 'order',
+      title: isPickup ? 'Order picked up' : 'Order delivered',
+      message: isPickup
+        ? `${order.buyer_name} picked up their order.`
+        : `${order.buyer_name}'s order was delivered.`,
+      link: `/orders/${order.id}`,
+    });
+    await createNotification({
+      userId: order.buyer_id,
+      type: 'order',
+      title: 'Review reminder',
+      message: `How was your order from ${order.farmer_name}? Leave a review.`,
       link: `/orders/${order.id}`,
     });
   }

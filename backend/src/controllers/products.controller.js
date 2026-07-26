@@ -236,8 +236,10 @@ export async function applyDiscount(req, res) {
   const existing = await fetchProductOr404(req.params.id);
   assertOwnership(req, existing);
   const percent = Number(req.body.percent);
-  if (!Number.isFinite(percent) || percent <= 0 || percent >= 100) {
-    throw new ApiError('Discount percent must be between 1 and 99.', 400);
+  // 100 is allowed (a free giveaway through a regular listing, price -> ₱0.00) — a discount
+  // still can't exceed 100, which would make the listing cost less than nothing.
+  if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
+    throw new ApiError('Discount percent must be between 1 and 100.', 400);
   }
 
   const originalPrice = existing.original_price ?? existing.price;

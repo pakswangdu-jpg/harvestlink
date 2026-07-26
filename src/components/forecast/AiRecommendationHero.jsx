@@ -17,7 +17,7 @@ export default function AiRecommendationHero({ crop, forecast, aiSummary }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border border-green-100 bg-gradient-to-br from-green-50/70 via-white to-white p-6 shadow-sm sm:p-7"
+      className="rounded-lg border border-green-100 bg-green-50/40 p-6 sm:p-7"
     >
       <div className="flex items-center gap-2.5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-700 text-white">

@@ -39,3 +39,13 @@ export async function markAllRead(req, res) {
   if (error) throw new ApiError(error.message, 400);
   res.status(204).end();
 }
+
+export async function deleteNotification(req, res) {
+  const { data: existing } = await supabaseAdmin.from('notifications').select('*').eq('id', req.params.id).single();
+  if (!existing) throw new ApiError('Notification was not found.', 404);
+  if (existing.user_id !== req.profile.id) throw new ApiError('You do not have permission to modify this notification.', 403);
+
+  const { error } = await supabaseAdmin.from('notifications').delete().eq('id', req.params.id);
+  if (error) throw new ApiError(error.message, 400);
+  res.status(204).end();
+}

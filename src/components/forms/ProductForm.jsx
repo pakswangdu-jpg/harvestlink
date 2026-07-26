@@ -1,52 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Gift, Info, Tag, TriangleAlert } from 'lucide-react';
+import { Gift, Info, TriangleAlert } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
+import PriceRecommendationBreakdown from './PriceRecommendationBreakdown';
+import DiscountCalculator from './DiscountCalculator';
 import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
 import { uploadProductImage } from '../../services/uploadService';
-import { formatCurrency } from '../../utils/formatters';
 import { hasErrors, validateProductForm } from '../../utils/validators';
+import { getFixedKgPerUnit } from '../../utils/unitConversion';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
-
-// Farmer types the exact percent they want (rather than picking from presets) and sees the
-// resulting price live before committing — moved here (from FarmerProducts.jsx) so the
-// discount control lives inside the same Pricing card as everything else price-related.
-function DiscountControl({ product, onApply }) {
-  const [percent, setPercent] = useState('');
-  const draftPercent = Number(percent);
-  const isValid = percent !== '' && Number.isFinite(draftPercent) && draftPercent > 0 && draftPercent < 100;
-  const previewPrice = isValid ? Number((product.price * (1 - draftPercent / 100)).toFixed(2)) : null;
-
-  return (
-    <div className="discount-picker">
-      <div className="discount-input-wrap">
-        <input
-          type="number"
-          min="1"
-          max="99"
-          step="1"
-          value={percent}
-          onChange={(event) => setPercent(event.target.value)}
-          placeholder="20"
-        />
-        <span>%</span>
-      </div>
-      {previewPrice != null ? (
-        <span className="discount-preview">
-          <span className="price-original">{formatCurrency(product.price)}</span>
-          {' → '}
-          <strong>{formatCurrency(previewPrice)}</strong>
-        </span>
-      ) : null}
-      <Button type="button" size="sm" variant="secondary" disabled={!isValid} onClick={() => onApply(draftPercent)}>
-        <Tag size={15} /> Apply discount
-      </Button>
-    </div>
-  );
-}
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
@@ -137,6 +102,7 @@ export default function ProductForm({
             commodityLabel: matchedCommodity.label,
             referencePrice: latest.price,
             referenceYear: latest.year,
+            isOverride: Boolean(latest.isOverride),
           } : null,
         });
       })
@@ -149,21 +115,24 @@ export default function ProductForm({
     };
   }, [matchedCommodity, values.isDonation]);
 
-  // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so
-  // any comparison against PSA (deviation check, recommendation) has to go through a
-  // kg-per-unit conversion the farmer supplies, except when the unit already is kg.
-  const isKgUnit = values.unit === 'kg';
-  const kgPerUnitValue = isKgUnit ? 1 : Number(values.kgPerUnit);
-  const hasKgConversion = isKgUnit || (values.kgPerUnit !== '' && Number.isFinite(kgPerUnitValue) && kgPerUnitValue > 0);
+  // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so any
+  // comparison against PSA (deviation check, recommendation) has to go through a kg-per-unit
+  // conversion. Units with one universal weight (kg/g/t/L/mL — see unitConversion.js) convert
+  // automatically; everything else needs the farmer's own "How many kg is 1 X?" answer.
+  const fixedKgPerUnit = getFixedKgPerUnit(values.unit);
+  const needsManualConversion = Boolean(values.unit) && fixedKgPerUnit == null;
+  const kgPerUnitValue = fixedKgPerUnit ?? Number(values.kgPerUnit);
+  const hasKgConversion = fixedKgPerUnit != null || (values.kgPerUnit !== '' && Number.isFinite(kgPerUnitValue) && kgPerUnitValue > 0);
 
   const pricePerKg = hasKgConversion && values.price ? Number(values.price) / kgPerUnitValue : null;
   const deviationPct = marketReference && pricePerKg != null
     ? Number((((pricePerKg - marketReference.referencePrice) / marketReference.referencePrice) * 100).toFixed(1))
     : null;
-  const recommendedPricePerKg = marketReference ? getRecommendedPrice(marketReference.referencePrice) : null;
-  const recommendedPrice = recommendedPricePerKg && hasKgConversion
-    ? { ...recommendedPricePerKg, price: Math.ceil(recommendedPricePerKg.price * kgPerUnitValue * 2) / 2 }
-    : null;
+  // Convert PSA's per-kg price into the farmer's selling unit FIRST (basePrice = psaPricePerKg
+  // × unitWeightKg), then let getRecommendedPrice apply the margin and round once — see that
+  // function's own comment for why converting before marking up (rather than after) matters.
+  const equivalentPsaPricePerUnit = marketReference && hasKgConversion ? marketReference.referencePrice * kgPerUnitValue : null;
+  const recommendedPrice = equivalentPsaPricePerUnit != null ? getRecommendedPrice(equivalentPsaPricePerUnit) : null;
   const isOverThreshold = deviationPct != null && deviationPct > PRICE_DEVIATION_THRESHOLD_PERCENT;
   const hasTypedName = values.name.trim().length > 0;
   const isLoadingReference = Boolean(matchedCommodity) && marketResult.commodityId !== matchedCommodity.id;
@@ -238,7 +207,13 @@ export default function ProductForm({
         const points = await fetchAnnualPriceTrend(matchedCommodity.id, 3);
         const latest = [...points].reverse().find((point) => point.price != null);
         reference = latest
-          ? { commodityId: matchedCommodity.id, commodityLabel: matchedCommodity.label, referencePrice: latest.price, referenceYear: latest.year }
+          ? {
+            commodityId: matchedCommodity.id,
+            commodityLabel: matchedCommodity.label,
+            referencePrice: latest.price,
+            referenceYear: latest.year,
+            isOverride: Boolean(latest.isOverride),
+          }
           : null;
       } catch {
         reference = null;
@@ -358,7 +333,8 @@ export default function ProductForm({
             </select>
           </FormField>
           <FormField label="Quantity available" name="quantity" error={errors.quantity}>
-            <input id="quantity" type="number" min="0" step="0.01" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
+            {/* step="any" — a fractional step made the spinner's first click jump to "0.01" before any typing */}
+            <input id="quantity" type="number" min="0" step="any" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
           </FormField>
         </div>
 
@@ -378,7 +354,7 @@ export default function ProductForm({
 
         {!values.isDonation ? (
           <FormField
-            label="Cost per unit (optional)"
+            label="Cost per unit"
             name="costPrice"
             error={errors.costPrice}
             helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
@@ -395,12 +371,12 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
-        {!values.isDonation && !isKgUnit && values.unit ? (
+        {!values.isDonation && needsManualConversion ? (
           <FormField
-            label={`How many kg is 1 ${values.unit}?`}
+            label={`Weight of one ${values.unit} (kg)`}
             name="kgPerUnit"
             error={errors.kgPerUnit}
-            helper="PSA market prices are per kg — this converts them to a fair price for your unit."
+            helper="PSA market prices are per kg — this converts them to a fair price for your unit. Depends on what you're selling, so we never guess it for you."
           >
             <input
               id="kgPerUnit"
@@ -422,31 +398,29 @@ export default function ProductForm({
                 <strong>Checking PSA market prices…</strong>
               ) : marketReference ? (
                 <>
-                  <strong>PSA farmgate reference: ₱{marketReference.referencePrice.toFixed(2)}/kg</strong>
-                  <span> — {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})</span>
-                  {recommendedPrice ? (
-                    <p className="price-recommendation">
-                      <strong>Recommended price: ₱{recommendedPrice.price.toFixed(2)}/{values.unit}</strong>
-                      <span>
-                        {' '}— {recommendedPrice.marginPercent}% above the PSA farmgate reference (converted using your
-                        1 {values.unit} = {kgPerUnitValue}kg). That reference is what a trader would pay you, not what a
-                        buyer pays; local wholesale/retail markups over it commonly run 40-60%+, so this keeps you
-                        profitable after harvesting, packing, and delivery while still pricing below typical retail.
-                      </span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => updateField('price', String(recommendedPrice.price))}
-                      >
-                        Use this price
-                      </Button>
-                    </p>
-                  ) : !isKgUnit ? (
+                  <strong>
+                    {marketReference.isOverride ? 'Reference price' : 'PSA farmgate reference'}: ₱{marketReference.referencePrice.toFixed(2)}/kg
+                  </strong>
+                  {marketReference.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
+                  <span>
+                    {' '}— {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})
+                    {marketReference.isOverride ? ', overriding the PSA figure for this year' : ''}
+                  </span>
+                  {hasKgConversion ? (
+                    <PriceRecommendationBreakdown
+                      unit={values.unit}
+                      kgPerUnitValue={kgPerUnitValue}
+                      referencePrice={marketReference.referencePrice}
+                      equivalentPsaPricePerUnit={equivalentPsaPricePerUnit}
+                      recommendedPrice={recommendedPrice}
+                      costPrice={values.costPrice}
+                      onUsePrice={(price) => updateField('price', String(price))}
+                    />
+                  ) : (
                     <p className="price-recommendation">
                       Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
                     </p>
-                  ) : null}
+                  )}
                   {isOverThreshold ? (
                     <p>Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.</p>
                   ) : null}
@@ -469,20 +443,13 @@ export default function ProductForm({
         ) : null}
 
         {product && !values.isDonation ? (
-          <FormField label="Discount" name="discount" helper="Discounts are visible to every buyer browsing the marketplace.">
-            {product.discountPercent ? (
-              <div className="discount-picker">
-                <span className="badge badge-sale">-{product.discountPercent}%</span>
-                <span className="discount-preview">
-                  <span className="price-original">{formatCurrency(product.originalPrice)}</span>
-                  {' → '}
-                  <strong>{formatCurrency(product.price)}</strong>
-                </span>
-                <Button type="button" size="sm" variant="ghost" onClick={onRemoveDiscount}>Remove discount</Button>
-              </div>
-            ) : (
-              <DiscountControl product={product} onApply={onApplyDiscount} />
-            )}
+          <FormField label="Discount" name="discount" helper="Optional promotional discount visible to buyers.">
+            <DiscountCalculator
+              product={product}
+              costPrice={values.costPrice}
+              onApplyDiscount={onApplyDiscount}
+              onRemoveDiscount={onRemoveDiscount}
+            />
           </FormField>
         ) : null}
       </div>

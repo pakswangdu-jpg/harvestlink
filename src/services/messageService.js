@@ -1,57 +1,41 @@
 import { apiClient } from './apiClient';
 
-export async function getMessagesForOrder(orderId) {
-  return apiClient.get(`/messages?orderId=${orderId}`);
+// A buyer/farmer pair only ever has ONE conversation — merging their direct messages with
+// any order-scoped history between exactly that pair (see backend/src/controllers/
+// messages.controller.js) — so every call here is keyed by the OTHER PERSON, never by
+// order. { messages, hasMore } — newest page when `before` is omitted, ascending within
+// the page. `before` is a message's createdAt ISO string (the oldest one currently loaded)
+// to fetch the next older page for infinite scroll.
+export async function getDirectMessages(otherUserId, { before, limit } = {}) {
+  const params = new URLSearchParams({ otherUserId });
+  if (before) params.set('before', before);
+  if (limit) params.set('limit', String(limit));
+  return apiClient.get(`/messages?${params.toString()}`);
 }
 
-export async function sendMessage(order, sender, text) {
+// `extra` carries an attachment/reply: { messageType, imageUrl, fileUrl, fileName, replyToId }.
+export async function sendDirectMessage(recipientId, text, extra = {}) {
+  const trimmed = text.trim();
+  if (!trimmed && !extra.imageUrl && !extra.fileUrl) throw new Error('Enter a message before sending.');
+  return apiClient.post('/messages', { recipientId, text: trimmed, ...extra });
+}
+
+export async function editMessage(messageId, text) {
   const trimmed = text.trim();
   if (!trimmed) throw new Error('Enter a message before sending.');
-  return apiClient.post('/messages', { orderId: order.id, text: trimmed });
+  return apiClient.patch(`/messages/message/${messageId}`, { text: trimmed });
 }
 
-export async function markThreadRead(orderId) {
-  return apiClient.patch(`/messages/${orderId}/read`, {});
-}
-
-export async function getThreadsForOrders(orders, currentUser) {
-  const threads = await Promise.all(
-    orders.map(async (order) => {
-      const messages = await getMessagesForOrder(order.id);
-      const lastMessage = messages[messages.length - 1] || null;
-      const unreadCount = messages.filter((message) => message.senderId !== currentUser.id && !message.read).length;
-      const otherPartyName = currentUser.role === 'farmer' ? order.buyerName : order.farmerName;
-      return { order, lastMessage, unreadCount, otherPartyName };
-    })
-  );
-
-  return threads.sort((a, b) => {
-    const aTime = new Date(a.lastMessage?.createdAt || a.order.createdAt).getTime();
-    const bTime = new Date(b.lastMessage?.createdAt || b.order.createdAt).getTime();
-    return bTime - aTime;
-  });
-}
-
-// A direct conversation isn't tied to any order — this is how farmers, buyers, and
-// stakeholders can contact each other from the map (or anywhere else) before any order
-// exists between them. Same messages table, just order_id null / recipientId set instead
-// (see supabase/schema.sql and backend/src/controllers/messages.controller.js).
-export async function getDirectMessages(otherUserId) {
-  return apiClient.get(`/messages?otherUserId=${otherUserId}`);
-}
-
-export async function sendDirectMessage(recipientId, text) {
-  const trimmed = text.trim();
-  if (!trimmed) throw new Error('Enter a message before sending.');
-  return apiClient.post('/messages', { recipientId, text: trimmed });
+export async function deleteMessage(messageId) {
+  return apiClient.delete(`/messages/message/${messageId}`);
 }
 
 export async function markDirectThreadRead(otherUserId) {
   return apiClient.patch(`/messages/direct/${otherUserId}/read`, {});
 }
 
-// Every direct conversation the caller is part of, one entry per partner, newest first —
-// backs the "Messages" inbox alongside order threads.
+// Every conversation the caller is part of — one row per person, newest activity first
+// (backs the "Messages" inbox).
 export async function getDirectThreads() {
   return apiClient.get('/messages/direct-threads');
 }

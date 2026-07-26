@@ -77,6 +77,20 @@ textarea {
   font: inherit;
 }
 
+/* No custom placeholder color existed anywhere before this — every bare <input>/<textarea>
+   was relying on the browser's own default placeholder color, which reads close enough to
+   real typed text (especially at small sizes, e.g. the Discount % field) that a hint like
+   "20" can look like a value already entered rather than a placeholder. --muted is the color
+   already used everywhere else in the app for de-emphasized text, so this makes every
+   placeholder consistently and clearly distinct from real input. opacity: 1 overrides
+   Firefox's own default placeholder opacity (0.54), which would otherwise fade this color
+   again on that browser specifically. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -1442,63 +1456,79 @@ a.lp-contact-card:hover {
   color: var(--muted);
 }
 
+/* Flat, neutral "enterprise software" palette for the signed-in app only, overridden here
+   (not in :root) so the landing page and auth screens keep their own warmer look untouched.
+   Every .panel/.badge/.stat-card/table rule below already reads var(--text) etc, so this
+   cascades the new palette to every dashboard page with no other edits required. */
 .app-shell {
+  --text: #24292f;
+  --muted: #57606a;
+  --line: #d0d7de;
+  --panel: #ffffff;
+  --soft: #f6f8fa;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  background: linear-gradient(135deg, #f8fcf8, #edf6ef);
+  grid-template-columns: 230px minmax(0, 1fr);
+  background: var(--soft);
 }
 
 .sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
-  padding: 24px;
-  border-right: 1px solid #e5e7eb;
+  padding: 16px 12px;
+  border-right: 1px solid #d0d7de;
   background: #ffffff;
-  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  /* Logout sits right after Menu/General now instead of being pinned to the viewport
+     bottom (no flex-1 spacer above it) — this is just a safety net for a short viewport
+     with enough nav items to overflow 100vh, so the whole sidebar scrolls as one unit
+     instead of clipping, rather than the old nested Menu-only scroll region. */
+  overflow-y: auto;
 }
 
 /* Scoped to the sidebar only — .brand-mark/.brand strong/.brand small are shared with the
    landing page navbar and public farmer profile, which keep their own square-logo look. */
 .sidebar .brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--green-50);
 }
 
 .sidebar .brand strong {
-  font-size: 1.05rem;
+  font-size: 0.94rem;
   font-weight: 700;
   color: #111827;
 }
 
 .sidebar .brand small {
+  font-size: 0.72rem;
   font-weight: 500;
   color: #6b7280;
+  text-transform: capitalize;
 }
 
 /* Only the middle (nav + general) region scrolls — the logo stays pinned at the top and
    Logout stays pinned at the bottom no matter how many nav items/zoom level squeezes things. */
-.sidebar-scroll {
+.sidebar {
   scrollbar-width: thin;
   scrollbar-color: var(--green-600) transparent;
 }
 
-.sidebar-scroll::-webkit-scrollbar {
+.sidebar::-webkit-scrollbar {
   width: 6px;
 }
 
-.sidebar-scroll::-webkit-scrollbar-track {
+.sidebar::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb {
+.sidebar::-webkit-scrollbar-thumb {
   background: var(--green-600);
   border-radius: 999px;
 }
@@ -1531,22 +1561,50 @@ a.lp-contact-card:hover {
   gap: 20px;
 }
 
+/* Opt-out of .main-content's padded/centered/top-packed layout for pages that need to fill
+   the viewport edge-to-edge themselves (the Messages split-pane) — the sidebar/nav shell
+   around it is unchanged, only this content region's own box model differs. */
+.main-content-full-bleed {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Opt-out of just the 1280px cap (keeps the normal header/padding/grid) — for data-dense,
+   GIS-style pages like the map that want to use the full viewport width instead of being
+   centered in a narrower column. */
+.main-content-wide {
+  width: 100%;
+  max-width: none;
+}
+
 .page-header {
   justify-content: space-between;
+  align-items: flex-start;
   gap: 18px;
+  padding-bottom: 4px;
 }
 
 .page-header h1 {
-  color: var(--green-900);
-  font-size: clamp(1.8rem, 4vw, 3.1rem);
-  line-height: 1.05;
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.25;
   letter-spacing: 0;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .page-header p {
   color: var(--muted);
-  margin-top: 6px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.page-header .eyebrow {
+  font-size: 12px;
 }
 
 .notification-bell {
@@ -1628,6 +1686,7 @@ a.lp-contact-card:hover {
 }
 
 .notification-list li {
+  position: relative;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1642,7 +1701,7 @@ a.lp-contact-card:hover {
 .notification-list a {
   display: grid;
   gap: 3px;
-  padding: 12px 16px;
+  padding: 12px 34px 12px 16px;
   color: var(--text);
 }
 
@@ -1652,6 +1711,44 @@ a.lp-contact-card:hover {
 
 .notification-list small {
   color: var(--muted);
+}
+
+.notification-item-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.notification-item-title strong {
+  color: var(--text);
+}
+
+.notification-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.notification-list li:hover .notification-delete-btn,
+.notification-delete-btn:focus-visible {
+  opacity: 1;
+}
+
+.notification-delete-btn:hover {
+  background: var(--line);
+  color: var(--red-700);
 }
 
 .notification-empty {
@@ -1701,7 +1798,7 @@ a.user-chip:hover {
 }
 
 .stats-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .stat-card {
@@ -1717,8 +1814,8 @@ a.user-chip:hover {
   display: grid;
   place-items: center;
   border-radius: var(--radius);
-  color: var(--green-800);
-  background: var(--green-100);
+  color: var(--muted);
+  background: var(--soft);
 }
 
 .stat-card p {
@@ -2041,8 +2138,15 @@ a.user-chip:hover {
   grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
 }
 
+/* Map page only — map gets ~70% width, the farmer/buyer/stakeholder directory gets ~30%.
+   Deliberately a separate modifier from .uneven above (which ProductDetails also uses at a
+   different ratio) so tuning one never shifts the other. */
+.content-grid.two.map-directory-split {
+  grid-template-columns: minmax(0, 2.3fr) minmax(280px, 1fr);
+}
+
 .panel {
-  padding: 18px;
+  padding: 20px;
 }
 
 .section-heading {
@@ -2072,11 +2176,11 @@ a.user-chip:hover {
 
 .product-image,
 .detail-image {
-  min-height: 190px;
+  height: 190px;
   display: grid;
   place-items: center;
   color: var(--green-800);
-  background: linear-gradient(135deg, #fef3c7, #bbf7d0);
+  background: var(--green-50);
 }
 
 .product-image img,
@@ -2093,14 +2197,19 @@ a.user-chip:hover {
   flex: 1;
 }
 
-.product-card-top,
 .product-card-footer {
   justify-content: space-between;
   gap: 10px;
 }
 
+/* Badge row (category/grade/wholesale/sale/low-stock/status) — grouped tightly together
+   at the start, not spread edge-to-edge like .product-card-footer's price/button pair.
+   space-between here was stretching 2-4 badges across the full card width with uneven
+   gaps between them instead of a compact, left-aligned group. */
 .product-card-top {
+  justify-content: flex-start;
   flex-wrap: wrap;
+  gap: 6px 8px;
 }
 
 .product-card h3 {
@@ -2234,10 +2343,10 @@ a.user-chip:hover {
   display: inline-flex;
   align-items: center;
   width: fit-content;
-  height: 24px;
-  padding: 0 11px;
+  height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -2643,6 +2752,67 @@ a.user-chip:hover {
 .btn-danger {
   color: var(--red-700);
   background: var(--red-100);
+}
+
+/* Inside the signed-in app only: compact, flat, no glow/lift — matches the enterprise button
+   spec (36px height, 6px radius, no gradients/glow, professional hover). Landing/auth pages
+   above keep their original warmer treatment untouched. */
+.app-shell .btn {
+  min-height: 36px;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.app-shell .btn:hover {
+  transform: none;
+}
+
+.app-shell .btn-sm {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.app-shell .btn-md {
+  padding: 8px 14px;
+  font-size: 0.9rem;
+}
+
+.app-shell .btn-lg {
+  min-height: 40px;
+  padding: 10px 18px;
+}
+
+.app-shell .btn-primary {
+  background: var(--green-700);
+  box-shadow: none;
+}
+
+.app-shell .btn-primary:hover {
+  background: var(--green-800);
+}
+
+.app-shell .btn-secondary {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.app-shell .btn-secondary:hover {
+  background: var(--soft);
+}
+
+.app-shell .btn-ghost {
+  color: var(--muted);
+  background: var(--soft);
+}
+
+.app-shell .btn-ghost:hover {
+  background: var(--line);
+}
+
+.app-shell .btn-danger:hover {
+  background: #fecaca;
 }
 
 .full-width {
@@ -3086,8 +3256,30 @@ a.user-chip:hover {
 .farmer-list {
   display: grid;
   gap: 4px;
-  max-height: 480px;
+}
+
+/* Map page only: the map fills a fixed, generous height instead of leaving dead space
+   below it when the directory column runs taller, and the directory scrolls as ONE unit
+   (matching height) instead of the page growing without bound — the "map + fixed-height
+   scrollable sidebar" shape of GIS software, not an ever-taller report page. */
+.map-panel-fill {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-panel-fill .farmer-map-wrapper {
+  flex: 1;
+  min-height: 600px;
+}
+
+.map-panel-fill .farmer-map {
+  height: 100%;
+}
+
+.directory-scroll {
+  max-height: 636px;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .farmer-list-item {
@@ -3153,6 +3345,137 @@ a.user-chip:hover {
   align-items: center;
   gap: 4px;
   font-size: 0.85rem;
+}
+
+/* Directory panel — a compact navigation list, not a stack of report sections: small
+   uppercase group labels with a count instead of full-sentence <h2>s, thin dividers between
+   groups instead of large section-heading margins. */
+.directory-group + .directory-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.directory-group-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.directory-group-count {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Selected Location Details — one flat panel, populated only once a marker/directory row
+   is selected; the same shape either way so the page never jumps height on selection. */
+.selected-location-panel .empty-state {
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+}
+
+.selected-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.selected-location-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.selected-location-avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  overflow: hidden;
+  color: white;
+  font-weight: 800;
+  font-size: 1rem;
+  background: linear-gradient(135deg, var(--green-600), var(--green-800));
+}
+
+.selected-location-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.selected-location-avatar.buyer {
+  background: linear-gradient(135deg, #3b82f6, var(--blue-700));
+}
+
+.selected-location-avatar.stakeholder {
+  background: linear-gradient(135deg, #ec4899, #db2777);
+}
+
+.selected-location-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--green-900);
+}
+
+.selected-location-role {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.selected-location-facts {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 20px;
+  min-width: 240px;
+}
+
+.selected-location-fact {
+  display: grid;
+  gap: 2px;
+}
+
+.selected-location-fact span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.selected-location-fact strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.selected-location-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
 }
 
 .live-indicator {
@@ -3373,13 +3696,16 @@ table {
 
 th,
 td {
-  padding: 12px 10px;
+  padding: 10px 12px;
   border-bottom: 1px solid #f3f4f6;
   text-align: left;
   vertical-align: middle;
 }
 
 th {
+  position: sticky;
+  top: 0;
+  background: #fff;
   color: #6b7280;
   font-size: 12px;
   font-weight: 600;
@@ -3402,8 +3728,8 @@ td {
 }
 
 .table-wrap tbody tr {
-  height: 68px;
-  transition: background-color 0.2s ease;
+  height: 44px;
+  transition: background-color 0.15s ease;
 }
 
 .table-wrap tbody tr:hover {
@@ -3431,9 +3757,9 @@ td {
 }
 
 .panel:has(.table-wrap) {
-  border-radius: 16px;
-  border-color: #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
 }
 
 .table-wrap .btn {
@@ -3459,20 +3785,42 @@ td {
 }
 
 .empty-state {
-  min-height: 260px;
+  min-height: 140px;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 10px;
-  padding: 26px;
+  gap: 6px;
+  padding: 20px;
   text-align: center;
-  border: 1px dashed #c9dccf;
+  border: 1px dashed var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--panel);
+}
+
+.empty-state h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-state p {
+  font-size: 13px;
+  max-width: 320px;
+}
+
+.empty-state .btn {
+  margin-top: 4px;
 }
 
 .empty-state.compact {
-  min-height: 0;
+  min-height: 96px;
+  padding: 16px;
+  gap: 4px;
+}
+
+.empty-state.compact .empty-icon {
+  width: 36px;
+  height: 36px;
 }
 
 .empty-icon {
@@ -3520,8 +3868,75 @@ td {
   padding: 24px;
 }
 
+/* Logo + brand name repeated at the top of the card itself (not just the side hero panel,
+   which a narrow/cropped view of this page never shows) — centered, UpaMate-style. */
+.auth-card-brand {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.auth-card-brand .brand-mark {
+  width: 52px;
+  height: 52px;
+}
+
+.auth-card-brand strong {
+  color: var(--green-900);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
 .auth-card-header {
   margin-bottom: 18px;
+  text-align: center;
+}
+
+/* Icon-adorned input — leading icon (email/lock) always present; the trailing button only
+   appears on PasswordInput's show/hide toggle, so its padding is opt-in via :has() rather
+   than assumed for every icon field. */
+.input-icon-wrap {
+  position: relative;
+}
+
+.input-icon-wrap input {
+  padding-left: 38px !important;
+}
+
+.input-icon-wrap:has(.input-icon-trailing-btn) input {
+  padding-right: 38px !important;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.input-icon-trailing-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.input-icon-trailing-btn:hover {
+  color: var(--green-700);
+  background: var(--green-100);
 }
 
 .auth-forgot-link {
@@ -4519,6 +4934,13 @@ td {
   display: grid;
   place-items: center;
   border-radius: var(--radius);
+  color: var(--muted);
+  background: transparent;
+}
+
+/* Account-status icon only — green is reserved for a meaningful state (verified/active),
+   not decoration, so Role/Location/Member-since above stay plain neutral. */
+.profile-summary-icon.status-verified {
   color: var(--green-800);
   background: var(--green-100);
 }
@@ -4544,6 +4966,255 @@ td {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px 20px;
+}
+
+.gcash-intro {
+  margin-top: -8px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.gcash-grid {
+  align-items: start;
+}
+
+.gcash-qr-preview {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  width: 152px;
+  height: 152px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.gcash-qr-preview img,
+.gcash-qr-preview .profile-file-image-btn,
+.gcash-qr-preview .profile-file-image-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gcash-qr-preview .profile-file-image-btn {
+  display: block;
+}
+
+.gcash-qr-preview.empty {
+  border-style: dashed;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 12px;
+}
+
+.gcash-qr-upload-btn {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.gcash-qr-upload-btn input {
+  display: none;
+}
+
+/* GcashPaymentPage — a standalone page outside .app-shell (no sidebar, deliberately, see
+   the component's own comment), so it can't rely on .app-shell's flattened color/shadow
+   token overrides the way every other post-login page does. These rules restate the same
+   flat values directly instead, so this page still matches the rest of the app's enterprise
+   look rather than falling back to :root's warmer, heavier-shadow landing-page defaults. */
+.gcash-payment-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 20px;
+  background: #f6f8fa;
+}
+
+.gcash-payment-wrap {
+  width: 100%;
+  max-width: 680px;
+}
+
+.gcash-payment-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: #57606a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.gcash-payment-brand img {
+  width: 22px;
+  height: 22px;
+}
+
+.gcash-payment-card {
+  border-color: #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.gcash-payment-page .btn {
+  min-height: 36px;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.gcash-payment-page .btn:hover {
+  transform: none;
+}
+
+.gcash-payment-page .btn-primary {
+  box-shadow: none;
+}
+
+.gcash-payment-page .section-heading {
+  border-bottom: 1px solid #d0d7de;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.gcash-payment-grid {
+  align-items: start;
+  gap: 24px;
+}
+
+.gcash-detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.gcash-detail-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.gcash-detail-list dt {
+  color: #57606a;
+  font-size: 0.82rem;
+}
+
+.gcash-detail-list dd {
+  margin: 0;
+  color: #24292f;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: right;
+}
+
+.gcash-amount {
+  color: #166534;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.gcash-instructions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+  color: #57606a;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.gcash-instructions svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #166534;
+}
+
+.gcash-receipt-preview {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.gcash-receipt-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gcash-payment-details .form-field {
+  margin-bottom: 16px;
+}
+
+.gcash-payment-qr-col {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+
+.gcash-payment-qr-image {
+  display: block;
+  width: 176px;
+  height: 176px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.gcash-payment-qr-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gcash-payment-status {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+  color: #57606a;
+  font-size: 0.9rem;
+}
+
+.gcash-status-icon.error {
+  color: #cf222e;
+}
+
+.gcash-status-icon.success {
+  color: #1a7f37;
+}
+
+.gcash-success-title {
+  color: #24292f;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .gcash-payment-qr-col {
+    order: -1;
+  }
 }
 
 .verification-checklist {
@@ -4608,8 +5279,8 @@ td {
   display: grid;
   place-items: center;
   border-radius: var(--radius);
-  color: var(--green-800);
-  background: var(--green-100);
+  color: var(--muted);
+  background: transparent;
 }
 
 .info-row > div {
@@ -4654,8 +5325,8 @@ td {
   display: grid;
   place-items: center;
   border-radius: var(--radius);
-  color: var(--green-800);
-  background: var(--green-100);
+  color: var(--muted);
+  background: transparent;
 }
 
 .profile-file-meta {
@@ -4836,6 +5507,7 @@ td {
     gap: 6px;
     overflow-x: auto;
     scrollbar-width: none;
+    scroll-behavior: auto;
   }
 
   .mobile-bottom-nav-scroll::-webkit-scrollbar {
@@ -4880,6 +5552,11 @@ td {
   .main-content {
     padding-bottom: 94px;
   }
+
+  .main-content-full-bleed {
+    height: 100vh;
+    padding: 0 0 94px;
+  }
 }
 
 @media (max-width: 1080px) {
@@ -4902,6 +5579,7 @@ td {
   .auth-page,
   .content-grid.two,
   .content-grid.two.uneven,
+  .content-grid.two.map-directory-split,
   .landing-feature-grid,
   .lp-farmer-grid,
   .lp-contact-grid,
@@ -5142,6 +5820,11 @@ td {
   font-size: 0.85rem;
 }
 
+.price-hint-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
 .price-hint p {
   margin-top: 6px;
   color: var(--amber-700);
@@ -5195,6 +5878,39 @@ td {
   font-weight: 400;
 }
 
+.price-breakdown {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.price-breakdown-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.price-breakdown-label {
+  color: var(--muted);
+}
+
+.price-breakdown-row.emphasize strong {
+  color: var(--green-700);
+  font-size: 0.95rem;
+}
+
+.price-breakdown .btn {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
 .price-review-note {
   width: 100%;
   padding: 10px 12px;
@@ -5202,6 +5918,94 @@ td {
   background: var(--soft);
   display: grid;
   gap: 6px;
+}
+
+/* DiscountCalculator — live, button-free discount editor (Shopee/Lazada-style) shown once a
+   product exists. .discount-summary-card reuses .price-breakdown-row's label/value layout
+   (see above) so both price panels in this form share the same rhythm. */
+.discount-calculator {
+  display: grid;
+  gap: 4px;
+}
+
+.discount-calculator-status {
+  min-height: 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.discount-summary-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.discount-summary-row-red strong {
+  color: var(--red-700);
+}
+
+.discount-summary-row-green strong {
+  color: var(--green-700);
+  font-size: 1.05rem;
+}
+
+.buyer-preview-card {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.buyer-preview-heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.buyer-preview-body {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.buyer-preview-original {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 0.9rem;
+}
+
+.buyer-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.buyer-preview-price {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--green-700);
+}
+
+.buyer-preview-savings {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--amber-700);
 }
 
 .price-review-note p {

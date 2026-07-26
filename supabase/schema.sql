@@ -1,575 +1,815 @@
--- HarvestLink — Supabase schema (skeleton pass: profiles, products, orders, notifications, messages)
---
--- Run this whole file once in the Supabase SQL editor (Dashboard -> SQL Editor -> New query)
--- against a fresh project. Safe to re-run: every statement is guarded with
--- IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS so re-running after a partial failure
--- won't error out on "already exists".
---
--- Scope: donations, market-price overrides, reports, demand forecast, geocoding, and
--- translation caches are NOT part of this schema — those stay on localStorage / free
--- public APIs for now (see backend/README.md for why).
+  -- HarvestLink — Supabase schema (skeleton pass: profiles, products, orders, notifications, messages)
+  --
+  -- Run this whole file once in the Supabase SQL editor (Dashboard -> SQL Editor -> New query)
+  -- against a fresh project. Safe to re-run: every statement is guarded with
+  -- IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS so re-running after a partial failure
+  -- won't error out on "already exists".
+  --
+  -- Scope: donations, market-price overrides, reports, demand forecast, geocoding, and
+  -- translation caches are NOT part of this schema — those stay on localStorage / free
+  -- public APIs for now (see backend/README.md for why).
 
--- ============================================================================
--- Extensions
--- ============================================================================
-create extension if not exists pgcrypto; -- gen_random_uuid()
+  -- ============================================================================
+  -- Extensions
+  -- ============================================================================
+  create extension if not exists pgcrypto; -- gen_random_uuid()
 
--- ============================================================================
--- profiles — one row per account, 1:1 with auth.users. Farmer/stakeholder-only
--- columns are simply nullable rather than split into subtype tables, matching
--- how the app already treats a "user" as one flat object everywhere.
--- ============================================================================
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  role text not null check (role in ('farmer','buyer','stakeholder','admin')),
-  email text not null unique,
-  first_name text not null default '',
-  middle_name text not null default '',
-  last_name text not null default '',
-  name text not null default '',
-  contact_number text,
-  address text,
-  zip_code text,
-  municipality text,
-  account_status text not null default 'active' check (account_status in ('active','suspended')),
-  -- Shared by every role (farmer/buyer/stakeholder) — a public-bucket URL, same shape as
-  -- products.image_url. Nullable: falls back to initials (see getInitials) until set.
-  avatar_url text,
+  -- ============================================================================
+  -- profiles — one row per account, 1:1 with auth.users. Farmer/stakeholder-only
+  -- columns are simply nullable rather than split into subtype tables, matching
+  -- how the app already treats a "user" as one flat object everywhere.
+  -- ============================================================================
+  create table if not exists public.profiles (
+    id uuid primary key references auth.users(id) on delete cascade,
+    role text not null check (role in ('farmer','buyer','stakeholder','admin')),
+    email text not null unique,
+    first_name text not null default '',
+    middle_name text not null default '',
+    last_name text not null default '',
+    name text not null default '',
+    contact_number text,
+    address text,
+    zip_code text,
+    municipality text,
+    account_status text not null default 'active' check (account_status in ('active','suspended')),
+    -- Shared by every role (farmer/buyer/stakeholder) — a public-bucket URL, same shape as
+    -- products.image_url. Nullable: falls back to initials (see getInitials) until set.
+    avatar_url text,
 
-  -- farmer-only
-  farm_name text,
-  birthday date,
-  gov_id_file_url text,
-  verification_status text check (verification_status in ('pending','verified','rejected')),
-  verification_acknowledged boolean not null default true,
-  verified_at timestamptz,
+    -- farmer-only
+    farm_name text,
+    birthday date,
+    gov_id_file_url text,
+    verification_status text check (verification_status in ('pending','verified','rejected')),
+    verification_acknowledged boolean not null default true,
+    verified_at timestamptz,
 
-  -- stakeholder-only
-  organization_name text,
-  organization_type text,
-  contact_person text,
-  accreditation_file_url text,
+    -- stakeholder-only
+    organization_name text,
+    organization_type text,
+    contact_person text,
+    accreditation_file_url text,
 
-  -- Touched by the backend's requireAuth middleware on any authenticated request (throttled
-  -- to roughly once a minute per account, not every single request) — used to show an
-  -- Online/Offline presence indicator (e.g. on the Farmer Map) rather than for anything
-  -- security-sensitive.
-  last_active_at timestamptz,
+    -- farmer-only — how buyers pay this farmer directly via GCash at checkout (see
+    -- backend/src/controllers/payments.controller.js's getGcashCheckout). No GCash API
+    -- integration of any kind: the farmer just types their own account name/number and
+    -- uploads their own QR code image, exactly like any other profile field.
+    gcash_account_name text,
+    gcash_number text,
+    gcash_qr_url text,
 
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+    -- Touched by the backend's requireAuth middleware on any authenticated request (throttled
+    -- to roughly once a minute per account, not every single request) — used to show an
+    -- Online/Offline presence indicator (e.g. on the Farmer Map) rather than for anything
+    -- security-sensitive.
+    last_active_at timestamptz,
 
-create index if not exists profiles_role_idx on public.profiles (role);
-
--- Safe to re-run against an already-created table from an earlier version of this schema.
-alter table public.profiles add column if not exists last_active_at timestamptz;
-alter table public.profiles add column if not exists avatar_url text;
-
--- ============================================================================
--- products
--- ============================================================================
-create table if not exists public.products (
-  id uuid primary key default gen_random_uuid(),
-  farmer_id uuid not null references public.profiles(id),
-  name text not null,
-  category text not null,
-  grade text not null default 'A' check (grade in ('A','B')),
-  selling_type text not null default 'retail' check (selling_type in ('retail','wholesale')),
-  -- Minimum Order Quantity — only meaningful when selling_type = 'wholesale'. Column used to
-  -- be named bulk_min_quantity from when "Sales Type" was called "Bulk / Retail"; see the
-  -- rename migration below for already-existing installs.
-  moq numeric(12,2),
-  price numeric(12,2) not null check (price >= 0),
-  unit text not null,
-  kg_per_unit numeric(12,3),
-  quantity numeric(12,2) not null default 0 check (quantity >= 0),
-  location text not null,
-  description text,
-  image_url text,
-  status text not null default 'active' check (status in ('active','inactive')),
-  original_price numeric(12,2),
-  discount_percent numeric(5,2),
-  price_review jsonb,
-  -- Optional — a farmer's own cost per unit (harvesting, inputs, labor), never shown to
-  -- buyers. Powers the profit figure on the farmer dashboard (see reportService.js);
-  -- null means "not recorded," not "zero cost." Snapshotted onto each order at checkout
-  -- (orders.unit_cost_price below) so profit stays accurate even if this later changes.
-  cost_price numeric(12,2),
-  -- Optional — when this batch/harvest goes bad. Nullable: most listings won't set one.
-  -- Surfaced on the farmer's own listing card (expiring-soon/expired badge) and carried
-  -- onto a donation record when the listing is donated, since near-expiry stock is exactly
-  -- the kind of surplus donation partners most need to know about before pickup.
-  expiration_date date,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists products_farmer_id_idx on public.products (farmer_id);
-create index if not exists products_status_idx on public.products (status);
-
-alter table public.products add column if not exists cost_price numeric(12,2);
-alter table public.products add column if not exists expiration_date date;
-
--- Sales Type rename migration (Bulk/Retail -> Retail/Wholesale) — safe to re-run: only acts
--- on an already-existing install that still has the old bulk_min_quantity column/constraint;
--- a fresh install already gets the renamed column/constraint from the create table above.
-do $$
-begin
-  if exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public' and table_name = 'products' and column_name = 'bulk_min_quantity'
-  ) then
-    alter table public.products rename column bulk_min_quantity to moq;
-  end if;
-end $$;
-
-alter table public.products drop constraint if exists products_selling_type_check;
-update public.products set selling_type = 'wholesale' where selling_type = 'bulk';
-alter table public.products add constraint products_selling_type_check check (selling_type in ('retail','wholesale'));
-
--- ============================================================================
--- orders — product_name/unit/unit_price/farmer_name/buyer_name are deliberately
--- SNAPSHOTTED at creation time (not joined live) — an order is a receipt of what
--- was actually transacted, so it must stay correct even if the product is later
--- renamed, re-priced, or deleted. This mirrors today's createOrder() behavior.
--- ============================================================================
-create table if not exists public.orders (
-  id uuid primary key default gen_random_uuid(),
-  -- Nullable + on delete set null (not "not null"/restrict) — product_name/unit/unit_price
-  -- etc. are already snapshotted below, so an order stays fully readable even after its
-  -- product is deleted; the FK should reflect that, not silently block the farmer from ever
-  -- deleting a product once a single order has been placed against it.
-  product_id uuid references public.products(id) on delete set null,
-  product_name text not null,
-  unit text not null,
-  unit_price numeric(12,2) not null,
-  -- Snapshot of products.cost_price at checkout — null if the farmer never recorded a cost
-  -- for this product. Same "receipt of what actually happened" reasoning as the other
-  -- snapshotted fields above: profit (see reportService.js) must stay correct even if the
-  -- farmer edits or deletes the product afterward.
-  unit_cost_price numeric(12,2),
-  farmer_id uuid not null references public.profiles(id),
-  farmer_name text not null,
-  buyer_id uuid not null references public.profiles(id),
-  buyer_name text not null,
-  quantity numeric(12,2) not null,
-  -- Computed server-side via the Smart Distance-Based Delivery Fee System — real road
-  -- distance (OSRM) priced against configurable tiers (see backend/src/lib/deliveryFee.js
-  -- and deliveryFeeConfig.js) — 0/null for buyer_pickup, since the buyer travels there on
-  -- their own schedule. delivery_fee is already folded into total_amount; all four are
-  -- stored separately too so the checkout/order-detail/receipt UI can show the full
-  -- distance/duration/tier/fee breakdown exactly as it was at order time.
-  delivery_fee numeric(12,2) not null default 0,
-  delivery_distance_km numeric(8,2),
-  delivery_duration_minutes numeric(8,2),
-  delivery_fee_tier text,
-  total_amount numeric(12,2) not null,
-  message text,
-  payment_method text not null check (payment_method in ('cod','gcash')),
-  payment_status text not null default 'pending' check (payment_status in ('pending','paid','failed','refunded')),
-  delivery_method text not null check (delivery_method in ('farmer_delivery','buyer_pickup','courier')),
-  delivery_status text not null default 'pending' check (delivery_status in
-    ('pending','preparing','packed','ready_for_pickup','out_for_delivery','picked_up','delivered','cancelled')),
-  origin_municipality text not null,
-  delivery_municipality text not null,
-  status text not null default 'pending' check (status in ('pending','confirmed','rejected','completed','cancelled')),
-  -- Farmer's live device GPS while an order is out for delivery (see the Socket.IO
-  -- 'farmer-location' handler in backend/src/realtime/orderTracking.js and
-  -- src/hooks/useFarmerActiveDeliverySharing.js) — null whenever the farmer hasn't got an
-  -- active delivery, or their tab/app has been closed. The buyer's map falls back to a
-  -- time-estimated position once this goes stale (see getLiveTransitProgress).
-  current_lat double precision,
-  current_lng double precision,
-  -- Raw device sensor readings alongside the position fix — heading/speed are only ever
-  -- meaningful once currentLat/currentLng are themselves fresh (see location_updated_at);
-  -- both are frequently null even while moving (many devices don't report a heading/speed
-  -- fix at all below a certain walking/driving speed), so the UI always treats them as
-  -- optional enrichment, never a required field.
-  current_heading double precision,
-  current_speed double precision,
-  current_accuracy double precision,
-  location_updated_at timestamptz,
-  -- Set once, the moment delivery_status first becomes 'out_for_delivery' (see
-  -- advanceDelivery) — the anchor getLiveTransitProgress's time-estimated fallback measures
-  -- elapsed transit time from. Deliberately separate from updated_at, since that column is
-  -- also bumped by every location ping while GPS sharing is active (see the trigger below),
-  -- which would otherwise reset the elapsed-time estimate on every single GPS update.
-  transit_started_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists orders_buyer_id_idx on public.orders (buyer_id);
-create index if not exists orders_farmer_id_idx on public.orders (farmer_id);
-create index if not exists orders_product_id_idx on public.orders (product_id);
-
--- Safe to re-run against an already-created table from an earlier version of this schema.
-alter table public.orders add column if not exists delivery_fee numeric(12,2) not null default 0;
-alter table public.orders add column if not exists current_lat double precision;
-alter table public.orders add column if not exists current_lng double precision;
-alter table public.orders add column if not exists current_heading double precision;
-alter table public.orders add column if not exists current_speed double precision;
-alter table public.orders add column if not exists current_accuracy double precision;
-alter table public.orders add column if not exists location_updated_at timestamptz;
-alter table public.orders add column if not exists transit_started_at timestamptz;
-alter table public.orders add column if not exists unit_cost_price numeric(12,2);
-
--- Real GCash payments via PayMongo — set only by backend/src/controllers/payments.controller.js
--- (PayMongo's own API response / webhook), never by the client directly.
-alter table public.orders add column if not exists transaction_id text;
-alter table public.orders add column if not exists paid_at timestamptz;
--- PayMongo Payment Intent id for this order's GCash payment — lets both the return-page
--- status check and the webhook (backend/src/lib/paymongoService.js) look up which order a
--- given PayMongo event/intent belongs to. Null until getGcashCheckout first creates one;
--- reused on repeat visits to the same unpaid order instead of creating a duplicate intent.
-alter table public.orders add column if not exists paymongo_payment_intent_id text;
-
--- Maya/card/bank transfer were removed as selectable payment methods — HarvestLink now
--- only offers GCash (via the demo payment module) and Cash on Delivery.
-alter table public.orders drop constraint if exists orders_payment_method_check;
-alter table public.orders add constraint orders_payment_method_check check (payment_method in ('cod','gcash'));
-
--- Smart Distance-Based Delivery Fee System — snapshotted alongside delivery_fee at order
--- creation (see backend/src/lib/deliveryFee.js) so a placed order's breakdown stays exactly
--- reproducible even if the road distance or pricing tiers change afterward. All three are
--- null for a buyer-pickup order, which has no delivery leg to measure or price.
-alter table public.orders add column if not exists delivery_distance_km numeric(8,2);
-alter table public.orders add column if not exists delivery_duration_minutes numeric(8,2);
-alter table public.orders add column if not exists delivery_fee_tier text;
-
--- Lets a farmer delete a product even after orders exist against it — previously this FK
--- had no ON DELETE clause (defaulting to RESTRICT), which silently blocked every such
--- delete with a foreign-key-violation error the frontend didn't surface either. Orders
--- already snapshot product_name/unit/unit_price etc., so they stay fully valid afterward.
-alter table public.orders alter column product_id drop not null;
-alter table public.orders drop constraint if exists orders_product_id_fkey;
-alter table public.orders add constraint orders_product_id_fkey
-  foreign key (product_id) references public.products(id) on delete set null;
-
--- ============================================================================
--- notifications
--- ============================================================================
-create table if not exists public.notifications (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id),
-  type text not null check (type in ('verification','order','donation')),
-  title text not null,
-  message text not null,
-  link text,
-  read boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists notifications_user_id_read_idx on public.notifications (user_id, read);
-
--- ============================================================================
--- messages — either order-scoped (order_id set, recipient_id null: chat between the buyer
--- and farmer on that order) OR a general direct conversation between any two accounts
--- (order_id null, recipient_id set: e.g. contacting someone from the map before any order
--- exists between you). Exactly one of the two is set, never both, never neither — see
--- backend/src/controllers/messages.controller.js. sender_name/sender_role are snapshotted
--- at send time, same reasoning as orders' own snapshotted product_name/farmer_name/buyer_name.
--- ============================================================================
-create table if not exists public.messages (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid references public.orders(id) on delete cascade,
-  recipient_id uuid references public.profiles(id) on delete cascade,
-  sender_id uuid not null references public.profiles(id),
-  sender_name text not null,
-  sender_role text not null,
-  text text not null,
-  read boolean not null default false,
-  created_at timestamptz not null default now(),
-  constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null))
-);
-
-create index if not exists messages_order_id_idx on public.messages (order_id, created_at);
-create index if not exists messages_direct_idx on public.messages (recipient_id, sender_id, created_at) where order_id is null;
-
--- Safe to re-run against an already-created table from an earlier version of this schema.
-alter table public.messages alter column order_id drop not null;
-alter table public.messages add column if not exists recipient_id uuid references public.profiles(id) on delete cascade;
-alter table public.messages drop constraint if exists messages_exactly_one_target;
-alter table public.messages add constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null));
-
--- ============================================================================
--- ratings — a buyer rates the farmer after confirming receipt of a completed order
--- (order_id set, one rating per order); a stakeholder rates the farmer after confirming
--- receipt of a donation (order_id null, since donations aren't backend-tracked — see
--- src/services/donationService.js). Farmer's own average is computed on read (see
--- backend/src/controllers/profiles.controller.js), not stored, so it's never stale.
--- ============================================================================
-create table if not exists public.ratings (
-  id uuid primary key default gen_random_uuid(),
-  farmer_id uuid not null references public.profiles(id) on delete cascade,
-  rater_id uuid not null references public.profiles(id) on delete cascade,
-  rater_role text not null check (rater_role in ('buyer','stakeholder')),
-  order_id uuid references public.orders(id) on delete set null,
-  rating smallint not null check (rating between 1 and 5),
-  comment text,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists ratings_farmer_id_idx on public.ratings (farmer_id);
--- A buyer can only rate a given order once — no such constraint for stakeholder ratings
--- (order_id null), since those aren't anchored to a unique backend record.
-create unique index if not exists ratings_order_id_unique on public.ratings (order_id) where order_id is not null;
-
--- ============================================================================
--- categories / products_catalog / units / product_units — the canonical,
--- admin-editable product catalog backing Category -> Product -> Unit cascading
--- selection everywhere in the app (product form, marketplace/listing filters,
--- demand forecast). Supersedes the earlier crop_categories/crops tables (which
--- stored a flat text[] of units per category, never deployed to production) with
--- a fully relational model that supports per-product unit overrides — an admin
--- can add/rename/deactivate a category, catalog product, or unit — and attach/
--- detach/reorder which units apply to which product and which is the default —
--- from the Admin dashboard with no code deploy (see
--- backend/src/controllers/catalog.controller.js).
---
--- products.category/products.name stay plain text (no FK to these tables) so
--- existing/legacy product rows whose category or name isn't in this catalog
--- keep working and keep displaying their legacy unit unchanged — validation
--- against this catalog only applies to NEW category/product/unit choices, never
--- to a product's own already-saved values (see products.controller.js).
--- ============================================================================
-create table if not exists public.categories (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  sort_order integer not null default 0,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
--- Master list of every measurement unit a farmer can list a product in — a flat,
--- category/product-agnostic list (see the Product Listing form, which now takes a free-text
--- product name rather than picking from a catalog — products_catalog/product_units were
--- removed, since a curated per-crop product+unit catalog turned out to be more rigid than
--- useful in practice).
-create table if not exists public.units (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  abbreviation text,
-  created_at timestamptz not null default now()
-);
-
--- ============================================================================
--- updated_at maintenance trigger
--- ============================================================================
-create or replace function public.set_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists set_profiles_updated_at on public.profiles;
-create trigger set_profiles_updated_at before update on public.profiles
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_products_updated_at on public.products;
-create trigger set_products_updated_at before update on public.products
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_orders_updated_at on public.orders;
-create trigger set_orders_updated_at before update on public.orders
-  for each row execute function public.set_updated_at();
-
-drop trigger if exists set_categories_updated_at on public.categories;
-create trigger set_categories_updated_at before update on public.categories
-  for each row execute function public.set_updated_at();
-
--- ============================================================================
--- categories / units seed data — the professional agricultural taxonomy
--- described above. Safe to re-run: ON CONFLICT DO NOTHING means an admin's
--- later edits (rename, deactivate, reorder) are never overwritten by
--- re-running this file. The product name itself is free text on the Product
--- Listing form (see ProductForm.jsx) rather than picked from a category-scoped
--- catalog — only the category and unit come from admin-managed tables.
--- ============================================================================
-insert into public.categories (name, sort_order) values
-  ('Vegetables', 1), ('Fruits', 2), ('Grains & Cereals', 3), ('Root & Tuber Crops', 4),
-  ('Legumes & Pulses', 5), ('Herbs & Aromatics', 6), ('Spices & Condiments', 7),
-  ('Coconut & Oil Crops', 8), ('Sugar Crops', 9), ('Beverage Crops', 10), ('Mushrooms', 11),
-  ('Flowers & Ornamentals', 12), ('Medicinal Plants', 13), ('Fiber Crops', 14),
-  ('Seeds, Seedlings & Nursery', 15), ('Fodder & Forage', 16), ('Livestock Products', 17),
-  ('Fisheries & Aquaculture', 18), ('Organic Products', 19), ('Processed Farm Products', 20),
-  ('Other', 21)
-on conflict (name) do nothing;
-
-insert into public.units (name, abbreviation) values
-  ('Kilogram', 'kg'), ('Gram', 'g'), ('Piece', 'pc'), ('Bundle', null), ('Crate', null),
-  ('Sack', null), ('Box', null), ('Bunch', null), ('Basket', null), ('Dozen', 'dz'),
-  ('Bag', null), ('Ton', 't'), ('Pack', null), ('Bottle', null), ('Tray', null), ('Pot', null),
-  ('Stem', null), ('Bouquet', null), ('Seed', null), ('Packet', null), ('Seedling', null),
-  ('Bale', null), ('Liter', 'L'), ('Milliliter', 'mL'), ('Net Bag', null), ('Hand', null)
-on conflict (name) do nothing;
-
--- ============================================================================
--- Row Level Security — enabled on every table; only ONE real policy exists
--- (orders_select_own, below), added specifically so Supabase Realtime can push live
--- GPS/status updates straight to an order's own buyer/farmer without a round trip through
--- the backend (see src/features/orders/OrderTracking.jsx). Every other read/write still
--- goes exclusively through the backend's service_role key (which bypasses RLS
--- unconditionally), so this remains one narrow, explicit exception, not a general opening —
--- the anon/authenticated keys the frontend holds still can't read or write anything else on
--- these tables, even via a future accidental `supabase.from('products')` call.
--- ============================================================================
-alter table public.profiles enable row level security;
-alter table public.products enable row level security;
-alter table public.orders enable row level security;
-alter table public.notifications enable row level security;
-alter table public.messages enable row level security;
-alter table public.ratings enable row level security;
-alter table public.categories enable row level security;
-alter table public.units enable row level security;
-
--- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
--- directly — Realtime enforces RLS just like any other read, so without this policy the
--- client would never receive postgres_changes events at all, even for its own order. Scoped
--- to exactly "you are a party to this order," nothing broader.
-drop policy if exists orders_select_own on public.orders;
-create policy orders_select_own on public.orders
-  for select
-  using ((select auth.uid()) = buyer_id or (select auth.uid()) = farmer_id);
-
--- Required for postgres_changes events to fire for this table at all — idempotent (skips
--- if the table was already added, e.g. via the Database -> Replication toggle in the
--- Supabase dashboard instead of this SQL).
-do $$
-begin
-  if not exists (
-    select 1 from pg_publication_tables
-    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'
-  ) then
-    alter publication supabase_realtime add table public.orders;
-  end if;
-end $$;
-
--- ============================================================================
--- Storage buckets
---   product-images        public  — product photos, freely viewable in the marketplace
---   avatars                public  — farmer/buyer/stakeholder profile pictures
---   verification-documents private — gov ID / accreditation proof, sensitive
--- ============================================================================
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
-
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
-
-insert into storage.buckets (id, name, public)
-values ('verification-documents', 'verification-documents', false)
-on conflict (id) do nothing;
-
--- product-images: a user may only write into a folder named after their own
--- auth uid (upload path convention: product-images/{farmerId}/{uuid}.{ext}).
--- Public reads (e.g. an <img> tag using getPublicUrl) are served straight off the
--- public CDN URL and never go through RLS — but a SELECT policy is still required
--- here: Storage's own upload endpoint does an INSERT ... RETURNING under the hood,
--- and Postgres enforces RLS on that implicit read-back too. Without this, every
--- authenticated upload fails with "new row violates row-level security policy"
--- even though the INSERT's own WITH CHECK is satisfied.
-drop policy if exists "product-images insert own folder" on storage.objects;
-create policy "product-images insert own folder"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'product-images'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
   );
 
-drop policy if exists "product-images select own folder" on storage.objects;
-create policy "product-images select own folder"
-  on storage.objects for select
-  using (
-    bucket_id = 'product-images'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists profiles_role_idx on public.profiles (role);
+
+  -- Safe to re-run against an already-created table from an earlier version of this schema.
+  alter table public.profiles add column if not exists last_active_at timestamptz;
+  alter table public.profiles add column if not exists avatar_url text;
+  alter table public.profiles add column if not exists gcash_account_name text;
+  alter table public.profiles add column if not exists gcash_number text;
+  alter table public.profiles add column if not exists gcash_qr_url text;
+
+  -- Web Push notifications (browser permission prompt, desktop/mobile/email toggles, and the
+  -- push_subscriptions table below) were tried and removed — these columns only ever existed
+  -- to back that feature. Drops are safe/idempotent like everything else here: a no-op on an
+  -- install that never had them, and harmless on one that's already been dropped once.
+  alter table public.profiles drop column if exists notif_enabled;
+  alter table public.profiles drop column if exists notif_browser_push;
+  alter table public.profiles drop column if exists notif_mobile_push;
+  alter table public.profiles drop column if exists notif_email;
+  alter table public.profiles drop column if exists notif_prompted;
+
+  -- ============================================================================
+  -- products
+  -- ============================================================================
+  create table if not exists public.products (
+    id uuid primary key default gen_random_uuid(),
+    farmer_id uuid not null references public.profiles(id),
+    name text not null,
+    category text not null,
+    grade text not null default 'A' check (grade in ('A','B')),
+    selling_type text not null default 'retail' check (selling_type in ('retail','wholesale')),
+    -- Minimum Order Quantity — only meaningful when selling_type = 'wholesale'. Column used to
+    -- be named bulk_min_quantity from when "Sales Type" was called "Bulk / Retail"; see the
+    -- rename migration below for already-existing installs.
+    moq numeric(12,2),
+    price numeric(12,2) not null check (price >= 0),
+    unit text not null,
+    kg_per_unit numeric(12,3),
+    quantity numeric(12,2) not null default 0 check (quantity >= 0),
+    location text not null,
+    description text,
+    image_url text,
+    status text not null default 'active' check (status in ('active','inactive')),
+    original_price numeric(12,2),
+    discount_percent numeric(5,2),
+    price_review jsonb,
+    -- Optional — a farmer's own cost per unit (harvesting, inputs, labor), never shown to
+    -- buyers. Powers the profit figure on the farmer dashboard (see reportService.js);
+    -- null means "not recorded," not "zero cost." Snapshotted onto each order at checkout
+    -- (orders.unit_cost_price below) so profit stays accurate even if this later changes.
+    cost_price numeric(12,2),
+    -- Optional — when this batch/harvest goes bad. Nullable: most listings won't set one.
+    -- Surfaced on the farmer's own listing card (expiring-soon/expired badge) and carried
+    -- onto a donation record when the listing is donated, since near-expiry stock is exactly
+    -- the kind of surplus donation partners most need to know about before pickup.
+    expiration_date date,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
   );
 
-drop policy if exists "product-images update own folder" on storage.objects;
-create policy "product-images update own folder"
-  on storage.objects for update
-  using (
-    bucket_id = 'product-images'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists products_farmer_id_idx on public.products (farmer_id);
+  create index if not exists products_status_idx on public.products (status);
+
+  alter table public.products add column if not exists cost_price numeric(12,2);
+  alter table public.products add column if not exists expiration_date date;
+
+  -- Sales Type rename migration (Bulk/Retail -> Retail/Wholesale) — safe to re-run: only acts
+  -- on an already-existing install that still has the old bulk_min_quantity column/constraint;
+  -- a fresh install already gets the renamed column/constraint from the create table above.
+  do $$
+  begin
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'products' and column_name = 'bulk_min_quantity'
+    ) then
+      alter table public.products rename column bulk_min_quantity to moq;
+    end if;
+  end $$;
+
+  alter table public.products drop constraint if exists products_selling_type_check;
+  update public.products set selling_type = 'wholesale' where selling_type = 'bulk';
+  alter table public.products add constraint products_selling_type_check check (selling_type in ('retail','wholesale'));
+
+  -- ============================================================================
+  -- orders — product_name/unit/unit_price/farmer_name/buyer_name are deliberately
+  -- SNAPSHOTTED at creation time (not joined live) — an order is a receipt of what
+  -- was actually transacted, so it must stay correct even if the product is later
+  -- renamed, re-priced, or deleted. This mirrors today's createOrder() behavior.
+  -- ============================================================================
+  create table if not exists public.orders (
+    id uuid primary key default gen_random_uuid(),
+    -- Nullable + on delete set null (not "not null"/restrict) — product_name/unit/unit_price
+    -- etc. are already snapshotted below, so an order stays fully readable even after its
+    -- product is deleted; the FK should reflect that, not silently block the farmer from ever
+    -- deleting a product once a single order has been placed against it.
+    product_id uuid references public.products(id) on delete set null,
+    product_name text not null,
+    unit text not null,
+    unit_price numeric(12,2) not null,
+    -- Snapshot of products.cost_price at checkout — null if the farmer never recorded a cost
+    -- for this product. Same "receipt of what actually happened" reasoning as the other
+    -- snapshotted fields above: profit (see reportService.js) must stay correct even if the
+    -- farmer edits or deletes the product afterward.
+    unit_cost_price numeric(12,2),
+    farmer_id uuid not null references public.profiles(id),
+    farmer_name text not null,
+    buyer_id uuid not null references public.profiles(id),
+    buyer_name text not null,
+    quantity numeric(12,2) not null,
+    -- Computed server-side via the Smart Distance-Based Delivery Fee System — real road
+    -- distance (OSRM) priced against configurable tiers (see backend/src/lib/deliveryFee.js
+    -- and deliveryFeeConfig.js) — 0/null for buyer_pickup, since the buyer travels there on
+    -- their own schedule. delivery_fee is already folded into total_amount; all four are
+    -- stored separately too so the checkout/order-detail/receipt UI can show the full
+    -- distance/duration/tier/fee breakdown exactly as it was at order time.
+    delivery_fee numeric(12,2) not null default 0,
+    delivery_distance_km numeric(8,2),
+    delivery_duration_minutes numeric(8,2),
+    delivery_fee_tier text,
+    total_amount numeric(12,2) not null,
+    message text,
+    payment_method text not null check (payment_method in ('cod','gcash')),
+    payment_status text not null default 'pending' check (payment_status in ('pending','paid','failed','refunded')),
+    delivery_method text not null check (delivery_method in ('farmer_delivery','buyer_pickup','courier')),
+    delivery_status text not null default 'pending' check (delivery_status in
+      ('pending','preparing','packed','ready_for_pickup','out_for_delivery','picked_up','delivered','cancelled')),
+    origin_municipality text not null,
+    delivery_municipality text not null,
+    status text not null default 'pending' check (status in ('pending','confirmed','rejected','completed','cancelled')),
+    -- Farmer's live device GPS while an order is out for delivery (see the Socket.IO
+    -- 'farmer-location' handler in backend/src/realtime/orderTracking.js and
+    -- src/hooks/useFarmerActiveDeliverySharing.js) — null whenever the farmer hasn't got an
+    -- active delivery, or their tab/app has been closed. The buyer's map falls back to a
+    -- time-estimated position once this goes stale (see getLiveTransitProgress).
+    current_lat double precision,
+    current_lng double precision,
+    -- Raw device sensor readings alongside the position fix — heading/speed are only ever
+    -- meaningful once currentLat/currentLng are themselves fresh (see location_updated_at);
+    -- both are frequently null even while moving (many devices don't report a heading/speed
+    -- fix at all below a certain walking/driving speed), so the UI always treats them as
+    -- optional enrichment, never a required field.
+    current_heading double precision,
+    current_speed double precision,
+    current_accuracy double precision,
+    location_updated_at timestamptz,
+    -- Set once, the moment delivery_status first becomes 'out_for_delivery' (see
+    -- advanceDelivery) — the anchor getLiveTransitProgress's time-estimated fallback measures
+    -- elapsed transit time from. Deliberately separate from updated_at, since that column is
+    -- also bumped by every location ping while GPS sharing is active (see the trigger below),
+    -- which would otherwise reset the elapsed-time estimate on every single GPS update.
+    transit_started_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
   );
 
-drop policy if exists "product-images delete own folder" on storage.objects;
-create policy "product-images delete own folder"
-  on storage.objects for delete
-  using (
-    bucket_id = 'product-images'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists orders_buyer_id_idx on public.orders (buyer_id);
+  create index if not exists orders_farmer_id_idx on public.orders (farmer_id);
+  create index if not exists orders_product_id_idx on public.orders (product_id);
+
+  -- Safe to re-run against an already-created table from an earlier version of this schema.
+  alter table public.orders add column if not exists delivery_fee numeric(12,2) not null default 0;
+  alter table public.orders add column if not exists current_lat double precision;
+  alter table public.orders add column if not exists current_lng double precision;
+  alter table public.orders add column if not exists current_heading double precision;
+  alter table public.orders add column if not exists current_speed double precision;
+  alter table public.orders add column if not exists current_accuracy double precision;
+  alter table public.orders add column if not exists location_updated_at timestamptz;
+  alter table public.orders add column if not exists transit_started_at timestamptz;
+  alter table public.orders add column if not exists unit_cost_price numeric(12,2);
+
+  -- GCash payment module — set only by backend/src/controllers/payments.controller.js
+  -- once the buyer submits payment, never by the client directly.
+  alter table public.orders add column if not exists transaction_id text;
+  alter table public.orders add column if not exists paid_at timestamptz;
+  -- The buyer's uploaded proof-of-payment screenshot (payment-receipts bucket, public URL) —
+  -- required before confirmGcashPayment marks an order paid; see GcashPaymentPage.jsx.
+  alter table public.orders add column if not exists payment_receipt_url text;
+
+  -- Maya/card/bank transfer were removed as selectable payment methods — HarvestLink now
+  -- only offers GCash (via the demo payment module) and Cash on Delivery.
+  alter table public.orders drop constraint if exists orders_payment_method_check;
+  alter table public.orders add constraint orders_payment_method_check check (payment_method in ('cod','gcash'));
+
+  -- Smart Distance-Based Delivery Fee System — snapshotted alongside delivery_fee at order
+  -- creation (see backend/src/lib/deliveryFee.js) so a placed order's breakdown stays exactly
+  -- reproducible even if the road distance or pricing tiers change afterward. All three are
+  -- null for a buyer-pickup order, which has no delivery leg to measure or price.
+  alter table public.orders add column if not exists delivery_distance_km numeric(8,2);
+  alter table public.orders add column if not exists delivery_duration_minutes numeric(8,2);
+  alter table public.orders add column if not exists delivery_fee_tier text;
+
+  -- Lets a farmer delete a product even after orders exist against it — previously this FK
+  -- had no ON DELETE clause (defaulting to RESTRICT), which silently blocked every such
+  -- delete with a foreign-key-violation error the frontend didn't surface either. Orders
+  -- already snapshot product_name/unit/unit_price etc., so they stay fully valid afterward.
+  alter table public.orders alter column product_id drop not null;
+  alter table public.orders drop constraint if exists orders_product_id_fkey;
+  alter table public.orders add constraint orders_product_id_fkey
+    foreign key (product_id) references public.products(id) on delete set null;
+
+  -- ============================================================================
+  -- notifications
+  -- ============================================================================
+  create table if not exists public.notifications (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references public.profiles(id),
+    type text not null check (type in ('verification','order','donation','message','payment')),
+    title text not null,
+    message text not null,
+    link text,
+    read boolean not null default false,
+    created_at timestamptz not null default now()
   );
 
--- avatars: same owner-folder convention as product-images (upload path convention:
--- avatars/{userId}/{uuid}.{ext}) — any of the three roles may upload their own.
-drop policy if exists "avatars insert own folder" on storage.objects;
-create policy "avatars insert own folder"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'avatars'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists notifications_user_id_read_idx on public.notifications (user_id, read);
+
+  -- Safe to re-run: 'message'/'payment' are new notification types (see backend/src/lib/
+  -- notify.js's new call sites) — a fresh create table above already includes them, this only
+  -- matters for an already-existing install from before this migration.
+  alter table public.notifications drop constraint if exists notifications_type_check;
+  alter table public.notifications add constraint notifications_type_check
+    check (type in ('verification','order','donation','message','payment'));
+
+  -- The Web Push notification feature (browser permission prompt, desktop/mobile push
+  -- toggles) was tried and removed — this drops the table an already-migrated install would
+  -- still have from when it existed. Safe/idempotent like everything else here: a no-op on an
+  -- install that never had it.
+  drop table if exists public.push_subscriptions;
+
+  -- ============================================================================
+  -- messages — either order-scoped (order_id set, recipient_id null: chat between the buyer
+  -- and farmer on that order) OR a general direct conversation between any two accounts
+  -- (order_id null, recipient_id set: e.g. contacting someone from the map before any order
+  -- exists between you). Exactly one of the two is set, never both, never neither — see
+  -- backend/src/controllers/messages.controller.js. sender_name/sender_role are snapshotted
+  -- at send time, same reasoning as orders' own snapshotted product_name/farmer_name/buyer_name.
+  -- ============================================================================
+  create table if not exists public.messages (
+    id uuid primary key default gen_random_uuid(),
+    order_id uuid references public.orders(id) on delete cascade,
+    recipient_id uuid references public.profiles(id) on delete cascade,
+    sender_id uuid not null references public.profiles(id),
+    sender_name text not null,
+    sender_role text not null,
+    text text not null,
+    read boolean not null default false,
+    created_at timestamptz not null default now(),
+    constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null))
   );
 
-drop policy if exists "avatars select own folder" on storage.objects;
-create policy "avatars select own folder"
-  on storage.objects for select
-  using (
-    bucket_id = 'avatars'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists messages_order_id_idx on public.messages (order_id, created_at);
+  create index if not exists messages_direct_idx on public.messages (recipient_id, sender_id, created_at) where order_id is null;
+
+  -- Safe to re-run against an already-created table from an earlier version of this schema.
+  alter table public.messages alter column order_id drop not null;
+  alter table public.messages add column if not exists recipient_id uuid references public.profiles(id) on delete cascade;
+  alter table public.messages drop constraint if exists messages_exactly_one_target;
+  alter table public.messages add constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null));
+
+  -- Premium messaging redesign additions — image/file attachments, replies, and
+  -- edit/delete-own-message, all on the same row shape (see backend/src/controllers/
+  -- messages.controller.js). `text` stays required (empty string, not null) even for an
+  -- image/file message with no caption, so the column's NOT NULL never needs relaxing.
+  alter table public.messages add column if not exists message_type text not null default 'text'
+    check (message_type in ('text', 'image', 'file'));
+  alter table public.messages add column if not exists image_url text;
+  alter table public.messages add column if not exists file_url text;
+  alter table public.messages add column if not exists file_name text;
+  -- Nulled (not cascaded) if the replied-to message is later deleted — the reply preview
+  -- then honestly shows "Original message deleted" instead of silently losing the reply.
+  alter table public.messages add column if not exists reply_to_id uuid references public.messages(id) on delete set null;
+  alter table public.messages add column if not exists edited boolean not null default false;
+  -- Soft delete — "delete own message" clears text/image/file/reply and sets this, so the
+  -- thread can honestly render "This message was deleted" instead of a silent gap, while the
+  -- row (and its id, for anything replying to it) stays in place.
+  alter table public.messages add column if not exists deleted boolean not null default false;
+
+  -- ============================================================================
+  -- ratings — a buyer rates the farmer after confirming receipt of a completed order
+  -- (order_id set, one rating per order); a stakeholder rates the farmer after confirming
+  -- receipt of a donation (order_id null, since donations aren't backend-tracked — see
+  -- src/services/donationService.js). Farmer's own average is computed on read (see
+  -- backend/src/controllers/profiles.controller.js), not stored, so it's never stale.
+  -- ============================================================================
+  create table if not exists public.ratings (
+    id uuid primary key default gen_random_uuid(),
+    farmer_id uuid not null references public.profiles(id) on delete cascade,
+    rater_id uuid not null references public.profiles(id) on delete cascade,
+    rater_role text not null check (rater_role in ('buyer','stakeholder')),
+    order_id uuid references public.orders(id) on delete set null,
+    rating smallint not null check (rating between 1 and 5),
+    comment text,
+    created_at timestamptz not null default now()
   );
 
-drop policy if exists "avatars update own folder" on storage.objects;
-create policy "avatars update own folder"
-  on storage.objects for update
-  using (
-    bucket_id = 'avatars'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists ratings_farmer_id_idx on public.ratings (farmer_id);
+  -- A buyer can only rate a given order once — no such constraint for stakeholder ratings
+  -- (order_id null), since those aren't anchored to a unique backend record.
+  create unique index if not exists ratings_order_id_unique on public.ratings (order_id) where order_id is not null;
+
+  -- ============================================================================
+  -- market_price_overrides — an admin/DTI-set reference price that takes precedence over
+  -- the live PSA figure for one commodity (Admin -> Price Monitoring). Previously lived in
+  -- the setting admin's own browser localStorage, which meant the override was invisible to
+  -- every farmer/buyer on any other device — a real farmer could never actually see "this
+  -- price was set by admin" unless they happened to share a browser with that admin. Moving
+  -- it here makes it a real, server-side fact every signed-in user's price lookup sees.
+  --
+  -- One row per commodity (commodity_id matches MARKET_COMMODITIES' id in
+  -- src/services/marketPriceService.js / backend/src/lib/marketCommodities.js — not a FK,
+  -- since that list lives in application code, not a DB table). baseline_price snapshots
+  -- what PSA showed for reference_year at the moment the override was set, so a later read
+  -- can tell "PSA still hasn't published/changed this" apart from "PSA has since updated,"
+  -- and self-heal by dropping a now-stale override (see applyOverride in marketPriceService.js).
+  -- ============================================================================
+  create table if not exists public.market_price_overrides (
+    id uuid primary key default gen_random_uuid(),
+    commodity_id text not null unique,
+    commodity_label text not null,
+    reference_price numeric(12,2) not null check (reference_price >= 0),
+    reference_year integer not null,
+    baseline_price numeric(12,2),
+    updated_by uuid references public.profiles(id) on delete set null,
+    updated_by_name text,
+    updated_at timestamptz not null default now()
   );
 
-drop policy if exists "avatars delete own folder" on storage.objects;
-create policy "avatars delete own folder"
-  on storage.objects for delete
-  using (
-    bucket_id = 'avatars'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  alter table public.market_price_overrides enable row level security;
+
+  -- reason for the CURRENT override value — added for the Price Monitoring redesign's
+  -- confirmation modal, which requires DTI staff to justify every override. Nullable: rows
+  -- written before this column existed have no reason on file.
+  alter table public.market_price_overrides add column if not exists reason text;
+
+  -- market_price_override_history — one row per override change (set or reset), newest
+  -- first when read. Kept as its own append-only table rather than versioning
+  -- market_price_overrides itself, since that table is only ever the CURRENT value (upserted
+  -- on commodity_id) — history needs every past value to survive being overwritten.
+  create table if not exists public.market_price_override_history (
+    id uuid primary key default gen_random_uuid(),
+    commodity_id text not null,
+    commodity_label text not null,
+    previous_price numeric(12,2),
+    new_price numeric(12,2),
+    reason text,
+    updated_by uuid references public.profiles(id) on delete set null,
+    updated_by_name text,
+    created_at timestamptz not null default now()
   );
 
--- verification-documents: owner-only read AND write (private bucket). Admin
--- review of OTHER users' documents is deliberately NOT a bucket policy — it
--- goes through the backend's service-role key instead (see
--- backend/src/controllers/profiles.controller.js -> getVerificationDocuments),
--- which issues short-lived signed URLs. Keeping this policy owner-only-simple
--- avoids needing a custom "is admin" JWT claim wired into Storage RLS.
-drop policy if exists "verification-documents insert own folder" on storage.objects;
-create policy "verification-documents insert own folder"
-  on storage.objects for insert
-  with check (
-    bucket_id = 'verification-documents'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  create index if not exists market_price_override_history_commodity_id_idx
+    on public.market_price_override_history (commodity_id, created_at desc);
+
+  alter table public.market_price_override_history enable row level security;
+
+  -- The AI Market Price estimate feature (Gemini + Google Search grounding, shown on Market
+  -- Insights for a commodity with no PSA data) was tried and removed — this drops the table
+  -- an already-migrated install would still have from when it briefly existed. Safe/idempotent
+  -- like everything else here: a no-op on an install that never had it.
+  drop table if exists public.ai_price_estimates;
+
+  -- ============================================================================
+  -- categories / products_catalog / units / product_units — the canonical,
+  -- admin-editable product catalog backing Category -> Product -> Unit cascading
+  -- selection everywhere in the app (product form, marketplace/listing filters,
+  -- demand forecast). Supersedes the earlier crop_categories/crops tables (which
+  -- stored a flat text[] of units per category, never deployed to production) with
+  -- a fully relational model that supports per-product unit overrides — an admin
+  -- can add/rename/deactivate a category, catalog product, or unit — and attach/
+  -- detach/reorder which units apply to which product and which is the default —
+  -- from the Admin dashboard with no code deploy (see
+  -- backend/src/controllers/catalog.controller.js).
+  --
+  -- products.category/products.name stay plain text (no FK to these tables) so
+  -- existing/legacy product rows whose category or name isn't in this catalog
+  -- keep working and keep displaying their legacy unit unchanged — validation
+  -- against this catalog only applies to NEW category/product/unit choices, never
+  -- to a product's own already-saved values (see products.controller.js).
+  -- ============================================================================
+  create table if not exists public.categories (
+    id uuid primary key default gen_random_uuid(),
+    name text not null unique,
+    sort_order integer not null default 0,
+    is_active boolean not null default true,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
   );
 
-drop policy if exists "verification-documents select own folder" on storage.objects;
-create policy "verification-documents select own folder"
-  on storage.objects for select
-  using (
-    bucket_id = 'verification-documents'
-    and (select auth.uid())::text = (storage.foldername(name))[1]
+  -- Master list of every measurement unit a farmer can list a product in — a flat,
+  -- category/product-agnostic list (see the Product Listing form, which now takes a free-text
+  -- product name rather than picking from a catalog — products_catalog/product_units were
+  -- removed, since a curated per-crop product+unit catalog turned out to be more rigid than
+  -- useful in practice).
+  create table if not exists public.units (
+    id uuid primary key default gen_random_uuid(),
+    name text not null unique,
+    abbreviation text,
+    created_at timestamptz not null default now()
   );
 
--- ============================================================================
--- Done. Next steps (see backend/README.md):
---   1. Dashboard -> Authentication -> Providers -> Email -> turn OFF "Confirm email"
---      (this prototype logs a user in immediately at registration, with no
---      transactional email step).
---   2. Copy Project URL / anon key / service_role key from
---      Dashboard -> Settings -> API into your Render + Vercel env vars.
---   3. Run backend/scripts/seedAdmin.js once to create the real admin account
---      (replaces the old hardcoded admin@harvestlink.com / admin plaintext login).
--- ============================================================================
+  -- ============================================================================
+  -- updated_at maintenance trigger
+  -- ============================================================================
+  create or replace function public.set_updated_at()
+  returns trigger as $$
+  begin
+    new.updated_at = now();
+    return new;
+  end;
+  $$ language plpgsql;
+
+  drop trigger if exists set_profiles_updated_at on public.profiles;
+  create trigger set_profiles_updated_at before update on public.profiles
+    for each row execute function public.set_updated_at();
+
+  drop trigger if exists set_products_updated_at on public.products;
+  create trigger set_products_updated_at before update on public.products
+    for each row execute function public.set_updated_at();
+
+  drop trigger if exists set_orders_updated_at on public.orders;
+  create trigger set_orders_updated_at before update on public.orders
+    for each row execute function public.set_updated_at();
+
+  drop trigger if exists set_categories_updated_at on public.categories;
+  create trigger set_categories_updated_at before update on public.categories
+    for each row execute function public.set_updated_at();
+
+  -- Category taxonomy cleanup — safe to re-run. Renames the earlier "Other" catch-all to
+  -- "Others" (matching the seed list below) before the insert's ON CONFLICT DO NOTHING would
+  -- otherwise leave a stale duplicate, then removes any row that isn't part of the canonical
+  -- 21-category list at all — e.g. a stray test category ("asd") added by hand outside this
+  -- file. Existing products keep whatever category string they already had; reclassifying
+  -- product rows into this taxonomy was done as a one-time live data pass, not here, since
+  -- correctly matching free-text product names to a category needs real string-matching logic
+  -- (ordering "coconut oil" before bare "coconut", etc.) that's clearer in JS than in SQL.
+  update public.categories set name = 'Others' where name = 'Other';
+  delete from public.categories where name not in (
+    'Vegetables', 'Fruits', 'Grains & Cereals', 'Root & Tuber Crops', 'Legumes & Pulses',
+    'Herbs & Aromatics', 'Spices & Condiments', 'Coconut & Oil Crops', 'Sugar Crops',
+    'Beverage Crops', 'Mushrooms', 'Flowers & Ornamentals', 'Medicinal Plants', 'Fiber Crops',
+    'Seeds, Seedlings & Nursery', 'Fodder & Forage', 'Livestock Products',
+    'Fisheries & Aquaculture', 'Organic Products', 'Processed Farm Products', 'Others'
+  );
+
+  -- ============================================================================
+  -- categories / units seed data — the professional agricultural taxonomy
+  -- described above. Safe to re-run: ON CONFLICT DO NOTHING means an admin's
+  -- later edits (rename, deactivate, reorder) are never overwritten by
+  -- re-running this file. The product name itself is free text on the Product
+  -- Listing form (see ProductForm.jsx) rather than picked from a category-scoped
+  -- catalog — only the category and unit come from admin-managed tables.
+  -- ============================================================================
+  insert into public.categories (name, sort_order) values
+    ('Vegetables', 1), ('Fruits', 2), ('Grains & Cereals', 3), ('Root & Tuber Crops', 4),
+    ('Legumes & Pulses', 5), ('Herbs & Aromatics', 6), ('Spices & Condiments', 7),
+    ('Coconut & Oil Crops', 8), ('Sugar Crops', 9), ('Beverage Crops', 10), ('Mushrooms', 11),
+    ('Flowers & Ornamentals', 12), ('Medicinal Plants', 13), ('Fiber Crops', 14),
+    ('Seeds, Seedlings & Nursery', 15), ('Fodder & Forage', 16), ('Livestock Products', 17),
+    ('Fisheries & Aquaculture', 18), ('Organic Products', 19), ('Processed Farm Products', 20),
+    ('Others', 21)
+  on conflict (name) do nothing;
+
+  insert into public.units (name, abbreviation) values
+    ('Kilogram', 'kg'), ('Gram', 'g'), ('Piece', 'pc'), ('Bundle', null), ('Crate', null),
+    ('Sack', null), ('Box', null), ('Bunch', null), ('Basket', null), ('Dozen', 'dz'),
+    ('Bag', null), ('Ton', 't'), ('Pack', null), ('Bottle', null), ('Tray', null), ('Pot', null),
+    ('Stem', null), ('Bouquet', null), ('Seed', null), ('Packet', null), ('Seedling', null),
+    ('Bale', null), ('Liter', 'L'), ('Milliliter', 'mL'), ('Net Bag', null), ('Hand', null)
+  on conflict (name) do nothing;
+
+  -- ============================================================================
+  -- Row Level Security — enabled on every table; only ONE real policy exists
+  -- (orders_select_own, below), added specifically so Supabase Realtime can push live
+  -- GPS/status updates straight to an order's own buyer/farmer without a round trip through
+  -- the backend (see src/features/orders/OrderTracking.jsx). Every other read/write still
+  -- goes exclusively through the backend's service_role key (which bypasses RLS
+  -- unconditionally), so this remains one narrow, explicit exception, not a general opening —
+  -- the anon/authenticated keys the frontend holds still can't read or write anything else on
+  -- these tables, even via a future accidental `supabase.from('products')` call.
+  -- ============================================================================
+  alter table public.profiles enable row level security;
+  alter table public.products enable row level security;
+  alter table public.orders enable row level security;
+  alter table public.notifications enable row level security;
+  alter table public.messages enable row level security;
+  alter table public.ratings enable row level security;
+  alter table public.categories enable row level security;
+  alter table public.units enable row level security;
+
+  -- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
+  -- directly — Realtime enforces RLS just like any other read, so without this policy the
+  -- client would never receive postgres_changes events at all, even for its own order. Scoped
+  -- to exactly "you are a party to this order," nothing broader.
+  drop policy if exists orders_select_own on public.orders;
+  create policy orders_select_own on public.orders
+    for select
+    using ((select auth.uid()) = buyer_id or (select auth.uid()) = farmer_id);
+
+  -- Same reasoning as orders_select_own — lets the notification bell (see
+  -- src/hooks/useNotificationsRealtime.js) receive new rows the instant the backend inserts
+  -- them, instead of only ever finding out on the next poll.
+  drop policy if exists notifications_select_own on public.notifications;
+  create policy notifications_select_own on public.notifications
+    for select
+    using ((select auth.uid()) = user_id);
+
+  -- Required for postgres_changes events to fire for these tables at all — idempotent (skips
+  -- if a table was already added, e.g. via the Database -> Replication toggle in the Supabase
+  -- dashboard instead of this SQL).
+  do $$
+  begin
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'
+    ) then
+      alter publication supabase_realtime add table public.orders;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notifications'
+    ) then
+      alter publication supabase_realtime add table public.notifications;
+    end if;
+  end $$;
+
+  -- ============================================================================
+  -- Storage buckets
+  --   product-images        public  — product photos, freely viewable in the marketplace
+  --   avatars                public  — farmer/buyer/stakeholder profile pictures
+  --   verification-documents private — gov ID / accreditation proof, sensitive
+  --   chat-attachments       public  — images/files sent in messages
+  --   payment-qr             public  — a farmer's own GCash QR code
+  --   payment-receipts       public  — a buyer's proof-of-payment screenshot
+  -- ============================================================================
+  insert into storage.buckets (id, name, public)
+  values ('product-images', 'product-images', true)
+  on conflict (id) do nothing;
+
+  insert into storage.buckets (id, name, public)
+  values ('avatars', 'avatars', true)
+  on conflict (id) do nothing;
+
+  insert into storage.buckets (id, name, public)
+  values ('verification-documents', 'verification-documents', false)
+  on conflict (id) do nothing;
+
+  -- product-images: a user may only write into a folder named after their own
+  -- auth uid (upload path convention: product-images/{farmerId}/{uuid}.{ext}).
+  -- Public reads (e.g. an <img> tag using getPublicUrl) are served straight off the
+  -- public CDN URL and never go through RLS — but a SELECT policy is still required
+  -- here: Storage's own upload endpoint does an INSERT ... RETURNING under the hood,
+  -- and Postgres enforces RLS on that implicit read-back too. Without this, every
+  -- authenticated upload fails with "new row violates row-level security policy"
+  -- even though the INSERT's own WITH CHECK is satisfied.
+  drop policy if exists "product-images insert own folder" on storage.objects;
+  create policy "product-images insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'product-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "product-images select own folder" on storage.objects;
+  create policy "product-images select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'product-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "product-images update own folder" on storage.objects;
+  create policy "product-images update own folder"
+    on storage.objects for update
+    using (
+      bucket_id = 'product-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "product-images delete own folder" on storage.objects;
+  create policy "product-images delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'product-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- avatars: same owner-folder convention as product-images (upload path convention:
+  -- avatars/{userId}/{uuid}.{ext}) — any of the three roles may upload their own.
+  drop policy if exists "avatars insert own folder" on storage.objects;
+  create policy "avatars insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'avatars'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "avatars select own folder" on storage.objects;
+  create policy "avatars select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'avatars'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "avatars update own folder" on storage.objects;
+  create policy "avatars update own folder"
+    on storage.objects for update
+    using (
+      bucket_id = 'avatars'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "avatars delete own folder" on storage.objects;
+  create policy "avatars delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'avatars'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- verification-documents: owner-only read AND write (private bucket). Admin
+  -- review of OTHER users' documents is deliberately NOT a bucket policy — it
+  -- goes through the backend's service-role key instead (see
+  -- backend/src/controllers/profiles.controller.js -> getVerificationDocuments),
+  -- which issues short-lived signed URLs. Keeping this policy owner-only-simple
+  -- avoids needing a custom "is admin" JWT claim wired into Storage RLS.
+  drop policy if exists "verification-documents insert own folder" on storage.objects;
+  create policy "verification-documents insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'verification-documents'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "verification-documents select own folder" on storage.objects;
+  create policy "verification-documents select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'verification-documents'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- chat-attachments: public bucket, same owner-folder upload convention as product-images/
+  -- avatars (path: chat-attachments/{senderId}/{uuid}.{ext}) — the SELECT policy below only
+  -- gates Storage's own authenticated API (needed for the insert's implicit read-back, see the
+  -- product-images comment above); the actual chat image/file a recipient sees is fetched via
+  -- its public getPublicUrl(), which bypasses RLS entirely, same as any other public bucket.
+  insert into storage.buckets (id, name, public)
+  values ('chat-attachments', 'chat-attachments', true)
+  on conflict (id) do nothing;
+
+  drop policy if exists "chat-attachments insert own folder" on storage.objects;
+  create policy "chat-attachments insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'chat-attachments'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "chat-attachments select own folder" on storage.objects;
+  create policy "chat-attachments select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'chat-attachments'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "chat-attachments delete own folder" on storage.objects;
+  create policy "chat-attachments delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'chat-attachments'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- payment-qr: public bucket, same owner-folder convention (path: payment-qr/{farmerId}/
+  -- {uuid}.{ext}) — a farmer's own GCash QR code, shown to any buyer checking out with
+  -- that farmer via getGcashCheckout, same public-URL visibility reasoning as chat-attachments.
+  insert into storage.buckets (id, name, public)
+  values ('payment-qr', 'payment-qr', true)
+  on conflict (id) do nothing;
+
+  drop policy if exists "payment-qr insert own folder" on storage.objects;
+  create policy "payment-qr insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'payment-qr'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "payment-qr select own folder" on storage.objects;
+  create policy "payment-qr select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'payment-qr'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "payment-qr update own folder" on storage.objects;
+  create policy "payment-qr update own folder"
+    on storage.objects for update
+    using (
+      bucket_id = 'payment-qr'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "payment-qr delete own folder" on storage.objects;
+  create policy "payment-qr delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'payment-qr'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- payment-receipts: public bucket, owner-folder convention where the "owner" is the BUYER
+  -- uploading proof of payment (path: payment-receipts/{buyerId}/{uuid}.{ext}) — the farmer
+  -- confirming payment reads it via its public URL, same as any other public bucket.
+  insert into storage.buckets (id, name, public)
+  values ('payment-receipts', 'payment-receipts', true)
+  on conflict (id) do nothing;
+
+  drop policy if exists "payment-receipts insert own folder" on storage.objects;
+  create policy "payment-receipts insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'payment-receipts'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "payment-receipts select own folder" on storage.objects;
+  create policy "payment-receipts select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'payment-receipts'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  -- ============================================================================
+  -- Done. Next steps (see backend/README.md):
+  --   1. Dashboard -> Authentication -> Providers -> Email -> turn OFF "Confirm email"
+  --      (this prototype logs a user in immediately at registration, with no
+  --      transactional email step).
+  --   2. Copy Project URL / anon key / service_role key from
+  --      Dashboard -> Settings -> API into your Render + Vercel env vars.
+  --   3. Run backend/scripts/seedAdmin.js once to create the real admin account
+  --      (replaces the old hardcoded admin@harvestlink.com / admin plaintext login).
+  -- ============================================================================

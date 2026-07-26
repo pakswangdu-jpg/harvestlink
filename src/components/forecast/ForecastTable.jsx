@@ -60,7 +60,7 @@ export default function ForecastTable({
   }, [crops, search, sortBy]);
 
   return (
-    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-widest text-green-700">Comparison</p>

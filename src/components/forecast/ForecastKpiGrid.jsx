@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import {
   Award, Bot, CloudRain, DollarSign, Minus, Sprout, TrendingDown, TrendingUp,
 } from 'lucide-react';
@@ -26,13 +25,9 @@ function rainWarning(weather) {
 
 function Card({ children }) {
   return (
-    <motion.article
-      whileHover={{ y: -3 }}
-      transition={{ duration: 0.2 }}
-      className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
-    >
+    <article className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-5">
       {children}
-    </motion.article>
+    </article>
   );
 }
 

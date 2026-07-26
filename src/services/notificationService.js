@@ -25,3 +25,25 @@ export async function markNotificationRead(id) {
 export async function markAllNotificationsRead() {
   return apiClient.patch('/notifications/read-all');
 }
+
+export async function deleteNotification(id) {
+  return apiClient.delete(`/notifications/${id}`);
+}
+
+// Same snake_case-row -> camelCase mapping convention as orderService.js's
+// mapOrderRealtimeRow — Supabase Realtime delivers the raw Postgres row, not a
+// backend-serialized response, so this is the one place a notification's shape gets
+// translated for a payload that didn't come through the REST API (see
+// src/hooks/useNotificationsRealtime.js).
+export function mapNotificationRealtimeRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    title: row.title,
+    message: row.message,
+    link: row.link,
+    read: row.read,
+    createdAt: row.created_at,
+  };
+}

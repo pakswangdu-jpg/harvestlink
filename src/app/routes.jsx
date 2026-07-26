@@ -17,16 +17,20 @@ import ProductDetails from '../features/marketplace/ProductDetails';
 import OrderTracking from '../features/orders/OrderTracking';
 import OrderReceipt from '../features/orders/OrderReceipt';
 import GcashPaymentPage from '../features/payments/GcashPaymentPage';
-import MessageThreads from '../features/messages/MessageThreads';
-import MessageThread from '../features/messages/MessageThread';
-import DirectMessageThread from '../features/messages/DirectMessageThread';
+import MessagesPage from '../features/messages/MessagesPage';
 import Profile from '../features/profile/Profile';
 import MarketInsights from '../features/market/MarketInsights';
 import FarmerMapPage from '../features/map/FarmerMapPage';
 import StakeholderDashboard from '../features/stakeholder/StakeholderDashboard';
 import StakeholderDonations from '../features/stakeholder/StakeholderDonations';
 import StakeholderRequests from '../features/stakeholder/StakeholderRequests';
-import AdminDashboard from '../features/admin/AdminDashboard';
+import AdminOverview from '../features/admin/AdminOverview';
+import AdminUsers from '../features/admin/AdminUsers';
+import AdminPriceMonitoring from '../features/admin/AdminPriceMonitoring';
+import AdminOrders from '../features/admin/AdminOrders';
+import AdminDonations from '../features/admin/AdminDonations';
+import AdminReports from '../features/admin/AdminReports';
+import AdminProfile from '../features/admin/AdminProfile';
 
 export default function AppRoutes() {
   return (
@@ -57,9 +61,9 @@ export default function AppRoutes() {
         <Route path="/orders/:id" element={<OrderTracking />} />
         <Route path="/orders/:id/receipt" element={<OrderReceipt />} />
         <Route path="/orders/:id/pay/gcash" element={<GcashPaymentPage />} />
-        <Route path="/messages" element={<MessageThreads />} />
-        <Route path="/messages/direct/:userId" element={<DirectMessageThread />} />
-        <Route path="/messages/:orderId" element={<MessageThread />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/messages/direct/:userId" element={<MessagesPage />} />
+        <Route path="/messages/:orderId" element={<MessagesPage />} />
         <Route path="/market-insights" element={<MarketInsights />} />
         <Route path="/farmer-map" element={<FarmerMapPage />} />
       </Route>
@@ -76,13 +80,13 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/admin-users" element={<AdminDashboard />} />
-        <Route path="/admin-price-monitoring" element={<AdminDashboard />} />
-        <Route path="/admin-orders" element={<AdminDashboard />} />
-        <Route path="/admin-donations" element={<AdminDashboard />} />
-        <Route path="/admin-reports" element={<AdminDashboard />} />
-        <Route path="/admin-profile" element={<AdminDashboard />} />
+        <Route path="/admin-dashboard" element={<AdminOverview />} />
+        <Route path="/admin-users" element={<AdminUsers />} />
+        <Route path="/admin-price-monitoring" element={<AdminPriceMonitoring />} />
+        <Route path="/admin-orders" element={<AdminOrders />} />
+        <Route path="/admin-donations" element={<AdminDonations />} />
+        <Route path="/admin-reports" element={<AdminReports />} />
+        <Route path="/admin-profile" element={<AdminProfile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

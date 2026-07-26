@@ -90,30 +90,49 @@ export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
     response: { format: 'csv' },
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  async function postOnce() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      return await fetch(PSA_TABLE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(query),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 
   let points = [];
+  let succeeded = false;
   try {
-    const response = await fetch(PSA_TABLE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(query),
-      signal: controller.signal,
-    });
+    let response = await postOnce();
+    // getDemandForecast computes every distinct crop concurrently (Promise.all), which can
+    // fire a dozen+ of these at once — PSA's endpoint 429s a real fraction of requests under
+    // that kind of burst even though each works fine alone. One retry after a short backoff
+    // recovers most of them, same fix as the frontend's own copy of this fetch
+    // (src/services/marketPriceService.js).
+    if (response.status === 429) {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      response = await postOnce();
+    }
     if (response.ok) {
       const text = await response.text();
       const priceByYear = parseAnnualCsv(text);
       for (let year = startYear; year <= endYear; year += 1) {
         points.push({ year, price: priceByYear.has(year) ? priceByYear.get(year) : null });
       }
+      succeeded = true;
     }
   } catch {
     points = [];
-  } finally {
-    clearTimeout(timeoutId);
   }
 
-  setCached(cacheKey, points);
+  // Only cache a genuine result — caching an empty [] from a failed/rate-limited request
+  // would otherwise pin "no PSA data" for this commodity for the full 12h TTL, even though
+  // a retry moments later would likely have succeeded.
+  if (succeeded) setCached(cacheKey, points);
   return points;
 }

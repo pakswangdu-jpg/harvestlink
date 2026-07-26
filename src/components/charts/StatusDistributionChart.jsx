@@ -1,39 +1,36 @@
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import Select from '../admin/Select';
+import EmptyState from '../admin/EmptyState';
 
-const CHART_HEIGHT = 280;
+const CHART_HEIGHT = 220;
 const ALL_TIME = 'all';
 
 // Centralized so "Orders by status" and "Donations by status" (the only two charts driving
 // this component today) always render the same status in the same color, even though each
-// pulls from a different status vocabulary (order vs. donation lifecycle).
+// pulls from a different status vocabulary (order vs. donation lifecycle). Muted rather than
+// saturated — distinct enough to read, not a rainbow.
 const STATUS_COLORS = {
-  completed: '#16A34A',
-  pending: '#F59E0B',
-  confirmed: '#3B82F6',
-  cancelled: '#DC2626',
-  rejected: '#EF4444',
-  available: '#8B5CF6',
-  requested: '#10B981',
-  scheduled: '#3B82F6',
-  // User roles — a different vocabulary than order/donation statuses, but colors never
-  // collide between them, so they share the same lookup.
-  farmer: '#16A34A',
-  buyer: '#3B82F6',
-  stakeholder: '#8B5CF6',
-  admin: '#F59E0B',
+  completed: '#1A7F37',
+  pending: '#9A6700',
+  confirmed: '#57606A',
+  cancelled: '#CF222E',
+  rejected: '#CF222E',
+  available: '#57606A',
+  requested: '#9A6700',
+  scheduled: '#57606A',
+  farmer: '#166534',
+  buyer: '#57606A',
+  stakeholder: '#9A6700',
+  admin: '#24292F',
 };
-const DEFAULT_COLOR = '#6B7280';
+const DEFAULT_COLOR = '#57606A';
 
-// Recharts doesn't wrap axis tick text on its own — a plain centered <text> node is exactly
-// what let "Donation completed"/"Pickup scheduled" collide with their neighbors in the old
-// hand-rolled chart. Splitting on spaces onto their own <tspan> lines keeps every label
-// legible regardless of how many categories share the row.
 function AxisTick({ x, y, payload }) {
   const words = String(payload.value).split(' ');
   return (
     <g transform={`translate(${x},${y})`}>
-      <text textAnchor="middle" fontSize={13} fontWeight={500} fill="#6B7280">
+      <text textAnchor="middle" fontSize={12} fill="#57606A">
         {words.map((word) => (
           <tspan key={word} x={0} dy={14}>{word}</tspan>
         ))}
@@ -46,15 +43,13 @@ function ChartTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 shadow-md">
-      <p className="text-[13px] font-semibold text-gray-900">{entry.label}</p>
-      <p className="text-[13px] text-gray-500">{entry.count} {entry.count === 1 ? 'entry' : 'entries'}</p>
+    <div className="rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[12px] shadow-sm">
+      <p className="font-medium text-[#24292F]">{entry.label}</p>
+      <p className="text-[#57606A]">{entry.count} {entry.count === 1 ? 'entry' : 'entries'}</p>
     </div>
   );
 }
 
-// Builds the month dropdown's options from whatever records actually exist — newest first —
-// so there's never a selectable month with nothing in it.
 function buildMonthOptions(records, dateKey) {
   const seen = new Map();
   records.forEach((record) => {
@@ -73,10 +68,9 @@ function buildMonthOptions(records, dateKey) {
   return [...seen.values()].sort((a, b) => (a.year === b.year ? b.month - a.month : b.year - a.year));
 }
 
-// Shared shell for every "breakdown by status" chart on the admin Reports page — same card,
-// typography, height, grid, animation, month filter, and status color mapping for all of
-// them; only the eyebrow/title/records/breakdown logic differ per caller.
-export default function StatusDistributionChart({ eyebrow, title, records, dateKey = 'createdAt', computeBreakdown }) {
+// Content only — no card wrapper of its own; the caller wraps this in the shared admin
+// Card/CardHeader so every panel on the page shares identical chrome.
+export default function StatusDistributionChart({ records, dateKey = 'createdAt', computeBreakdown }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(ALL_TIME);
 
@@ -95,64 +89,56 @@ export default function StatusDistributionChart({ eyebrow, title, records, dateK
   const data = useMemo(() => computeBreakdown(filteredRecords), [computeBreakdown, filteredRecords]);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-7 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[12px] font-semibold uppercase tracking-widest text-green-700">{eyebrow}</p>
-          <h2 className="mt-1 text-[26px] font-bold text-gray-900">{title}</h2>
-        </div>
-        <select
+    <>
+      <div className="mb-3 flex justify-end">
+        <Select
           value={selectedMonth}
           onChange={(event) => setSelectedMonth(event.target.value)}
-          aria-label={`Filter ${title} by month`}
-          className="h-9 shrink-0 rounded-lg border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700 outline-none transition-colors duration-200 focus:border-green-600"
+          aria-label="Filter by month"
+          className="!w-auto"
         >
           <option value={ALL_TIME}>All time</option>
           {monthOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
-        </select>
+        </Select>
       </div>
-
       {data.length ? (
-        <div className="mt-6" style={{ height: CHART_HEIGHT }}>
+        <div style={{ height: CHART_HEIGHT }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={data}
-              margin={{ top: 28, right: 8, left: 8, bottom: 0 }}
+              margin={{ top: 20, right: 4, left: 4, bottom: 0 }}
               onMouseMove={(state) => setActiveIndex(state?.isTooltipActive ? state.activeTooltipIndex : null)}
               onMouseLeave={() => setActiveIndex(null)}
             >
-              <CartesianGrid vertical={false} stroke="#F3F4F6" />
+              <CartesianGrid vertical={false} stroke="#EAEEF2" />
               <XAxis
                 dataKey="label"
-                axisLine={{ stroke: '#E5E7EB' }}
+                axisLine={{ stroke: '#D0D7DE' }}
                 tickLine={false}
                 interval={0}
-                height={40}
+                height={36}
                 tick={<AxisTick />}
               />
-              <Tooltip cursor={{ fill: '#F9FAFB' }} content={<ChartTooltip />} />
-              <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56} animationDuration={600} animationEasing="ease-out">
+              <Tooltip cursor={{ fill: '#F6F8FA' }} content={<ChartTooltip />} />
+              <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={40} animationDuration={300} animationEasing="ease-out">
                 {data.map((entry, index) => (
                   <Cell
                     key={entry.key}
                     fill={STATUS_COLORS[entry.status] || DEFAULT_COLOR}
                     opacity={activeIndex === null || activeIndex === index ? 1 : 0.55}
-                    style={{ transition: 'opacity 0.2s ease' }}
+                    style={{ transition: 'opacity 0.15s ease' }}
                   />
                 ))}
-                <LabelList dataKey="count" position="top" style={{ fontSize: 14, fontWeight: 700, fill: '#111827' }} />
+                <LabelList dataKey="count" position="top" style={{ fontSize: 12, fontWeight: 600, fill: '#24292F' }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="empty-state compact mt-6">
-          <h3>No data yet</h3>
-          <p>Nothing to report here for this period.</p>
-        </div>
+        <EmptyState title="No data yet" message="Nothing to report here for this period." />
       )}
-    </div>
+    </>
   );
 }
