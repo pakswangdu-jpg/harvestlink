@@ -10,6 +10,7 @@ import paymentsRoutes from './payments.routes.js';
 import deliveryFeeRoutes from './deliveryFee.routes.js';
 import forecastRoutes from './forecast.routes.js';
 import catalogRoutes from './catalog.routes.js';
+import marketPriceOverridesRoutes from './marketPriceOverrides.routes.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/payments', paymentsRoutes);
 router.use('/delivery-fee', deliveryFeeRoutes);
 router.use('/forecast', forecastRoutes);
 router.use('/catalog', catalogRoutes);
+router.use('/market-price-overrides', marketPriceOverridesRoutes);
 
 export default router;

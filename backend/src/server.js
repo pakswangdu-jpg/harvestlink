@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createServer } from 'http';
 import app from './app.js';
 import { setupOrderTrackingSocket } from './realtime/orderTracking.js';
+import { setupChatSocket } from './realtime/chatPresence.js';
 
 const port = process.env.PORT || 4000;
 
@@ -16,7 +17,8 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:517
 // it's the same app, same routes, same middleware — this just lets Socket.IO attach to
 // the same server/port for the new live-tracking broadcast layer (see realtime/orderTracking.js).
 const httpServer = createServer(app);
-setupOrderTrackingSocket(httpServer, allowedOrigins);
+const io = setupOrderTrackingSocket(httpServer, allowedOrigins);
+setupChatSocket(io);
 
 httpServer.listen(port, () => {
   console.log(`HarvestLink API listening on port ${port}`);

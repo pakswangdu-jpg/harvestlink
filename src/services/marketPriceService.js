@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient';
+
 const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
@@ -5,37 +7,56 @@ const TABLE_MIN_YEAR = 2010;
 const CACHE_PREFIX = 'harvestlink_psa_price_';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
-const OVERRIDE_STORAGE_KEY = 'harvestlink_psa_price_overrides';
+// How long a fetched overrides map is trusted before re-fetching — short enough that an
+// admin's change shows up for other users within a minute, long enough that a page showing
+// many commodities at once (Admin Price Monitoring's ~43-row table, MarketInsights) doesn't
+// fire a request per commodity.
+const OVERRIDES_CACHE_TTL_MS = 60 * 1000;
 
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
 export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
 
+// All 43 commodities PSA actually publishes farmgate PRICES for, in this exact table
+// (0142M4EFGP0 — "Major Crops: Farmgate Prices"). PSA's OpenStat DB/2E/CS collection has ~17
+// tables in total, but the other ones (Volume of Production, Area Planted/Harvested, Number
+// of Bearing Trees, Fertilizer Use, Stocks Inventory) are production/agricultural statistics
+// with no price dimension at all — hundreds more crop names live there, but there's no price
+// series behind any of them, so they can't feed this list. This IS the full, complete set of
+// commodities this feature can ever show a real PSA price for.
+//
 // Ordered so a specific variety (e.g. "Mango Piko") is checked before the generic,
 // more-common fallback of the same crop family (e.g. "Mango" -> Carabao) — matchCommodity
 // returns the first hit, so the more specific keyword must come first in the array.
 export const MARKET_COMMODITIES = [
   { id: '28', label: 'Cabbage', keywords: ['cabbage'] },
   { id: '41', label: 'Tomato', keywords: ['tomato'] },
+  { id: '33', label: 'Eggplant (Native, Long)', keywords: ['eggplant native long', 'talong native long'] },
+  { id: '34', label: 'Eggplant (Native, Round)', keywords: ['eggplant native round', 'talong native round', 'round eggplant'] },
   { id: '32', label: 'Eggplant', keywords: ['eggplant', 'talong'] },
   { id: '27', label: 'Ampalaya (Bitter Gourd)', keywords: ['ampalaya', 'bitter gourd'] },
   { id: '38', label: 'Onion (Yellow Granex)', keywords: ['yellow onion', 'onion yellow', 'bermuda white'] },
   { id: '40', label: 'Onion (Red Shallot)', keywords: ['shallot', 'sibuyas tagalog', 'red shallot'] },
   { id: '39', label: 'Onion (Red Creole)', keywords: ['onion', 'sibuyas'] },
   { id: '29', label: 'Camote (Sweet Potato)', keywords: ['camote', 'sweet potato'] },
+  { id: '31', label: 'Cassava (Industrial Use)', keywords: ['cassava industrial', 'industrial cassava'] },
   { id: '30', label: 'Cassava', keywords: ['cassava'] },
   { id: '42', label: 'Potato', keywords: ['potato'] },
   { id: '21', label: 'Mango (Piko)', keywords: ['mango piko', 'piko mango'] },
   { id: '22', label: 'Mango (Indian)', keywords: ['mango indian', 'indian mango'] },
+  { id: '23', label: 'Mango (Others)', keywords: ['mango others', 'other mango'] },
   { id: '20', label: 'Mango (Carabao)', keywords: ['mango', 'mangga'] },
   { id: '15', label: 'Banana (Lakatan)', keywords: ['lakatan'] },
   { id: '16', label: 'Banana (Latundan)', keywords: ['latundan'] },
   { id: '13', label: 'Banana (Bungulan)', keywords: ['bungulan'] },
   { id: '14', label: 'Banana (Cavendish)', keywords: ['cavendish'] },
+  { id: '18', label: 'Banana (Others)', keywords: ['banana others', 'other banana'] },
   { id: '17', label: 'Banana (Saba)', keywords: ['banana', 'saging'] },
   { id: '19', label: 'Calamansi', keywords: ['calamansi'] },
   { id: '24', label: 'Pineapple (Formosa)', keywords: ['formosa'] },
   { id: '25', label: 'Pineapple (Hawaiian)', keywords: ['hawaiian'] },
   { id: '26', label: 'Pineapple (Native)', keywords: ['pineapple', 'pinya'] },
+  { id: '35', label: 'Mongo (Green, Labo)', keywords: ['mongo green', 'green mongo', 'monggo green'] },
+  { id: '37', label: 'Mongo (Yellow)', keywords: ['mongo yellow', 'yellow mongo', 'monggo yellow'] },
   { id: '36', label: 'Mongo (Mungbean)', keywords: ['mongo', 'mung bean', 'monggo'] },
   { id: '1', label: 'Coconut (Mature)', keywords: ['coconut', 'niyog'] },
   { id: '2', label: 'Coconut (Young / Buko)', keywords: ['buko', 'young coconut'] },
@@ -45,6 +66,11 @@ export const MARKET_COMMODITIES = [
   { id: '5', label: 'Coffee (Liberica / Barako)', keywords: ['barako', 'liberica'] },
   { id: '4', label: 'Coffee (Excelsa)', keywords: ['excelsa'] },
   { id: '6', label: 'Coffee (Robusta)', keywords: ['coffee', 'robusta'] },
+  { id: '0', label: 'Abaca', keywords: ['abaca'] },
+  { id: '7', label: 'Rubber', keywords: ['rubber'] },
+  { id: '9', label: 'Tobacco (Native)', keywords: ['tobacco native', 'native tobacco'] },
+  { id: '10', label: 'Tobacco (Virginia)', keywords: ['tobacco virginia', 'virginia tobacco'] },
+  { id: '11', label: 'Tobacco (Others)', keywords: ['tobacco'] },
 ];
 
 export function matchCommodity(productName) {
@@ -64,53 +90,91 @@ export function getCommodityById(id) {
 // typical retail — a real selling point for buyers browsing the marketplace.
 const RECOMMENDED_MARGIN_PERCENT = 15;
 
+// `referencePrice` is whatever value the caller wants marked up — a raw per-kg PSA figure,
+// or (see ProductForm.jsx) that same figure already converted into the farmer's selling unit.
+// Converting to the selling unit BEFORE calling this, rather than marking up the per-kg price
+// and converting after, matters: multiplying commutes, but rounding doesn't — converting
+// first and rounding once here avoids compounding two separate roundings into a different
+// final price than the one this function's own math actually implies.
 export function getRecommendedPrice(referencePrice) {
   if (!referencePrice || referencePrice <= 0) return null;
   const raw = referencePrice * (1 + RECOMMENDED_MARGIN_PERCENT / 100);
-  // Rounded UP to the nearest ₱0.50 so the margin is never quietly shaved by rounding down.
-  const price = Math.ceil(raw * 2) / 2;
+  // Rounded UP to the nearest centavo so the margin is never quietly shaved by rounding down.
+  const price = Math.ceil(raw * 100) / 100;
   return { price, marginPercent: RECOMMENDED_MARGIN_PERCENT, referencePrice };
 }
 
-// DTI-set reference prices that take precedence over the live PSA figure — used to
+// DTI/admin-set reference prices that take precedence over the live PSA figure — used to
 // correct a stale/wrong PSA number or fill in the current year before PSA has published it.
-function readOverrides() {
+// Server-side (see backend/src/controllers/marketPriceOverrides.controller.js), not
+// localStorage — an override an admin sets must be visible to every farmer/buyer on their
+// own device, not just the browser the admin happened to set it from.
+let overridesCache = null;
+let overridesCacheAt = 0;
+
+// Never throws — every one of this function's callers ultimately feeds fetchAnnualPriceTrend,
+// which every consumer (ProductForm, MarketInsights, MarketPricePanel, Admin Price
+// Monitoring) uses for the underlying PSA price itself, not just overrides. A transient
+// failure fetching overrides (network hiccup, or simply no overrides ever having been set)
+// must never take down the whole PSA price lookup — it should just mean "no override known
+// right now," same as the old localStorage version returning {} when nothing was stored.
+async function getOverridesMap() {
+  if (overridesCache && Date.now() - overridesCacheAt < OVERRIDES_CACHE_TTL_MS) return overridesCache;
   try {
-    const raw = localStorage.getItem(OVERRIDE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const rows = await apiClient.get('/market-price-overrides');
+    overridesCache = Object.fromEntries(rows.map((row) => [row.commodityId, row]));
+    overridesCacheAt = Date.now();
   } catch {
-    return {};
+    return overridesCache || {};
   }
+  return overridesCache;
 }
 
-export function getPriceOverride(commodityId) {
-  return readOverrides()[commodityId] || null;
+function invalidateOverridesCache() {
+  overridesCache = null;
 }
 
-// baselinePrice is what PSA showed (for referenceYear) at the moment this override was
-// set — it's what lets applyOverride later tell "PSA still hasn't changed" apart from
-// "PSA has since published/updated this year's figure", so a stale override can stand
-// down on its own instead of permanently masking new PSA data.
-export async function setPriceOverride(commodityId, referencePrice, yearsBack = 3) {
-  const rawPoints = await fetchRawAnnualPriceTrend(commodityId, yearsBack);
-  const latest = [...rawPoints].reverse().find((point) => point.price != null);
+export async function getPriceOverride(commodityId) {
+  const overrides = await getOverridesMap();
+  return overrides[commodityId] || null;
+}
 
-  const overrides = readOverrides();
-  const override = {
+// baseline (the real PSA year/price at the moment this override was set) is what lets
+// applyOverride later tell "PSA still hasn't changed" apart from "PSA has since published/
+// updated this year's figure", so a stale override can stand down on its own instead of
+// permanently masking new PSA data.
+//
+// Deliberately takes that baseline as a parameter rather than re-fetching PSA internally —
+// the caller (Admin Price Monitoring) already has it on screen, it's exactly the "Reference
+// price" column the admin is looking at while typing an override. Re-fetching here used to
+// mean a Save could silently fail with no error shown at all whenever that extra PSA request
+// got rate-limited (see AdminPriceMonitoring.jsx's own comment on how easily ~43 sequential
+// requests trips PSA's limiter) — a save should never depend on a fresh network round trip
+// for data the page already has in front of the admin.
+export async function setPriceOverride(commodityId, referencePrice, baseline = {}) {
+  const commodity = getCommodityById(commodityId);
+  const override = await apiClient.patch(`/market-price-overrides/${commodityId}`, {
+    commodityLabel: commodity.label,
     referencePrice: Number(referencePrice),
-    referenceYear: latest?.year ?? new Date().getFullYear(),
-    baselinePrice: latest?.price ?? null,
-    updatedAt: new Date().toISOString(),
-  };
-  overrides[commodityId] = override;
-  localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+    referenceYear: baseline.referenceYear ?? new Date().getFullYear(),
+    baselinePrice: baseline.baselinePrice ?? null,
+    reason: baseline.reason ?? '',
+  });
+  invalidateOverridesCache();
   return override;
 }
 
-export function clearPriceOverride(commodityId) {
-  const overrides = readOverrides();
-  delete overrides[commodityId];
-  localStorage.setItem(OVERRIDE_STORAGE_KEY, JSON.stringify(overrides));
+export async function clearPriceOverride(commodityId) {
+  await apiClient.delete(`/market-price-overrides/${commodityId}`);
+  invalidateOverridesCache();
+}
+
+// Price Monitoring's expandable "Price History" panel — newest first, straight from the
+// server (see market_price_override_history in supabase/schema.sql). Never cached: an admin
+// checking history right after saving an override needs the row they just wrote, not a
+// minute-old snapshot.
+export async function getOverrideHistory(commodityId) {
+  return apiClient.get(`/market-price-overrides/${commodityId}/history`);
 }
 
 function readCache(key) {
@@ -188,25 +252,48 @@ function parseAnnualCsv(text) {
 // Also self-heals: if PSA now shows a different figure for the override's year than it
 // did when the override was set, PSA has since published/updated real data, so the
 // override's reason (missing/wrong data) no longer holds — drop it and let PSA win.
-function applyOverride(commodityId, points) {
-  const override = getPriceOverride(commodityId);
+async function applyOverride(commodityId, points) {
+  const override = await getPriceOverride(commodityId);
   if (!override) return points;
 
   const index = points.findIndex((point) => point.year === override.referenceYear);
   const livePrice = index === -1 ? null : points[index].price;
 
   if (livePrice != null && livePrice !== override.baselinePrice) {
-    clearPriceOverride(commodityId);
+    await clearPriceOverride(commodityId);
     return points;
   }
 
+  // isOverride marks exactly the one point this override replaced/injected — every other
+  // point in the array is untouched real PSA data — so a caller showing "the latest price"
+  // to a farmer (ProductForm, MarketPricePanel, MarketInsights) can tell whether that figure
+  // is a live PSA number or one an admin set by hand, instead of presenting both identically.
   if (index === -1) {
-    return [...points, { year: override.referenceYear, price: override.referencePrice }].sort((a, b) => a.year - b.year);
+    return [...points, { year: override.referenceYear, price: override.referencePrice, isOverride: true }]
+      .sort((a, b) => a.year - b.year);
   }
 
   const next = [...points];
-  next[index] = { year: override.referenceYear, price: override.referencePrice };
+  next[index] = { year: override.referenceYear, price: override.referencePrice, isOverride: true };
   return next;
+}
+
+async function postPsaQuery(query) {
+  // Bounded so a slow/unresponsive PSA server can never hang the caller indefinitely —
+  // callers that gate UI on this (e.g. product submission) must always get a settled
+  // promise within a few seconds.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(PSA_TABLE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(query),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Fetches the PSA farmgate-price table via a CORS-simple request: the server has no
@@ -235,22 +322,15 @@ async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
     response: { format: 'csv' },
   };
 
-  // Bounded so a slow/unresponsive PSA server can never hang the caller indefinitely —
-  // callers that gate UI on this (e.g. product submission) must always get a settled
-  // promise within a few seconds.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  let response;
-  try {
-    response = await fetch(PSA_TABLE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(query),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
+  let response = await postPsaQuery(query);
+  // PSA's Cloudflare-fronted endpoint 429s a real fraction of requests under any kind of
+  // burst (confirmed live: pages that load many commodities in a row, like Admin Price
+  // Monitoring, start seeing this after roughly a dozen requests even spaced out) — one
+  // retry after a short backoff recovers the vast majority of these, rather than every
+  // caller seeing a transient rate limit as "PSA has no data for this commodity."
+  if (response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    response = await postPsaQuery(query);
   }
 
   if (!response.ok) throw new Error('Unable to reach the PSA market price service.');

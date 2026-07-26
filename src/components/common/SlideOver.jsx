@@ -27,29 +27,29 @@ export default function SlideOver({ open, onClose, eyebrow, title, children }) {
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[720px] flex-col overflow-hidden rounded-l-2xl bg-white shadow-2xl"
+            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col overflow-hidden border-l border-[#D0D7DE] bg-white"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
+            transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">
+            <div className="flex items-center justify-between border-b border-[#D0D7DE] px-6 py-4">
               <div>
                 {eyebrow ? <p className="text-[12px] font-semibold uppercase tracking-widest text-gray-500">{eyebrow}</p> : null}
-                <h2 className="text-[24px] font-bold text-gray-900">{title}</h2>
+                <h2 className="text-[18px] font-semibold text-gray-900">{title}</h2>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-gray-50 text-gray-500 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
               >
-                <X size={20} strokeWidth={2} />
+                <X size={18} strokeWidth={2} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-8 py-8">
+            <div className="flex-1 overflow-y-auto px-6 py-6">
               {children}
             </div>
           </motion.div>

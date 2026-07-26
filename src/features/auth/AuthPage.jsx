@@ -6,6 +6,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
+import PasswordInput from '../../components/common/PasswordInput';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
@@ -396,19 +397,21 @@ function StakeholderRegisterFields({
           </div>
         </div>
         <FormField label="Email Address" name="email" error={errors.email}>
-          <input
-            id="email"
-            type="email"
-            value={form.email}
-            onChange={(event) => updateField('email', event.target.value)}
-            onBlur={() => handleBlur('email')}
-            placeholder="name@example.com"
-          />
+          <div className="input-icon-wrap">
+            <Mail size={16} className="input-icon" />
+            <input
+              id="email"
+              type="email"
+              value={form.email}
+              onChange={(event) => updateField('email', event.target.value)}
+              onBlur={() => handleBlur('email')}
+              placeholder="name@example.com"
+            />
+          </div>
         </FormField>
         <FormField label="Password" name="password" error={errors.password}>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             value={form.password}
             onChange={(event) => updateField('password', event.target.value)}
             onBlur={() => handleBlur('password')}
@@ -417,9 +420,8 @@ function StakeholderRegisterFields({
           <PasswordRequirements password={form.password} />
         </FormField>
         <FormField label="Confirm Password" name="confirmPassword" error={errors.confirmPassword}>
-          <input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             value={form.confirmPassword}
             onChange={(event) => updateField('confirmPassword', event.target.value)}
             onBlur={() => handleBlur('confirmPassword')}
@@ -723,16 +725,23 @@ export default function AuthPage({ mode }) {
       </section>
 
       <section className={`auth-card ${isRegister ? 'auth-card-register' : ''} ${isStakeholderRegister ? 'auth-card-glass' : ''}`}>
+        <Link to="/" className="auth-card-brand">
+          <span className="brand-mark">
+            <img src={logo} alt="" />
+          </span>
+          <strong>HarvestLink</strong>
+        </Link>
+
         <div className="auth-card-header">
           <h2>
             {authStage === 'otp'
               ? 'Verify your email'
-              : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Login'}
+              : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
           </h2>
           <p>
             {authStage === 'otp'
               ? 'Enter the 6-digit code we emailed you to finish this.'
-              : isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Log in to your account.'}
+              : isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Sign in to your HarvestLink account'}
           </p>
         </div>
 
@@ -939,22 +948,24 @@ export default function AuthPage({ mode }) {
                   ) : null}
 
                   <FormField label="Email address" name="email" error={errors.email}>
-                    <input
-                      id="email"
-                      type="email"
-                      value={form.email}
-                      onChange={(event) => updateField('email', event.target.value)}
-                      onBlur={() => handleBlur('email')}
-                      placeholder="name@example.com"
-                    />
+                    <div className="input-icon-wrap">
+                      <Mail size={16} className="input-icon" />
+                      <input
+                        id="email"
+                        type="email"
+                        value={form.email}
+                        onChange={(event) => updateField('email', event.target.value)}
+                        onBlur={() => handleBlur('email')}
+                        placeholder="name@example.com"
+                      />
+                    </div>
                   </FormField>
                   {/* Full width, not side-by-side in a form-grid — the requirements checklist
                       only appears under Password, so a shared row would leave Confirm Password
                       stranded next to a much taller cell with a lot of dead space beneath it. */}
                   <FormField label="Password" name="password" error={errors.password}>
-                    <input
+                    <PasswordInput
                       id="password"
-                      type="password"
                       value={form.password}
                       onChange={(event) => updateField('password', event.target.value)}
                       onBlur={() => handleBlur('password')}
@@ -963,9 +974,8 @@ export default function AuthPage({ mode }) {
                     <PasswordRequirements password={form.password} />
                   </FormField>
                   <FormField label="Confirm password" name="confirmPassword" error={errors.confirmPassword}>
-                    <input
+                    <PasswordInput
                       id="confirmPassword"
-                      type="password"
                       value={form.confirmPassword}
                       onChange={(event) => updateField('confirmPassword', event.target.value)}
                       onBlur={() => handleBlur('confirmPassword')}
@@ -978,19 +988,21 @@ export default function AuthPage({ mode }) {
           ) : (
             <>
               <FormField label="Email address" name="email" error={errors.email}>
-                <input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => updateField('email', event.target.value)}
-                  onBlur={() => handleBlur('email')}
-                  placeholder="name@example.com"
-                />
+                <div className="input-icon-wrap">
+                  <Mail size={16} className="input-icon" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => updateField('email', event.target.value)}
+                    onBlur={() => handleBlur('email')}
+                    placeholder="name@example.com"
+                  />
+                </div>
               </FormField>
               <FormField label="Password" name="password" error={errors.password}>
-                <input
+                <PasswordInput
                   id="password"
-                  type="password"
                   value={form.password}
                   onChange={(event) => updateField('password', event.target.value)}
                   onBlur={() => handleBlur('password')}

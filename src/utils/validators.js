@@ -1,3 +1,5 @@
+import { hasFixedConversion } from './unitConversion';
+
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
@@ -74,8 +76,13 @@ export function validateProductForm(values, availableUnits) {
   if (!values.isDonation) {
     if (!['retail', 'wholesale'].includes(values.sellingType)) errors.sellingType = 'Choose a sales type.';
     if (toPositiveNumber(values.price) === null) errors.price = 'Enter a positive price.';
-    if (required(values.costPrice) && toPositiveNumber(values.costPrice) === null) {
-      errors.costPrice = 'Enter a positive cost, or leave it blank.';
+    // Required (not just validated-if-present) — a listing with no recorded cost gets silently
+    // excluded from the farmer's own Profit total forever once an order is placed against it
+    // (see reportService.js's getTotalProfit), since the app won't guess a margin. Requiring
+    // it up front is the only way to actually prevent that gap, since cost is snapshotted onto
+    // the order at checkout and can't be fixed retroactively after the fact.
+    if (toPositiveNumber(values.costPrice) === null) {
+      errors.costPrice = 'Enter your cost per unit so your profit can be calculated for this sale.';
     }
     if (values.sellingType === 'wholesale') {
       const moq = toPositiveNumber(values.moq);
@@ -85,7 +92,7 @@ export function validateProductForm(values, availableUnits) {
   }
   if (!required(values.unit)) errors.unit = 'Choose a unit.';
   else if (Array.isArray(availableUnits) && !availableUnits.includes(values.unit)) errors.unit = 'Choose a unit valid for this product.';
-  else if (!values.isDonation && values.unit !== 'kg' && toPositiveNumber(values.kgPerUnit) === null) {
+  else if (!values.isDonation && !hasFixedConversion(values.unit) && toPositiveNumber(values.kgPerUnit) === null) {
     errors.kgPerUnit = `Enter how many kg 1 ${values.unit} is.`;
   }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
@@ -141,6 +148,13 @@ export function validateProfileForm(values, role) {
     if (!required(values.organizationType)) errors.organizationType = 'Choose an organization type.';
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter a contact person.';
   }
+  return errors;
+}
+
+export function validateGcashForm(values) {
+  const errors = {};
+  if (!required(values.gcashAccountName)) errors.gcashAccountName = 'Enter the name on your GCash account.';
+  if (!required(values.gcashNumber)) errors.gcashNumber = 'Enter your GCash mobile number.';
   return errors;
 }
 

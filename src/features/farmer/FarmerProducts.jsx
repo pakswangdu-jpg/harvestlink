@@ -185,15 +185,21 @@ export default function FarmerProducts() {
       if (editingProduct) {
         await updateProduct(editingProduct.id, values);
         setNotice('Product updated.');
+        closeDrawer();
       } else if (values.isDonation) {
-        const product = await createProduct({ ...values, price: 0, sellingType: 'retail', moq: '' });
-        createDonation(product, currentUser);
-        setNotice(`${product.name} listed as a surplus donation for partner organizations.`);
+        const created = await createProduct({ ...values, price: 0, sellingType: 'retail', moq: '' });
+        createDonation(created, currentUser);
+        setNotice(`${created.name} listed as a surplus donation for partner organizations.`);
+        closeDrawer();
       } else {
-        await createProduct(values);
+        const created = await createProduct(values);
         setNotice('Product added to the marketplace.');
+        // Keep the drawer open, now switched into edit mode for the product that was just
+        // created (ProductForm's Discount section only ever renders once a product exists),
+        // so a farmer can apply a discount right away instead of closing the drawer and
+        // having to find and reopen this same listing from the list to do it.
+        setEditingProduct(created);
       }
-      closeDrawer();
       reload();
     } catch (submitError) {
       setNotice('');
@@ -310,11 +316,11 @@ export default function FarmerProducts() {
         </Button>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <SummaryCards summary={summary} />
       </div>
 
-      <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <section className="mt-4 rounded-lg border border-[#D0D7DE] bg-white p-5">
         {products.length ? (
           <div className="mb-5">
             <ProductFilters

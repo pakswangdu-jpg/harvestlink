@@ -33,7 +33,7 @@ export default function CropDetailPanel({ crop, forecast }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+      className="rounded-lg border border-gray-200 bg-white p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -137,7 +137,7 @@ export default function PriceForecastChart({
   const forecastGradientId = `${gradientId}-forecast`;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-gray-200 bg-white p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-widest text-green-700">{eyebrow}</p>

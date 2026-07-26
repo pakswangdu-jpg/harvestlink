@@ -53,7 +53,6 @@ export default function FarmerMap({
   onSelectPin,
   farmersWithProducts = EMPTY_SET,
   currentUserId,
-  existingThreadIds = EMPTY_SET,
 }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
@@ -175,15 +174,10 @@ export default function FarmerMap({
       const productsLine = hasProducts
         ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}">View products</a>`
         : `<br/><small class="muted">No products available</small>`;
-      // "Contact farmer" only continues an existing conversation — it can't be used to cold-
-      // message a stranger browsed off the map. `existingThreadIds` comes from the viewer's
-      // real direct-message threads (see getDirectThreads()), so this is a real relationship
-      // check, not a guess.
-      const contactLine = isYou
-        ? ''
-        : existingThreadIds.has(farmer.id)
-          ? `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`
-          : `<br/><small class="muted">No conversation yet</small>`;
+      // Always offer "Contact" — it opens a direct-message thread whether or not one already
+      // exists (sending the first message creates it), so browsing the map is itself a valid
+      // way to start a new conversation, not just continue one.
+      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
@@ -201,11 +195,7 @@ export default function FarmerMap({
       if (!coords) return;
 
       const isYou = buyer.id === currentUserId;
-      const contactLine = isYou
-        ? ''
-        : existingThreadIds.has(buyer.id)
-          ? `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`
-          : `<br/><small class="muted">No conversation yet</small>`;
+      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`;
       const popupHtml =
         `<strong>${isYou ? 'You' : buyer.name}</strong><br/>` +
         `${buyer.municipality}` +
@@ -222,11 +212,7 @@ export default function FarmerMap({
 
       const isYou = stakeholder.id === currentUserId;
       const displayName = isYou ? 'You' : (stakeholder.organizationName || stakeholder.name);
-      const contactLine = isYou
-        ? ''
-        : existingThreadIds.has(stakeholder.id)
-          ? `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`
-          : `<br/><small class="muted">No conversation yet</small>`;
+      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`;
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
@@ -246,9 +232,6 @@ export default function FarmerMap({
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
-      // Deliberately NOT gated on existingThreadIds like the general directory pins above —
-      // a stakeholder spotting a fresh donation on the map needs to be able to make first
-      // contact to arrange pickup; that's the entire point of this pin.
       const popupHtml =
         `<strong>${displayName}</strong><br/>` +
         `${farmer.name}<br/>` +
@@ -301,7 +284,6 @@ export default function FarmerMap({
     onSelectPin,
     farmersWithProducts,
     currentUserId,
-    existingThreadIds,
   ]);
 
   useEffect(() => {

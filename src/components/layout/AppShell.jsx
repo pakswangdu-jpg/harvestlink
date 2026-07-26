@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogOut, Settings } from 'lucide-react';
@@ -11,6 +12,8 @@ import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliv
 import { useFarmerNavBadges } from '../../hooks/useFarmerNavBadges';
 import { useBuyerNavBadges } from '../../hooks/useBuyerNavBadges';
 import { useStakeholderNavBadges } from '../../hooks/useStakeholderNavBadges';
+import { useAdminNavBadges } from '../../hooks/useAdminNavBadges';
+import { useMessagesBadge } from '../../hooks/useMessagesBadge';
 import logo from '../../assets/logo.png';
 
 const navListVariants = {
@@ -18,7 +21,9 @@ const navListVariants = {
   show: { transition: { staggerChildren: 0.04 } },
 };
 
-export default function AppShell({ user, navItems, title, subtitle, children }) {
+export default function AppShell({
+  user, navItems, title, subtitle, children, fullBleed = false, wide = false,
+}) {
   const { logout } = useAuth();
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
   // Mounted here (not on the order tracking page) so GPS sharing starts the instant an order
@@ -32,20 +37,48 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
   const farmerBadges = useFarmerNavBadges(user.role === 'farmer' ? user.id : null);
   const buyerBadges = useBuyerNavBadges(user.role === 'buyer' ? user.id : null);
   const stakeholderBadges = useStakeholderNavBadges(user.role === 'stakeholder' ? user.id : null);
+  const adminBadges = useAdminNavBadges(user.role === 'admin');
+  // "Messages" is identical across farmer/buyer/stakeholder (unlike the other, per-role
+  // badges above) — one shared hook instead of duplicating the same unread-count logic
+  // three times. Admin has no Messages nav item, so this is a no-op for that role.
+  const messagesBadges = useMessagesBadge(hasProfile ? user.id : null);
 
   const BADGE_TARGETS_BY_ROLE = {
-    farmer: { '/farmer-orders': farmerBadges.ordersBadge, '/farmer-donations': farmerBadges.donationsBadge },
-    buyer: { '/buyer-orders': buyerBadges.ordersBadge },
+    farmer: {
+      '/farmer-orders': farmerBadges.ordersBadge,
+      '/farmer-donations': farmerBadges.donationsBadge,
+      '/messages': messagesBadges.messagesBadge,
+    },
+    buyer: {
+      '/buyer-orders': buyerBadges.ordersBadge,
+      '/messages': messagesBadges.messagesBadge,
+    },
     stakeholder: {
       '/stakeholder-orders': stakeholderBadges.ordersBadge,
       '/stakeholder-donations': stakeholderBadges.donationsBadge,
       '/stakeholder-requests': stakeholderBadges.requestsBadge,
+      '/messages': messagesBadges.messagesBadge,
+    },
+    admin: {
+      '/admin-users': adminBadges.usersBadge,
+      '/admin-price-monitoring': adminBadges.priceMonitoringBadge,
     },
   };
   const badgesByPath = BADGE_TARGETS_BY_ROLE[user.role];
   const navItemsWithBadges = badgesByPath
     ? navItems.map((item) => (item.to in badgesByPath ? { ...item, badge: badgesByPath[item.to] } : item))
     : navItems;
+
+  // Every page renders its own <AppShell>, so this whole component — including the mobile
+  // nav's horizontally-scrollable strip — unmounts and remounts on every navigation, which
+  // resets its scroll position back to the start. Without this, tapping an item near the end
+  // of the strip would navigate there and then immediately "snap back" to showing the first
+  // few icons instead of staying put on the one just tapped. Instant (not smooth) on purpose
+  // — this should look like it was already positioned there, not visibly scroll on load.
+  const mobileNavScrollRef = useRef(null);
+  useEffect(() => {
+    mobileNavScrollRef.current?.querySelector('a.active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, []);
 
   // The desktop sidebar promotes Profile into a rich user card under GENERAL instead of a
   // plain menu row; the mobile bottom nav keeps the full list (Profile included) unchanged.
@@ -79,9 +112,9 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
           </span>
         </Link>
 
-        <div className="sidebar-scroll flex flex-1 flex-col gap-6 overflow-y-auto">
+        <div className="sidebar-scroll flex flex-col gap-4">
           <div>
-            <p className="px-3.5 pb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Menu</p>
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Menu</p>
             <motion.nav className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
               {menuItems.map((item) => (
                 <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} badge={item.badge} />
@@ -89,8 +122,8 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
             </motion.nav>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <p className="px-3.5 pb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">General</p>
+          <div className="flex flex-col gap-1">
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">General</p>
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} /> : null}
             {profileItem ? <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} /> : null}
           </div>
@@ -99,28 +132,30 @@ export default function AppShell({ user, navItems, title, subtitle, children }) 
         <button
           type="button"
           onClick={handleLogout}
-          className="group flex h-11 items-center gap-3 rounded-xl border-0 bg-transparent px-3.5 text-[15px] font-medium text-gray-600 transition-colors duration-200 hover:bg-red-50 hover:text-red-700"
+          className="flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-[14px] font-medium text-gray-600 transition-colors duration-150 hover:bg-red-50 hover:text-red-700"
         >
-          <LogOut size={20} strokeWidth={2} className="shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+          <LogOut size={18} strokeWidth={2} className="shrink-0" />
           Logout
         </button>
       </motion.aside>
 
-      <main className="main-content">
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">Cebu farm-to-market</p>
-            <h1>{title}</h1>
-            {subtitle ? <p>{subtitle}</p> : null}
-          </div>
-          {hasProfile ? <NotificationBell userId={user.id} /> : null}
-        </header>
+      <main className={`main-content ${fullBleed ? 'main-content-full-bleed' : ''} ${wide ? 'main-content-wide' : ''}`.trim().replace(/\s+/g, ' ')}>
+        {!fullBleed ? (
+          <header className="page-header">
+            <div>
+              <p className="eyebrow">Cebu farm-to-market</p>
+              <h1>{title}</h1>
+              {subtitle ? <p>{subtitle}</p> : null}
+            </div>
+            {hasProfile ? <NotificationBell userId={user.id} /> : null}
+          </header>
+        ) : null}
         {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}
         {children}
       </main>
 
       <nav className="mobile-bottom-nav">
-        <div className="mobile-bottom-nav-scroll">
+        <div className="mobile-bottom-nav-scroll" ref={mobileNavScrollRef}>
           {navItemsWithBadges.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
               <item.icon size={20} strokeWidth={2} />

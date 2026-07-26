@@ -121,29 +121,31 @@ export default function BuyerDashboard() {
         <StatCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={<PackageCheck size={20} />} />
       </section>
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Map</p>
-            <h2>Active Users</h2>
-            <p className="map-legend">
-              <span className="legend-dot farmer" /> Registered farmer
-              <span className="legend-dot buyer" /> Registered buyer
-              <span className="legend-dot stakeholder" /> Registered stakeholder
-            </p>
+      <section className="content-grid two">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Map</p>
+              <h2>Active Users</h2>
+              <p className="map-legend">
+                <span className="legend-dot farmer" /> Registered farmer
+                <span className="legend-dot buyer" /> Registered buyer
+                <span className="legend-dot stakeholder" /> Registered stakeholder
+              </p>
+            </div>
+            <span className="live-indicator"><span className="live-dot" /> Live</span>
           </div>
-          <span className="live-indicator"><span className="live-dot" /> Live</span>
+          <DeliveryMap
+            routes={activeDeliveryRoutes}
+            farmers={nearbyFarmers}
+            buyers={nearbyBuyers}
+            stakeholders={nearbyStakeholders}
+            viewerMunicipality={currentUser.municipality}
+          />
         </div>
-        <DeliveryMap
-          routes={activeDeliveryRoutes}
-          farmers={nearbyFarmers}
-          buyers={nearbyBuyers}
-          stakeholders={nearbyStakeholders}
-          viewerMunicipality={currentUser.municipality}
-        />
-      </section>
 
-      <MarketPricePanel commodityId={marketCommodityId} perspective="buyer" />
+        <MarketPricePanel commodityId={marketCommodityId} perspective="buyer" />
+      </section>
 
       <section className="content-grid two">
         <div className="panel">

@@ -17,6 +17,8 @@
     "@googlemaps/js-api-loader": "^2.1.1",
     "@supabase/supabase-js": "^2.110.2",
     "framer-motion": "^11.18.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

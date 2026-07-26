@@ -46,7 +46,7 @@ export default function DemandForecastChart({ historicalChart, forecastCurve, to
   }, [historicalChart, forecastCurve]);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-gray-200 bg-white p-6">
       <p className="text-[12px] font-semibold uppercase tracking-widest text-green-700">Demand Trend</p>
       <h3 className="mt-1 text-[20px] font-bold text-gray-900">Forecasted Demand Trend</h3>
       <div className="mt-5" style={{ height: CHART_HEIGHT }}>

@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 
 const TONE_COLOR = {
-  green: '#22C55E',
-  amber: '#F59E0B',
-  red: '#EF4444',
+  green: '#15803D',
+  amber: '#9A6700',
+  red: '#CF222E',
 };
 
 // `value` is a 0-100 percentage the caller already computed from real data (e.g. a

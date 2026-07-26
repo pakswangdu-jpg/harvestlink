@@ -56,6 +56,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
               <strong className="market-stat-value">
                 {formatCurrency(latest.price)}<small>/kg</small>
               </strong>
+              {latest.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
               <p className="muted">{MARKET_REGION_LABEL} • {latest.year} annual average</p>
               {change != null ? (
                 <span className={`market-delta ${isFavorable ? 'good' : 'bad'}`}>

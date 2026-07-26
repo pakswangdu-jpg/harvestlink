@@ -70,7 +70,12 @@ export default function MarketInsights() {
       </section>
 
       <section className="stats-grid">
-        <StatCard label="Latest annual average" value={latest ? formatCurrency(latest.price) : '—'} icon={<BadgeDollarSign size={20} />} />
+        <StatCard
+          label="Latest annual average"
+          value={latest ? formatCurrency(latest.price) : '—'}
+          icon={<BadgeDollarSign size={20} />}
+          hint={latest?.isOverride ? 'Set by admin, overriding PSA' : null}
+        />
         <StatCard
           label={earliest ? `Change since ${earliest.year}` : 'Change'}
           value={overallChange != null ? `${overallChange >= 0 ? '+' : ''}${overallChange.toFixed(1)}%` : '—'}

@@ -182,45 +182,47 @@ export default function StakeholderDashboard() {
         </div>
       </section>
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Map</p>
-            <h2>Active Users</h2>
-            <p className="map-legend">
-              <span className="legend-dot farmer" /> Registered farmer
-              <span className="legend-dot buyer" /> Registered buyer
-              <span className="legend-dot stakeholder" /> Registered stakeholder
-            </p>
+      <section className="content-grid two">
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Map</p>
+              <h2>Active Users</h2>
+              <p className="map-legend">
+                <span className="legend-dot farmer" /> Registered farmer
+                <span className="legend-dot buyer" /> Registered buyer
+                <span className="legend-dot stakeholder" /> Registered stakeholder
+              </p>
+            </div>
+            <span className="live-indicator"><span className="live-dot" /> Live</span>
           </div>
-          <span className="live-indicator"><span className="live-dot" /> Live</span>
+          <DeliveryMap
+            routes={activeDeliveryRoutes}
+            farmers={nearbyFarmers}
+            buyers={nearbyBuyers}
+            stakeholders={nearbyStakeholders}
+            viewerMunicipality={currentUser.municipality}
+          />
+          {!activeDeliveryRoutes.length ? (
+            <p className="muted map-empty-note">Confirmed marketplace orders will show up here with a live delivery route.</p>
+          ) : null}
         </div>
-        <DeliveryMap
-          routes={activeDeliveryRoutes}
-          farmers={nearbyFarmers}
-          buyers={nearbyBuyers}
-          stakeholders={nearbyStakeholders}
-          viewerMunicipality={currentUser.municipality}
-        />
-        {!activeDeliveryRoutes.length ? (
-          <p className="muted map-empty-note">Confirmed marketplace orders will show up here with a live delivery route.</p>
-        ) : null}
-      </section>
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Surplus produce</p>
-            <h2>Donation map</h2>
+        <div className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Surplus produce</p>
+              <h2>Donation map</h2>
+            </div>
           </div>
+          <p className="map-legend">
+            <span className="legend-dot donation" /> Farmer with available donations
+          </p>
+          <FarmerMap farmers={[]} donationFarmers={donationFarmers} />
+          {!donationFarmers.length ? (
+            <p className="muted map-empty-note">No surplus produce is available right now — this map updates the moment a farmer donates.</p>
+          ) : null}
         </div>
-        <p className="map-legend">
-          <span className="legend-dot donation" /> Farmer with available donations
-        </p>
-        <FarmerMap farmers={[]} donationFarmers={donationFarmers} />
-        {!donationFarmers.length ? (
-          <p className="muted map-empty-note">No surplus produce is available right now — this map updates the moment a farmer donates.</p>
-        ) : null}
       </section>
     </AppShell>
   );

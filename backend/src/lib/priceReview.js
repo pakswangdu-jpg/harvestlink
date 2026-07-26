@@ -3,12 +3,16 @@
 // price with a forged marketReference to dodge review). Stored as JSONB on products.price_review
 // using the SAME camelCase keys the original function produced, so the frontend needs zero
 // mapping code to consume it.
+import { getFixedKgPerUnit } from './unitConversion.js';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
 
-// Defaults to 1 (no conversion) for kg-unit listings, or a missing/invalid figure.
+// Units like g/kg/t/L/mL have one universal kg equivalent (see unitConversion.js) and are
+// never asked for — everything else falls back to whatever the farmer typed (kgPerUnitInput),
+// defaulting to 1 only if that's missing/invalid, same as before.
 export function resolveKgPerUnit(unit, kgPerUnitInput) {
-  if (unit === 'kg') return 1;
+  const fixed = getFixedKgPerUnit(unit);
+  if (fixed != null) return fixed;
   const parsed = Number(kgPerUnitInput);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }

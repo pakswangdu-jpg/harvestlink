@@ -1,18 +1,54 @@
-import { useEffect, useMemo, useState } from 'react';
-import { MapPin, Search, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MapPin, MessageCircle, Package, Phone, Search, Store, Users } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import FarmerMap from '../../components/map/FarmerMap';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
-import { getDirectThreads } from '../../services/messageService';
-import { getInitials } from '../../utils/formatters';
+import { getInitials, isRecentlyActive } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 // Matches the ~4s live-refresh cadence used everywhere else in the app (orders, messages,
 // notifications) — keeps presence dots current while the map is left open.
 const REFRESH_MS = 4000;
+
+// One row style shared by all three directory groups (farmers/buyers/stakeholders) instead
+// of three near-identical blocks — same markup/behavior as before, just consolidated.
+function DirectoryGroup({
+  label, avatarClass, items, selectedId, onSelect, currentUserId, emptyMessage, itemRefs,
+}) {
+  return (
+    <div className="directory-group">
+      <p className="directory-group-label">
+        {label} <span className="directory-group-count">{items.length}</span>
+      </p>
+      {items.length ? (
+        <div className="farmer-list">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              ref={(node) => { itemRefs.current[item.id] = node; }}
+              type="button"
+              className={`farmer-list-item ${selectedId === item.id ? 'active' : ''}`}
+              onClick={() => onSelect(item.id)}
+            >
+              <span className={`farmer-list-avatar ${avatarClass}`}>
+                {item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : getInitials(item.avatarSeed)}
+              </span>
+              <span className="farmer-list-text">
+                <strong>{item.displayName}{item.id === currentUserId ? ' (You)' : ''}</strong>
+                <span className="muted"><MapPin size={13} /> {item.municipality}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <EmptyState compact title={emptyMessage} message="Try a different search term." />
+      )}
+    </div>
+  );
+}
 
 export default function FarmerMapPage() {
   const { currentUser } = useAuth();
@@ -26,9 +62,7 @@ export default function FarmerMapPage() {
   const [buyers, setBuyers] = useState([]);
   const [stakeholders, setStakeholders] = useState([]);
   const [farmersWithProducts, setFarmersWithProducts] = useState(() => new Set());
-  // Who "Contact X" is allowed to reach from the map — anyone the viewer already has a real
-  // direct-message thread with, not the whole directory (see FarmerMap.jsx's per-pin gate).
-  const [existingThreadIds, setExistingThreadIds] = useState(() => new Set());
+  const directoryItemRefs = useRef({});
 
   useEffect(() => {
     const reload = () => {
@@ -37,9 +71,6 @@ export default function FarmerMapPage() {
       getStakeholders().then(setStakeholders);
       getActiveProducts().then((products) => {
         setFarmersWithProducts(new Set(products.map((product) => product.farmerId)));
-      });
-      getDirectThreads().then((threads) => {
-        setExistingThreadIds(new Set(threads.map((thread) => thread.otherUserId)));
       });
     };
     reload();
@@ -54,64 +85,103 @@ export default function FarmerMapPage() {
   const filteredFarmers = useMemo(() => {
     if (!showFarmers) return [];
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return farmers;
-    return farmers.filter((farmer) =>
-      [farmer.name, farmer.farmName, farmer.municipality].join(' ').toLowerCase().includes(normalized)
-    );
+    const base = !normalized
+      ? farmers
+      : farmers.filter((farmer) =>
+        [farmer.name, farmer.farmName, farmer.municipality].join(' ').toLowerCase().includes(normalized)
+      );
+    return base.map((farmer) => (
+      { ...farmer, displayName: farmer.farmName || farmer.name, avatarSeed: farmer.name, role: 'farmer' }
+    ));
   }, [farmers, query, showFarmers]);
 
   const filteredBuyers = useMemo(() => {
     if (!showBuyers) return [];
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return buyers;
-    return buyers.filter((buyer) =>
-      [buyer.name, buyer.municipality].join(' ').toLowerCase().includes(normalized)
-    );
+    const base = !normalized
+      ? buyers
+      : buyers.filter((buyer) => [buyer.name, buyer.municipality].join(' ').toLowerCase().includes(normalized));
+    return base.map((buyer) => ({ ...buyer, displayName: buyer.name, avatarSeed: buyer.name, role: 'buyer' }));
   }, [buyers, query, showBuyers]);
 
   const filteredStakeholders = useMemo(() => {
     if (!showStakeholders) return [];
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return stakeholders;
-    return stakeholders.filter((stakeholder) =>
-      [stakeholder.organizationName, stakeholder.name, stakeholder.municipality].join(' ').toLowerCase().includes(normalized)
-    );
+    const base = !normalized
+      ? stakeholders
+      : stakeholders.filter((stakeholder) =>
+        [stakeholder.organizationName, stakeholder.name, stakeholder.municipality].join(' ').toLowerCase().includes(normalized)
+      );
+    return base.map((stakeholder) => {
+      const displayName = stakeholder.organizationName || stakeholder.name;
+      return { ...stakeholder, displayName, avatarSeed: displayName, role: 'stakeholder' };
+    });
   }, [stakeholders, query, showStakeholders]);
 
   const hasAnyAccounts = farmers.length > 0 || buyers.length > 0 || stakeholders.length > 0;
+
+  // The one record the currently selected marker/directory row refers to, if any — looked
+  // up across all three already-filtered lists rather than the raw farmers/buyers/
+  // stakeholders state, so "select a marker, then narrow the search" still resolves to the
+  // same visible record instead of one that's now hidden.
+  const selected = useMemo(() => {
+    if (!selectedId) return null;
+    return filteredFarmers.find((item) => item.id === selectedId)
+      || filteredBuyers.find((item) => item.id === selectedId)
+      || filteredStakeholders.find((item) => item.id === selectedId)
+      || null;
+  }, [selectedId, filteredFarmers, filteredBuyers, filteredStakeholders]);
+
+  // Selecting a marker on the map should surface the matching row in the directory list even
+  // if it's currently scrolled out of view — the directory is meant to work as a navigation
+  // panel, not just a static list.
+  useEffect(() => {
+    if (!selectedId) return;
+    directoryItemRefs.current[selectedId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedId]);
+
+  const isYou = selected?.id === currentUser.id;
+  const selectedOnline = selected ? isRecentlyActive(selected.lastActiveAt) : false;
+  const selectedHasProducts = selected?.role === 'farmer' && farmersWithProducts.has(selected.id);
+  const avatarClassByRole = { farmer: '', buyer: 'buyer', stakeholder: 'stakeholder' };
+  const roleLabel = { farmer: 'Farmer', buyer: 'Buyer', stakeholder: 'Stakeholder' };
+  const legendDotByRole = { farmer: 'origin', buyer: 'destination', stakeholder: 'stakeholder' };
 
   return (
     <AppShell
       user={currentUser}
       navItems={navItems}
       title="View Map"
-      subtitle="Trace every DTI-approved farmer, registered buyer, and partner stakeholder across Cebu — pick a pin or a name to see their details."
+      subtitle="Find nearby verified farmers and buyers across Cebu."
+      wide
     >
       {hasAnyAccounts ? (
         <>
           <section className="panel marketplace-toolbar">
-            <label className="search-field" htmlFor="farmer-map-search">
-              <Search size={18} />
-              <input
-                id="farmer-map-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by name, farm name, or municipality"
-              />
-            </label>
-            <label className="location-filter" htmlFor="farmer-map-type">
-              <Users size={16} />
-              <select id="farmer-map-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                <option value="all">All types</option>
-                <option value="farmer">Farmers</option>
-                <option value="buyer">Buyers</option>
-                <option value="stakeholder">Stakeholders</option>
-              </select>
-            </label>
+            <div className="marketplace-filters">
+              <label className="search-field" htmlFor="farmer-map-search">
+                <Search size={18} />
+                <input
+                  id="farmer-map-search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search by name, farm name, or municipality"
+                />
+              </label>
+              <label className="location-filter" htmlFor="farmer-map-type">
+                <Users size={16} />
+                <select id="farmer-map-type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                  <option value="all">All types</option>
+                  <option value="farmer">Farmers</option>
+                  <option value="buyer">Buyers</option>
+                  <option value="stakeholder">Stakeholders</option>
+                </select>
+              </label>
+            </div>
           </section>
 
-          <section className="content-grid two uneven">
-            <div className="panel">
+          <section className="content-grid two map-directory-split">
+            <div className="panel map-panel-fill">
               <p className="map-legend">
                 <span className="legend-dot origin" /> Farmer
                 <span className="legend-dot destination" /> Buyer
@@ -125,114 +195,131 @@ export default function FarmerMapPage() {
                 onSelectPin={setSelectedId}
                 farmersWithProducts={farmersWithProducts}
                 currentUserId={currentUser.id}
-                existingThreadIds={existingThreadIds}
               />
             </div>
 
             <div className="panel">
-              {showFarmers ? (
-                <>
-                  <div className="section-heading">
-                    <div>
-                      <p className="eyebrow">Directory</p>
-                      <h2>{filteredFarmers.length} approved farmer{filteredFarmers.length === 1 ? '' : 's'}</h2>
-                    </div>
-                  </div>
-                  {filteredFarmers.length ? (
-                    <div className="farmer-list">
-                      {filteredFarmers.map((farmer) => (
-                        <button
-                          key={farmer.id}
-                          type="button"
-                          className={`farmer-list-item ${selectedId === farmer.id ? 'active' : ''}`}
-                          onClick={() => setSelectedId(farmer.id)}
-                        >
-                          <span className="farmer-list-avatar">
-                            {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
-                          </span>
-                          <span className="farmer-list-text">
-                            <strong>{farmer.farmName || farmer.name}{farmer.id === currentUser.id ? ' (You)' : ''}</strong>
-                            <span className="muted"><MapPin size={13} /> {farmer.municipality}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState title="No matching farmers" message="Try a different search term." />
-                  )}
-                </>
-              ) : null}
-
-              {showBuyers ? (
-                <>
-                  <div className="section-heading">
-                    <div>
-                      <p className="eyebrow">Directory</p>
-                      <h2>{filteredBuyers.length} registered buyer{filteredBuyers.length === 1 ? '' : 's'}</h2>
-                    </div>
-                  </div>
-                  {filteredBuyers.length ? (
-                    <div className="farmer-list">
-                      {filteredBuyers.map((buyer) => (
-                        <button
-                          key={buyer.id}
-                          type="button"
-                          className={`farmer-list-item ${selectedId === buyer.id ? 'active' : ''}`}
-                          onClick={() => setSelectedId(buyer.id)}
-                        >
-                          <span className="farmer-list-avatar buyer">
-                            {buyer.avatarUrl ? <img src={buyer.avatarUrl} alt="" /> : getInitials(buyer.name)}
-                          </span>
-                          <span className="farmer-list-text">
-                            <strong>{buyer.name}{buyer.id === currentUser.id ? ' (You)' : ''}</strong>
-                            <span className="muted"><MapPin size={13} /> {buyer.municipality}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState title="No matching buyers" message="Try a different search term." />
-                  )}
-                </>
-              ) : null}
-
-              {showStakeholders ? (
-                <>
-                  <div className="section-heading">
-                    <div>
-                      <p className="eyebrow">Directory</p>
-                      <h2>{filteredStakeholders.length} registered stakeholder{filteredStakeholders.length === 1 ? '' : 's'}</h2>
-                    </div>
-                  </div>
-                  {filteredStakeholders.length ? (
-                    <div className="farmer-list">
-                      {filteredStakeholders.map((stakeholder) => (
-                        <button
-                          key={stakeholder.id}
-                          type="button"
-                          className={`farmer-list-item ${selectedId === stakeholder.id ? 'active' : ''}`}
-                          onClick={() => setSelectedId(stakeholder.id)}
-                        >
-                          <span className="farmer-list-avatar stakeholder">
-                            {stakeholder.avatarUrl ? (
-                              <img src={stakeholder.avatarUrl} alt="" />
-                            ) : (
-                              getInitials(stakeholder.organizationName || stakeholder.name)
-                            )}
-                          </span>
-                          <span className="farmer-list-text">
-                            <strong>{stakeholder.organizationName || stakeholder.name}{stakeholder.id === currentUser.id ? ' (You)' : ''}</strong>
-                            <span className="muted"><MapPin size={13} /> {stakeholder.municipality}</span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState title="No matching stakeholders" message="Try a different search term." />
-                  )}
-                </>
-              ) : null}
+              <div className="directory-scroll">
+                {showFarmers ? (
+                  <DirectoryGroup
+                    label="Farmers"
+                    avatarClass=""
+                    items={filteredFarmers}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    currentUserId={currentUser.id}
+                    emptyMessage="No matching farmers"
+                    itemRefs={directoryItemRefs}
+                  />
+                ) : null}
+                {showBuyers ? (
+                  <DirectoryGroup
+                    label="Buyers"
+                    avatarClass="buyer"
+                    items={filteredBuyers}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    currentUserId={currentUser.id}
+                    emptyMessage="No matching buyers"
+                    itemRefs={directoryItemRefs}
+                  />
+                ) : null}
+                {showStakeholders ? (
+                  <DirectoryGroup
+                    label="Stakeholders"
+                    avatarClass="stakeholder"
+                    items={filteredStakeholders}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    currentUserId={currentUser.id}
+                    emptyMessage="No matching stakeholders"
+                    itemRefs={directoryItemRefs}
+                  />
+                ) : null}
+              </div>
             </div>
+          </section>
+
+          <section className="panel selected-location-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Selected location</p>
+                <h2>{selected ? selected.displayName : 'Details'}</h2>
+              </div>
+            </div>
+
+            {selected ? (
+              <div className="selected-location">
+                <div className="selected-location-identity">
+                  <span className={`selected-location-avatar ${avatarClassByRole[selected.role]}`}>
+                    {selected.avatarUrl ? <img src={selected.avatarUrl} alt="" /> : getInitials(selected.avatarSeed)}
+                  </span>
+                  <div>
+                    <p className="selected-location-name">
+                      {selected.displayName}{isYou ? ' (You)' : ''}
+                    </p>
+                    <p className="selected-location-role">
+                      <span className={`legend-dot ${legendDotByRole[selected.role]}`} /> {roleLabel[selected.role]}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="selected-location-facts">
+                  <div className="selected-location-fact">
+                    <span>Municipality</span>
+                    <strong><MapPin size={14} /> {selected.municipality}</strong>
+                  </div>
+                  {selected.role === 'stakeholder' && selected.contactPerson ? (
+                    <div className="selected-location-fact">
+                      <span>Contact person</span>
+                      <strong>{selected.contactPerson}</strong>
+                    </div>
+                  ) : null}
+                  {selected.contactNumber ? (
+                    <div className="selected-location-fact">
+                      <span>Contact number</span>
+                      <strong><Phone size={14} /> {selected.contactNumber}</strong>
+                    </div>
+                  ) : null}
+                  <div className="selected-location-fact">
+                    <span>Status</span>
+                    <strong>
+                      <span className={`presence-dot ${selectedOnline ? 'online' : 'offline'}`} />
+                      {selectedOnline ? 'Online' : 'Offline'}
+                    </strong>
+                  </div>
+                  {selected.role === 'farmer' ? (
+                    <div className="selected-location-fact">
+                      <span>Listings</span>
+                      <strong><Store size={14} /> {selectedHasProducts ? 'Has active products' : 'No products listed'}</strong>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="selected-location-actions">
+                  {selected.role === 'farmer' && selectedHasProducts ? (
+                    <a
+                      className="btn btn-secondary btn-md"
+                      href={`/marketplace?farmerId=${selected.id}&farmerName=${encodeURIComponent(selected.displayName)}`}
+                    >
+                      <Package size={16} /> View products
+                    </a>
+                  ) : null}
+                  {!isYou ? (
+                    <a className="btn btn-primary btn-md" href={`/messages/direct/${selected.id}`}>
+                      <MessageCircle size={16} /> Contact {roleLabel[selected.role].toLowerCase()}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                compact
+                icon={Users}
+                title="No location selected"
+                message="Click a marker on the map or a name in the directory to see details here."
+              />
+            )}
           </section>
         </>
       ) : (

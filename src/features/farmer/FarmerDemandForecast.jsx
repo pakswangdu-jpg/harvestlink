@@ -141,14 +141,24 @@ export default function FarmerDemandForecast() {
 
   if (data === null && !loadError) {
     return (
-      <AppShell user={currentUser} navItems={farmerNavItems} title="Demand Forecast">
+      <AppShell
+        user={currentUser}
+        navItems={farmerNavItems}
+        title="Demand Forecast"
+        subtitle="AI-powered forecast to help farmers decide what to plant, harvest, and sell."
+      >
         <ForecastSkeleton />
       </AppShell>
     );
   }
 
   return (
-    <AppShell user={currentUser} navItems={farmerNavItems} title="Demand Forecast">
+    <AppShell
+      user={currentUser}
+      navItems={farmerNavItems}
+      title="Demand Forecast"
+      subtitle="AI-powered forecast to help farmers decide what to plant, harvest, and sell."
+    >
       <div className="flex min-w-0 flex-col gap-6">
         {loadError ? <div className="form-alert error">{loadError}</div> : null}
 
@@ -197,6 +207,8 @@ export default function FarmerDemandForecast() {
               <SupplyDemandBarChart data={supplyDemandData} />
             </div>
 
+            {isDetailLoading ? null : <InteractiveForecastChart detail={detail} forecast={selectedForecast} />}
+
             <ForecastTable
               crops={filtered}
               selectedCrop={selectedCrop}
@@ -209,8 +221,6 @@ export default function FarmerDemandForecast() {
             />
 
             {isDetailLoading ? <ForecastSkeleton /> : <CropDetailPanel crop={selectedCrop} forecast={detail || selectedForecast} />}
-
-            {isDetailLoading ? null : <InteractiveForecastChart detail={detail} forecast={selectedForecast} />}
 
             {isDetailLoading ? null : <RecommendationCard recommendation={detail?.aiRecommendation} />}
           </>

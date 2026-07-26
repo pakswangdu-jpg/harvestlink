@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import {
   Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { motion } from 'framer-motion';
 import { Bot, LineChart, Sprout } from 'lucide-react';
 
 const CHART_HEIGHT = 260;
@@ -61,16 +60,12 @@ function AlternatingBackground({ x, y, width, height, index }) {
 
 function SummaryCard({ icon: Icon, label, children }) {
   return (
-    <motion.div
-      whileHover={{ y: -1 }}
-      transition={{ duration: 0.2 }}
-      className="rounded-lg border border-gray-200 bg-white p-2.5 shadow-sm transition-shadow duration-200 hover:shadow-md"
-    >
+    <div className="rounded-lg border border-gray-200 bg-white p-2.5">
       <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
         <Icon size={11} /> {label}
       </p>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -100,7 +95,7 @@ export default function SupplyDemandBarChart({ data }) {
   }, [data, hasMeaningfulData]);
 
   return (
-    <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-6">
       <h3 className="text-[18px] font-bold text-gray-900">Supply vs. Demand</h3>
       <p className="mt-1 text-[13px] text-gray-500">Compare customer demand with available supply.</p>
 
