@@ -215,13 +215,18 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={SECTION_TITLE_CLASS}>Price Forecast</p>
-          <div className="flex gap-1 rounded-lg border border-gray-200 p-0.5">
+          {/* No outer border on the group, and forced-color-adjust-none on each button:
+              Windows "Contrast themes" otherwise draws its own ButtonBorder around every
+              <button> and remaps the authored gray, which is what turned this segmented
+              control into stacked black outlines. Same opt-out .btn already uses — the
+              selected tab's gray background still marks the active tab on its own. */}
+          <div className="flex gap-1 rounded-lg p-0.5">
             {[{ value: 'price', label: 'Price' }, { value: 'demand', label: 'Demand' }].map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => setChartTab(option.value)}
-                className={`h-7 rounded-md px-3 text-[13px] font-medium transition-colors duration-150 ${
+                className={`h-7 rounded-md border-0 px-3 text-[13px] font-medium forced-color-adjust-none transition-colors duration-150 ${
                   chartTab === option.value ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
