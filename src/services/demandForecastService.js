@@ -4,23 +4,28 @@ import { apiClient } from './apiClient';
 // (not the broader category taxonomy), enriched with the full price/demand projection for
 // whichever `period` is selected. Every field always traces to real Supabase order/listing
 // data, real OpenWeatherMap conditions, and real PSA reference prices.
-export async function getDemandForecast({ category = '', municipality = '', daysBack = 90, period = '' } = {}) {
+export async function getDemandForecast({
+  category = '', municipality = '', daysBack = 180, period = '', customDate = '',
+} = {}) {
   const params = new URLSearchParams();
   if (category) params.set('category', category);
   if (municipality) params.set('municipality', municipality);
   if (daysBack) params.set('daysBack', String(daysBack));
   if (period) params.set('period', period);
+  if (period === 'custom' && customDate) params.set('customDate', customDate);
   const query = params.toString();
   return apiClient.get(`/forecast/demand${query ? `?${query}` : ''}`);
 }
 
-// Drill-down for one crop — full historical/forecast price + demand curves and a
-// Gemini-written summary/recommendation of the already-computed numbers (see
-// getCropForecastDetail in the same controller).
-export function getCropForecastDetail(cropName, { period = '', municipality = '' } = {}) {
+// Drill-down for one crop — full historical/forecast price + demand curves (with confidence
+// bands and per-point AI reasons, see priceForecastEngine.js) and a Gemini-written
+// summary/recommendation of the already-computed numbers (see getCropForecastDetail in the
+// same controller).
+export function getCropForecastDetail(cropName, { period = '', municipality = '', customDate = '' } = {}) {
   const params = new URLSearchParams();
   if (period) params.set('period', period);
   if (municipality) params.set('municipality', municipality);
+  if (period === 'custom' && customDate) params.set('customDate', customDate);
   const query = params.toString();
   return apiClient.get(`/forecast/demand/${encodeURIComponent(cropName)}${query ? `?${query}` : ''}`);
 }

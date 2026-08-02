@@ -63,7 +63,7 @@ export default function AdminOverview() {
     : 0;
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" hideHeader>
       <PageHeader title="Dashboard" description="Monitor HarvestLink activity across users, products, orders, and surplus donations." />
 
       {isLoading ? (

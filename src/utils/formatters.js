@@ -114,6 +114,17 @@ export function shortOrderId(id) {
   return String(id).slice(0, 8).toUpperCase();
 }
 
+// A raw stock quantity (e.g. 1.03, from a kg/L-priced product) rounded to at most 1 decimal
+// place for quick-glance UI like the low-stock badge — "1.03" reads like an odd, very
+// specific inventory count; "1" (or "1.5" when it's genuinely a half-unit) reads like a
+// normal stock figure. Never rounds UP past the real remaining amount (Math.round on a
+// single decimal digit can't inflate 1.03 into "2"), so it stays an honest quantity, just a
+// less noisy one. Whole numbers (5, 10, 48) pass through unchanged either way.
+export function formatQuantity(value) {
+  const rounded = Math.round(Number(value) * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 
 const PAYMENT_METHOD_LABELS = {
   cod: 'Cash on delivery',
@@ -156,6 +167,12 @@ const VERIFICATION_STATUS_LABELS = {
   rejected: 'Verification rejected',
 };
 
+const PAYMENT_VERIFICATION_STATUS_LABELS = {
+  pending: 'Verification pending',
+  approved: 'Payment verified',
+  rejected: 'Verification failed',
+};
+
 export function paymentLabel(value) {
   return PAYMENT_METHOD_LABELS[value] || value;
 }
@@ -182,6 +199,21 @@ export function priceReviewStatusLabel(value) {
 
 export function verificationStatusLabel(value) {
   return VERIFICATION_STATUS_LABELS[value] || value;
+}
+
+export function paymentVerificationStatusLabel(value) {
+  return PAYMENT_VERIFICATION_STATUS_LABELS[value] || value;
+}
+
+const COURIER_DELIVERY_STATUS_LABELS = {
+  booked: 'Booked',
+  out_for_delivery: 'Out for Delivery',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};
+
+export function courierDeliveryStatusLabel(value) {
+  return COURIER_DELIVERY_STATUS_LABELS[value] || value;
 }
 
 const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified'];

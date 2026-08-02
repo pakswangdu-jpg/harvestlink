@@ -37,14 +37,21 @@ export function serializeProfile(row) {
   };
 }
 
-// farmerName isn't a column on products (deliberately not denormalized — see
-// supabase/schema.sql) — callers resolve it via a profiles lookup and pass it in.
-export function serializeProduct(row, farmerName = null) {
+// farmerName/farmerVerified/farmerRating aren't columns on products (deliberately not
+// denormalized — see supabase/schema.sql) — callers resolve them via a profiles/ratings
+// lookup and pass them in (see withFarmerNames in products.controller.js).
+export function serializeProduct(row, farmerInfo = {}) {
   if (!row) return null;
+  const {
+    farmerName = null, farmerVerified = false, farmerRating = null, farmerRatingCount = 0,
+  } = farmerInfo;
   return {
     id: row.id,
     farmerId: row.farmer_id,
     farmerName,
+    farmerVerified,
+    farmerRating,
+    farmerRatingCount,
     name: row.name,
     category: row.category,
     grade: row.grade,
@@ -99,6 +106,15 @@ export function serializeOrder(row) {
     transactionId: row.transaction_id || null,
     paidAt: row.paid_at || null,
     paymentReceiptUrl: row.payment_receipt_url || null,
+    // Payment verification — see backend/src/controllers/payments.controller.js.
+    // paymentVerificationStatus is null until the buyer submits proof of payment.
+    paymentReferenceNumber: row.payment_reference_number || null,
+    paymentSenderName: row.payment_sender_name || null,
+    paymentSubmittedAt: row.payment_submitted_at || null,
+    paymentNotes: row.payment_notes || null,
+    paymentVerificationStatus: row.payment_verification_status || null,
+    paymentRejectionReason: row.payment_rejection_reason || null,
+    paymentReviewedAt: row.payment_reviewed_at || null,
     deliveryMethod: row.delivery_method,
     deliveryStatus: row.delivery_status,
     originMunicipality: row.origin_municipality,
@@ -111,6 +127,24 @@ export function serializeOrder(row) {
     currentAccuracy: row.current_accuracy == null ? null : Number(row.current_accuracy),
     locationUpdatedAt: row.location_updated_at,
     transitStartedAt: row.transit_started_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function serializeDelivery(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    courierCompany: row.courier_company,
+    driverName: row.driver_name,
+    driverPhone: row.driver_phone,
+    vehicleType: row.vehicle_type,
+    bookingReference: row.booking_reference,
+    trackingUrl: row.tracking_url,
+    estimatedArrival: row.estimated_arrival,
+    deliveryStatus: row.delivery_status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -35,16 +35,38 @@ async function assertValidCategoryAndUnit(values, existing) {
   }
 }
 
-// Batch-resolves farmer names for a list of products in one query, instead of joining —
-// keeps products a lean table (see supabase/schema.sql) while still returning the flat
-// farmerName field every frontend component already expects.
+// Batch-resolves farmer name/verification/rating for a list of products in two queries,
+// instead of joining — keeps products a lean table (see supabase/schema.sql) while still
+// returning the flat farmerName/farmerVerified/farmerRating fields every frontend product
+// card expects (see ProductCard.jsx's "Verified Farmer" status row and rating display).
 async function withFarmerNames(rows) {
   const farmerIds = [...new Set(rows.map((row) => row.farmer_id))];
   if (!farmerIds.length) return rows.map((row) => serializeProduct(row));
 
-  const { data: farmers } = await supabaseAdmin.from('profiles').select('id, name').in('id', farmerIds);
-  const nameById = new Map((farmers || []).map((farmer) => [farmer.id, farmer.name]));
-  return rows.map((row) => serializeProduct(row, nameById.get(row.farmer_id) || null));
+  const [{ data: farmers }, { data: ratings }] = await Promise.all([
+    supabaseAdmin.from('profiles').select('id, name, verification_status').in('id', farmerIds),
+    supabaseAdmin.from('ratings').select('farmer_id, rating').in('farmer_id', farmerIds),
+  ]);
+
+  const farmerById = new Map((farmers || []).map((farmer) => [farmer.id, farmer]));
+  const ratingSummaryById = new Map();
+  (ratings || []).forEach(({ farmer_id: farmerId, rating }) => {
+    const entry = ratingSummaryById.get(farmerId) || { total: 0, count: 0 };
+    entry.total += rating;
+    entry.count += 1;
+    ratingSummaryById.set(farmerId, entry);
+  });
+
+  return rows.map((row) => {
+    const farmer = farmerById.get(row.farmer_id);
+    const ratingSummary = ratingSummaryById.get(row.farmer_id);
+    return serializeProduct(row, {
+      farmerName: farmer?.name || null,
+      farmerVerified: farmer?.verification_status === 'verified',
+      farmerRating: ratingSummary ? Math.round((ratingSummary.total / ratingSummary.count) * 10) / 10 : null,
+      farmerRatingCount: ratingSummary ? ratingSummary.count : 0,
+    });
+  });
 }
 
 async function fetchProductOr404(id) {
@@ -103,6 +125,9 @@ export async function listPublicProducts(req, res) {
     id: product.id,
     farmerId: product.farmerId,
     farmerName: product.farmerName,
+    farmerVerified: product.farmerVerified,
+    farmerRating: product.farmerRating,
+    farmerRatingCount: product.farmerRatingCount,
     name: product.name,
     category: product.category,
     grade: product.grade,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, BadgeCheck, ChevronDown, Globe, Phone, Star, Store, User,
+  ArrowLeft, BadgeCheck, ChevronDown, Globe, Star, Store, User,
 } from 'lucide-react';
 import { getRatingsForFarmer } from '../../services/ratingService';
 import { MESSAGE_TRANSLATION_LANGUAGES } from '../../services/translateService';
@@ -113,10 +113,6 @@ export default function ChatHeader({
             <User size={13} /> Profile
           </Link>
         ) : null}
-
-        <button type="button" disabled title="Voice calls are coming soon" className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-300">
-          <Phone size={16} />
-        </button>
       </div>
     </div>
   );

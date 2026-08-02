@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
+import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -394,10 +395,11 @@ export default function Profile() {
 
               <div className="form-grid">
                 <FormField label="Complete address" name="address" error={profileErrors.address}>
-                  <input
+                  <AddressAutocomplete
                     id="address"
                     value={profileDraft.address}
-                    onChange={(event) => updateProfileField('address', event.target.value)}
+                    onChange={(next) => updateProfileField('address', next)}
+                    error={profileErrors.address}
                     placeholder="House/Unit No., Street, Barangay"
                   />
                 </FormField>

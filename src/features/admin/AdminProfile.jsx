@@ -11,7 +11,7 @@ export default function AdminProfile() {
   const { currentUser: user } = useAuth();
 
   return (
-    <AppShell user={user} navItems={adminNavItems} title="Profile" fullBleed>
+    <AppShell user={user} navItems={adminNavItems} title="Profile" hideHeader>
       <PageHeader title="Profile" description="Your admin account details." />
 
       <Card className="mb-4">

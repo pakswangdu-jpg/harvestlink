@@ -27,7 +27,7 @@ export default function AdminOrders() {
   }, []);
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Orders" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Orders" hideHeader>
       <PageHeader title="Orders" description="Every purchase order placed across the marketplace." />
       <Card>
         <CardHeader title="Purchase orders" />

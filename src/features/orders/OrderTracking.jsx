@@ -7,10 +7,14 @@ import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
+import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
+import BookLalamoveFlow from '../../components/orders/BookLalamoveFlow';
+import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { getUserById } from '../../services/authService';
 import { createRating, getRatingForOrder } from '../../services/ratingService';
+import { getDelivery } from '../../services/deliveryService';
 import {
   advanceDelivery,
   cancelOrder,
@@ -59,6 +63,7 @@ export default function OrderTracking() {
   const [order, setOrder] = useState(null);
   const [loadedId, setLoadedId] = useState(null);
   const [pickupBuyerMunicipality, setPickupBuyerMunicipality] = useState(null);
+  const [delivery, setDelivery] = useState(null);
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
   const [existingRating, setExistingRating] = useState(null);
@@ -136,6 +141,25 @@ export default function OrderTracking() {
       cancelled = true;
     };
   }, [needsPickupBuyerLookup, order?.buyerId]);
+
+  // Courier (Lalamove) booking details — polled the same 4s cadence as the order itself,
+  // since a farmer booking one (see BookLalamoveFlow.jsx) happens in this same page for
+  // them, but the BUYER's copy of this page only finds out via this poll. null until a
+  // courier has actually been booked, which is a normal state, not an error.
+  const needsDeliveryLookup = Boolean(order) && order.deliveryMethod === 'courier';
+  useEffect(() => {
+    if (!needsDeliveryLookup) return undefined;
+    let cancelled = false;
+    const poll = () => {
+      getDelivery(order.id).then((result) => { if (!cancelled) setDelivery(result); }).catch(() => {});
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [needsDeliveryLookup, order?.id]);
 
   // "Buyer" here means "the account that placed this order" — a partner organization
   // checking out through the marketplace is just as much the buyer as a buyer-role
@@ -224,6 +248,7 @@ export default function OrderTracking() {
   const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
   const { remainingKm, isNearDestination } = transit;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
+  const isCourier = order.deliveryMethod === 'courier';
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
 
   // The real Google-based numbers once available, falling back to the OSRM-based estimate
@@ -264,7 +289,7 @@ export default function OrderTracking() {
               </div>
               <span className="live-indicator"><span className="live-dot" /> Live</span>
             </div>
-            <OrderTracker order={order} />
+            {isCourier ? <CourierDeliveryTimeline order={order} delivery={delivery} /> : <OrderTracker order={order} />}
           </div>
 
           <div className="panel ot-details-panel">
@@ -287,6 +312,23 @@ export default function OrderTracking() {
                 <h4>Payment</h4>
                 <div className="ot-detail-row"><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
                 <div className="ot-detail-row"><span>Payment status</span><StatusBadge value={order.paymentStatus} type="paymentStatus" /></div>
+                {order.paymentMethod === 'gcash' && order.paymentVerificationStatus ? (
+                  <>
+                    <div className="ot-detail-row"><span>Verification</span><StatusBadge value={order.paymentVerificationStatus} type="paymentVerificationStatus" /></div>
+                    <div className="ot-detail-row"><span>Reference #</span><strong>{order.paymentReferenceNumber}</strong></div>
+                    <div className="ot-detail-row"><span>Sender name</span><strong>{order.paymentSenderName}</strong></div>
+                    <div className="ot-detail-row"><span>Submitted</span><strong>{formatDate(order.paymentSubmittedAt)}</strong></div>
+                  </>
+                ) : null}
+                {order.paymentVerificationStatus === 'rejected' ? (
+                  <div className="form-alert error payment-rejection-alert">
+                    <strong>❌ Payment Verification Failed</strong>
+                    <p>{order.paymentRejectionReason}</p>
+                    {isBuyer ? (
+                      <Button size="sm" onClick={() => navigate(`/orders/${order.id}/pay/gcash/confirm`)}>Re-upload receipt</Button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="ot-detail-group">
@@ -298,7 +340,7 @@ export default function OrderTracking() {
                     <strong>{formatCurrency(order.deliveryFee)}</strong>
                   </div>
                 ) : null}
-                {order.status === 'confirmed' && displayEstimatedTotalMinutes != null ? (
+                {order.status === 'confirmed' && !isCourier && displayEstimatedTotalMinutes != null ? (
                   <div className="ot-detail-row">
                     <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
                     <strong>
@@ -339,7 +381,7 @@ export default function OrderTracking() {
                 </>
               ) : null}
 
-              {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep ? (
+              {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep && !(isCourier && nextStep === 'out_for_delivery') ? (
                 <Button onClick={() => run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
                   {nextStep === 'out_for_delivery' ? (
                     <><Navigation size={15} /> Start Delivery</>
@@ -355,7 +397,8 @@ export default function OrderTracking() {
                 </Button>
               ) : null}
 
-              {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) ? (
+              {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod)
+              && !order.paymentVerificationStatus ? (
                 <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
               ) : null}
 
@@ -365,6 +408,18 @@ export default function OrderTracking() {
             </div>
           </div>
         </section>
+
+        {isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery' && !isFinalNextStep ? (
+          <BookLalamoveFlow
+            order={order}
+            onBooked={({ order: updatedOrder, delivery: newDelivery }) => {
+              setOrder(updatedOrder);
+              setDelivery(newDelivery);
+              setError('');
+              setNotice('Delivery booked — order is now out for delivery.');
+            }}
+          />
+        ) : null}
 
         {isBuyer && order.status === 'completed' ? (
           <section className="panel ot-feedback-panel">
@@ -401,11 +456,11 @@ export default function OrderTracking() {
           </section>
         ) : null}
 
-        {isTrackable && !isPickup ? (
+        {isTrackable ? (
           <section className="ot-summary-cards-wrap">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Delivery tracking</p>
+                <p className="eyebrow">{isPickup ? 'Pickup tracking' : 'Delivery tracking'}</p>
                 <h2 className="tracking-info-heading">Live overview</h2>
               </div>
             </div>
@@ -427,7 +482,7 @@ export default function OrderTracking() {
               <div className="ot-summary-card">
                 <span className="ot-summary-icon"><Truck size={18} /></span>
                 <div>
-                  <p>Delivery Status</p>
+                  <p>{isPickup ? 'Pickup Status' : 'Delivery Status'}</p>
                   <span className={`tracking-badge tracking-${trackingStatus.key}`}>
                     {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
                   </span>
@@ -437,14 +492,36 @@ export default function OrderTracking() {
           </section>
         ) : null}
 
+        {isTrackable && isCourier ? (
+          delivery ? (
+            <DeliveryInfoCard delivery={delivery} />
+          ) : (
+            <section className="panel">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Courier</p>
+                  <h2>Delivery Information</h2>
+                </div>
+              </div>
+              <p className="muted">
+                {isFarmer
+                  ? 'Book a courier once this order is packed and ready — see "Book Lalamove Delivery" above.'
+                  : "The farmer hasn't booked a courier for this order yet."}
+              </p>
+            </section>
+          )
+        ) : null}
+
         {isTrackable ? (
           <section className="panel ot-map-panel">
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Map</p>
-                <h2>{isPickup ? 'Route to pickup location' : 'Delivery route'}</h2>
+                <h2>{isPickup ? 'Route to pickup location' : isCourier ? 'Courier route' : 'Delivery route'}</h2>
               </div>
-              {isInTransit ? (
+              {isCourier ? (
+                <span className="live-indicator"><span className="live-dot" /> Route preview</span>
+              ) : isInTransit ? (
                 <span className="live-indicator">
                   <span className="live-dot" /> {isLiveGps ? 'Live GPS' : 'Estimated'}
                   {displayRemainingKm != null ? ` · ${displayRemainingKm.toFixed(1)} km left` : ''} · ETA ~{displayEtaMinutes} min{displayEtaMinutes === 1 ? '' : 's'}
@@ -453,6 +530,12 @@ export default function OrderTracking() {
                 <span className="live-indicator"><span className="live-dot" /> Live</span>
               )}
             </div>
+            {isCourier ? (
+              <p className="muted ot-map-note">
+                This shows the road route between the farm and buyer addresses on file — for your courier&apos;s actual live
+                position, use Track Delivery above.
+              </p>
+            ) : null}
 
             <LiveDeliveryMap
               order={order}
@@ -460,11 +543,11 @@ export default function OrderTracking() {
                 ? (isBuyer ? currentUser.municipality : pickupBuyerMunicipality) || order.deliveryMunicipality
                 : undefined}
               onRouteUpdate={setLiveRoute}
-              deliveryStatusBadge={!isPickup ? (
+              deliveryStatusBadge={(
                 <span className={`tracking-badge tracking-${trackingStatus.key}`}>
                   {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
                 </span>
-              ) : null}
+              )}
             />
           </section>
         ) : null}

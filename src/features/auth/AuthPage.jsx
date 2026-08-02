@@ -4,6 +4,7 @@ import {
   ShieldCheck, UploadCloud, Users, X, XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -28,13 +29,24 @@ const PASSWORD_REQUIREMENTS = [
   { key: 'special', label: 'One special character (!@#$%^&*)', test: (value) => /[!@#$%^&*]/.test(value) },
 ];
 
+// Weak (0-2 of 5 met) / Medium (3-4) / Strong (all 5) — a graduated read instead of a single
+// all-or-nothing "Strong password" line, so a buyer typing a partially-decent password sees
+// their progress rather than nothing at all until every box is checked.
+const PASSWORD_STRENGTH_TIERS = [
+  { minMet: 0, key: 'weak', label: 'Weak password', icon: AlertTriangle },
+  { minMet: 3, key: 'medium', label: 'Medium password', icon: ShieldCheck },
+  { minMet: 5, key: 'strong', label: 'Strong password', icon: CheckCircle },
+];
+
 // Shown only once the farmer/buyer/stakeholder starts typing a password during
 // registration — login's password field just needs an existing password, not a strength
 // checklist, so this is never rendered there.
 function PasswordRequirements({ password }) {
   if (!password) return null;
   const results = PASSWORD_REQUIREMENTS.map((requirement) => ({ ...requirement, met: requirement.test(password) }));
-  const isStrong = results.every((requirement) => requirement.met);
+  const metCount = results.filter((requirement) => requirement.met).length;
+  // Highest tier whose minMet threshold the current count actually clears.
+  const strength = [...PASSWORD_STRENGTH_TIERS].reverse().find((tier) => metCount >= tier.minMet);
 
   return (
     <div className="password-requirements">
@@ -46,7 +58,9 @@ function PasswordRequirements({ password }) {
           </li>
         ))}
       </ul>
-      {isStrong ? <p className="password-strong-indicator"><CheckCircle size={14} /> Strong password</p> : null}
+      <p className={`password-strength-indicator ${strength.key}`}>
+        <strength.icon size={14} /> {strength.label}
+      </p>
     </div>
   );
 }
@@ -239,8 +253,7 @@ function VerificationDocumentUpload({ file, error, onFileSelect, onValidationErr
 // already capture the representative's name, so this slot is free to describe their title
 // within the organization instead of duplicating it.
 function StakeholderRegisterFields({
-  form, errors, updateField, handleBlur, isLocating, locationNotice, handleUseMyLocation,
-  agreedToTerms, setAgreedToTerms, setFieldError,
+  form, errors, updateField, handleBlur, isLocating, locationNotice, handleUseMyLocation, setFieldError,
 }) {
   return (
     <div className="stakeholder-register">
@@ -370,11 +383,12 @@ function StakeholderRegisterFields({
           </FormField>
         </div>
         <FormField label="Complete address" name="address" error={errors.address}>
-          <input
+          <AddressAutocomplete
             id="address"
             value={form.address}
-            onChange={(event) => updateField('address', event.target.value)}
+            onChange={(next) => updateField('address', next)}
             onBlur={() => handleBlur('address')}
+            error={errors.address}
             placeholder="House/Unit No., Street, Barangay"
           />
         </FormField>
@@ -464,16 +478,6 @@ function StakeholderRegisterFields({
           </span>
         </div>
       </div>
-
-      <label className="auth-terms-row">
-        <input
-          type="checkbox"
-          checked={agreedToTerms}
-          onChange={(event) => setAgreedToTerms(event.target.checked)}
-          aria-required="true"
-        />
-        <span>I agree to the <strong>Terms and Conditions</strong> and <strong>Privacy Policy</strong>.</span>
-      </label>
     </div>
   );
 }
@@ -710,7 +714,6 @@ export default function AuthPage({ mode }) {
           </span>
         </Link>
         <div>
-          <p className="eyebrow">Prototype access</p>
           <h1>
             {isStakeholderRegister
               ? 'Partner Organization Registration'
@@ -799,8 +802,6 @@ export default function AuthPage({ mode }) {
                   isLocating={isLocating}
                   locationNotice={locationNotice}
                   handleUseMyLocation={handleUseMyLocation}
-                  agreedToTerms={agreedToTerms}
-                  setAgreedToTerms={setAgreedToTerms}
                   setFieldError={setFieldError}
                 />
               ) : (
@@ -924,11 +925,12 @@ export default function AuthPage({ mode }) {
                       </div>
                       <div className="form-grid">
                         <FormField label="Complete address" name="address" error={errors.address}>
-                          <input
+                          <AddressAutocomplete
                             id="address"
                             value={form.address}
-                            onChange={(event) => updateField('address', event.target.value)}
+                            onChange={(next) => updateField('address', next)}
                             onBlur={() => handleBlur('address')}
+                            error={errors.address}
                             placeholder="House/Unit No., Street, Barangay"
                           />
                         </FormField>
@@ -1023,13 +1025,30 @@ export default function AuthPage({ mode }) {
             </>
           )}
 
+          {isRegister && authStage !== 'otp' ? (
+            <label className="auth-terms-row">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(event) => setAgreedToTerms(event.target.checked)}
+                aria-required="true"
+              />
+              <span>
+                I agree to the{' '}
+                <Link to="/terms-of-service" target="_blank" rel="noreferrer"><strong>Terms of Service</strong></Link>
+                {' '}and{' '}
+                <Link to="/privacy-policy" target="_blank" rel="noreferrer"><strong>Privacy Policy</strong></Link>.
+              </span>
+            </label>
+          ) : null}
+
           <Button
             type="submit"
             className="full-width"
             disabled={
               authStage === 'otp'
                 ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
-                : isSubmitting || (isStakeholderRegister && !agreedToTerms)
+                : isSubmitting || (isRegister && !agreedToTerms)
             }
           >
             {authStage === 'otp'

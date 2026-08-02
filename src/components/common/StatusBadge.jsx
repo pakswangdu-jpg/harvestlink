@@ -1,9 +1,11 @@
 import {
+  courierDeliveryStatusLabel,
   deliveryMethodLabel,
   deliveryStepLabel,
   donationStatusLabel,
   paymentLabel,
   paymentStatusLabel,
+  paymentVerificationStatusLabel,
   priceReviewStatusLabel,
   verificationStatusLabel,
 } from '../../utils/formatters';
@@ -11,8 +13,10 @@ import {
 const LABEL_RESOLVERS = {
   payment: paymentLabel,
   paymentStatus: paymentStatusLabel,
+  paymentVerificationStatus: paymentVerificationStatusLabel,
   deliveryMethod: deliveryMethodLabel,
   deliveryStatus: deliveryStepLabel,
+  courierDeliveryStatus: courierDeliveryStatusLabel,
   donation: donationStatusLabel,
   priceReview: priceReviewStatusLabel,
   verification: verificationStatusLabel,

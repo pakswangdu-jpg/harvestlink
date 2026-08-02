@@ -178,7 +178,7 @@ export default function AdminPriceMonitoring() {
   };
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Price Monitoring" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Price Monitoring" hideHeader>
       <PageHeader title="Price Monitoring" description="Monitor PSA reference prices, farmer-listed commodity prices, and DTI overrides." />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -33,7 +33,7 @@ export default function AdminReports() {
 
   if (!state) {
     return (
-      <AppShell user={currentUser} navItems={adminNavItems} title="Reports" fullBleed>
+      <AppShell user={currentUser} navItems={adminNavItems} title="Reports" hideHeader>
         <PageHeader title="Reports" description="Revenue, order, and donation trends across HarvestLink." />
         <LoadingState rows={4} />
       </AppShell>
@@ -47,7 +47,7 @@ export default function AdminReports() {
   const completedDonations = donations.filter((donation) => donation.status === 'completed').length;
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Reports" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Reports" hideHeader>
       <PageHeader title="Reports" description="Revenue, order, and donation trends across HarvestLink." />
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">

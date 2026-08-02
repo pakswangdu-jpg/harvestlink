@@ -10,8 +10,11 @@
 // --- Tunable constants -----------------------------------------------------------------
 
 // Harvest season is itself inferred from real current supply (see inferHarvestSeason) —
-// this just encodes the standard supply/price relationship the season implies.
-const HARVEST_SEASON_PRICE_ADJUSTMENT = { Active: -0.1, Transitional: 0, 'Off Season': 0.15 };
+// this just encodes the standard supply/price relationship the season implies. Exported so
+// priceForecastEngine.js's curve builder can phase this same real adjustment in smoothly
+// across a forecast horizon instead of computeSeasonalImpact's own one-line text summary
+// being the only place it's used.
+export const HARVEST_SEASON_PRICE_ADJUSTMENT = { Active: -0.1, Transitional: 0, 'Off Season': 0.15 };
 
 // Harvest season is inferred from real current active-listing volume for a crop, not a
 // fabricated agricultural calendar (HarvestLink has no authoritative source for one) — the
@@ -93,6 +96,21 @@ export function computeStatus(signal, weather) {
   if (weather?.rainfallProbability != null && weather.rainfallProbability >= 60) return 'High Risk';
   if (signal === 'steady') return 'Stable Market';
   return 'Low Demand';
+}
+
+// Risk level for the AI Analysis panel — a real, named combination of the two real signals
+// that already exist for every forecast: how much the curve is projected to move
+// (volatilityPercent, see priceForecastEngine.js) and how much real data backs it
+// (confidence, see computeConfidence above). A wide/uncertain forecast is genuinely higher
+// risk to act on than a narrow, confident one, regardless of which direction it points.
+const RISK_VOLATILITY_HIGH_PERCENT = 7;
+const RISK_VOLATILITY_MEDIUM_PERCENT = 4;
+const RISK_CONFIDENCE_LOW = 55;
+
+export function computeRiskLevel(volatilityPercent, confidence) {
+  if (volatilityPercent >= RISK_VOLATILITY_HIGH_PERCENT || confidence < RISK_CONFIDENCE_LOW) return 'High';
+  if (volatilityPercent >= RISK_VOLATILITY_MEDIUM_PERCENT) return 'Medium';
+  return 'Low';
 }
 
 export function buildRecommendation({ crop, signal, harvestSeason, forecastPrice, currentPrice }) {

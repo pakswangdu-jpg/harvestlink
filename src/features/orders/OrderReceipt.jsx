@@ -46,6 +46,18 @@ export default function OrderReceipt() {
     };
   }, [id]);
 
+  // The browser's own print/PDF-export footer stamps whatever document.title is at print
+  // time (see the "Print receipt" button below) — this app never sets one anywhere else, so
+  // it was falling back to the raw URL instead of a real title. Restored on unmount so
+  // navigating away doesn't leave this page's title stuck on every other page.
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'HarvestLink';
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
+
   if (loadedId !== id) return null;
   if (!order) return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
 

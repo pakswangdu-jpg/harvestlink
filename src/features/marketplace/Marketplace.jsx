@@ -140,8 +140,15 @@ export default function Marketplace() {
     return [0, Math.max(100, Math.ceil((highest || 100) / 100) * 100)];
   }, [products]);
 
+  // Polled every 4s, same as every other list page in the app (FarmerDashboard,
+  // BuyerDashboard, OrderTracking, ...) — without this, a buyer already sitting on the
+  // marketplace would never see a farmer's newly-added product until they left and came
+  // back, since the original one-shot fetch on mount never ran again.
   useEffect(() => {
-    getActiveProducts().then(setProducts);
+    const reload = () => getActiveProducts().then(setProducts);
+    reload();
+    const interval = setInterval(reload, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredProducts = useMemo(() => {

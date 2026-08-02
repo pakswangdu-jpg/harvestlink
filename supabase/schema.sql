@@ -241,8 +241,25 @@
   alter table public.orders add column if not exists transaction_id text;
   alter table public.orders add column if not exists paid_at timestamptz;
   -- The buyer's uploaded proof-of-payment screenshot (payment-receipts bucket, public URL) —
-  -- required before confirmGcashPayment marks an order paid; see GcashPaymentPage.jsx.
+  -- required before submitPaymentProof marks an order awaiting verification; see
+  -- ConfirmGcashPaymentPage.jsx.
   alter table public.orders add column if not exists payment_receipt_url text;
+
+  -- Payment verification — the buyer submits proof (receipt + these details), then the
+  -- farmer approves or rejects it (see payments.controller.js's submitPaymentProof /
+  -- approvePaymentVerification / rejectPaymentVerification). payment_status only flips to
+  -- 'paid' on approval; a rejection leaves it 'pending' so the buyer can resubmit.
+  alter table public.orders add column if not exists payment_reference_number text;
+  alter table public.orders add column if not exists payment_sender_name text;
+  alter table public.orders add column if not exists payment_submitted_at timestamptz;
+  alter table public.orders add column if not exists payment_notes text;
+  -- null until the buyer submits proof of payment.
+  alter table public.orders add column if not exists payment_verification_status text;
+  alter table public.orders drop constraint if exists orders_payment_verification_status_check;
+  alter table public.orders add constraint orders_payment_verification_status_check
+    check (payment_verification_status in ('pending','approved','rejected'));
+  alter table public.orders add column if not exists payment_rejection_reason text;
+  alter table public.orders add column if not exists payment_reviewed_at timestamptz;
 
   -- Maya/card/bank transfer were removed as selectable payment methods — HarvestLink now
   -- only offers GCash (via the demo payment module) and Cash on Delivery.
@@ -265,6 +282,38 @@
   alter table public.orders drop constraint if exists orders_product_id_fkey;
   alter table public.orders add constraint orders_product_id_fkey
     foreign key (product_id) references public.products(id) on delete set null;
+
+  -- ============================================================================
+  -- deliveries — third-party courier (Lalamove) booking details for a `courier`-method
+  -- order. One row per order (order_id is unique below), created once the farmer books the
+  -- courier and saves the driver/vehicle/tracking details (see
+  -- backend/src/controllers/deliveries.controller.js). HarvestLink never implements its own
+  -- courier GPS tracking — tracking_url is Lalamove's own official tracking page, which the
+  -- buyer is sent to directly (see src/components/orders/DeliveryInfoCard.jsx); this table
+  -- only stores what the farmer entered, not live position data of any kind.
+  -- ============================================================================
+  create table if not exists public.deliveries (
+    id uuid primary key default gen_random_uuid(),
+    order_id uuid not null references public.orders(id) on delete cascade,
+    courier_company text not null default 'Lalamove',
+    driver_name text,
+    driver_phone text,
+    vehicle_type text,
+    booking_reference text,
+    tracking_url text,
+    -- Free text ("35 minutes", "Around 3:30 PM") rather than a timestamp — this is whatever
+    -- estimate the farmer copies over from the Lalamove app, in whatever form Lalamove gave
+    -- it to them, not a value HarvestLink computes or can validate.
+    estimated_arrival text,
+    delivery_status text not null default 'booked'
+      check (delivery_status in ('booked','out_for_delivery','delivered','cancelled')),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  );
+
+  create unique index if not exists deliveries_order_id_unique on public.deliveries (order_id);
+
+  alter table public.deliveries enable row level security;
 
   -- ============================================================================
   -- notifications
@@ -491,6 +540,10 @@
 
   drop trigger if exists set_categories_updated_at on public.categories;
   create trigger set_categories_updated_at before update on public.categories
+    for each row execute function public.set_updated_at();
+
+  drop trigger if exists set_deliveries_updated_at on public.deliveries;
+  create trigger set_deliveries_updated_at before update on public.deliveries
     for each row execute function public.set_updated_at();
 
   -- Category taxonomy cleanup — safe to re-run. Renames the earlier "Other" catch-all to
@@ -802,6 +855,12 @@
       bucket_id = 'payment-receipts'
       and (select auth.uid())::text = (storage.foldername(name))[1]
     );
+
+  -- The login rate limiting / security audit feature (backend-mediated /auth/login,
+  -- loginRateLimiter.js, securityLog.js, the admin Security dashboard) was tried and removed —
+  -- this drops the table an already-migrated install would still have from when it existed.
+  -- Safe/idempotent like everything else here: a no-op on an install that never had it.
+  drop table if exists public.auth_security_events;
 
   -- ============================================================================
   -- Done. Next steps (see backend/README.md):

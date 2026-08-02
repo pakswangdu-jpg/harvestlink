@@ -1,9 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
+import AllFarmersPage from '../features/landing/AllFarmersPage';
 import PublicFarmerProfile from '../features/landing/PublicFarmerProfile';
 import AuthPage from '../features/auth/AuthPage';
 import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../features/auth/ResetPasswordPage';
+import PrivacyPolicy from '../features/legal/PrivacyPolicy';
+import TermsOfService from '../features/legal/TermsOfService';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
 import FarmerDashboard from '../features/farmer/FarmerDashboard';
 import FarmerProducts from '../features/farmer/FarmerProducts';
@@ -17,6 +20,7 @@ import ProductDetails from '../features/marketplace/ProductDetails';
 import OrderTracking from '../features/orders/OrderTracking';
 import OrderReceipt from '../features/orders/OrderReceipt';
 import GcashPaymentPage from '../features/payments/GcashPaymentPage';
+import ConfirmGcashPaymentPage from '../features/payments/ConfirmGcashPaymentPage';
 import MessagesPage from '../features/messages/MessagesPage';
 import Profile from '../features/profile/Profile';
 import MarketInsights from '../features/market/MarketInsights';
@@ -36,11 +40,14 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/farmers" element={<AllFarmersPage />} />
       <Route path="/farmers/:id" element={<PublicFarmerProfile />} />
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
 
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
@@ -61,6 +68,7 @@ export default function AppRoutes() {
         <Route path="/orders/:id" element={<OrderTracking />} />
         <Route path="/orders/:id/receipt" element={<OrderReceipt />} />
         <Route path="/orders/:id/pay/gcash" element={<GcashPaymentPage />} />
+        <Route path="/orders/:id/pay/gcash/confirm" element={<ConfirmGcashPaymentPage />} />
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/messages/direct/:userId" element={<MessagesPage />} />
         <Route path="/messages/:orderId" element={<MessagesPage />} />

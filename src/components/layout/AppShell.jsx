@@ -9,6 +9,7 @@ import SidebarUserCard from './SidebarUserCard';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
+import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
 import { useFarmerNavBadges } from '../../hooks/useFarmerNavBadges';
 import { useBuyerNavBadges } from '../../hooks/useBuyerNavBadges';
 import { useStakeholderNavBadges } from '../../hooks/useStakeholderNavBadges';
@@ -22,7 +23,7 @@ const navListVariants = {
 };
 
 export default function AppShell({
-  user, navItems, title, subtitle, children, fullBleed = false, wide = false,
+  user, navItems, title, subtitle, children, fullBleed = false, wide = false, hideHeader = false,
 }) {
   const { logout } = useAuth();
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
@@ -30,6 +31,11 @@ export default function AppShell({
   // goes "out for delivery" no matter which page the farmer used to mark it that way — the
   // order detail page, the orders list, etc. all call the same backend action.
   const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null);
+  // The buyer_pickup mirror of the hook above — "buyer" here means whoever placed the order
+  // (buyer_id ownership), same as everywhere else in this app; a stakeholder checking out
+  // through the marketplace can choose pickup too, so this covers both roles, not just
+  // literal role === 'buyer'.
+  const { error: pickupSharingError } = useBuyerActivePickupSharing(['buyer', 'stakeholder'].includes(user.role) ? user.id : null);
   // Same "pending action" badge concept as the admin sidebar (see AdminDashboard.jsx), just
   // computed here instead of inside one page so it shows up regardless of which page of
   // theirs is currently open. Each hook is a no-op (returns 0, does nothing) unless the
@@ -139,8 +145,18 @@ export default function AppShell({
         </button>
       </motion.aside>
 
-      <main className={`main-content ${fullBleed ? 'main-content-full-bleed' : ''} ${wide ? 'main-content-wide' : ''}`.trim().replace(/\s+/g, ' ')}>
-        {!fullBleed ? (
+      {/* fullBleed locks .main-content to a fixed height:100vh (see globals.css) for pages that
+          manage their own internal scroll region edge-to-edge — genuinely only MessagesPage.
+          Admin pages that just want "no built-in header, no max-width cap" (their content is a
+          normal, page-scrolling column of stacked cards/tables) should pass hideHeader alone
+          instead, which applies main-content-flush — the same full-width layout minus the
+          height lock, which broke natural mobile scrolling on those pages since their stacked
+          content is almost always taller than one viewport. */}
+      <main
+        className={`main-content ${fullBleed ? 'main-content-full-bleed' : ''} ${!fullBleed && hideHeader ? 'main-content-flush' : ''} ${wide ? 'main-content-wide' : ''}`
+          .trim().replace(/\s+/g, ' ')}
+      >
+        {!fullBleed && !hideHeader ? (
           <header className="page-header">
             <div>
               <p className="eyebrow">Cebu farm-to-market</p>
@@ -151,6 +167,7 @@ export default function AppShell({
           </header>
         ) : null}
         {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}
+        {pickupSharingError ? <div className="form-alert error">{pickupSharingError}</div> : null}
         {children}
       </main>
 

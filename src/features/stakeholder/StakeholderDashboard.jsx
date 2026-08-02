@@ -51,7 +51,9 @@ async function buildDonationFarmers(donations) {
 
 function buildActiveDeliveryRoutes(orders, currentUser) {
   return orders
-    .filter((order) => order.status === 'confirmed')
+    // Courier (Lalamove) orders are excluded — see the matching comment in
+    // FarmerDashboard.jsx — HarvestLink has no real courier position to plot here.
+    .filter((order) => order.status === 'confirmed' && order.deliveryMethod !== 'courier')
     .map((order) => {
       const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
       const isPickup = order.deliveryMethod === 'buyer_pickup';
