@@ -154,6 +154,26 @@ export async function getProduct(req, res) {
   res.json(serialized);
 }
 
+// What makes two listings "the same product" for the restock-merge below. Deliberately
+// includes selling_type, so the same crop offered retail AND wholesale stays two separate
+// listings (they carry different prices and a wholesale-only MOQ) — that's the "same
+// category but different type" case. Excludes price: a farmer restocking at a new price is
+// still restocking the same product, so the newly submitted price wins rather than splitting
+// the stock across two rows.
+const MERGE_KEY_COLUMNS = ['name', 'category', 'grade', 'unit', 'selling_type'];
+
+// Finds this farmer's existing listing for the same product, or null. Most recently updated
+// first, so an account that already accumulated duplicates before this merge existed keeps
+// consolidating into one row rather than reviving the oldest.
+async function findMergeTarget(farmerId, row) {
+  let query = supabaseAdmin.from('products').select('*').eq('farmer_id', farmerId);
+  MERGE_KEY_COLUMNS.forEach((column) => { query = query.eq(column, row[column]); });
+
+  const { data, error } = await query.order('updated_at', { ascending: false }).limit(1);
+  if (error) throw new ApiError(error.message, 400);
+  return data?.[0] || null;
+}
+
 export async function createProduct(req, res) {
   const values = req.body;
   await assertValidCategoryAndUnit(values);
@@ -181,6 +201,48 @@ export async function createProduct(req, res) {
     created_at: now,
     updated_at: now,
   };
+
+  // Restocking the same product folds into the existing listing instead of creating a second
+  // identical row, so a farmer's list doesn't fill up with duplicate "Cabbage" entries.
+  // `allowDuplicate` opts out for the two callers that legitimately need a brand-new row: the
+  // explicit "Duplicate" action, and donation listings (which post price 0 — merging one into
+  // a real listing would silently zero out that listing's price).
+  const mergeTarget = values.allowDuplicate ? null : await findMergeTarget(req.profile.id, row);
+
+  if (mergeTarget) {
+    const mergedQuantity = Number(mergeTarget.quantity) + Number(values.quantity);
+    const { data, error } = await supabaseAdmin
+      .from('products')
+      .update({
+        quantity: mergedQuantity,
+        // The rest of the submitted details win — the farmer just typed them, so they're the
+        // current truth for this product. Only the image falls back to what's already saved,
+        // since leaving the upload empty means "keep the existing photo", not "remove it".
+        price: row.price,
+        moq: row.moq,
+        kg_per_unit: row.kg_per_unit,
+        location: row.location,
+        description: row.description,
+        image_url: row.image_url || mergeTarget.image_url,
+        cost_price: row.cost_price,
+        expiration_date: row.expiration_date,
+        price_review: buildPriceReview(values.marketReference, values.price, mergeTarget.price_review, kgPerUnit),
+        // Adding stock to a sold-out/archived listing puts it back on the marketplace —
+        // otherwise the quantity would go up while the listing stayed invisible to buyers.
+        status: 'active',
+        updated_at: now,
+      })
+      .eq('id', mergeTarget.id)
+      .select()
+      .single();
+    if (error) throw new ApiError(error.message, 400);
+
+    const [serialized] = await withFarmerNames([data]);
+    // `merged`/`addedQuantity` are response-only (never columns) — they let the farmer's UI
+    // say "added 50 kg to your existing listing" instead of the misleading "product added".
+    res.json({ ...serialized, merged: true, addedQuantity: Number(values.quantity) });
+    return;
+  }
 
   const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
   if (error) throw new ApiError(error.message, 400);

@@ -63,6 +63,11 @@ function buildDuplicatePayload(product) {
     expirationDate: product.expirationDate || '',
     status: 'active',
     isDonation: false,
+    // Opts out of the backend's restock merge (see createProduct in
+    // products.controller.js) — this payload matches an existing listing on every merge-key
+    // field by definition, so without this "Duplicate" would just fold back into the
+    // original and appear to do nothing.
+    allowDuplicate: true,
   };
 }
 
@@ -187,13 +192,19 @@ export default function FarmerProducts() {
         setNotice('Product updated.');
         closeDrawer();
       } else if (values.isDonation) {
-        const created = await createProduct({ ...values, price: 0, sellingType: 'retail', moq: '' });
+        // allowDuplicate: a donation posts price 0 — folding it into an existing listing for
+        // the same crop would silently reprice that listing to free (see createProduct).
+        const created = await createProduct({
+          ...values, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
+        });
         createDonation(created, currentUser);
         setNotice(`${created.name} listed as a surplus donation for partner organizations.`);
         closeDrawer();
       } else {
         const created = await createProduct(values);
-        setNotice('Product added to the marketplace.');
+        setNotice(created.merged
+          ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing — now ${created.quantity} ${created.unit}.`
+          : 'Product added to the marketplace.');
         // Keep the drawer open, now switched into edit mode for the product that was just
         // created (ProductForm's Discount section only ever renders once a product exists),
         // so a farmer can apply a discount right away instead of closing the drawer and
