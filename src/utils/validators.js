@@ -1,4 +1,4 @@
-import { hasFixedConversion } from './unitConversion';
+import { getFixedKgPerUnit, hasFixedConversion } from './unitConversion';
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -15,6 +15,36 @@ export function toPositiveNumber(value) {
 
 export function isValidZipCode(value) {
   return /^\d{4}$/.test(String(value || '').trim());
+}
+
+// Far above any real farmgate/retail produce price in this marketplace — exists only to
+// catch a typo (an extra digit, or the total cost of a whole harvest typed into a per-unit
+// field) before it reaches the marketplace, never to constrain a genuine price. Mirrored
+// server-side in backend/src/lib/priceReview.js since this file is never bundled into the
+// backend (see that file's own comment) and a client-side-only check can be bypassed by
+// calling the API directly.
+export const MAX_PLAUSIBLE_PRICE_PER_KG = 5000;
+
+// Only resolvable when the unit has a universal weight (kg/g/t/L/mL) or the farmer has
+// already filled in "how many kg is 1 X" — returns null otherwise rather than guessing,
+// since a wrong guess here (e.g. defaulting to 1kg for a sack) could wrongly flag, or fail
+// to flag, a price that's actually fine. The missing-conversion case already has its own
+// required-field error a few lines below; this check simply sits out until that's resolved.
+function resolvableKgPerUnit(unit, kgPerUnitInput) {
+  const fixed = getFixedKgPerUnit(unit);
+  if (fixed != null) return fixed;
+  const parsed = Number(kgPerUnitInput);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+// Shared by both the cost and price checks below — same ceiling, same per-kg normalization,
+// so a sack-priced and a kg-priced listing are held to the same real-world bar.
+function implausiblePerKgMessage(label, amount, kgPerUnit) {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0 || !kgPerUnit) return null;
+  const perKg = numericAmount / kgPerUnit;
+  if (perKg <= MAX_PLAUSIBLE_PRICE_PER_KG) return null;
+  return `${label} works out to ₱${perKg.toFixed(2)}/kg, which is unrealistically high for produce — please double-check this value.`;
 }
 
 export function validateAuthForm(values, mode) {
@@ -94,6 +124,17 @@ export function validateProductForm(values, availableUnits) {
   else if (Array.isArray(availableUnits) && !availableUnits.includes(values.unit)) errors.unit = 'Choose a unit valid for this product.';
   else if (!values.isDonation && !hasFixedConversion(values.unit) && toPositiveNumber(values.kgPerUnit) === null) {
     errors.kgPerUnit = `Enter how many kg 1 ${values.unit} is.`;
+  }
+  if (!values.isDonation && !errors.unit && !errors.kgPerUnit) {
+    const kgPerUnit = resolvableKgPerUnit(values.unit, values.kgPerUnit);
+    if (!errors.costPrice) {
+      const costMessage = implausiblePerKgMessage('Your cost', values.costPrice, kgPerUnit);
+      if (costMessage) errors.costPrice = costMessage;
+    }
+    if (!errors.price) {
+      const priceMessage = implausiblePerKgMessage('This price', values.price, kgPerUnit);
+      if (priceMessage) errors.price = priceMessage;
+    }
   }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
   if (required(values.expirationDate)) {

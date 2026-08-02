@@ -8,7 +8,7 @@ import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_GRADES, SALES_TYPES } f
 import { useCatalog } from '../../contexts/CatalogContext';
 import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
 import { uploadProductImage } from '../../services/uploadService';
-import { hasErrors, validateProductForm } from '../../utils/validators';
+import { hasErrors, MAX_PLAUSIBLE_PRICE_PER_KG, validateProductForm } from '../../utils/validators';
 import { getFixedKgPerUnit } from '../../utils/unitConversion';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
@@ -142,6 +142,15 @@ export default function ProductForm({
   // no kg conversion needed.
   const costNum = Number(values.costPrice);
   const manualRecommendation = costNum > 0 ? getRecommendedPrice(costNum) : null;
+  // Sanity bound on the fallback recommendation, normalized to per-kg (same conversion the
+  // PSA comparison above already computes) so it holds a sack-priced and a kg-priced listing
+  // to the same real-world bar. Without this, a mistyped cost (an extra digit, or the total
+  // cost of a whole harvest typed into a per-unit field) produced an equally absurd
+  // "recommended price" one click away from becoming the live listing — the exact bug this
+  // catches. Same MAX_PLAUSIBLE_PRICE_PER_KG the submit-blocking validator in validators.js
+  // uses, so what's flagged here always matches what submission actually rejects.
+  const costPerKg = hasKgConversion && costNum > 0 ? costNum / kgPerUnitValue : null;
+  const isCostImplausible = costPerKg != null && costPerKg > MAX_PLAUSIBLE_PRICE_PER_KG;
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
@@ -149,8 +158,16 @@ export default function ProductForm({
   };
 
   // Reuses the persisted "Cost per unit" field below (see the form-grid three block) rather
-  // than asking for cost a second time here — this section just reacts to it.
-  const costRecommendationSection = manualRecommendation ? (
+  // than asking for cost a second time here — this section just reacts to it. Implausible
+  // takes priority over having a recommendation at all — offering "Use this price" for a
+  // number this section itself doesn't believe would just be a one-click way to hit the
+  // validator's block on submit.
+  const costRecommendationSection = isCostImplausible ? (
+    <p className="price-recommendation">
+      <strong>That cost looks unusually high for produce{costPerKg != null ? ` (≈ ₱${costPerKg.toFixed(2)}/kg)` : ''}.</strong>
+      <span> Double-check it — an unrealistic cost like this will block saving this listing until it's corrected.</span>
+    </p>
+  ) : manualRecommendation ? (
     <p className="price-recommendation">
       <strong>Recommended price: ₱{manualRecommendation.price.toFixed(2)}/{values.unit}</strong>
       <span> — {manualRecommendation.marginPercent}% above your stated cost, since there's no PSA reference to compare against for this product.</span>
@@ -391,8 +408,8 @@ export default function ProductForm({
         ) : null}
 
         {!values.isDonation && hasTypedName ? (
-          <div className={`price-hint ${isOverThreshold ? 'warning' : ''}`}>
-            {isOverThreshold ? <TriangleAlert size={16} /> : <Info size={16} />}
+          <div className={`price-hint ${isOverThreshold || isCostImplausible ? 'warning' : ''}`}>
+            {isOverThreshold || isCostImplausible ? <TriangleAlert size={16} /> : <Info size={16} />}
             <div>
               {isLoadingReference ? (
                 <strong>Checking PSA market prices…</strong>

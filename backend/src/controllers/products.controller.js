@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeProduct } from '../lib/serialize.js';
-import { buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
+import { assertPlausiblePricePerKg, buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 
@@ -179,6 +179,14 @@ export async function createProduct(req, res) {
   await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
+  // Catches a typo (an extra digit, or the total cost of a whole harvest typed into a
+  // per-unit field) before it reaches the marketplace — the frontend already blocks this in
+  // the form, but this is the check that actually can't be bypassed by calling the API
+  // directly. Skipped for a donation, which is deliberately priced at 0.
+  if (!values.isDonation) {
+    assertPlausiblePricePerKg('Cost per unit', values.costPrice, kgPerUnit);
+    assertPlausiblePricePerKg('Price', values.price, kgPerUnit);
+  }
   const now = new Date().toISOString();
   const row = {
     farmer_id: req.profile.id,
@@ -263,6 +271,13 @@ export async function updateProduct(req, res) {
   const price = values.price !== undefined ? Number(values.price) : Number(existing.price);
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
   const sellingType = values.sellingType ?? existing.selling_type;
+  const costPrice = values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price;
+
+  // Only checked when this request actually touches that field — an update that only
+  // changes, say, the description shouldn't get blocked by a price/cost that predates this
+  // check (or that was already fine and simply isn't part of this edit).
+  if (values.price !== undefined) assertPlausiblePricePerKg('Price', price, kgPerUnit);
+  if (values.costPrice !== undefined) assertPlausiblePricePerKg('Cost per unit', costPrice, kgPerUnit);
 
   const priceReview = values.marketReference !== undefined
     ? buildPriceReview(values.marketReference, price, existing.price_review, kgPerUnit)
@@ -283,7 +298,7 @@ export async function updateProduct(req, res) {
     image_url: values.image !== undefined ? values.image || null : existing.image_url,
     status: values.status || (quantity > 0 ? existing.status : 'inactive'),
     price_review: priceReview,
-    cost_price: values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price,
+    cost_price: costPrice,
     expiration_date: values.expirationDate !== undefined ? (values.expirationDate || null) : existing.expiration_date,
   };
 
