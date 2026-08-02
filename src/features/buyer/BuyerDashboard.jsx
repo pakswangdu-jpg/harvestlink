@@ -13,7 +13,7 @@ import MarketPricePanel from '../../components/market/MarketPricePanel';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
-import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
+import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials } from '../../utils/formatters';
@@ -21,7 +21,7 @@ import { nearestByMunicipality } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 
 const EMPTY_STATE = {
-  products: [], orders: [], verifiedFarmers: [], registeredBuyers: [], registeredStakeholders: [], activeDeliveryRoutes: [],
+  products: [], orders: [], verifiedFarmers: [], registeredBuyers: [], registeredStakeholders: [],
 };
 
 export default function BuyerDashboard() {
@@ -41,35 +41,12 @@ export default function BuyerDashboard() {
       ]);
       if (cancelled) return;
 
-      const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
-      const activeDeliveryRoutes = confirmedOrders.map((order) => {
-        const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
-        const isPickup = order.deliveryMethod === 'buyer_pickup';
-        return {
-          id: order.id,
-          // For pickup, the destination pin represents where you're starting from, not the
-          // farm itself — the route shows how to get there, not a delivery on its way to you.
-          originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
-          destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
-          originMunicipality: order.originMunicipality,
-          destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
-          deliveryMethod: order.deliveryMethod,
-          progress,
-          etaMinutes,
-          currentPosition,
-          remainingKm,
-          label: `${order.productName} — ${order.farmerName}`,
-          href: `/orders/${order.id}`,
-        };
-      });
-
       setState({
         products,
         orders,
         verifiedFarmers,
         registeredBuyers: buyers.filter((buyer) => buyer.id !== currentUser.id),
         registeredStakeholders: stakeholders,
-        activeDeliveryRoutes,
       });
     };
 
@@ -81,7 +58,7 @@ export default function BuyerDashboard() {
     };
   }, [currentUser.id, currentUser.municipality]);
 
-  const { products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders, activeDeliveryRoutes } = state;
+  const { products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders } = state;
   // Fresh listings only spotlights Grade A produce — Grade B is still buyable from the full
   // Marketplace, just not featured in this at-a-glance dashboard preview.
   const freshListings = products.filter((product) => product.grade === 'A');
@@ -136,7 +113,6 @@ export default function BuyerDashboard() {
             <span className="live-indicator"><span className="live-dot" /> Live</span>
           </div>
           <DeliveryMap
-            routes={activeDeliveryRoutes}
             farmers={nearbyFarmers}
             buyers={nearbyBuyers}
             stakeholders={nearbyStakeholders}

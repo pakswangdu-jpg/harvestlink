@@ -84,24 +84,26 @@ export async function getPublicFarmerProfile(id) {
   return apiClient.get(`/profiles/${id}/public`);
 }
 
+// GET /profiles/farmers is also public — every verified farmer, no rating floor or cap.
+// Backs the landing page's "View All Farmers" directory (AllFarmersPage.jsx).
+export async function getAllVerifiedFarmers() {
+  return apiClient.get('/profiles/farmers');
+}
+
+// Session state (login/logout/current-user) is managed directly via supabase.auth — this
+// browser signs in with Supabase directly rather than going through the backend.
 export async function loginUser(emailValue, password) {
   const email = emailValue.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    // Deliberately the ONE Supabase failure reason not flattened into the generic message
-    // below — AuthPage.jsx checks this exact code to offer "verify your email" instead of
-    // just telling an otherwise-correct password to try again. Every other failure (wrong
-    // password, no such account, ...) stays intentionally vague, so a login attempt can't
-    // be used to probe which emails are registered.
     if (error.message.toLowerCase().includes('email not confirmed')) {
       const unconfirmedError = new Error('Email not confirmed');
       unconfirmedError.code = 'email_not_confirmed';
       throw unconfirmedError;
     }
-    throw new Error('Login failed. Check your email and password.');
+    throw new Error('Invalid email or password.');
   }
-  // requireAuth on the backend rejects a suspended account's session with a clear
-  // message, which surfaces here exactly like any other apiClient error.
+
   return apiClient.get('/profiles/me');
 }
 

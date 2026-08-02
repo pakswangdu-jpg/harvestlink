@@ -4,6 +4,7 @@ import { requireRole } from '../middleware/requireRole.js';
 import {
   acknowledgeMyVerification,
   createProfile,
+  getAllVerifiedFarmers,
   getMyProfile,
   getProfileById,
   getPublicFarmerProfile,
@@ -25,6 +26,8 @@ router.get('/', requireAuth, listProfiles);
 // Public, no requireAuth — must stay above the /:id route below, or Express would match
 // "top-farmers" as an :id instead of this handler.
 router.get('/top-farmers', getTopRatedFarmers);
+// Also public — backs the landing page's "View All Farmers" directory.
+router.get('/farmers', getAllVerifiedFarmers);
 // Also public — an extra path segment past :id, so it doesn't collide with the
 // requireAuth'd GET /:id below regardless of registration order.
 router.get('/:id/public', getPublicFarmerProfile);

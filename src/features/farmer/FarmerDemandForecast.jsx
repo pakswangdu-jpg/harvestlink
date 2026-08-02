@@ -1,15 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import EmptyState from '../../components/common/EmptyState';
-import ForecastHeader from '../../components/forecast/ForecastHeader';
+import ForecastFilters from '../../components/forecast/ForecastFilters';
 import ForecastKpiGrid from '../../components/forecast/ForecastKpiGrid';
-import AiRecommendationHero from '../../components/forecast/AiRecommendationHero';
 import WeatherPanel from '../../components/forecast/WeatherPanel';
 import SupplyDemandBarChart from '../../components/charts/SupplyDemandBarChart';
 import ForecastTable from '../../components/forecast/ForecastTable';
-import CropDetailPanel from '../../components/forecast/CropDetailPanel';
-import InteractiveForecastChart from '../../components/forecast/InteractiveForecastChart';
-import RecommendationCard from '../../components/forecast/RecommendationCard';
+import MarketAnalysisReport from '../../components/forecast/MarketAnalysisReport';
 import ForecastSkeleton from '../../components/forecast/ForecastSkeleton';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
@@ -30,23 +27,28 @@ export default function FarmerDemandForecast() {
   const [category, setCategory] = useState('');
   const [municipality, setMunicipality] = useState('');
   const [demandLevel, setDemandLevel] = useState('');
-  const [period, setPeriod] = useState('30_days');
+  const [period, setPeriod] = useState('7_days');
+  const [customDate, setCustomDate] = useState('');
   const [selectedCropOverride, setSelectedCropOverride] = useState('');
 
   // List fetch — same effect this page has always run (category/municipality/period), now
   // also re-triggered by the header's Refresh button via `refreshToken`, and tracking its
   // own request key so a refresh never blanks out the previously-loaded dashboard while
-  // the new response is in flight.
+  // the new response is in flight. Waits for a real customDate before firing once "Custom
+  // Date" is selected — the backend rejects an empty one, so there's nothing useful to fetch
+  // until the date picker actually has a value.
   const [listResult, setListResult] = useState({ key: '', data: null, error: '' });
   const [refreshToken, setRefreshToken] = useState(0);
-  const listRequestKey = `${category}|${municipality}|${period}|${refreshToken}`;
-  const isRefreshing = listResult.key !== listRequestKey;
+  const isAwaitingCustomDate = period === 'custom' && !customDate;
+  const listRequestKey = `${category}|${municipality}|${period}|${customDate}|${refreshToken}`;
+  const isRefreshing = !isAwaitingCustomDate && listResult.key !== listRequestKey;
   const data = listResult.data;
   const loadError = listResult.error;
 
   useEffect(() => {
+    if (isAwaitingCustomDate) return undefined;
     let cancelled = false;
-    getDemandForecast({ category, municipality, period })
+    getDemandForecast({ category, municipality, period, customDate })
       .then((result) => {
         if (!cancelled) setListResult({ key: listRequestKey, data: result, error: '' });
       })
@@ -57,7 +59,7 @@ export default function FarmerDemandForecast() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, municipality, period, refreshToken]);
+  }, [category, municipality, period, customDate, refreshToken, isAwaitingCustomDate]);
 
   const crops = useMemo(() => data?.crops || [], [data]);
   const weather = data?.weather || null;
@@ -86,7 +88,6 @@ export default function FarmerDemandForecast() {
   const selectedCrop = filtered.some((entry) => entry.crop === selectedCropOverride)
     ? selectedCropOverride
     : (featured?.crop || filtered[0]?.crop || '');
-  const selectedForecast = filtered.find((entry) => entry.crop === selectedCrop) || null;
 
   const pricedCrops = filtered.filter((entry) => entry.forecastPrice != null);
   const averageForecastPrice = pricedCrops.length
@@ -118,15 +119,15 @@ export default function FarmerDemandForecast() {
   // Crop-detail drill-down — same "track the key it was fetched for" derived-loading
   // pattern already used by this page (and originally the retired Price Forecast page).
   const [detailResult, setDetailResult] = useState({ key: '', detail: null, error: '' });
-  const detailRequestKey = `${selectedCrop}:${period}:${municipality}`;
-  const isDetailLoading = Boolean(selectedCrop) && detailResult.key !== detailRequestKey;
+  const detailRequestKey = `${selectedCrop}:${period}:${municipality}:${customDate}`;
+  const isDetailLoading = Boolean(selectedCrop) && !isAwaitingCustomDate && detailResult.key !== detailRequestKey;
   const detail = isDetailLoading ? null : detailResult.detail;
   const detailError = isDetailLoading ? '' : detailResult.error;
 
   useEffect(() => {
-    if (!selectedCrop) return undefined;
+    if (!selectedCrop || isAwaitingCustomDate) return undefined;
     let cancelled = false;
-    getCropForecastDetail(selectedCrop, { period, municipality })
+    getCropForecastDetail(selectedCrop, { period, municipality, customDate })
       .then((result) => {
         if (!cancelled) setDetailResult({ key: detailRequestKey, detail: result, error: '' });
       })
@@ -137,7 +138,7 @@ export default function FarmerDemandForecast() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCrop, period, municipality]);
+  }, [selectedCrop, period, municipality, customDate, isAwaitingCustomDate]);
 
   if (data === null && !loadError) {
     return (
@@ -162,12 +163,14 @@ export default function FarmerDemandForecast() {
       <div className="flex min-w-0 flex-col gap-6">
         {loadError ? <div className="form-alert error">{loadError}</div> : null}
 
-        <ForecastHeader
+        <ForecastFilters
           municipality={municipality}
           onMunicipalityChange={setMunicipality}
           period={period}
           periods={periods}
           onPeriodChange={setPeriod}
+          customDate={customDate}
+          onCustomDateChange={setCustomDate}
           onRefresh={() => setRefreshToken((token) => token + 1)}
           isRefreshing={isRefreshing}
         />
@@ -191,23 +194,10 @@ export default function FarmerDemandForecast() {
               periodLabel={periodLabel}
             />
 
-            {isDetailLoading ? (
-              <ForecastSkeleton />
-            ) : (
-              <AiRecommendationHero
-                crop={selectedCrop}
-                forecast={detail || selectedForecast}
-                aiSummary={detail?.aiSummary}
-              />
-            )}
-            {detailError ? <div className="form-alert error">{detailError}</div> : null}
-
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <WeatherPanel weather={weather} isLoading={isRefreshing} />
               <SupplyDemandBarChart data={supplyDemandData} />
             </div>
-
-            {isDetailLoading ? null : <InteractiveForecastChart detail={detail} forecast={selectedForecast} />}
 
             <ForecastTable
               crops={filtered}
@@ -220,9 +210,12 @@ export default function FarmerDemandForecast() {
               onDemandLevelChange={setDemandLevel}
             />
 
-            {isDetailLoading ? <ForecastSkeleton /> : <CropDetailPanel crop={selectedCrop} forecast={detail || selectedForecast} />}
-
-            {isDetailLoading ? null : <RecommendationCard recommendation={detail?.aiRecommendation} />}
+            {detailError ? <div className="form-alert error">{detailError}</div> : null}
+            {isDetailLoading ? (
+              <ForecastSkeleton />
+            ) : (
+              <MarketAnalysisReport detail={detail} municipality={municipality} periodLabel={periodLabel} />
+            )}
           </>
         )}
       </div>

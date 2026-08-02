@@ -93,7 +93,9 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
 // `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality,
 //   deliveryMethod, progress, label, href, etaMinutes, currentPosition, remainingKm }] —
 //   `currentPosition`/`remainingKm` come from getLiveTransitProgress and are only non-null
-//   once the farmer has a fresh GPS fix (see useFarmerActiveDeliverySharing.js); otherwise the truck
+//   once whichever party is actually moving for this order has a fresh GPS fix — the farmer
+//   for a real delivery (see useFarmerActiveDeliverySharing.js), the buyer for a
+//   buyer_pickup order (see useBuyerActivePickupSharing.js); otherwise the truck
 //   position/ETA fall back to the time-estimated simulation, same as before.
 // `farmers`: optional [{ id, name, farmName, municipality }] — DTI-verified farmers plotted
 // as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
@@ -107,7 +109,7 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
 // framing below so an idle dashboard (no active deliveries yet) still opens centered on the
 // viewer's own area with nearby accounts in view, instead of a generic whole-Cebu view.
 export default function DeliveryMap({
-  routes,
+  routes = [],
   farmers = [],
   buyers = [],
   stakeholders = [],
@@ -326,17 +328,20 @@ export default function DeliveryMap({
     });
   }, [routes]);
 
-  // Once a route has a live GPS fix (route.currentPosition — see useFarmerActiveDeliverySharing.js),
-  // this recalculates the road route from THAT position to the destination instead of the
-  // original origin, so the blue line always shows the actual remaining path, exactly like
-  // turn-by-turn navigation. Throttled and deviation-gated (see the LIVE_REROUTE_* constants
-  // above) rather than refetched on every position tick, since OSRM's public server can't
-  // absorb that load from a single app.
+  // Once a route has a live GPS fix (route.currentPosition — see
+  // useFarmerActiveDeliverySharing.js for a delivery, useBuyerActivePickupSharing.js for a
+  // pickup order), this recalculates the road route from THAT position to wherever that
+  // party is actually heading, instead of the original trip, so the blue line always shows
+  // the actual remaining path, exactly like turn-by-turn navigation. For a delivery that's
+  // the buyer (destination); for a pickup order it's the reverse — the buyer is the one
+  // moving, toward the farm (origin). Throttled and deviation-gated (see the
+  // LIVE_REROUTE_* constants above) rather than refetched on every position tick, since
+  // OSRM's public server can't absorb that load from a single app.
   useEffect(() => {
     routes.forEach((route) => {
       if (!route.currentPosition) return;
-      const { destination, isPickup } = resolveRoutePoints(route);
-      if (isPickup) return;
+      const { origin, destination, isPickup } = resolveRoutePoints(route);
+      const travelTarget = isPickup ? origin : destination;
 
       const meta = liveRouteMetaRef.current[route.id];
       const now = Date.now();
@@ -353,7 +358,7 @@ export default function DeliveryMap({
       if (pendingLiveFetchRef.current.has(route.id)) return;
       pendingLiveFetchRef.current.add(route.id);
 
-      fetchRoadRoute(route.currentPosition, destination, { skipCache: true }).then((result) => {
+      fetchRoadRoute(route.currentPosition, travelTarget, { skipCache: true }).then((result) => {
         pendingLiveFetchRef.current.delete(route.id);
         if (!result) return;
         liveRouteMetaRef.current = {
@@ -391,17 +396,18 @@ export default function DeliveryMap({
       if (route.currentPosition) allPoints.push(route.currentPosition);
 
       // Once there's a live GPS fix, the blue line shows the actual REMAINING route (current
-      // position -> destination, recalculated as the driver moves — see the effect above),
-      // not the original origin -> destination trip. Falls back to a straight line only
-      // until the first live route resolves, or until the routing service is unreachable —
-      // never blocks rendering on the fetch.
-      const isLiveNavigating = Boolean(route.currentPosition) && !isPickup;
+      // position -> wherever that party is heading, recalculated as they move — see the
+      // effect above), not the original full trip. Falls back to a straight line only until
+      // the first live route resolves, or until the routing service is unreachable — never
+      // blocks rendering on the fetch.
+      const travelTarget = isPickup ? origin : destination;
+      const isLiveNavigating = Boolean(route.currentPosition);
       const liveRoute = isLiveNavigating ? liveRouteGeometries[route.id] : null;
       const staticRoadPoints = roadGeometries[`${pointKey(origin)}|${pointKey(destination)}`];
       const pathPoints = liveRoute?.points?.length > 1
         ? liveRoute.points
         : isLiveNavigating
-          ? [route.currentPosition, destination]
+          ? [route.currentPosition, travelTarget]
           : (staticRoadPoints?.length > 1 ? staticRoadPoints : [origin, destination]);
 
       // A white casing drawn underneath keeps the route line readable against any tile
@@ -412,12 +418,10 @@ export default function DeliveryMap({
       const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_LINE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, map });
       routeLayerRef.current.push(routeLine);
 
-      // Pickup orders have no truck to track — the buyer travels there on their own
-      // schedule, so the route just shows how to get there, not a live position/ETA.
-      if (isPickup) return;
-
-      // A fresh GPS fix from the farmer's own device (see useFarmerActiveDeliverySharing.js) always
-      // wins over the walked-along-the-route estimate — it's the real position, not a guess.
+      // A fresh GPS fix from whichever party is actually moving for this order (the farmer
+      // for a delivery, the buyer for a pickup order — see useFarmerActiveDeliverySharing.js
+      // / useBuyerActivePickupSharing.js) always wins over the walked-along-the-route
+      // estimate — it's the real position, not a guess.
       const truckPosition = route.currentPosition || pointAlongRoute(pathPoints, route.progress);
       if (!truckPosition) return;
       truckRouteIdsThisRender.add(route.id);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { BadgeCheck, ChevronRight, MapPin } from 'lucide-react';
+import { ArrowRight, BadgeCheck, ChevronRight, MapPin } from 'lucide-react';
 import ProductCard from '../../components/cards/ProductCard';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
@@ -117,8 +117,11 @@ export default function PublicFarmerProfile() {
                       key={product.id}
                       product={product}
                       actions={(
-                        <Link className="btn btn-primary btn-md" to={`/products/${product.id}`}>
-                          View Details
+                        <Link
+                          to={`/products/${product.id}`}
+                          className="flex h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-green-600 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none]"
+                        >
+                          View Details <ArrowRight size={15} />
                         </Link>
                       )}
                     />

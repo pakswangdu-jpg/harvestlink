@@ -109,8 +109,22 @@ export default function ForecastTable({
                 className={`cursor-pointer transition-colors duration-150 hover:bg-green-50/60 ${entry.crop === selectedCrop ? 'bg-green-50' : ''}`}
               >
                 <td className="whitespace-nowrap rounded-l-xl px-4 py-3.5 text-[14px] font-bold text-gray-900">{entry.crop}</td>
-                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-gray-700">{formatCurrency(entry.currentPrice)}</td>
-                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold text-gray-900">{formatCurrency(entry.forecastPrice)}</td>
+                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-gray-700">
+                  {/* referencePrice falls back from a live active listing to this crop's real
+                      historical order average, then to a farmer's own last-listed price (see
+                      forecast.controller.js) — the "~" flags when it isn't a live listing, so
+                      the table still shows a real number instead of a bare dash whenever any
+                      real price signal exists. */}
+                  {entry.referencePrice != null ? (
+                    <>
+                      {entry.priceBasis !== 'listing' ? <span className="text-gray-400">~</span> : null}
+                      {formatCurrency(entry.referencePrice)}
+                    </>
+                  ) : '—'}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold text-gray-900">
+                  {entry.forecastPrice != null ? formatCurrency(entry.forecastPrice) : '—'}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold">{priceChangeCell(entry.expectedChangePercent)}</td>
                 <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-gray-700">{entry.currentDemand}</td>
                 <td className="whitespace-nowrap px-4 py-3.5"><TrendIndicator trend={entry.marketTrend} /></td>

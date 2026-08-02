@@ -96,8 +96,11 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
         ack?.({ ok: false, error: 'Only the farmer can share a live location.' });
         return;
       }
-      if (order.delivery_method === 'buyer_pickup') {
-        ack?.({ ok: false, error: 'Pickup orders have no delivery location to share.' });
+      // farmer_delivery only — buyer_pickup shares the BUYER's position instead (see
+      // 'buyer-location' below), and a courier order is Lalamove's own delivery: HarvestLink
+      // never tracks a courier's GPS, so there's nothing for the farmer to share here.
+      if (order.delivery_method !== 'farmer_delivery') {
+        ack?.({ ok: false, error: 'This order has no HarvestLink-tracked delivery location to share.' });
         return;
       }
       if (order.status !== 'confirmed' || order.delivery_status !== 'out_for_delivery') {
@@ -152,6 +155,96 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
             type: 'order',
             title: 'Your delivery is almost there',
             message: `${order.farmer_name} is less than 500m away.`,
+            link: `/orders/${orderId}`,
+          });
+        }
+      }
+    });
+
+    // The buyer_pickup mirror of 'farmer-location' above — same room/columns/broadcast, just
+    // the other party sharing (the buyer, on their way TO the farm) and the opposite gating:
+    // buyer-only, and only while pickup is genuinely ready (ready_for_pickup is buyer_pickup's
+    // "in transit" step — see DELIVERY_SEQUENCES.buyer_pickup in src/utils/constants.js — the
+    // same way out_for_delivery is for a real delivery).
+    socket.on('buyer-location', async ({ orderId, lat, lng, accuracy, heading, speed } = {}, ack) => {
+      const userId = socket.data.userId;
+      if (!orderId || !socket.data.orderIds?.has(orderId) || !userId) {
+        ack?.({ ok: false, error: 'Join the order room before sharing a location.' });
+        return;
+      }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        ack?.({ ok: false, error: 'A valid lat and lng are required.' });
+        return;
+      }
+
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from('orders')
+        .select('farmer_id, buyer_id, buyer_name, delivery_method, status, delivery_status, origin_municipality')
+        .eq('id', orderId)
+        .single();
+      if (orderError || !order) {
+        ack?.({ ok: false, error: 'Order was not found.' });
+        return;
+      }
+      if (order.buyer_id !== userId) {
+        ack?.({ ok: false, error: 'Only the buyer can share a live location.' });
+        return;
+      }
+      if (order.delivery_method !== 'buyer_pickup') {
+        ack?.({ ok: false, error: 'Only pickup orders have a pickup trip to share.' });
+        return;
+      }
+      if (order.status !== 'confirmed' || order.delivery_status !== 'ready_for_pickup') {
+        ack?.({ ok: false, error: 'You can only share your location once the order is ready for pickup.' });
+        return;
+      }
+
+      const locationUpdatedAt = new Date().toISOString();
+      const baseUpdate = { current_lat: lat, current_lng: lng, location_updated_at: locationUpdatedAt };
+      const enrichedUpdate = {
+        ...baseUpdate,
+        current_heading: Number.isFinite(heading) ? heading : null,
+        current_speed: Number.isFinite(speed) ? speed : null,
+        current_accuracy: Number.isFinite(accuracy) ? accuracy : null,
+      };
+      let { error: updateError } = await supabaseAdmin.from('orders').update(enrichedUpdate).eq('id', orderId);
+      // See the matching PGRST204/42703 fallback on 'farmer-location' above — same reasoning.
+      if (updateError?.code === 'PGRST204' || updateError?.code === '42703') {
+        ({ error: updateError } = await supabaseAdmin.from('orders').update(baseUpdate).eq('id', orderId));
+      }
+      if (updateError) {
+        ack?.({ ok: false, error: updateError.message });
+        return;
+      }
+
+      io.to(ROOM_PREFIX + orderId).emit('location-update', {
+        orderId,
+        lat,
+        lng,
+        accuracy: Number.isFinite(accuracy) ? accuracy : null,
+        heading: Number.isFinite(heading) ? heading : null,
+        speed: Number.isFinite(speed) ? speed : null,
+        locationUpdatedAt,
+      });
+      ack?.({ ok: true });
+
+      // "Almost there" here means the buyer is nearing the FARM, not a delivery destination —
+      // a separate near-orders set (keyed the same way) so a farmer_delivery order and a
+      // buyer_pickup order with the same id can never collide, even though ids are unique
+      // anyway; kept distinct mainly for clarity of intent.
+      if (!notifiedNearOrders.has(`pickup:${orderId}`)) {
+        const origin = resolveDeliveryDestination({
+          id: orderId,
+          originMunicipality: order.origin_municipality,
+          destinationMunicipality: order.origin_municipality,
+        });
+        if (haversineKm({ lat, lng }, origin) <= NEAR_DESTINATION_KM) {
+          notifiedNearOrders.add(`pickup:${orderId}`);
+          await createNotification({
+            userId: order.farmer_id,
+            type: 'order',
+            title: 'Buyer almost there',
+            message: `${order.buyer_name} is less than 500m from pickup.`,
             link: `/orders/${orderId}`,
           });
         }

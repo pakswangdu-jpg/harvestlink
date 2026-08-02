@@ -12,8 +12,13 @@ const MIN_SEND_INTERVAL_MS = 4000;
 // speed, where 10m can pass well inside the 4s timer (e.g. ~0.6s at 60 km/h).
 const MIN_SEND_MOVE_KM = 0.01;
 
+// Only farmer_delivery ever has the FARMER's own device sharing a live position — buyer_pickup
+// shares the BUYER's instead (see useBuyerActivePickupSharing.js), and courier orders are
+// handed off to a third party (Lalamove) entirely: HarvestLink never tracks a courier's GPS,
+// so there's nothing for the farmer's device to share once a courier order goes out for
+// delivery (see BookLalamoveFlow.jsx / DeliveryInfoCard.jsx instead).
 function isActiveDeliveryOrder(order) {
-  return order.status === 'confirmed' && order.deliveryStatus === 'out_for_delivery' && order.deliveryMethod !== 'buyer_pickup';
+  return order.status === 'confirmed' && order.deliveryStatus === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery';
 }
 
 // A farmer can mark an order "out for delivery" from several places (the order's own tracking

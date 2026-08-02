@@ -613,114 +613,15 @@ p {
   letter-spacing: -0.01em;
 }
 
-.landing-top-farmers {
-  max-width: 1180px;
-  margin: 96px auto 0;
-}
-
-/* auto-fit + a bounded (not 1fr) column width + justify-content:center — still lays out as
-   a clean 3-per-row grid once there are enough farmers to fill it, but centers the row
-   instead of left-packing it into column 1 when there are fewer (including just one). */
-.lp-farmer-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 340px));
-  justify-content: center;
-  gap: 20px;
-}
-
-.lp-farmer-card {
-  position: relative;
-  padding: 28px 24px 24px;
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  text-align: center;
-  border: 1px solid var(--lp-line);
-  border-radius: var(--lp-radius);
-  background: var(--panel);
-  box-shadow: var(--lp-shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.lp-farmer-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--lp-shadow-lg);
-}
-
-.lp-verified-badge {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--green-100);
-  color: var(--lp-dark);
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-
-.top-farmer-avatar {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 8px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  overflow: hidden;
-  color: white;
-  background: linear-gradient(135deg, var(--green-600), var(--green-800));
-  font-size: 1.3rem;
-  font-weight: 800;
-}
-
-.top-farmer-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.lp-farmer-card h3 {
-  color: var(--green-900);
-  font-size: 1.08rem;
-}
-
-.top-farmer-farm {
-  color: var(--muted);
-  font-size: 0.88rem;
-}
-
+/* The old fixed 3-card landing-page grid this section used to be lived here — replaced by
+   TopRatedFarmersCarousel.jsx (a Tailwind + Embla carousel, styled entirely inline in that
+   component). .top-farmer-location is kept: PublicFarmerProfile.jsx still uses it. */
 .top-farmer-location {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.top-farmer-rating-count {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-
-.top-farmer-empty {
-  text-align: center;
-  color: var(--muted);
-}
-
-.lp-farmer-rating {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  margin: 4px 0 8px;
-}
-
-.lp-farmer-card-btn {
-  width: 100%;
-  justify-content: center;
-  margin-top: 6px;
 }
 
 .public-farmer-page {
@@ -1261,23 +1162,6 @@ a.lp-contact-card:hover {
   justify-self: start;
 }
 
-.lp-contact-map {
-  grid-column: 1 / -1;
-  border-radius: var(--lp-radius);
-  overflow: hidden;
-  border: 1px solid var(--lp-line);
-  box-shadow: var(--lp-shadow-sm);
-  min-height: 260px;
-}
-
-.lp-contact-map iframe {
-  width: 100%;
-  height: 100%;
-  min-height: 260px;
-  border: 0;
-  display: block;
-}
-
 .lp-footer {
   margin-top: 96px;
   padding: 48px clamp(18px, 4vw, 56px) 24px;
@@ -1563,11 +1447,29 @@ a.lp-contact-card:hover {
 
 /* Opt-out of .main-content's padded/centered/top-packed layout for pages that need to fill
    the viewport edge-to-edge themselves (the Messages split-pane) — the sidebar/nav shell
-   around it is unchanged, only this content region's own box model differs. */
+   around it is unchanged, only this content region's own box model differs. The fixed
+   height:100vh is exactly what a split-pane UI needs (it manages its own internal scroll
+   regions), but it's wrong for anything else: a page taller than one viewport with no inner
+   scroll region of its own just gets its overflow clipped/misbehaving on mobile instead of
+   the page scrolling normally. */
 .main-content-full-bleed {
   width: 100%;
   max-width: none;
   height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Same full-width/no-header layout as .main-content-full-bleed, minus the height:100vh lock —
+   for pages (the admin dashboards, via AppShell's hideHeader prop) that just want their own
+   PageHeader instead of the built-in one and full viewport width, but are an ordinary
+   page-scrolling column of stacked cards/tables, not a fixed-viewport split pane. These pages
+   already give each stacked section its own bottom margin (mb-4 etc.), matching this flex
+   column's lack of a gap — unlike .main-content's own grid gap below. */
+.main-content-flush {
+  width: 100%;
+  max-width: none;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -2048,6 +1950,120 @@ a.user-chip:hover {
   font-weight: 600;
 }
 
+/* Farmer's own rating history — a "Ratings & reviews" panel embedded directly on
+   FarmerDashboard.jsx (see FarmerReviewsPanel.jsx), not its own page. Score+breakdown
+   summary card, then a list of individual reviews reusing the .ot-review-* classes above
+   (same visual language as the review a buyer sees on their own completed order). */
+.review-summary {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+
+.review-summary-score {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.review-summary-score strong {
+  font-size: 2.2rem;
+  color: var(--green-900);
+  line-height: 1;
+}
+
+.review-summary-score span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.review-summary-breakdown {
+  display: grid;
+  gap: 8px;
+}
+
+.review-summary-bar-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-summary-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.review-summary-bar-label svg {
+  color: var(--amber-700);
+  fill: var(--amber-100);
+}
+
+.review-summary-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.review-summary-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-600);
+}
+
+.review-summary-bar-count {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* Recent-reviews panel on FarmerDashboard.jsx is full-width — without a cap, each card's
+   header (name/date on the left, stars on the right) stretches edge to edge with a huge
+   dead gap between them, and comment text runs uncomfortably long per line. */
+.review-list-recent .ot-review-card {
+  max-width: 640px;
+}
+
+.review-rater {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-rater strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.review-order-link {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  .review-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .ot-summary-cards-wrap {
   display: grid;
   gap: 10px;
@@ -2098,6 +2114,89 @@ a.user-chip:hover {
 
 .ot-map-panel .live-delivery-map {
   height: 460px;
+}
+
+.ot-map-note {
+  margin: -4px 0 14px;
+}
+
+/* Third-party courier (Lalamove) delivery — DeliveryInfoCard.jsx (buyer-facing summary +
+   Track Delivery link) and BookLalamoveFlow.jsx (farmer's booking form), scoped to a
+   deliveryMethod === 'courier' order. The map panel below it still renders for a courier
+   order (see LiveDeliveryMap.jsx's isCourier handling) but only ever as a static route
+   preview, never a live/simulated vehicle position — HarvestLink has no GPS feed from a
+   third-party courier, only what the farmer typed in when booking. */
+.delivery-info-card {
+  display: grid;
+  gap: 18px;
+}
+
+.delivery-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin: 0;
+}
+
+.delivery-info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.delivery-info-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-700);
+}
+
+.delivery-info-item dt {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.delivery-info-item dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.lalamove-booking-card {
+  display: grid;
+  gap: 16px;
+}
+
+/* The "Complete the booking on Lalamove" link now lives inside the card's info alert
+   (BookLalamoveFlow.jsx) rather than a bare <p class="muted">. Inherits the alert's own blue
+   rather than the app green, so it reads as part of the callout instead of fighting it —
+   underlined so it's still unmistakably a link. inline-flex keeps the trailing
+   external-link icon optically centered against the text. */
+.lalamove-booking-card .form-alert.info a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .delivery-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 1100px) {
@@ -2361,7 +2460,8 @@ a.user-chip:hover {
 .badge-scheduled,
 .badge-available,
 .badge-approved,
-.badge-verified {
+.badge-verified,
+.badge-booked {
   color: var(--green-800);
   background: var(--green-100);
 }
@@ -2701,6 +2801,11 @@ a.user-chip:hover {
   font-weight: 800;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  /* Windows "Contrast themes" (forced-colors mode) otherwise remaps a button's authored
+     background/text/border to flat system colors, which is how a solid-green button with
+     white text ends up looking like near-illegible dark-on-dark — every color here is
+     already chosen for contrast, so opt out rather than let the OS guess. */
+  forced-color-adjust: none;
 }
 
 .btn:hover {
@@ -4013,14 +4118,29 @@ td {
   transform: scale(1.05);
 }
 
-.password-strong-indicator {
+.password-strength-indicator {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 2px 0 0;
-  color: var(--green-700);
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.password-strength-indicator svg {
+  flex-shrink: 0;
+}
+
+.password-strength-indicator.weak {
+  color: var(--red-700);
+}
+
+.password-strength-indicator.medium {
+  color: var(--amber-700);
+}
+
+.password-strength-indicator.strong {
+  color: var(--green-700);
 }
 
 .otp-stage {
@@ -4511,6 +4631,11 @@ td {
   font-weight: 800;
 }
 
+.auth-terms-row a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (max-width: 640px) {
   .form-section-icon {
     width: 34px;
@@ -4734,16 +4859,65 @@ td {
   color: var(--muted);
 }
 
+/* A softer "floating card" shadow than the flat 1px .panel default elsewhere in the app —
+   scoped to just this one section, not the shared --shadow token, so no other panel/card in
+   the app is affected. */
 .profile-header {
+  position: relative;
   padding: 0;
   overflow: hidden;
+  box-shadow: 0 4px 20px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.04);
 }
 
+/* A thin accent divider between the header and the account-information cards below —
+   sits right on the card's own bottom edge rather than adding a new element for it. */
+.profile-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green-100) 20%, var(--green-100) 80%, transparent);
+}
+
+/* Soft white-to-green gradient, a faint dot texture, and two low-opacity green "blobs"
+   (via ::before/::after below) instead of the old solid dark-green block — depth without
+   the heavy, dated banner look. */
 .profile-banner {
-  height: 100px;
-  background:
-    linear-gradient(135deg, rgba(6, 78, 59, 0.15), rgba(21, 128, 61, 0.05)),
-    linear-gradient(135deg, var(--green-700), var(--green-900));
+  position: relative;
+  height: 72px;
+  overflow: hidden;
+  background-image:
+    radial-gradient(rgba(21, 128, 61, 0.08) 1px, transparent 1px),
+    linear-gradient(120deg, #f8fbf9 0%, var(--green-50) 55%, #eef8f1 100%);
+  background-size: 14px 14px, 100% 100%;
+}
+
+.profile-banner::before,
+.profile-banner::after {
+  content: '';
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.profile-banner::before {
+  width: 200px;
+  height: 200px;
+  top: -134px;
+  right: -30px;
+  background: var(--green-600);
+  opacity: 0.08;
+}
+
+.profile-banner::after {
+  width: 120px;
+  height: 120px;
+  bottom: -84px;
+  right: 190px;
+  background: var(--green-800);
+  opacity: 0.06;
 }
 
 .profile-identity {
@@ -4752,11 +4926,19 @@ td {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 18px;
-  padding: 0 24px 22px;
+  padding: 0 28px 24px;
 }
 
 .profile-edit-btn {
   flex-shrink: 0;
+  border-color: var(--line);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.profile-edit-btn:hover {
+  border-color: var(--green-600);
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.14);
+  transform: translateY(-1px);
 }
 
 .profile-identity-main {
@@ -4766,28 +4948,41 @@ td {
   gap: 18px;
 }
 
+/* align-self: flex-start overrides .profile-identity-main's align-items: center — without
+   it, the avatar's negative margin-top (below) fights that vertical centering and ends up
+   positioned relative to the height of the name/email/badges column next to it instead of
+   staying pinned to the banner, landing wherever depending on how tall that text column
+   happens to be. Anchoring to the top of the row first makes the pull-up into the banner
+   consistent regardless. */
 .profile-avatar-block {
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-self: flex-start;
   gap: 8px;
   flex-shrink: 0;
 }
 
+/* position: relative + z-index puts this in the same "positioned elements" paint layer as
+   .profile-banner (also position: relative, for its blob pseudo-elements) — without it,
+   the non-positioned avatar paints BELOW that layer regardless of DOM order, so the banner
+   was covering the top of the overlapping photo instead of the photo sitting on top of it. */
 .profile-avatar-lg {
-  width: 104px;
-  height: 104px;
+  position: relative;
+  z-index: 1;
+  width: 96px;
+  height: 96px;
   flex-shrink: 0;
-  margin-top: -52px;
+  margin-top: -48px;
   display: grid;
   place-items: center;
   border-radius: 999px;
   border: 4px solid white;
   color: white;
   background: linear-gradient(135deg, var(--green-600), var(--green-800));
-  font-size: 2rem;
+  font-size: 1.85rem;
   font-weight: 800;
-  box-shadow: var(--shadow);
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.14), 0 0 0 1px rgba(16, 24, 40, 0.03);
   overflow: hidden;
 }
 
@@ -4882,9 +5077,14 @@ td {
   min-width: 200px;
 }
 
+/* Dark neutral rather than green — Stripe/GitHub/Notion-style dashboards reserve the
+   brand color for accents (badges, the button hover, the banner) and keep the actual
+   heading text a plain, high-contrast neutral. */
 .profile-identity-text h2 {
-  color: var(--green-900);
-  font-size: 1.5rem;
+  color: var(--text);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .profile-email {
@@ -4892,18 +5092,26 @@ td {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  margin-top: 6px;
+  font-size: 0.88rem;
+  margin-top: 5px;
 }
 
 .profile-badges {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 11px;
 }
 
+/* currentColor-based border — adapts to whichever status color a given badge already has
+   (verified/farmer green, pending amber, rejected red, ...) without hardcoding one here,
+   so this stays correct no matter which badge actually renders. */
 .profile-badges .badge {
   gap: 5px;
+  height: 24px;
+  padding: 0 11px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
 }
 
 /* Sits right under the header's identity row, inside the same .profile-header card — a
@@ -4922,7 +5130,7 @@ td {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 24px;
+  padding: 16px 28px;
   background: var(--panel);
   min-width: 0;
 }
@@ -4992,7 +5200,8 @@ td {
 
 .gcash-qr-preview img,
 .gcash-qr-preview .profile-file-image-btn,
-.gcash-qr-preview .profile-file-image-btn img {
+.gcash-qr-preview .profile-file-image-btn img,
+.gcash-qr-preview .zoomable-image-error {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -5093,26 +5302,31 @@ td {
   margin: 0 0 16px;
 }
 
+/* Stacked (label above, value below) rather than a side-by-side row — a long value (a
+   buyer's full legal name, a long account label) previously fought a same-line label for
+   space and wrapped mid-phrase into a jagged, hard-to-scan mess. Stacking is immune to
+   that regardless of how long either side gets. */
 .gcash-detail-list > div {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   padding-bottom: 10px;
   border-bottom: 1px solid #f3f4f6;
 }
 
 .gcash-detail-list dt {
   color: #57606a;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
 .gcash-detail-list dd {
   margin: 0;
   color: #24292f;
   font-weight: 600;
-  font-size: 0.9rem;
-  text-align: right;
+  font-size: 0.95rem;
+  text-align: left;
+  word-break: break-word;
 }
 
 .gcash-amount {
@@ -5140,27 +5354,27 @@ td {
   color: #166534;
 }
 
-.gcash-receipt-preview {
-  width: 96px;
-  height: 96px;
-  margin-bottom: 8px;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.gcash-receipt-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .gcash-payment-details .form-field {
   margin-bottom: 16px;
 }
 
 .gcash-payment-qr-col {
+  /* min-width: 0 — this column is itself a grid ITEM of .content-grid.two's own
+     minmax(0, 1fr) TRACK, and gets its own separate implicit min-width: auto by
+     default, same gotcha as the track, one level deeper.
+     grid-template-columns: minmax(0, 1fr) — its OWN internal grid (for its two
+     children, the QR button + caption) is otherwise a single IMPLICIT auto-sized
+     track. auto-sized tracks size to their widest item's max-content — the QR
+     button's specified 360px width — and percentage max-width on a grid item
+     resolves against that same track, which is circular: the track can't shrink
+     below what the button "wants," so max-width: 100% never had a smaller number
+     to actually cap against, and the button rendered at its full 360px, overflowing
+     right past this column's own (correctly, separately, shrunk) outer edge. An
+     explicit minmax(0, 1fr) track breaks that circularity the same way it already
+     does for the outer grid above. */
+  min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   align-content: start;
   gap: 8px;
@@ -5170,10 +5384,23 @@ td {
   background: #f6f8fa;
 }
 
+/* Desktop 340-380px, tablet 300px, mobile 260-300px (see the max-width: 900px/640px
+   overrides below) — big enough that a phone camera can actually resolve each module
+   instead of fighting a downscaled, blurry rendering. object-fit: contain here is what
+   PRESERVES the QR's square aspect ratio (never crops or stretches it) rather than
+   distorting it — the opposite of the effect it'd have with `cover` or `fill`.
+   height: auto + aspect-ratio (not a fixed height) is deliberate — width alone shrinking
+   via max-width: 100% while height stayed a fixed px value produced a non-square box
+   (and therefore a visibly off-center/misaligned QR) on any viewport narrower than the
+   breakpoint expected. Letting height follow width through aspect-ratio keeps it square
+   at literally any width, not just the three sizes below. */
 .gcash-payment-qr-image {
   display: block;
-  width: 176px;
-  height: 176px;
+  width: 360px;
+  height: auto;
+  max-width: 100%;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   background: #ffffff;
@@ -5181,10 +5408,63 @@ td {
   box-sizing: border-box;
 }
 
+/* The button ZoomableImage renders always carries BOTH .profile-file-image-btn (generic —
+   width: fit-content, padding: 0, display: inline-block) and .gcash-payment-qr-image. Same
+   specificity, so source order alone decided the winner and silently collapsed this box down
+   to the image's own intrinsic size instead of the fixed square above. Combined selector
+   here has higher specificity, so it wins regardless of where either rule sits in the file. */
+.profile-file-image-btn.gcash-payment-qr-image {
+  display: block;
+  width: 360px;
+  height: auto;
+  padding: 8px;
+}
+
 .gcash-payment-qr-image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+@media (max-width: 900px) {
+  .gcash-payment-qr-image,
+  .profile-file-image-btn.gcash-payment-qr-image {
+    width: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  .gcash-payment-qr-image,
+  .profile-file-image-btn.gcash-payment-qr-image {
+    width: 280px;
+  }
+}
+
+.zoomable-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--red-700);
+  background: var(--red-100);
+  border: 1px solid #f3c6c6;
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.zoomable-image-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .gcash-payment-status {
@@ -5214,6 +5494,115 @@ td {
 @media (max-width: 900px) {
   .gcash-payment-qr-col {
     order: -1;
+  }
+}
+
+/* Payment verification — a rejected state added to the done/active/upcoming vocabulary
+   OrderTracker.jsx's .tracker already defines, plus layout for the extra step list used on
+   ConfirmGcashPaymentPage's success screen (see PaymentProgressTracker.jsx). */
+.tracker-step.error .tracker-icon {
+  color: white;
+  background: var(--red-700);
+  border-color: var(--red-700);
+}
+
+.tracker-step.error {
+  border-left-color: var(--red-700);
+}
+
+.tracker-step.error .tracker-label {
+  color: var(--red-700);
+}
+
+.payment-progress-tracker {
+  width: 100%;
+  max-width: 320px;
+  margin: 8px 0;
+  text-align: left;
+}
+
+.payment-submitted-status {
+  width: 100%;
+}
+
+.payment-submitted-summary {
+  width: 100%;
+  max-width: 320px;
+  margin: 8px auto 16px;
+  text-align: left;
+}
+
+.payment-rejection-alert {
+  margin-top: 4px;
+}
+
+.payment-rejection-alert .btn {
+  margin-top: 8px;
+}
+
+/* Farmer-side "Payment Verification" queue (see FarmerOrders.jsx) — one card per GCash
+   order awaiting review, receipt preview alongside the details the farmer needs to check
+   it against (reference number, sender name, amount) before approving or rejecting. */
+.payment-verification-list {
+  display: grid;
+  gap: 16px;
+}
+
+.payment-verification-card {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 20px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-subtle, #f9fafb);
+}
+
+.payment-verification-receipt {
+  min-width: 0;
+}
+
+/* .profile-file-image-btn (the button ZoomableImage always renders) sets width: fit-content
+   — beaten here the same way .gcash-payment-qr-image beats it, via a combined selector with
+   matching specificity that wins on source order instead of relying on !important. */
+.profile-file-image-btn.payment-verification-receipt-image {
+  width: 100%;
+}
+
+.payment-verification-receipt-image {
+  aspect-ratio: 3 / 4;
+}
+
+.payment-verification-receipt-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.payment-verification-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-verification-reject-form {
+  margin-top: 8px;
+}
+
+.payment-verification-reject-form textarea {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .payment-verification-card {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-verification-receipt-image {
+    aspect-ratio: 16 / 9;
+    max-width: 240px;
   }
 }
 
@@ -5447,6 +5836,8 @@ td {
   border-radius: var(--radius);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   cursor: default;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .image-lightbox-close {
@@ -5557,6 +5948,10 @@ td {
     height: 100vh;
     padding: 0 0 94px;
   }
+
+  .main-content-flush {
+    padding: 24px 24px 94px;
+  }
 }
 
 @media (max-width: 1080px) {
@@ -5581,7 +5976,6 @@ td {
   .content-grid.two.uneven,
   .content-grid.two.map-directory-split,
   .landing-feature-grid,
-  .lp-farmer-grid,
   .lp-contact-grid,
   .lp-contact-cards {
     grid-template-columns: minmax(0, 1fr);
@@ -6547,6 +6941,133 @@ td {
   border: 1px solid var(--line);
 }
 
+/* Google-Maps-navigation-style UI (see LiveDeliveryMap.jsx's 'navigating' state) — a
+   Material-style info card BELOW the map (not overlapping it — an overlay was covering the
+   route/street labels underneath) plus a recenter button that stays on the map itself,
+   bottom-right, clear of the zoom control (top-right — see the RIGHT_TOP zoomControlOptions
+   in LiveDeliveryMap.jsx). The 'preview'/'delivered' states still use the plain stacked
+   .tracking-info-cards, untouched — also shared with LiveTrackingModal.jsx. */
+.nav-map-container {
+  position: relative;
+}
+
+.nav-info-card {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.nav-info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+
+.nav-status-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.nav-status-dot.live {
+  background: #1a7f37;
+  box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.18);
+}
+
+.nav-info-card-header strong {
+  color: #1f2937;
+}
+
+.nav-info-card-vehicle {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.nav-info-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nav-info-card-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.nav-info-card-grid strong {
+  display: block;
+  margin-top: 2px;
+  color: #1a73e8;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.nav-info-card-status {
+  margin-top: 10px;
+}
+
+.nav-info-card-gps {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef1f4;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.nav-info-card-gps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-recenter-btn {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 999px;
+  background: white;
+  color: #1a73e8;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+  cursor: pointer;
+}
+
+.nav-recenter-btn.active {
+  background: #1a73e8;
+  color: white;
+}
+
+/* The vehicle's AdvancedMarkerElement content — a rotating nav chevron with a soft shadow;
+   the transition is what makes its rotation ease between headings instead of snapping. */
+.nav-vehicle-marker {
+  transform-origin: 50% 50%;
+  transition: transform 0.25s linear;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+
+@media (max-width: 640px) {
+  .nav-info-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .live-delivery-map-actions {
   display: flex;
   flex-wrap: wrap;
@@ -6630,8 +7151,17 @@ td {
 }
 
 .star-rating-star {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
   color: var(--line);
   line-height: 0;
+  cursor: default;
+}
+
+.star-rating-star:disabled {
+  opacity: 1;
 }
 
 .star-rating-star.filled {
@@ -6671,3 +7201,202 @@ td {
   flex: 1;
   min-width: 0;
 }
+
+/* Legal document body copy (Privacy Policy / Terms of Service — see
+   src/components/legal/LegalPageLayout.jsx). Section content is written as plain semantic
+   h3/p/ul/ol/strong/a; this is the one place that styles them, so PrivacyPolicy.jsx/
+   TermsOfService.jsx stay readable instead of re-typing Tailwind classes on every paragraph
+   across ~40 sections. */
+.legal-prose h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: rgb(17 24 39);
+}
+
+.legal-prose h3:first-child {
+  margin-top: 0;
+}
+
+.legal-prose p {
+  margin: 0 0 0.9rem;
+}
+
+.legal-prose p:last-child,
+.legal-prose ul:last-child,
+.legal-prose ol:last-child {
+  margin-bottom: 0;
+}
+
+.legal-prose ul,
+.legal-prose ol {
+  margin: 0 0 0.9rem;
+  padding-left: 1.35rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.legal-prose ul {
+  list-style: disc;
+}
+
+.legal-prose ol {
+  list-style: decimal;
+}
+
+.legal-prose li {
+  padding-left: 0.15rem;
+}
+
+.legal-prose strong {
+  font-weight: 700;
+  color: rgb(17 24 39);
+}
+
+.legal-prose a {
+  color: rgb(4 120 87);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-prose a:hover {
+  color: rgb(6 95 70);
+}
+
+.legal-prose a:focus-visible {
+  outline: 2px solid rgb(4 120 87);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* AddressAutocomplete.jsx — Google Maps/Grab-style address search dropdown. Wraps the
+   existing .input-icon-wrap input (leading pin icon, same as PasswordInput.jsx's leading
+   lock icon) and anchors its own suggestion panel below it. */
+.address-autocomplete {
+  position: relative;
+}
+
+.input-icon-trailing-static {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.address-autocomplete-spinner {
+  animation: address-autocomplete-spin 0.8s linear infinite;
+}
+
+@keyframes address-autocomplete-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.address-autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid #e2e8e4;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(16, 39, 26, 0.14), 0 2px 8px rgba(16, 39, 26, 0.08);
+  padding: 6px;
+  list-style: none;
+  animation: address-autocomplete-fade-slide 0.15s ease-out;
+}
+
+@keyframes address-autocomplete-fade-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.address-autocomplete-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  scroll-margin: 6px;
+}
+
+.address-autocomplete-option:hover,
+.address-autocomplete-option.is-highlighted {
+  background: #f1f4f2;
+}
+
+.address-autocomplete-option-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.address-autocomplete-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.address-autocomplete-option-text span {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.address-autocomplete-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.address-autocomplete-error {
+  color: var(--red-700);
+}
+
+@media (max-width: 640px) {
+  .address-autocomplete-dropdown {
+    max-height: 260px;
+  }
+
+  .address-autocomplete-option {
+    padding: 12px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+

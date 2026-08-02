@@ -139,7 +139,7 @@ export default function AdminUsers() {
   };
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Users" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Users" hideHeader>
       <PageHeader title="Users" description="Registered farmer, buyer, and stakeholder accounts." />
 
       <Card>

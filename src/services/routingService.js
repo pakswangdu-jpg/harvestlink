@@ -136,6 +136,26 @@ export function distanceToPolylineKm(point, points) {
   return minDistance;
 }
 
+// The index into `points` nearest to `point` — used by the live-navigation map
+// (LiveDeliveryMap.jsx) to split a route into "already traveled" (indices at or before this)
+// vs "remaining" (indices from this on), so it can gray out the traveled portion as the
+// vehicle progresses. Distance-to-SEGMENT based (like distanceToPolylineKm above), then
+// picks whichever of that closest segment's two endpoints is actually nearer, so the split
+// lands on the correct side even when consecutive route points are far apart.
+export function nearestIndexOnPath(point, points) {
+  if (!points || points.length < 2) return 0;
+  let minSegmentDistance = Infinity;
+  let nearestIndex = 0;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const segmentDistance = distanceToSegmentKm(point, points[i], points[i + 1]);
+    if (segmentDistance < minSegmentDistance) {
+      minSegmentDistance = segmentDistance;
+      nearestIndex = haversineKm(point, points[i]) <= haversineKm(point, points[i + 1]) ? i : i + 1;
+    }
+  }
+  return nearestIndex;
+}
+
 // Treats lat/lng as a flat local plane for the nearest-point projection — fine at the scale
 // a single route segment spans here (well under a km), not meant for long-distance accuracy.
 function distanceToSegmentKm(point, a, b) {

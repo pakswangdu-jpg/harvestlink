@@ -11,23 +11,13 @@ export function getTotalRevenue(orders) {
 
 // Profit only sums orders whose product had a recorded cost at checkout time
 // (order.unitCostPrice — see backend's createOrder, which snapshots products.cost_price).
-// An order with no recorded cost is excluded entirely rather than assumed to be 100% profit
-// — see getProfitCoverage for how to tell a caller whether that's most/all orders or just a
-// few, since a farmer who's never filled in "cost per unit" would otherwise see a profit
-// figure that's really just their income restated, silently overstating margin.
+// An order with no recorded cost is excluded entirely rather than assumed to be 100% profit,
+// since a farmer who's never filled in "cost per unit" would otherwise see a profit figure
+// that's really just their income restated, silently overstating margin.
 export function getTotalProfit(orders) {
   return orders
     .filter((order) => order.paymentStatus === PAID_STATUS && order.unitCostPrice != null)
     .reduce((sum, order) => sum + (Number(order.unitPrice) - Number(order.unitCostPrice)) * Number(order.quantity), 0);
-}
-
-// { covered, total } — how many paid orders actually fed into getTotalProfit, out of how
-// many paid orders exist overall. Lets the UI caveat the profit figure when it's based on
-// only some of a farmer's sales (e.g. "based on 3 of 5 paid orders").
-export function getProfitCoverage(orders) {
-  const paidOrders = orders.filter((order) => order.paymentStatus === PAID_STATUS);
-  const covered = paidOrders.filter((order) => order.unitCostPrice != null).length;
-  return { covered, total: paidOrders.length };
 }
 
 // Last `monthsBack` calendar months (oldest first, current month included) — each

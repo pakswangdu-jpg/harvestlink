@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { DELIVERY_SEQUENCES } from '../utils/constants';
+import { DELIVERY_SEQUENCES, getMunicipalityCoords } from '../utils/constants';
 import { haversineKm, resolveRoutePoints } from '../utils/geo';
 import { getCachedRoadRoute } from './routingService';
 
@@ -34,18 +34,36 @@ export function getLiveTransitProgress(order) {
   const stepIndex = Math.max(0, sequence.indexOf(order.deliveryStatus));
   const isFinalStep = stepIndex === sequence.length - 1;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
+  // A courier (Lalamove) order has no HarvestLink-tracked live position at all — the courier
+  // is a third party, and HarvestLink deliberately never implements its own GPS tracking for
+  // it (see BookLalamoveFlow.jsx / DeliveryInfoCard.jsx — the buyer follows Lalamove's own
+  // tracking link instead). So this never reports "in transit" for one, unlike
+  // farmer_delivery/buyer_pickup below.
+  const isCourier = order.deliveryMethod === 'courier';
   const transitStatus = sequence[sequence.length - 2];
-  const isInTransit = !isPickup && order.deliveryStatus === transitStatus;
+  // ready_for_pickup is buyer_pickup's own "in transit" step (the BUYER traveling to the
+  // farm, once useBuyerActivePickupSharing.js starts sharing their position) — the same
+  // concept out_for_delivery is for a real delivery, just the other party moving. This used
+  // to exclude pickup entirely (`!isPickup &&`), which is what kept a pickup order from ever
+  // showing a live position even once the buyer's device started sharing one.
+  const isInTransit = !isCourier && order.deliveryStatus === transitStatus;
 
   // Estimated total trip duration, available from the moment the order is confirmed — not
   // only once it's actually out for delivery — so the buyer gets a rough delivery estimate
   // right away instead of waiting until the farmer has finished preparing it. Buyer pickup
-  // has no delivery leg to estimate (the buyer travels there on their own schedule).
+  // has no reliable distance to estimate this from at this level — delivery_municipality is
+  // just a copy of origin_municipality for a pickup order (see orders.controller.js's
+  // createOrder), never the buyer's real starting point — so this stays null for pickup
+  // rather than showing a meaningless guess; the live-GPS branch below still works once a
+  // real position exists, same as delivery. A courier order gets no estimate here either,
+  // deliberately — arrival estimates for it are Lalamove's job, not HarvestLink's guess.
   let estimatedTotalMinutes = null;
-  let origin = null;
+  let origin;
   let destination = null;
   let cachedRoute = null;
-  if (!isPickup) {
+  if (isPickup) {
+    origin = getMunicipalityCoords(order.originMunicipality);
+  } else if (!isCourier) {
     ({ origin, destination } = resolveRoutePoints({
       id: order.id,
       originMunicipality: order.originMunicipality,
@@ -57,6 +75,8 @@ export function getLiveTransitProgress(order) {
       ? Math.max(MIN_ESTIMATED_MINUTES, cachedRoute.durationMinutes)
       : Math.max(MIN_ESTIMATED_MINUTES, (haversineKm(origin, destination) / ASSUMED_TRANSIT_SPEED_KMH) * 60);
   }
+  // isCourier falls through with origin/destination/estimatedTotalMinutes left unset —
+  // never read below, since isInTransit is always false for a courier order (see above).
 
   if (!isInTransit) {
     const progress = sequence.length > 1 ? stepIndex / (sequence.length - 1) : 0;
@@ -84,6 +104,23 @@ export function getLiveTransitProgress(order) {
     // (see supabase/schema.sql) — carried along so a consumer that wants the real device
     // heading (e.g. to orient a marker) doesn't have to reach past this object for it.
     const currentPosition = { lat: order.currentLat, lng: order.currentLng, heading: order.currentHeading, speed: order.currentSpeed };
+
+    // A pickup order's "destination" is the farm itself (origin) — the buyer is the one
+    // moving, toward it — the reverse of a real delivery, where the farmer (this same
+    // currentPosition) moves toward the buyer (destination). There's no reliable starting
+    // distance to measure a 0-100% progress fraction against (see the estimatedTotalMinutes
+    // comment above), so this reports what IS actually knowable from the live fix —
+    // remaining distance and an ETA off it — without guessing at a progress bar position.
+    if (isPickup) {
+      const remainingKm = haversineKm(currentPosition, origin);
+      const etaMinutes = Math.max(0, Math.ceil((remainingKm / ASSUMED_TRANSIT_SPEED_KMH) * 60));
+      const isNearDestination = remainingKm <= NEAR_DESTINATION_KM_THRESHOLD;
+      return {
+        progress: stepStartProgress, etaMinutes, estimatedTotalMinutes, isInTransit: true, currentPosition, isLiveGps: true,
+        remainingKm, averageSpeedKmh: ASSUMED_TRANSIT_SPEED_KMH, isNearDestination,
+      };
+    }
+
     const remainingKm = haversineKm(currentPosition, destination);
     const totalKm = cachedRoute?.distanceKm ?? haversineKm(origin, destination);
     const averageSpeedKmh = cachedRoute ? cachedRoute.distanceKm / (cachedRoute.durationMinutes / 60) : ASSUMED_TRANSIT_SPEED_KMH;
@@ -94,6 +131,17 @@ export function getLiveTransitProgress(order) {
     return {
       progress, etaMinutes, estimatedTotalMinutes, isInTransit: true, currentPosition, isLiveGps: true,
       remainingKm, averageSpeedKmh, isNearDestination,
+    };
+  }
+
+  // No live position yet. A pickup order has no reliable total-distance estimate to
+  // simulate elapsed-time progress against (see the estimatedTotalMinutes comment above), so
+  // it just stays at the step's starting point until the buyer's device actually sends a
+  // real position, rather than faking a walked-along-the-route guess.
+  if (isPickup) {
+    return {
+      progress: stepStartProgress, etaMinutes: null, estimatedTotalMinutes, isInTransit: true, currentPosition: null, isLiveGps: false,
+      remainingKm: null, averageSpeedKmh: null, isNearDestination: false,
     };
   }
 
@@ -121,10 +169,22 @@ export function getLiveTransitProgress(order) {
 // the two terminal non-delivery outcomes. Takes isInTransit/isNearDestination from
 // getLiveTransitProgress rather than recomputing them, since callers already have that object.
 export function getDeliveryTrackingStatus(order, isInTransit, isNearDestination) {
+  const isPickup = order.deliveryMethod === 'buyer_pickup';
+  const isCourier = order.deliveryMethod === 'courier';
   if (order.status === 'rejected') return { key: 'rejected', label: 'Rejected' };
   if (order.status === 'cancelled') return { key: 'cancelled', label: 'Cancelled' };
   if (order.status === 'pending') return { key: 'pending', label: 'Pending' };
-  if (order.status === 'completed') return { key: 'delivered', label: 'Delivered' };
+  // Same 'delivered' key either way (existing .tracking-delivered CSS/emoji already fit
+  // both), just a label that actually matches what happened for a pickup order.
+  if (order.status === 'completed') return { key: 'delivered', label: isPickup ? 'Picked Up' : 'Delivered' };
+  // A courier order is never "in transit" per getLiveTransitProgress (no HarvestLink-tracked
+  // GPS for it at all — see that function's isCourier comment), so this reads the raw
+  // delivery_status column directly instead, same 'on-the-way' key/emoji as a live delivery.
+  if (isCourier) {
+    return order.deliveryStatus === 'out_for_delivery'
+      ? { key: 'on-the-way', label: 'Out for Delivery' }
+      : { key: 'confirmed', label: 'Confirmed' };
+  }
   if (isInTransit) {
     return isNearDestination ? { key: 'near-destination', label: 'Near Destination' } : { key: 'on-the-way', label: 'On the Way' };
   }

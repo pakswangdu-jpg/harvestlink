@@ -69,12 +69,34 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     }
     setLocationStatus('locating');
     setLocationNotice('');
+
+    // Belt-and-suspenders on top of the `timeout` option below — some browser/OS
+    // combinations (notably Chrome on Windows with system Location Services turned off)
+    // never invoke either getCurrentPosition callback at all, which used to leave this
+    // stuck on "Detecting your location…" forever with no way out. This guarantees the UI
+    // always lands on an actionable state (with a "Try again" button, via
+    // DeliveryFeeSummary's onRetryLocation) shortly after the API's own deadline, even if
+    // the browser itself never calls back.
+    let settled = false;
+    const watchdog = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setLocationStatus('denied');
+      setLocationNotice('Location detection timed out. Check that location services are turned on for your browser and device, then try again.');
+    }, 12000);
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdog);
         setBuyerCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
         setLocationStatus('granted');
       },
       (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdog);
         setLocationStatus('denied');
         setLocationNotice(
           error.code === error.PERMISSION_DENIED

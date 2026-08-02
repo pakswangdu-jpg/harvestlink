@@ -75,7 +75,6 @@ export default function ResetPasswordPage() {
           </span>
         </Link>
         <div>
-          <p className="eyebrow">Prototype access</p>
           <h1>Set a new password.</h1>
           <p>Choose a new password for your account.</p>
         </div>

@@ -48,7 +48,6 @@ export default function ForgotPasswordPage() {
           </span>
         </Link>
         <div>
-          <p className="eyebrow">Prototype access</p>
           <h1>Reset your password.</h1>
           <p>Enter the email address on your account and we'll send you a link to set a new password.</p>
         </div>

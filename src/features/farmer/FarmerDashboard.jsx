@@ -9,20 +9,21 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
+import FarmerReviewsPanel from './FarmerReviewsPanel';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getStakeholders, getUserById, getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
-import { getLiveTransitProgress, getOrdersByFarmer } from '../../services/orderService';
+import { getOrdersByFarmer } from '../../services/orderService';
 import { getDonationsByFarmer } from '../../services/donationService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { getProfitCoverage, getTotalProfit, getTotalRevenue } from '../../services/reportService';
+import { getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
 import { nearestByMunicipality } from '../../utils/geo';
 import { farmerNavItems } from './farmerNav';
 
 const EMPTY_STATE = {
   products: [], orders: [], donations: [], otherFarmers: [], registeredBuyers: [],
-  registeredStakeholders: [], activeDeliveryRoutes: [],
+  registeredStakeholders: [],
 };
 
 export default function FarmerDashboard() {
@@ -44,35 +45,6 @@ export default function FarmerDashboard() {
       ]);
       if (cancelled) return;
 
-      const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
-      // For pickup orders, the destination pin is where the BUYER starts from, not the
-      // farm itself — that municipality lives on the buyer's own profile, not the order,
-      // so pickup buyers need a separate lookup before the routes can be built.
-      const pickupBuyerIds = [...new Set(confirmedOrders.filter((o) => o.deliveryMethod === 'buyer_pickup').map((o) => o.buyerId))];
-      const pickupBuyers = await Promise.all(pickupBuyerIds.map((id) => getUserById(id).catch(() => null)));
-      if (cancelled) return;
-      const municipalityByBuyerId = new Map(pickupBuyers.filter(Boolean).map((buyer) => [buyer.id, buyer.municipality]));
-
-      const activeDeliveryRoutes = confirmedOrders.map((order) => {
-        const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
-        const isPickup = order.deliveryMethod === 'buyer_pickup';
-        const buyerMunicipality = isPickup ? (municipalityByBuyerId.get(order.buyerId) || order.deliveryMunicipality) : order.deliveryMunicipality;
-        return {
-          id: order.id,
-          originLabel: isPickup ? `${order.farmerName} (you, pickup here)` : `${order.farmerName} (you)`,
-          destinationLabel: isPickup ? `${order.buyerName} (starting point)` : `${order.buyerName} (buyer)`,
-          originMunicipality: order.originMunicipality,
-          destinationMunicipality: buyerMunicipality,
-          deliveryMethod: order.deliveryMethod,
-          progress,
-          etaMinutes,
-          currentPosition,
-          remainingKm,
-          label: `${order.productName} — ${order.buyerName}`,
-          href: `/orders/${order.id}`,
-        };
-      });
-
       // Nearest-first and capped, not every registered account nationwide — the dashboard's
       // map is a small "who's around me" widget, not the full directory (that's what View
       // Map/Marketplace are for).
@@ -86,7 +58,6 @@ export default function FarmerDashboard() {
         ),
         registeredBuyers: nearestByMunicipality(currentUser.municipality, registeredBuyers),
         registeredStakeholders: nearestByMunicipality(currentUser.municipality, registeredStakeholders),
-        activeDeliveryRoutes,
       });
     };
 
@@ -98,7 +69,7 @@ export default function FarmerDashboard() {
     };
   }, [currentUser.id, currentUser.municipality]);
 
-  const { products, orders, donations, otherFarmers, registeredBuyers, registeredStakeholders, activeDeliveryRoutes } = state;
+  const { products, orders, donations, otherFarmers, registeredBuyers, registeredStakeholders } = state;
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
@@ -107,13 +78,8 @@ export default function FarmerDashboard() {
   // own revenue figure uses, just scoped to this farmer's own orders.
   const totalIncome = getTotalRevenue(orders);
   // Profit = income minus recorded cost, but only for orders whose product had a cost on
-  // file at checkout (see reportService.js) — the coverage note keeps that honest instead
-  // of silently treating "no cost recorded" as "zero cost."
+  // file at checkout (see reportService.js).
   const totalProfit = getTotalProfit(orders);
-  const profitCoverage = getProfitCoverage(orders);
-  const profitHint = profitCoverage.total > 0 && profitCoverage.covered < profitCoverage.total
-    ? `Based on ${profitCoverage.covered} of ${profitCoverage.total} paid orders — add a cost per unit to your other listings for a full picture.`
-    : null;
 
   const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
@@ -145,7 +111,7 @@ export default function FarmerDashboard() {
 
       <section className="stats-grid">
         <StatCard label="Total income" value={formatCurrency(totalIncome)} icon={<Wallet size={20} />} />
-        <StatCard label="Profit" value={formatCurrency(totalProfit)} icon={<TrendingUp size={20} />} hint={profitHint} />
+        <StatCard label="Profit" value={formatCurrency(totalProfit)} icon={<TrendingUp size={20} />} />
         <StatCard label="Total products" value={products.length} icon={<Store size={20} />} />
         <StatCard label="Active listings" value={products.filter((product) => product.status === 'active').length} icon={<Package size={20} />} />
         <StatCard label="Pending orders" value={pendingOrders.length} icon={<Clock3 size={20} />} />
@@ -167,7 +133,6 @@ export default function FarmerDashboard() {
             <span className="live-indicator"><span className="live-dot" /> Live</span>
           </div>
           <DeliveryMap
-            routes={activeDeliveryRoutes}
             farmers={otherFarmers}
             buyers={registeredBuyers}
             stakeholders={registeredStakeholders}
@@ -251,6 +216,8 @@ export default function FarmerDashboard() {
           <EmptyState title="No pending donation requests" message="Donate unsold stock so partner organizations can request it." />
         )}
       </section>
+
+      <FarmerReviewsPanel farmerId={currentUser.id} />
 
       <div className="quick-actions">
         <Button onClick={() => navigate('/farmer-products')}>Add a product</Button>

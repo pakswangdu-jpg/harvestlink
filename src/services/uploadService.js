@@ -73,8 +73,8 @@ export async function uploadPaymentQr(file, farmerId) {
 }
 
 // payment-receipts is a PUBLIC bucket, owner-folder convention where the "owner" is the
-// BUYER submitting proof of payment (see GcashPaymentPage.jsx). Returns a directly-usable
-// URL, sent to confirmGcashPayment as receiptUrl.
+// BUYER submitting proof of payment (see ConfirmGcashPaymentPage.jsx). Returns a
+// directly-usable URL, sent to submitPaymentProof as receiptUrl.
 export async function uploadPaymentReceipt(file, buyerId) {
   const path = `${buyerId}/${crypto.randomUUID()}.${extensionFor(file)}`;
   await uploadToBucket('payment-receipts', path, file);

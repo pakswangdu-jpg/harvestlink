@@ -148,55 +148,128 @@ export async function getProfileById(req, res) {
   res.json(serializeProfile(data));
 }
 
-// GET /api/profiles/top-farmers — public, no auth (used by the logged-out landing page to
-// show off well-rated farmers). Deliberately hand-picks a public-safe field list here
-// instead of reusing serializeProfile — a signed-out visitor must never see a farmer's
-// email, contact number, address, or gov ID file, only what a buyer would want to browse.
-export async function getTopRatedFarmers(req, res) {
+// Shared by getTopRatedFarmers and getAllVerifiedFarmers below — both need the same
+// verified/active farmer list joined with their rating average and completed-order count,
+// they just filter/cap the result differently. Deliberately hand-picks a public-safe field
+// list here instead of reusing serializeProfile — a signed-out visitor must never see a
+// farmer's email, contact number, address, or gov ID file, only what a buyer would browse.
+async function fetchVerifiedFarmersWithStats() {
   const { data: farmers, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, name, farm_name, municipality, avatar_url')
+    .select('id, name, farm_name, municipality, avatar_url, created_at')
     .eq('role', 'farmer')
     .eq('verification_status', 'verified')
     .neq('account_status', 'suspended');
   if (error) throw new ApiError(error.message, 400);
-  if (!farmers.length) return res.json([]);
+  if (!farmers.length) return [];
+
+  const farmerIds = farmers.map((farmer) => farmer.id);
 
   const { data: ratings, error: ratingsError } = await supabaseAdmin
     .from('ratings')
     .select('farmer_id, rating')
-    .in('farmer_id', farmers.map((farmer) => farmer.id));
+    .in('farmer_id', farmerIds);
   if (ratingsError) throw new ApiError(ratingsError.message, 400);
 
+  // Secondary sort key (see below) — how many orders this farmer has actually completed,
+  // the same "real transactions closed" signal buyers care about alongside the star average.
+  const { data: completedOrders, error: ordersError } = await supabaseAdmin
+    .from('orders')
+    .select('farmer_id')
+    .eq('status', 'completed')
+    .in('farmer_id', farmerIds);
+  if (ordersError) throw new ApiError(ordersError.message, 400);
+
+  // Same "what a buyer could actually order" gate as listPublicProducts — powers the
+  // "Products Listed" stat and each card's category chips.
+  const { data: products, error: productsError } = await supabaseAdmin
+    .from('products')
+    .select('farmer_id, category')
+    .eq('status', 'active')
+    .gt('quantity', 0)
+    .in('farmer_id', farmerIds);
+  if (productsError) throw new ApiError(productsError.message, 400);
+
   const summaryById = new Map();
+  // Per-star tally (how many 5s, 4s, 3s, 2s, 1s) — lets the frontend show the 5/4/3/2/1
+  // breakdown as separate rows instead of just the single averaged score.
+  const breakdownById = new Map();
   (ratings || []).forEach(({ farmer_id: farmerId, rating }) => {
     const entry = summaryById.get(farmerId) || { total: 0, count: 0 };
     entry.total += rating;
     entry.count += 1;
     summaryById.set(farmerId, entry);
+
+    const breakdown = breakdownById.get(farmerId) || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    breakdown[rating] = (breakdown[rating] || 0) + 1;
+    breakdownById.set(farmerId, breakdown);
   });
 
-  const topFarmers = farmers
-    .map((farmer) => {
-      const entry = summaryById.get(farmer.id);
-      return {
-        id: farmer.id,
-        name: farmer.name,
-        farmName: farmer.farm_name,
-        municipality: farmer.municipality,
-        avatarUrl: farmer.avatar_url || null,
-        avgRating: entry ? entry.total / entry.count : 0,
-        ratingCount: entry ? entry.count : 0,
-      };
-    })
+  const completedOrderCountById = new Map();
+  (completedOrders || []).forEach(({ farmer_id: farmerId }) => {
+    completedOrderCountById.set(farmerId, (completedOrderCountById.get(farmerId) || 0) + 1);
+  });
+
+  const categoryCountsById = new Map();
+  (products || []).forEach(({ farmer_id: farmerId, category }) => {
+    const counts = categoryCountsById.get(farmerId) || new Map();
+    counts.set(category, (counts.get(category) || 0) + 1);
+    categoryCountsById.set(farmerId, counts);
+  });
+
+  return farmers.map((farmer) => {
+    const entry = summaryById.get(farmer.id);
+    const categoryCounts = categoryCountsById.get(farmer.id);
+    // Top 3 categories by how many active listings this farmer has in each — the "Vegetables
+    // / Rice / Fruits" chips a buyer sees are always what they'd actually find in stock.
+    const topCategories = categoryCounts
+      ? [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([category]) => category)
+      : [];
+    return {
+      id: farmer.id,
+      name: farmer.name,
+      farmName: farmer.farm_name,
+      municipality: farmer.municipality,
+      avatarUrl: farmer.avatar_url || null,
+      createdAt: farmer.created_at,
+      avgRating: entry ? entry.total / entry.count : 0,
+      ratingCount: entry ? entry.count : 0,
+      ratingBreakdown: breakdownById.get(farmer.id) || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+      completedOrders: completedOrderCountById.get(farmer.id) || 0,
+      productCount: categoryCounts ? [...categoryCounts.values()].reduce((sum, count) => sum + count, 0) : 0,
+      categories: topCategories,
+    };
+  });
+}
+
+// GET /api/profiles/top-farmers — public, no auth (used by the logged-out landing page to
+// show off well-rated farmers).
+export async function getTopRatedFarmers(req, res) {
+  const topFarmers = (await fetchVerifiedFarmersWithStats())
     // Same 4-5 star bar as the buyer dashboard's "Recommended farms" (see recommendedFarmers
     // in BuyerDashboard.jsx) — a farmer starts showing up here automatically the moment their
     // average crosses into that range, computed fresh on every request, never cached.
     .filter((farmer) => farmer.avgRating >= 4)
-    .sort((a, b) => b.avgRating - a.avgRating || b.ratingCount - a.ratingCount)
-    .slice(0, 8);
+    // 1) highest average rating, 2) most completed orders, 3) verification status — #3 is
+    // already satisfied by construction (every row here passed the verified_status filter
+    // above), so there's no further column left to break a tie on beyond the two below.
+    .sort((a, b) => b.avgRating - a.avgRating || b.completedOrders - a.completedOrders || b.ratingCount - a.ratingCount)
+    // The frontend carousel renders this whole list directly rather than paging through it —
+    // Embla scrolls a fixed-size list smoothly regardless of count, so a cap this small never
+    // needs real server-side pagination, just a sane upper bound on payload size.
+    .slice(0, 20);
 
   res.json(topFarmers);
+}
+
+// GET /api/profiles/farmers — public, no auth. Backs the landing page's "View All Farmers"
+// directory — every verified, active farmer (no rating floor, no cap), same sort as
+// top-farmers so the ordering feels consistent between the two views.
+export async function getAllVerifiedFarmers(req, res) {
+  const allFarmers = (await fetchVerifiedFarmersWithStats())
+    .sort((a, b) => b.avgRating - a.avgRating || b.completedOrders - a.completedOrders || b.ratingCount - a.ratingCount);
+
+  res.json(allFarmers);
 }
 
 // GET /api/profiles/:id/public — public, no auth. Backs the "view farmer" page a signed-out

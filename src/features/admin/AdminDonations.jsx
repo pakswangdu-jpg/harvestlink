@@ -19,7 +19,7 @@ export default function AdminDonations() {
   const { page, setPage, pageRows, pageSize, total } = usePagination(donations, 15);
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Donations" fullBleed>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Donations" hideHeader>
       <PageHeader title="Donations" description="Surplus donation lifecycle across every farmer and partner organization." />
       <Card>
         <CardHeader title="Surplus donations" />

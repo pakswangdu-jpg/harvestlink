@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, Navigation, Truck, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import { useAuth } from '../auth/AuthContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
+import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
 import { DELIVERY_STEP_LABELS } from '../../utils/constants';
-import { formatDate } from '../../utils/formatters';
+import { formatCurrency, formatDate, shortOrderId } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
 
 export default function FarmerOrders() {
@@ -17,6 +19,8 @@ export default function FarmerOrders() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const reload = () => getOrdersByFarmer(currentUser.id).then(setOrders);
 
@@ -39,6 +43,20 @@ export default function FarmerOrders() {
     }
   };
 
+  const handleConfirmReject = async (orderId) => {
+    if (!rejectReason.trim()) {
+      setError('Enter a reason for rejecting this payment.');
+      return;
+    }
+    await run(() => rejectPaymentVerification(orderId, rejectReason.trim()), 'Payment rejected.');
+    setRejectingId(null);
+    setRejectReason('');
+  };
+
+  // Only GCash orders ever go through submitPaymentProof (see payments.controller.js) —
+  // COD orders never set paymentVerificationStatus at all, so this naturally excludes them.
+  const pendingVerifications = orders.filter((order) => order.paymentVerificationStatus === 'pending');
+
   return (
     <AppShell
       user={currentUser}
@@ -48,6 +66,69 @@ export default function FarmerOrders() {
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
+
+      {pendingVerifications.length ? (
+        <section className="panel payment-verification-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Payments</p>
+              <h2>Payment Verification</h2>
+            </div>
+            <span className="badge badge-pending">{pendingVerifications.length} pending</span>
+          </div>
+
+          <div className="payment-verification-list">
+            {pendingVerifications.map((order) => (
+              <div key={order.id} className="payment-verification-card">
+                <div className="payment-verification-receipt">
+                  <ZoomableImage
+                    src={order.paymentReceiptUrl}
+                    alt={`Payment receipt from ${order.buyerName}`}
+                    fallbackMessage="Unable to load this receipt."
+                    className="payment-verification-receipt-image"
+                  />
+                </div>
+
+                <div className="payment-verification-details">
+                  <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
+                  <div className="ot-detail-row"><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
+                  <div className="ot-detail-row"><span>Amount</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+                  <div className="ot-detail-row"><span>Reference #</span><strong>{order.paymentReferenceNumber || '—'}</strong></div>
+                  <div className="ot-detail-row"><span>Sender name</span><strong>{order.paymentSenderName || '—'}</strong></div>
+                  <div className="ot-detail-row"><span>Submitted</span><strong>{formatDate(order.paymentSubmittedAt)}</strong></div>
+                  {order.paymentNotes ? (
+                    <div className="ot-detail-row"><span>Notes</span><strong>{order.paymentNotes}</strong></div>
+                  ) : null}
+
+                  {rejectingId === order.id ? (
+                    <div className="form-stack payment-verification-reject-form">
+                      <textarea
+                        rows="2"
+                        value={rejectReason}
+                        onChange={(event) => setRejectReason(event.target.value)}
+                        placeholder="Reason for rejecting this payment"
+                      />
+                      <div className="table-actions">
+                        <Button size="sm" variant="danger" onClick={() => handleConfirmReject(order.id)}>Confirm Reject</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setRejectingId(null); setRejectReason(''); }}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="table-actions">
+                      <Button size="sm" onClick={() => run(() => approvePaymentVerification(order.id), 'Payment approved.')}>
+                        <Check size={15} /> Approve Payment
+                      </Button>
+                      <Button size="sm" variant="danger" onClick={() => { setRejectingId(order.id); setRejectReason(''); }}>
+                        <X size={15} /> Reject Payment
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="section-heading">
@@ -87,11 +168,24 @@ export default function FarmerOrders() {
 
                   if (row.status === 'confirmed') {
                     const nextStep = getNextDeliveryStatus(row);
+                    // A courier order's packed -> out_for_delivery step is booking a real
+                    // Lalamove delivery (driver/vehicle/tracking link) — too much for a
+                    // table cell, so this just sends the farmer to the order page, which has
+                    // the full "Book Lalamove Delivery" flow (see BookLalamoveFlow.jsx).
+                    const isCourierReadyForBooking = row.deliveryMethod === 'courier' && nextStep === 'out_for_delivery';
                     return (
                       <div className="table-actions">
-                        {nextStep ? (
+                        {isCourierReadyForBooking ? (
+                          <Link className="btn btn-primary btn-sm" to={`/orders/${row.id}`}>
+                            <Truck size={14} /> Book Lalamove Delivery
+                          </Link>
+                        ) : nextStep ? (
                           <Button size="sm" onClick={() => run(() => advanceDelivery(row.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
-                            Mark {DELIVERY_STEP_LABELS[nextStep]}
+                            {nextStep === 'out_for_delivery' ? (
+                              <><Navigation size={14} /> Start Delivery</>
+                            ) : (
+                              <>Mark {DELIVERY_STEP_LABELS[nextStep]}</>
+                            )}
                           </Button>
                         ) : null}
                         <Link className="btn btn-secondary btn-sm" to={`/orders/${row.id}`}>Track</Link>
