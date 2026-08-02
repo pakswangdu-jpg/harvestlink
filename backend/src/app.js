@@ -6,12 +6,47 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 const app = express();
 
 // A comma-separated CORS_ALLOWED_ORIGIN list covers local dev + the deployed Vercel URL
-// at once (e.g. "http://localhost:5173,https://harvestlink.vercel.app").
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173')
+// at once (e.g. "http://localhost:5173,https://harvestlink-cebu.vercel.app").
+//
+// Entries may contain a `*` wildcard, which matters for Vercel specifically: every preview
+// deployment gets its own generated hostname (harvestlink-cebu-<hash>-<scope>.vercel.app),
+// so an exact-match-only list means previews are permanently broken until someone hand-adds
+// each URL. "https://harvestlink-cebu*.vercel.app" covers the production domain and all of
+// this project's previews, without opening the API to every unrelated site on vercel.app.
+const allowedOriginPatterns = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173')
   .split(',')
-  .map((origin) => origin.trim());
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-app.use(cors({ origin: allowedOrigins }));
+function isOriginAllowed(origin) {
+  return allowedOriginPatterns.some((pattern) => {
+    if (!pattern.includes('*')) return pattern === origin;
+    // Escape every regex metacharacter EXCEPT `*`, then let `*` mean "any run of characters".
+    const source = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(`^${source}$`).test(origin);
+  });
+}
+
+app.use(cors({
+  origin(origin, callback) {
+    // A request with no Origin header isn't a browser cross-origin call at all (curl,
+    // server-to-server, same-origin navigation, Render's own health check) — CORS doesn't
+    // apply to it, so it's allowed through rather than rejected.
+    if (!origin || isOriginAllowed(origin)) {
+      callback(null, true);
+      return;
+    }
+    // Without this line a blocked origin is completely silent server-side: the cors package
+    // just omits Access-Control-Allow-Origin and still returns 204, so the browser reports a
+    // bare "Failed to fetch" with no status code and the server logs show a normal request.
+    // That combination is what makes a CORS misconfiguration so slow to diagnose — log it.
+    console.warn(
+      `CORS: blocked origin "${origin}". Allowed patterns: ${allowedOriginPatterns.join(', ') || '(none)'}. `
+      + 'Set CORS_ALLOWED_ORIGIN to include this origin.',
+    );
+    callback(null, false);
+  },
+}));
 app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
