@@ -60,7 +60,7 @@
 
     -- Touched by the backend's requireAuth middleware on any authenticated request (throttled
     -- to roughly once a minute per account, not every single request) — used to show an
-    -- Online/Offline presence indicator (e.g. on the Farmer Map) rather than for anything
+    -- Online/Offline presence indicator (e.g. on the Farmer Map) rather qr than for anything
     -- security-sensitive.
     last_active_at timestamptz,
 
@@ -87,27 +87,22 @@
   alter table public.profiles drop column if exists notif_email;
   alter table public.profiles drop column if exists notif_prompted;
 
-    -- ==========================================================================
-    -- pending_registrations — stores temporary pre-confirmation signup data until
-    -- the user verifies their email with a 6-digit code.
-    -- ==========================================================================
-    create table if not exists public.pending_registrations (
-      email text primary key,
-      password_encrypted text not null,
-      data jsonb not null,
-      code_hash text not null,
-      expires_at timestamptz not null,
-      attempt_count integer not null default 0,
-      resend_count integer not null default 0,
-      last_sent_at timestamptz not null default now(),
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    );
+  -- Registration no longer defers account creation behind an emailed verification code
+  -- (see backend/src/controllers/auth.controller.js) — drops the table on any install that
+  -- already ran the older migration; a no-op on one that never did.
+  drop table if exists public.pending_registrations;
 
-    create index if not exists pending_registrations_email_idx on public.pending_registrations (email);
-
-    -- Backwards-compatible migrations for older installs: ensure the new columns exist
-    alter table public.pending_registrations add column if not exists attempt_count integer not null default 0;
+  -- One-time backfill: stakeholder registrations never set verification_status at all until
+  -- now (see buildRoleFields in profiles.controller.js), so every stakeholder that signed up
+  -- before this fix is sitting with verification_status NULL — invisible to AdminUsers.jsx's
+  -- pending-review queue despite having submitted an accreditation document nobody ever
+  -- actually reviewed. This puts them into the same 'pending' state a new stakeholder
+  -- registration gets today, so an admin can go back and actually verify them. Scoped to
+  -- NULL only, so it never touches a stakeholder some other flow already verified/rejected,
+  -- and running this again on a later deploy is a safe no-op.
+  update public.profiles
+    set verification_status = 'pending', verification_acknowledged = true
+    where role = 'stakeholder' and verification_status is null;
 
   -- ============================================================================
   -- products

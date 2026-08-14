@@ -29,6 +29,12 @@ import {
 import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCarousel';
 import logo from '../../assets/logo.png';
 import verifiedIcon from '../../assets/icons/verified-farmer.png';
+import directTradingIcon from '../../assets/icons/feature-direct-trading.png';
+import secureCheckoutIcon from '../../assets/icons/feature-secure-checkout.png';
+import deliveryTrackingIcon from '../../assets/icons/feature-delivery-tracking.png';
+import surplusDonationIcon from '../../assets/icons/feature-surplus-donation.png';
+import roleDashboardsIcon from '../../assets/icons/feature-role-dashboards.png';
+import adminOversightIcon from '../../assets/icons/feature-admin-oversight.png';
 
 const NAV_LINKS = [
   { id: 'features', label: 'Features' },
@@ -47,12 +53,12 @@ const HERO_STATS = [
 ];
 
 const FEATURES = [
-  { icon: Search, title: 'Direct farmer-to-buyer trading', text: 'Farmers list produce, buyers search and filter by product, location, price, and availability — no middlemen.' },
-  { icon: CreditCard, title: 'Secure multi-payment checkout', text: 'Buyers check out with cash on delivery or GCash, with every transaction verified before it settles.' },
-  { icon: Truck, title: 'Delivery & real-time order tracking', text: 'Every order moves through a visible pipeline — confirmed, preparing, packed, out for delivery or pickup, delivered.' },
-  { icon: Gift, title: 'Surplus discount & donation program', text: 'Farmers discount aging stock or donate it to partner orphanages, elder-care homes, NGOs, and food banks instead of wasting it.' },
-  { icon: LayoutDashboard, title: 'Role-based dashboards', text: 'Purpose-built workspaces for farmers, buyers, partner organizations, and admins.' },
-  { icon: ShieldCheck, title: 'Admin oversight', text: 'Admins monitor users, listings, orders, price monitoring, payments, deliveries, and donation activity in one place.' },
+  { icon: Search, iconSrc: directTradingIcon, title: 'Direct farmer-to-buyer trading', text: 'Farmers list produce, buyers search and filter by product, location, price, and availability — no middlemen.' },
+  { icon: CreditCard, iconSrc: secureCheckoutIcon, title: 'Secure multi-payment checkout', text: 'Buyers check out with cash on delivery or GCash, with every transaction verified before it settles.' },
+  { icon: Truck, iconSrc: deliveryTrackingIcon, title: 'Delivery & real-time order tracking', text: 'Every order moves through a visible pipeline — confirmed, preparing, packed, out for delivery or pickup, delivered.' },
+  { icon: Gift, iconSrc: surplusDonationIcon, title: 'Surplus discount & donation program', text: 'Farmers discount aging stock or donate it to partner orphanages, elder-care homes, NGOs, and food banks instead of wasting it.' },
+  { icon: LayoutDashboard, iconSrc: roleDashboardsIcon, title: 'Role-based dashboards', text: 'Purpose-built workspaces for farmers, buyers, partner organizations, and admins.' },
+  { icon: ShieldCheck, iconSrc: adminOversightIcon, title: 'Admin oversight', text: 'Admins monitor users, listings, orders, price monitoring, payments, deliveries, and donation activity in one place.' },
 ];
 
 const STEPS = [
@@ -242,7 +248,9 @@ export default function LandingPage() {
       <section id="features" className="landing-feature-grid">
         {FEATURES.map((item) => (
           <article key={item.title} className="lp-feature-card">
-            <span className="lp-feature-icon"><item.icon size={22} /></span>
+            <span className={`lp-feature-icon${item.iconSrc ? ' lp-feature-icon-image' : ''}`}>
+              {item.iconSrc ? <img src={item.iconSrc} alt="" /> : <item.icon size={22} />}
+            </span>
             <h3>{item.title}</h3>
             <p>{item.text}</p>
           </article>

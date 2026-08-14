@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Gift, Hourglass } from 'lucide-react';
+import { Gift, Hourglass, Package } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import MetricsSummary from '../../components/dashboard/MetricsSummary';
@@ -172,7 +172,7 @@ export default function FarmerDashboard() {
               emptyMessage="No products yet."
             />
           ) : (
-            <EmptyState title="No products yet" message="Add your first harvest listing so buyers can discover it." actionLabel="Add product" onAction={() => navigate('/farmer-products')} />
+            <EmptyState icon={Package} title="No products yet" message="Add your first harvest listing so buyers can discover it." actionLabel="Add product" onAction={() => navigate('/farmer-products')} />
           )}
         </div>
 

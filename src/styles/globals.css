@@ -1316,6 +1316,23 @@ a.lp-contact-card:hover {
   color: var(--lp-dark);
 }
 
+/* Image-based feature icons already carry their own rounded-square frame (see
+   feature-direct-trading.png) — stacking that inside this badge's own green square would
+   double up the shape, so this variant drops the badge background/radius and sizes up to let
+   the artwork's own frame read as the icon face. */
+.lp-feature-icon-image {
+  width: 56px;
+  height: 56px;
+  border-radius: 0;
+  background: none;
+}
+
+.lp-feature-icon-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .lp-feature-card h3 {
   color: var(--green-900);
   font-size: 1.05rem;
@@ -6069,92 +6086,6 @@ td {
 
 .password-strength-indicator.strong {
   color: var(--green-700);
-}
-
-.otp-stage {
-  display: grid;
-  justify-items: center;
-  gap: 14px;
-  text-align: center;
-  padding: 8px 0 4px;
-}
-
-.otp-icon {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--green-100);
-  color: var(--green-700);
-}
-
-.otp-instructions {
-  color: var(--muted);
-  font-size: 0.92rem;
-  max-width: 320px;
-}
-
-.otp-instructions strong {
-  color: var(--text);
-}
-
-.otp-input-group {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.otp-digit {
-  width: 44px;
-  height: 52px;
-  text-align: center;
-  font-size: 1.3rem;
-  font-weight: 800;
-  border: 1px solid #cfded4;
-  border-radius: var(--radius);
-  color: var(--green-900);
-  background: var(--panel);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.otp-digit:focus {
-  outline: none;
-  border-color: var(--green-600);
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
-}
-
-.otp-footer {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  font-size: 0.85rem;
-}
-
-.otp-footer button {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--green-700);
-  font-weight: 700;
-  font-size: inherit;
-  cursor: pointer;
-}
-
-.otp-footer button:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.otp-footer button:disabled {
-  color: var(--muted);
-  cursor: default;
-}
-
-@media (max-width: 400px) {
-  .otp-digit {
-    width: 38px;
-    height: 46px;
-  }
 }
 
 /* Modern replacement for the raw <input type="file"> chrome — the real input still sits

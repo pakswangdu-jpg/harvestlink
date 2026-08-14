@@ -7,17 +7,35 @@ import { uploadAccreditationFile, uploadGovIdFile } from './uploadService';
 // for the matching API surface. Session state itself (login/logout/current-user) is no
 // longer this file's concern — AuthContext.jsx manages it directly via `supabase.auth`.
 
-// Account creation is deferred until the user verifies their registered email code.
-// The backend stores a pending registration, sends a 6-digit code, and only creates
-// the Supabase auth user and profile row once that code is confirmed.
+// Account creation goes through the backend's admin-privileged /auth/register endpoint
+// instead of calling supabase.auth.signUp() directly from here — see
+// backend/src/controllers/auth.controller.js for the full reasoning. The account is
+// created instant-confirmed — no email verification code step, so registration never
+// depends on outbound email actually working.
 export async function registerUser(values) {
   const email = values.email.trim().toLowerCase();
   // confirmPassword rides along harmlessly in profileFields — the backend only ever picks
   // out the specific fields it recognizes, so an extra key here is simply ignored.
-  const { password, ...profileFields } = values;
+  const { govIdFile, accreditationFile, password, ...profileFields } = values;
 
   await apiClient.post('/auth/register', { ...profileFields, email, password });
-  return { pendingVerification: true };
+
+  // The admin API above creates the account server-side but doesn't establish a browser
+  // session — sign in here so the file upload below (Storage requires an authenticated
+  // session) and everything after registration has one, same as a normal login.
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+  if (signInError) throw new Error(signInError.message);
+
+  const { data: { user } } = await supabase.auth.getUser();
+  const filePatch = {};
+  if (values.role === 'farmer' && govIdFile instanceof File) {
+    filePatch.govIdFile = await uploadGovIdFile(govIdFile, user.id);
+  }
+  if (values.role === 'stakeholder' && accreditationFile instanceof File) {
+    filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
+  }
+
+  return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
 }
 
 // Public (no session needed — same as registerUser itself). Lets the registration form warn
@@ -27,45 +45,6 @@ export async function registerUser(values) {
 // enforces this and can't be bypassed by skipping this check.
 export async function checkContactNumberAvailability(value) {
   return apiClient.get(`/auth/check-contact-number?value=${encodeURIComponent(value)}`);
-}
-
-export async function verifyRegistrationOtp(email, token, password, pendingFiles = {}) {
-  if (!password) {
-    throw new Error('Unable to complete verification because the password is missing. Please try again.');
-  }
-
-  await apiClient.post('/auth/verify-registration-code', {
-    email: email.trim().toLowerCase(),
-    code: token,
-  });
-
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password,
-  });
-  if (signInError) {
-    throw new Error('Unable to sign in after verification. Please try again.');
-  }
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const { govIdFile, accreditationFile, role } = pendingFiles;
-  const filePatch = {};
-  if (role === 'farmer' && govIdFile instanceof File) {
-    filePatch.govIdFile = await uploadGovIdFile(govIdFile, user.id);
-  }
-  if (role === 'stakeholder' && accreditationFile instanceof File) {
-    filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
-  }
-
-  return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
-}
-
-// Also used to re-send when a returning, still-unverified user hits "Email not confirmed"
-// on the login page (see AuthPage.jsx) — this re-sends the built-in Supabase signup
-// verification email for an unconfirmed account.
-export async function resendRegistrationOtp(email) {
-  const response = await apiClient.post('/auth/resend-registration-code', { email: email.trim().toLowerCase() });
-  if (response.error) throw new Error(response.error);
 }
 
 // GET /profiles/top-farmers is public (no requireAuth on the backend) — safe to call from
@@ -93,14 +72,7 @@ export async function getAllVerifiedFarmers() {
 export async function loginUser(emailValue, password) {
   const email = emailValue.trim().toLowerCase();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    if (error.message.toLowerCase().includes('email not confirmed')) {
-      const unconfirmedError = new Error('Email not confirmed');
-      unconfirmedError.code = 'email_not_confirmed';
-      throw unconfirmedError;
-    }
-    throw new Error('Invalid email or password.');
-  }
+  if (error) throw new Error('Invalid email or password.');
 
   return apiClient.get('/profiles/me');
 }

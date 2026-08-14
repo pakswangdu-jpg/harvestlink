@@ -63,6 +63,14 @@ export function buildRoleFields(role, values, { isCreate }) {
     if (values.contactPerson !== undefined) fields.contact_person = values.contactPerson?.trim();
     if (values.contactNumber !== undefined) fields.contact_number = values.contactNumber?.trim() || '';
     if (values.accreditationFile !== undefined) fields.accreditation_file_url = values.accreditationFile || null;
+    // Same admin review gate as farmer below — AdminUsers.jsx already has a full
+    // isFarmer-or-isStakeholder verify/reject flow for the accreditation document, and the
+    // registration form itself promises "will only be reviewed by the HarvestLink
+    // administrator" — but nothing ever put a new stakeholder into 'pending' to review.
+    if (isCreate) {
+      fields.verification_status = 'pending';
+      fields.verification_acknowledged = true;
+    }
     return fields;
   }
   if (role === 'farmer') {
@@ -324,7 +332,13 @@ export async function listProfiles(req, res) {
     if (req.query.accountStatus) query = query.eq('account_status', req.query.accountStatus);
   } else {
     query = query.neq('account_status', 'suspended');
-    if (req.query.role === 'farmer') query = query.eq('verification_status', 'verified');
+    // Same reasoning for both: a buyer/farmer shouldn't see a partner org (or another
+    // farmer) on the map/donation-notification list before admin has actually vetted
+    // their accreditation document — pending/rejected stays admin-only, like a farmer's
+    // own pending/rejected state already does.
+    if (req.query.role === 'farmer' || req.query.role === 'stakeholder') {
+      query = query.eq('verification_status', 'verified');
+    }
   }
 
   const { data, error } = await query;
