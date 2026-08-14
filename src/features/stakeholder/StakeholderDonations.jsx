@@ -15,6 +15,8 @@ export default function StakeholderDonations() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
+  const canRequestDonations = currentUser.verificationStatus === 'verified';
+
   const reload = () => setDonations(getAvailableDonations());
 
   useEffect(() => {
@@ -48,6 +50,22 @@ export default function StakeholderDonations() {
       title="Browse donations"
       subtitle="Request surplus produce from Cebu farmers for your organization."
     >
+      {!canRequestDonations ? (
+        <div className={`form-alert ${currentUser.verificationStatus === 'rejected' ? 'error' : 'warning'}`}>
+          {currentUser.verificationStatus === 'rejected' ? (
+            <>
+              <strong>Your organization verification was declined.</strong>
+              <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
+            </>
+          ) : (
+            <>
+              <strong>Your organization is pending verification.</strong>
+              <p>Requesting donations is unlocked once an admin approves your account.</p>
+            </>
+          )}
+        </div>
+      ) : null}
+
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
 
@@ -58,7 +76,12 @@ export default function StakeholderDonations() {
               key={donation.id}
               donation={donation}
               actions={(
-                <Button size="sm" onClick={() => handleRequest(donation)}>
+                <Button
+                  size="sm"
+                  onClick={() => handleRequest(donation)}
+                  disabled={!canRequestDonations}
+                  title={canRequestDonations ? undefined : 'Verify your account before requesting donations.'}
+                >
                   <Gift size={15} /> Request donation
                 </Button>
               )}

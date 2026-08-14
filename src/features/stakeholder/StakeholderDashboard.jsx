@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarCheck, CheckCircle2, Gift, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
+import Button from '../../components/common/Button';
 import StatCard from '../../components/cards/StatCard';
 import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
@@ -82,7 +83,7 @@ const EMPTY_STATE = {
 };
 
 export default function StakeholderDashboard() {
-  const { currentUser } = useAuth();
+  const { currentUser, acknowledgeVerification } = useAuth();
   const [state, setState] = useState(EMPTY_STATE);
 
   useEffect(() => {
@@ -137,6 +138,24 @@ export default function StakeholderDashboard() {
       title="Partner dashboard"
       subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests."
     >
+      {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
+        <div className="form-alert success">
+          <strong>Your organization has been approved by admin!</strong>
+          <p>You can now request surplus produce donations.</p>
+          <Button size="sm" variant="secondary" onClick={acknowledgeVerification}>Got it</Button>
+        </div>
+      ) : currentUser.verificationStatus === 'pending' ? (
+        <div className="form-alert warning">
+          <strong>Your organization is pending verification.</strong>
+          <p>An admin typically reviews and approves new accounts within 24 hours. You can explore your dashboard in the meantime, but requesting donations is unlocked once your account is verified.</p>
+        </div>
+      ) : currentUser.verificationStatus === 'rejected' ? (
+        <div className="form-alert error">
+          <strong>Your organization verification was declined.</strong>
+          <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
+        </div>
+      ) : null}
+
       <section className="stats-grid">
         <StatCard label="Available donations" value={available.length} icon={<Gift size={20} />} />
         <StatCard label="My requests" value={myRequests.length} icon={<ListChecks size={20} />} />

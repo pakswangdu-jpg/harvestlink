@@ -156,104 +156,6 @@ function formatAlertMessage(message) {
   return message;
 }
 
-// Maps the backend's raw verification notice/error strings (auth.controller.js — see
-// verifyRegistrationCode/resendRegistrationCode) to the standardized {title, message} pairs
-// the verification screen's alerts display. The backend's own response text isn't changing —
-// this only splits the same sentence it already sends into a short title plus the fuller
-// message for FormAlert.jsx's two-line layout. Anything not explicitly listed here still
-// displays fine, under a generic fallback title.
-const KNOWN_VERIFICATION_ALERTS = {
-  'Please wait a moment before requesting a new verification code.': {
-    title: 'Please wait',
-    message: 'Please wait a moment before requesting a new verification code.',
-  },
-  'Your verification code has expired. Please request a new verification code.': {
-    title: 'Code expired',
-    message: 'Your verification code has expired. Please request a new code.',
-  },
-  'Too many verification attempts. Please request a new verification code.': {
-    title: 'Too many attempts',
-    message: 'Too many incorrect attempts. Please request a new verification code.',
-  },
-  'You have reached the resend limit. Please try again later.': {
-    title: 'Resend limit reached',
-    message: 'You have reached the resend limit. Please try again later.',
-  },
-  'Incorrect verification code.\n\nPlease try again.': {
-    title: 'Invalid verification code',
-    message: 'The code you entered is incorrect. Please try again.',
-  },
-  'A new code is on its way.': {
-    title: 'Verification code sent',
-    message: 'A new verification code has been sent to your email.',
-  },
-};
-
-function mapVerificationAlert(raw, fallbackTitle) {
-  if (!raw) return null;
-  return KNOWN_VERIFICATION_ALERTS[raw] || { title: fallbackTitle, message: raw };
-}
-
-const OTP_LENGTH = 6;
-// Matches the backend's own RESEND_COOLDOWN_MS (auth.controller.js) — showing a shorter
-// countdown here would let the farmer/buyer click "Resend code" while it's still within the
-// backend's real cooldown window, just to get a 429 back.
-const RESEND_COOLDOWN_SECONDS = 60;
-
-// One box per digit — the standard OTP input pattern (Gmail, banking apps, etc.): numeric
-// keypad on mobile (inputMode), digit-only filtering, auto-advances to the next box as you
-// type and back on backspace, and accepts a full pasted code in one go.
-function OtpInput({ value, onChange, disabled }) {
-  const inputRefs = useRef([]);
-  const digits = Array.from({ length: OTP_LENGTH }, (_, index) => value[index] || '');
-
-  const handleChange = (index, rawValue) => {
-    const digit = rawValue.replace(/\D/g, '').slice(-1);
-    const nextDigits = [...digits];
-    nextDigits[index] = digit;
-    onChange(nextDigits.join(''));
-    if (digit && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus();
-  };
-
-  const handleKeyDown = (index, event) => {
-    if (event.key === 'Backspace' && !digits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (event) => {
-    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
-    if (!pasted) return;
-    event.preventDefault();
-    onChange(pasted);
-    inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
-  };
-
-  return (
-    <div className="otp-input-group" onPaste={handlePaste}>
-      {digits.map((digit, index) => (
-        <input
-          // Fixed-length, position-addressed boxes that are never reordered — array index
-          // is a safe, stable key here.
-          key={index}
-          ref={(element) => { inputRefs.current[index] = element; }}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          autoComplete="one-time-code"
-          maxLength={1}
-          value={digit}
-          disabled={disabled}
-          onChange={(event) => handleChange(index, event.target.value)}
-          onKeyDown={(event) => handleKeyDown(index, event)}
-          className="otp-digit"
-          aria-label={`Digit ${index + 1} of ${OTP_LENGTH}`}
-        />
-      ))}
-    </div>
-  );
-}
-
 // Visual replacement for the raw OS file-picker button — the real <input type="file">
 // still sits on top (see .file-upload-input in globals.css), so selection, accept
 // filtering, and the onChange handler passed in are completely unchanged.
@@ -681,7 +583,7 @@ export default function AuthPage({ mode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { currentUser, loading: authLoading, login, register, verifyOtp, resendOtp } = useAuth();
+  const { currentUser, loading: authLoading, login, register } = useAuth();
   const [form, setForm] = useState(() => {
     const base = buildEmptyForm(searchParams.get('role'));
     const rememberedEmail = !isRegister && localStorage.getItem(REMEMBERED_EMAIL_KEY);
@@ -734,24 +636,6 @@ export default function AuthPage({ mode }) {
   // JSON blob rather than individually-addressable storage keys.
   const lastSavedSnapshotRef = useRef('');
   const savedNoticeTimeoutRef = useRef(null);
-
-  // 'otp' covers two entry points: right after registering (always required now — see
-  // authService.registerUser), and a returning-but-never-verified user hitting "Email not
-  // confirmed" on the login page (see handleSubmit's catch block below).
-  const [authStage, setAuthStage] = useState('form');
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpValue, setOtpValue] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpNotice, setOtpNotice] = useState('');
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState({});
-  const [resendCooldown, setResendCooldown] = useState(0);
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return undefined;
-    const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
-    return () => clearInterval(timer);
-  }, [resendCooldown]);
 
   // Keeps the draft in sync with every keystroke, so whichever moment the farmer actually
   // clicks away (Terms of Service, Privacy Policy, Home, Back, or anywhere else) is always
@@ -909,17 +793,6 @@ export default function AuthPage({ mode }) {
     const submitForm = isRegister ? { ...form, contactNumber: toE164PhilippineMobile(form.contactNumber) } : form;
     try {
       const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
-      if (isRegister && result.pendingVerification) {
-        setOtpEmail(form.email.trim().toLowerCase());
-        setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
-        setOtpValue('');
-        setOtpError('');
-        setOtpNotice('We sent a verification code to your email. Enter the 6-digit code to complete registration.');
-        setAuthStage('otp');
-        setResendCooldown(RESEND_COOLDOWN_SECONDS);
-        setIsSubmitting(false);
-        return;
-      }
       if (isRegister) clearRegisterDraft();
       if (!isRegister) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, form.email.trim().toLowerCase());
@@ -928,66 +801,10 @@ export default function AuthPage({ mode }) {
       const fallback = ROLE_DASHBOARDS[result.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
-      // When an existing account is not yet verified, send the visitor to the
-      // email verification screen instead of showing a dead-end error.
-      if (!isRegister && error.code === 'email_not_confirmed') {
-        const email = form.email.trim().toLowerCase();
-        setOtpEmail(email);
-        setPendingFiles({});
-        setOtpValue('');
-        setOtpError('');
-        setOtpNotice("Your email isn't verified yet. We've sent a new verification code — enter it below to continue.");
-        setAuthStage('otp');
-        setResendCooldown(RESEND_COOLDOWN_SECONDS);
-        resendOtp(email).catch(() => {});
-        setIsSubmitting(false);
-        return;
-      }
       setErrors({ form: error.message });
       setMessage('');
       setIsSubmitting(false);
     }
-  };
-
-  const handleVerifyOtp = async (event) => {
-    event.preventDefault();
-    if (otpValue.length !== OTP_LENGTH) return;
-    setOtpError('');
-    setIsVerifyingOtp(true);
-    try {
-      const user = await verifyOtp(otpEmail, otpValue, form.password, pendingFiles);
-      if (isRegister) clearRegisterDraft();
-      if (!isRegister) {
-        if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, otpEmail);
-        else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
-      }
-      const fallback = ROLE_DASHBOARDS[user.role];
-      navigate(location.state?.from || fallback, { replace: true });
-    } catch (error) {
-      setOtpError(error.message);
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
-    setOtpError('');
-    setOtpNotice('');
-    try {
-      await resendOtp(otpEmail);
-      setOtpNotice('A new code is on its way.');
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
-    } catch (error) {
-      setOtpError(error.message);
-    }
-  };
-
-  const handleBackToForm = () => {
-    setAuthStage('form');
-    setOtpValue('');
-    setOtpError('');
-    setOtpNotice('');
-    setResendCooldown(0);
   };
 
   // Gates "Create account" itself, not just a submit-time error after clicking it — valid
@@ -1001,9 +818,6 @@ export default function AuthPage({ mode }) {
     && PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(form.password))
     && agreedToTerms
   );
-
-  const otpNoticeAlert = mapVerificationAlert(otpNotice, 'Verification code sent');
-  const otpErrorAlert = mapVerificationAlert(otpError, 'Verification failed');
 
   return (
     <main className={`auth-page ${isRegister ? 'auth-page-register' : ''} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''}`}>
@@ -1041,20 +855,16 @@ export default function AuthPage({ mode }) {
 
         <div className="auth-card-header">
           <h2>
-            {authStage === 'otp'
-              ? 'Verify your email'
-              : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
+            {isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
           </h2>
           <p>
-            {authStage === 'otp'
-              ? 'Enter the 6-digit code we emailed you to finish this.'
-              : isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Sign in to your HarvestLink account'}
+            {isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Sign in to your HarvestLink account'}
           </p>
         </div>
 
         <form
-          className={`form-stack ${isRegister && authStage !== 'otp' ? 'register-form' : ''}`}
-          onSubmit={authStage === 'otp' ? handleVerifyOtp : handleSubmit}
+          className={`form-stack ${isRegister ? 'register-form' : ''}`}
+          onSubmit={handleSubmit}
         >
           {errors.form ? (
             <FormAlert
@@ -1065,25 +875,7 @@ export default function AuthPage({ mode }) {
           ) : null}
           {message ? <FormAlert type="success" message={message} /> : null}
 
-          {authStage === 'otp' ? (
-            <div className="otp-stage">
-              <span className="otp-icon"><Mail size={22} /></span>
-              <p className="otp-instructions">
-                We sent a verification code to <strong>{otpEmail}</strong>. Enter the 6-digit code from the email to verify your account.
-              </p>
-              {otpNoticeAlert ? <FormAlert type="info" title={otpNoticeAlert.title} message={otpNoticeAlert.message} /> : null}
-              {otpErrorAlert ? <FormAlert type="error" title={otpErrorAlert.title} message={formatAlertMessage(otpErrorAlert.message)} /> : null}
-              <OtpInput value={otpValue} onChange={setOtpValue} disabled={isVerifyingOtp} />
-              <div className="otp-footer">
-                <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}>
-                  {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : 'Resend code'}
-                </button>
-                <button type="button" onClick={handleBackToForm}>
-                  {isRegister ? 'Back to form' : 'Use a different account'}
-                </button>
-              </div>
-            </div>
-          ) : isRegister ? (
+          {isRegister ? (
             <div className={`register-fields-scroll ${isStakeholderRegister ? 'stakeholder-mode' : ''}`}>
               <FormField label="Account type" name="role" error={errors.role}>
                 <select id="role" value={form.role} onChange={(event) => updateField('role', event.target.value)}>
@@ -1328,7 +1120,7 @@ export default function AuthPage({ mode }) {
             </>
           )}
 
-          {isRegister && authStage !== 'otp' ? (
+          {isRegister ? (
             <label className="auth-terms-row">
               <input
                 type="checkbox"
@@ -1351,7 +1143,7 @@ export default function AuthPage({ mode }) {
             </label>
           ) : null}
 
-          {isRegister && authStage !== 'otp' ? (
+          {isRegister ? (
             <p className={`autosave-notice${showSavedNotice ? ' visible' : ''}`} role="status" aria-live="polite">
               <CheckCircle size={14} /> Your progress is automatically saved.
             </p>
@@ -1360,28 +1152,20 @@ export default function AuthPage({ mode }) {
           <Button
             type="submit"
             className="full-width"
-            disabled={
-              authStage === 'otp'
-                ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
-                : isSubmitting || !isRegisterFormReady
-            }
+            disabled={isSubmitting || !isRegisterFormReady}
           >
-            {authStage === 'otp'
-              ? (isVerifyingOtp ? 'Verifying…' : 'Verify email')
-              : isSubmitting
-                ? (isStakeholderRegister ? 'Creating Account...' : isRegister ? 'Creating account…' : 'Signing in…')
-                : (isStakeholderRegister ? 'Create Organization Account' : isRegister ? 'Create account' : 'Sign in')}
+            {isSubmitting
+              ? (isStakeholderRegister ? 'Creating Account...' : isRegister ? 'Creating account…' : 'Signing in…')
+              : (isStakeholderRegister ? 'Create Organization Account' : isRegister ? 'Create account' : 'Sign in')}
           </Button>
         </form>
 
-        {authStage !== 'otp' ? (
-          <p className="auth-switch">
-            {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
-            <Link to={isRegister ? '/login' : '/register'}>
-              {isRegister ? (isStakeholderRegister ? 'Sign In' : 'Login') : 'Register'}
-            </Link>
-          </p>
-        ) : null}
+        <p className="auth-switch">
+          {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
+          <Link to={isRegister ? '/login' : '/register'}>
+            {isRegister ? (isStakeholderRegister ? 'Sign In' : 'Login') : 'Register'}
+          </Link>
+        </p>
       </section>
     </main>
   );
