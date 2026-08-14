@@ -17,6 +17,7 @@ import BuyerDashboard from '../features/buyer/BuyerDashboard';
 import BuyerOrders from '../features/buyer/BuyerOrders';
 import Marketplace from '../features/marketplace/Marketplace';
 import ProductDetails from '../features/marketplace/ProductDetails';
+import CartPage from '../features/cart/CartPage';
 import OrderTracking from '../features/orders/OrderTracking';
 import OrderReceipt from '../features/orders/OrderReceipt';
 import GcashPaymentPage from '../features/payments/GcashPaymentPage';
@@ -35,6 +36,7 @@ import AdminOrders from '../features/admin/AdminOrders';
 import AdminDonations from '../features/admin/AdminDonations';
 import AdminReports from '../features/admin/AdminReports';
 import AdminProfile from '../features/admin/AdminProfile';
+import { ORDERING_ROLES } from '../utils/constants';
 
 export default function AppRoutes() {
   return (
@@ -74,6 +76,10 @@ export default function AppRoutes() {
         <Route path="/messages/:orderId" element={<MessagesPage />} />
         <Route path="/market-insights" element={<MarketInsights />} />
         <Route path="/farmer-map" element={<FarmerMapPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRoles={ORDERING_ROLES} />}>
+        <Route path="/cart" element={<CartPage />} />
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['stakeholder']} />}>

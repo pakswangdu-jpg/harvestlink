@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  BadgeCheck, Calendar, MapPin, MessageCircle, PackageCheck,
+  Calendar, MapPin, MessageCircle, PackageCheck,
 } from 'lucide-react';
+import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import StarRating from '../common/StarRating';
 import { getInitials } from '../../utils/formatters';
 
@@ -49,7 +50,7 @@ export const FarmerCard = memo(function FarmerCard({ farmer }) {
             <h3 title={farmer.name} className="min-w-0 truncate text-base font-semibold leading-5 text-gray-900">
               {farmer.name}
             </h3>
-            <BadgeCheck size={16} className="shrink-0 text-green-600" aria-label="Verified farmer" />
+            <img src={verifiedIcon} alt="Verified farmer" width={16} height={16} className="h-4 w-4 shrink-0 object-contain" />
           </div>
           <p title={farmer.farmName || undefined} className="truncate text-[13px] font-semibold uppercase leading-4 tracking-wide text-gray-400">
             {farmer.farmName || ' '}

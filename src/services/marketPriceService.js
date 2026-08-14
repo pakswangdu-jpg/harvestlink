@@ -1,6 +1,12 @@
 import { apiClient } from './apiClient';
+import { parseAnnualMetricCsv, postPxwebQueryOnce } from '../utils/pxwebCsv';
 
-const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
+// PSA moved this table from DB/2E/CS (Agriculture > Crops) to DB/2M/NFG (Prices > Farmgate
+// Prices (New Series)) — confirmed live against PSA's own folder listing after the old path
+// started 404ing; same table code, same Commodity/Geolocation/Year/Period dimensions/values,
+// only the folder changed. If this ever 404s again, GET
+// https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/ to see PSA's current listing there.
+const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
 const TABLE_MIN_YEAR = 2010;
@@ -14,7 +20,7 @@ const FETCH_TIMEOUT_MS = 5000;
 const OVERRIDES_CACHE_TTL_MS = 60 * 1000;
 
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
-export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
+export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 
 // All 43 commodities PSA actually publishes farmgate PRICES for, in this exact table
 // (0142M4EFGP0 — "Major Crops: Farmgate Prices"). PSA's OpenStat DB/2E/CS collection has ~17
@@ -134,6 +140,17 @@ function invalidateOverridesCache() {
   overridesCache = null;
 }
 
+// One cached request for every override at once — for a summary count/list (the admin
+// dashboard's Price Monitoring widget), not a per-commodity price lookup. Deliberately NOT
+// useCommodityMonitoring.js's rows: that hook fetches all ~43 commodities' PSA prices
+// individually, paced 350ms apart specifically to avoid PSA's rate limiter, which is the
+// right cost for the actual Price Monitoring table but far too slow just to show "2
+// overridden" on the dashboard.
+export async function getAllPriceOverrides() {
+  const overrides = await getOverridesMap();
+  return Object.values(overrides);
+}
+
 export async function getPriceOverride(commodityId) {
   const overrides = await getOverridesMap();
   return overrides[commodityId] || null;
@@ -197,56 +214,6 @@ function writeCache(key, value) {
   }
 }
 
-function parseCsvLine(line) {
-  const cells = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (inQuotes) {
-      if (char === '"' && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else if (char === '"') {
-        inQuotes = false;
-      } else {
-        current += char;
-      }
-    } else if (char === '"') {
-      inQuotes = true;
-    } else if (char === ',') {
-      cells.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  cells.push(current);
-  return cells;
-}
-
-// PXWeb silently *omits* the column for any requested year it has no data for
-// (confirmed by probing the live API) rather than erroring or padding with a
-// null — so parsing must read the year out of each header cell instead of
-// assuming a fixed position, and the caller reconciles that against the full
-// requested range to produce explicit gaps (e.g. the current year before PSA
-// has published it yet).
-function parseAnnualCsv(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return new Map();
-  const headers = parseCsvLine(lines[0]);
-  const cells = parseCsvLine(lines[1]);
-
-  const priceByYear = new Map();
-  for (let i = 2; i < headers.length; i += 1) {
-    const match = headers[i].match(/(\d{4})/);
-    if (!match) continue;
-    const raw = Number(cells[i]);
-    priceByYear.set(Number(match[1]), Number.isFinite(raw) && raw > 0 ? raw : null);
-  }
-  return priceByYear;
-}
-
 // Applied after every fetch (cached or live) rather than baked into the cached value,
 // so an admin override takes effect immediately instead of waiting out the 12h cache TTL.
 // Also self-heals: if PSA now shows a different figure for the override's year than it
@@ -278,28 +245,8 @@ async function applyOverride(commodityId, points) {
   return next;
 }
 
-async function postPsaQuery(query) {
-  // Bounded so a slow/unresponsive PSA server can never hang the caller indefinitely —
-  // callers that gate UI on this (e.g. product submission) must always get a settled
-  // promise within a few seconds.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(PSA_TABLE_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify(query),
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-// Fetches the PSA farmgate-price table via a CORS-simple request: the server has no
-// CORS preflight (OPTIONS) handler, so a real `application/json` POST is blocked by
-// the browser before it's even sent. Sending the same JSON body as `text/plain`
-// avoids the preflight — the server still parses it as JSON regardless of the header.
+// See utils/pxwebCsv.js for why the request is sent as text/plain (dodges a CORS preflight
+// PXWeb's server doesn't handle) and how the CSV response is parsed.
 async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   const endYear = new Date().getFullYear();
   const startYear = Math.max(TABLE_MIN_YEAR, endYear - yearsBack + 1);
@@ -322,7 +269,7 @@ async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
     response: { format: 'csv' },
   };
 
-  let response = await postPsaQuery(query);
+  let response = await postPxwebQueryOnce(PSA_TABLE_URL, query, FETCH_TIMEOUT_MS);
   // PSA's Cloudflare-fronted endpoint 429s a real fraction of requests under any kind of
   // burst (confirmed live: pages that load many commodities in a row, like Admin Price
   // Monitoring, start seeing this after roughly a dozen requests even spaced out) — one
@@ -330,13 +277,13 @@ async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   // caller seeing a transient rate limit as "PSA has no data for this commodity."
   if (response.status === 429) {
     await new Promise((resolve) => setTimeout(resolve, 900));
-    response = await postPsaQuery(query);
+    response = await postPxwebQueryOnce(PSA_TABLE_URL, query, FETCH_TIMEOUT_MS);
   }
 
   if (!response.ok) throw new Error('Unable to reach the PSA market price service.');
 
   const text = await response.text();
-  const priceByYear = parseAnnualCsv(text);
+  const priceByYear = parseAnnualMetricCsv(text);
 
   const points = [];
   for (let year = startYear; year <= endYear; year += 1) {

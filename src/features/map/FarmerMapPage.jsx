@@ -3,6 +3,8 @@ import { MapPin, MessageCircle, Package, Phone, Search, Store, Users } from 'luc
 import AppShell from '../../components/layout/AppShell';
 import FarmerMap from '../../components/map/FarmerMap';
 import EmptyState from '../../components/common/EmptyState';
+import noAccountsIcon from '../../assets/icons/map-no-accounts.png';
+import noLocationIcon from '../../assets/icons/map-no-location.png';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
@@ -315,7 +317,8 @@ export default function FarmerMapPage() {
             ) : (
               <EmptyState
                 compact
-                icon={Users}
+                className="empty-state-transparent-icon"
+                iconSrc={noLocationIcon}
                 title="No location selected"
                 message="Click a marker on the map or a name in the directory to see details here."
               />
@@ -323,7 +326,7 @@ export default function FarmerMapPage() {
           </section>
         </>
       ) : (
-        <EmptyState title="No accounts yet" message="Once farmers are ADMIN-verified and buyers register, they'll appear here and on the map." />
+        <EmptyState className="empty-state-transparent-icon" iconSrc={noAccountsIcon} title="No accounts yet" message="Once farmers are ADMIN-verified and buyers register, they'll appear here and on the map." />
       )}
     </AppShell>
   );

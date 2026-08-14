@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
 import StatCard from '../../components/admin/StatCard';
+import salesIcon from '../../assets/icons/stat-sales.png';
+import ordersIcon from '../../assets/icons/stat-orders.png';
+import usersIcon from '../../assets/icons/stat-users.png';
+import donationsIcon from '../../assets/icons/stat-donations.png';
 import { Card, CardHeader } from '../../components/admin/Card';
 import Table from '../../components/admin/Table';
 import EmptyState from '../../components/admin/EmptyState';
@@ -43,18 +47,18 @@ export default function AdminReports() {
   const { users, orders, donations } = state;
   const totalRevenue = getTotalRevenue(orders);
   const monthlyRevenue = getMonthlyRevenue(orders, 6);
-  const topProducts = getTopProducts(orders, 5);
+  const topProducts = getTopProducts(orders, 10);
   const completedDonations = donations.filter((donation) => donation.status === 'completed').length;
 
   return (
     <AppShell user={currentUser} navItems={adminNavItems} title="Reports" hideHeader>
       <PageHeader title="Reports" description="Revenue, order, and donation trends across HarvestLink." />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total sales" value={formatCurrency(totalRevenue)} />
-        <StatCard label="Total orders" value={orders.length} />
-        <StatCard label="Registered users" value={users.length} />
-        <StatCard label="Donations completed" value={completedDonations} />
+      <div className="mb-4 grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
+        <StatCard label="Total sales" value={formatCurrency(totalRevenue)} iconSrc={salesIcon} tone="green" />
+        <StatCard label="Total orders" value={orders.length} iconSrc={ordersIcon} tone="blue" />
+        <StatCard label="Registered users" value={users.length} iconSrc={usersIcon} tone="slate" />
+        <StatCard label="Donations completed" value={completedDonations} iconSrc={donationsIcon} tone="amber" />
       </div>
 
       <Card className="mb-4">
@@ -103,6 +107,7 @@ export default function AdminReports() {
               ]}
               rows={topProducts.map((row) => ({ ...row, id: row.productId }))}
               emptyMessage="No paid orders yet."
+              maxHeight={topProducts.length > 5 ? 280 : undefined}
             />
           ) : (
             <EmptyState title="No sales yet" message="Top-selling products will appear here once orders are paid." />

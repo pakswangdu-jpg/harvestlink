@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Sprout } from 'lucide-react';
+import noMatchIcon from '../../assets/icons/products-no-match.png';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
@@ -327,11 +328,11 @@ export default function FarmerProducts() {
         </Button>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-6">
         <SummaryCards summary={summary} />
       </div>
 
-      <section className="mt-4 rounded-lg border border-[#D0D7DE] bg-white p-5">
+      <section className="mt-8 rounded-lg border border-[#D0D7DE] bg-white p-5">
         {products.length ? (
           <div className="mb-5">
             <ProductFilters
@@ -391,6 +392,8 @@ export default function FarmerProducts() {
           </motion.div>
         ) : products.length ? (
           <EmptyState
+            className="empty-state-transparent-icon"
+            iconSrc={noMatchIcon}
             title="No matching products"
             message="Try a different search term or filter."
             actionLabel={hasFilters ? 'Clear filters' : undefined}
@@ -398,6 +401,7 @@ export default function FarmerProducts() {
           />
         ) : (
           <EmptyState
+            className="empty-state-transparent-icon"
             icon={Sprout}
             title="No products yet"
             message="You haven't added any products yet. Click Add Product to create your first listing."

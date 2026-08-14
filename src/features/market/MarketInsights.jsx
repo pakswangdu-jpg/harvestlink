@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeDollarSign, TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingDown } from 'lucide-react';
+import annualAverageIcon from '../../assets/icons/market-annual-average.png';
+import trendUpIcon from '../../assets/icons/market-trend-up.png';
 import AppShell from '../../components/layout/AppShell';
 import StatCard from '../../components/cards/StatCard';
 import DataTable from '../../components/dashboard/DataTable';
@@ -98,16 +100,30 @@ export default function MarketInsights() {
         <StatCard
           label="Latest annual average"
           value={latest ? formatCurrency(latest.price) : '—'}
-          icon={<BadgeDollarSign size={20} />}
+          icon={<img src={annualAverageIcon} alt="" width={20} height={20} className="h-5 w-5 object-contain" />}
+          iconClassName="stat-icon-transparent"
           hint={latest?.isOverride ? 'Set by admin, overriding PSA' : null}
         />
         <StatCard
           label={earliest ? `Change since ${earliest.year}` : 'Change'}
           value={overallChange != null ? `${overallChange >= 0 ? '+' : ''}${overallChange.toFixed(1)}%` : '—'}
-          icon={overallChange != null && overallChange < 0 ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
+          icon={overallChange != null && overallChange < 0
+            ? <TrendingDown size={20} />
+            : <img src={trendUpIcon} alt="" width={20} height={20} className="h-5 w-5 object-contain" />}
+          iconClassName="stat-icon-transparent"
         />
-        <StatCard label="Highest year" value={highest ? `${formatCurrency(highest.price)} (${highest.year})` : '—'} icon={<TrendingUp size={20} />} />
-        <StatCard label="Lowest year" value={lowest ? `${formatCurrency(lowest.price)} (${lowest.year})` : '—'} icon={<TrendingDown size={20} />} />
+        <StatCard
+          label="Highest year"
+          value={highest ? `${formatCurrency(highest.price)} (${highest.year})` : '—'}
+          icon={<img src={trendUpIcon} alt="" width={20} height={20} className="h-5 w-5 object-contain" />}
+          iconClassName="stat-icon-transparent"
+        />
+        <StatCard
+          label="Lowest year"
+          value={lowest ? `${formatCurrency(lowest.price)} (${lowest.year})` : '—'}
+          icon={<TrendingDown size={20} />}
+          iconClassName="stat-icon-transparent"
+        />
       </section>
 
       <section className="panel">

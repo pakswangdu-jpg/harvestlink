@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import ordersEmptyIcon from '../../assets/icons/orders-empty.png';
 import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
 import ZoomableImage from '../../components/common/ZoomableImage';
@@ -201,7 +202,7 @@ export default function FarmerOrders() {
             emptyMessage="No orders yet."
           />
         ) : (
-          <EmptyState title="No orders yet" message="Buyer orders for your products will appear here." />
+          <EmptyState className="empty-state-transparent-icon" iconSrc={ordersEmptyIcon} title="No orders yet" message="Buyer orders for your products will appear here." />
         )}
       </section>
     </AppShell>

@@ -1342,15 +1342,38 @@ a.lp-contact-card:hover {
 
 /* Flat, neutral "enterprise software" palette for the signed-in app only, overridden here
    (not in :root) so the landing page and auth screens keep their own warmer look untouched.
-   Every .panel/.badge/.stat-card/table rule below already reads var(--text) etc, so this
-   cascades the new palette to every dashboard page with no other edits required. */
+   Every .panel/.badge/.stat-card/table rule below already reads var(--text)/var(--green-700)
+   etc, so this single block cascades the brand palette to every dashboard page — Financial/
+   Products/Orders panels, buttons, badges, tables — with no other edits required. The green
+   ramp is its own local override (not just --text/--muted/--line/--panel/--soft/--shadow)
+   specifically so the dashboard's brand green can differ from the landing page's without a
+   second set of variable names. */
 .app-shell {
-  --text: #24292f;
-  --muted: #57606a;
-  --line: #d0d7de;
+  --green-900: #04371f;
+  --green-800: #065e36;
+  --green-700: #087443;
+  --green-600: #0f9d5a;
+  --green-100: #ddf7e6;
+  --green-50: #effbf4;
+  --text: #243447;
+  --muted: #718096;
+  --line: #d9e2de;
   --panel: #ffffff;
-  --soft: #f6f8fa;
+  --soft: #f4f7f6;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --sidebar-bg: #f8faf8;
+  --icon-muted: #526174;
+  /* Cool blue-gray — the "Registered Users" stat card's tone (people/accounts, deliberately
+     calmer than the activity-blue used for orders). --muted/--soft are too neutral/gray on
+     their own to read as a distinct accent once used as a card tint. */
+  --steel-700: #4f7f9a;
+  --steel-100: #dce6ea;
+  /* Only used for the "Overridden Prices" price-monitoring card tone — a restrained,
+     desaturated violet for administrative/control context, distinct from the
+     agriculture-green/alert-amber/activity-blue tones already covering everything else. */
+  --violet-700: #6d5a9e;
+  --violet-100: #ece7f7;
+  --radius: 8px;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
@@ -1362,8 +1385,8 @@ a.lp-contact-card:hover {
   top: 0;
   height: 100vh;
   padding: 16px 12px;
-  border-right: 1px solid #d0d7de;
-  background: #ffffff;
+  border-right: 1px solid var(--line);
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1384,24 +1407,35 @@ a.lp-contact-card:hover {
   background: var(--green-50);
 }
 
+/* A hairline divider under the logo, not just gap spacing — separates "who/where you are"
+   from the navigation below it, the same way Notion/Linear split their workspace switcher
+   from the nav list underneath. */
+.sidebar .brand {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
 .sidebar .brand strong {
   font-size: 0.94rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text);
 }
 
 .sidebar .brand small {
   font-size: 0.72rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--muted);
   text-transform: capitalize;
 }
 
 /* Only the middle (nav + general) region scrolls — the logo stays pinned at the top and
-   Logout stays pinned at the bottom no matter how many nav items/zoom level squeezes things. */
+   Logout stays pinned at the bottom no matter how many nav items/zoom level squeezes things.
+   Thumb is a neutral gray, not brand green — a persistent bright green bar running down the
+   sidebar's edge read as a strong decorative accent competing with the active-item indicator,
+   not a scrollbar. Green stays reserved for active state/primary actions. */
 .sidebar {
   scrollbar-width: thin;
-  scrollbar-color: var(--green-600) transparent;
+  scrollbar-color: var(--line) transparent;
 }
 
 .sidebar::-webkit-scrollbar {
@@ -1413,7 +1447,7 @@ a.lp-contact-card:hover {
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: var(--green-600);
+  background: var(--line);
   border-radius: 999px;
 }
 
@@ -1661,6 +1695,424 @@ a.lp-contact-card:hover {
   text-align: center;
 }
 
+.page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Mirrors .notification-bell-toggle/.notification-badge exactly so the cart icon and the
+   bell read as one consistent icon-button pair in the header, not two different styles. */
+.cart-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--green-800);
+}
+
+.cart-button:hover {
+  background: var(--soft);
+}
+
+.cart-button-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--red-700);
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.content-grid.two.cart-split {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  align-items: start;
+}
+
+.cart-summary-panel {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cart-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Named areas (not just column order) so the mobile breakpoint below can move .cart-item-meta
+   onto its own full-width row instead of squeezing farmer/location/grade/selling-type into
+   the same narrow column as the name+price next to a small image, which is what used to wrap
+   into 3 cramped lines on a phone. Desktop keeps the image spanning both content rows,
+   visually identical to before. */
+.cart-item-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  grid-template-areas:
+    "image details controls"
+    "image meta controls";
+  column-gap: 16px;
+  row-gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.cart-item-image {
+  grid-area: image;
+  width: 84px;
+  height: 84px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.cart-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cart-item-details {
+  grid-area: details;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cart-item-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cart-item-name:hover {
+  color: var(--green-800);
+}
+
+.cart-item-price {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cart-item-price span {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* Grade/selling-type — a product attribute, grouped with name+price rather than with the
+   farmer/location "who/where" block below, on both breakpoints. */
+.cart-item-tags {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cart-item-warning {
+  color: var(--red-700);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* Farmer + location — desktop keeps these as a single compact inline-icon row (the label is
+   only ever shown on mobile, see the max-width: 640px block); min-width: 0 lets a long farmer
+   name wrap inside its own 1fr grid track instead of forcing the row wider than the card. */
+.cart-item-meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-width: 0;
+}
+
+.cart-item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cart-item-meta-label {
+  display: none;
+}
+
+.cart-item-meta-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cart-item-controls {
+  grid-area: controls;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.cart-item-qty-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* Hidden on desktop, where a bare stepper next to a compact right-aligned column already
+   reads unambiguously as quantity — shown on mobile (see max-width: 640px), where the
+   stepper sits on its own full-width row and benefits from a real label above it. */
+.cart-item-qty-label {
+  display: none;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cart-item-stock {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.cart-item-subtotal-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cart-item-calc {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.cart-item-subtotal-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.cart-item-subtotal-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.cart-item-subtotal {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.cart-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cart-item-remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--red-700);
+  cursor: pointer;
+}
+
+.cart-item-remove:hover {
+  background: var(--red-100);
+}
+
+.cart-item-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--soft);
+}
+
+.cart-item-unavailable-info strong {
+  color: var(--text);
+}
+
+.cart-item-unavailable-info p {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.cart-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.cart-summary-line.muted {
+  color: var(--muted);
+}
+
+.cart-summary-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.cart-summary-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.btn.btn-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  /* A deliberately different arrangement from desktop, not the same layout shrunk down:
+     image+name/price/tags stay a compact header row, then farmer/location, then quantity,
+     then subtotal, then actions — each its own full-width block separated by a hairline,
+     instead of everything competing for space in one horizontal row. */
+  .cart-item-row {
+    grid-template-columns: 76px 1fr;
+    grid-template-areas:
+      "image details"
+      "meta meta"
+      "controls controls";
+    column-gap: 12px;
+    row-gap: 16px;
+    padding: 16px;
+  }
+
+  .cart-item-image {
+    width: 76px;
+    height: 76px;
+  }
+
+  /* Farmer/location switch from desktop's compact inline-icon row to a real label-above-
+     value block — this is the "Farmer" / name-on-its-own-line structure from the spec,
+     which only makes sense once each row has the full card width to itself. */
+  .cart-item-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .cart-item-meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .cart-item-meta-label {
+    display: block;
+  }
+
+  .cart-item-meta-value {
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+
+  .cart-item-controls {
+    align-items: stretch;
+    gap: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .cart-item-qty-block {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cart-item-qty-label {
+    display: block;
+  }
+
+  /* The stepper's own max-width (see .qty-stepper) already keeps it from stretching the
+     full card width — this only stops the flex column from centering it. */
+  .cart-item-qty-block .qty-stepper {
+    align-self: flex-start;
+  }
+
+  .cart-item-subtotal-block {
+    align-items: stretch;
+    gap: 6px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .cart-item-subtotal-row {
+    justify-content: space-between;
+  }
+
+  .cart-item-subtotal {
+    font-size: 1.15rem;
+  }
+
+  /* Checkout takes the primary share of the row's width; Remove stays a fixed, smaller,
+     icon-only touch target so the two never compete for visual weight. */
+  .cart-item-actions {
+    gap: 10px;
+  }
+
+  .cart-item-checkout {
+    flex: 1;
+  }
+
+  .cart-item-remove {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+
+  .content-grid.two.cart-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cart-summary-panel {
+    position: static;
+  }
+}
+
 .user-chip {
   flex-shrink: 0;
   display: flex;
@@ -1722,6 +2174,13 @@ a.user-chip:hover {
   background: var(--soft);
 }
 
+/* Drops the badge box for one specific StatCard instance (opt in via iconClassName) — for a
+   full-color image icon the soft-gray badge just reads as a mismatched frame, same reasoning
+   as .empty-state-transparent-icon elsewhere in this file. */
+.stat-icon-transparent {
+  background: transparent;
+}
+
 .stat-card p {
   color: var(--muted);
   font-size: 0.86rem;
@@ -1742,6 +2201,137 @@ a.user-chip:hover {
   font-weight: 500;
 }
 
+/* ==========================================================================
+   Farmer dashboard metrics summary (FarmerDashboard.jsx) — one visually
+   dominant Financial block (subtle green tint, largest type, value-first)
+   with Products/Orders as two smaller, neutral secondary panels below it.
+   Deliberately not three equal cards — income is what a farmer scans for
+   first, so it gets more weight than product/order counts.
+   ========================================================================== */
+
+.metrics-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metrics-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green-800);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metrics-section-heading-muted {
+  color: var(--muted);
+}
+
+/* Bookends the label and icon across the full width of the wide Financial block instead of
+   bunching both at the left edge — makes the block's width read as deliberate instead of the
+   two metrics below just trailing off into empty space. */
+.metrics-financial .metrics-section-heading {
+  justify-content: space-between;
+}
+
+.metrics-financial {
+  padding: 24px 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--green-50);
+}
+
+.metrics-financial-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+  margin-top: 18px;
+}
+
+.metric-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--green-900);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.metric-trend {
+  color: var(--green-700);
+}
+
+.metrics-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.metrics-secondary-panel {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.metrics-secondary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.metric-value-compact {
+  color: var(--text);
+  font-size: 1.625rem;
+  font-weight: 700;
+}
+
+.metric-value-compact.tone-warning {
+  color: var(--amber-700);
+}
+
+.metric-value-compact.tone-success {
+  color: var(--green-700);
+}
+
+@media (max-width: 640px) {
+  .metrics-secondary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics-financial {
+    padding: 18px 20px;
+  }
+
+  .metrics-financial-row {
+    gap: 16px 28px;
+  }
+
+  .metric-value {
+    font-size: 1.75rem;
+  }
+}
+
 .tracking-info-heading {
   font-size: 1.4rem;
   color: var(--green-900);
@@ -1753,11 +2343,16 @@ a.user-chip:hover {
 .tracking-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.tracking-badge svg {
+  flex-shrink: 0;
 }
 
 .tracking-badge.tracking-pending {
@@ -2263,15 +2858,18 @@ a.user-chip:hover {
   font-size: 0.94rem;
 }
 
+/* Neutral, not green — this badge is purely decorative (the truck icon doesn't convey status,
+   the .tracking-badge pill right beside it does that with its own proper color per state), so
+   it doesn't need to compete with that badge's color for attention. */
 .ot-summary-icon {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
-  background: var(--green-100);
-  color: var(--green-700);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--text);
 }
 
 .ot-map-panel .live-delivery-map {
@@ -2314,7 +2912,7 @@ a.user-chip:hover {
   height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--green-100);
   color: var(--green-700);
 }
@@ -2535,209 +3133,43 @@ a.user-chip:hover {
 
 .surplus-actions {
   justify-content: flex-start;
+  align-items: flex-end;
   width: 100%;
 }
 
-/* Surplus Donations page (FarmerDonations.jsx) redesign — scoped under .surplus-* rather
-   than touching .panel/.product-card/EmptyState.jsx (all shared with other pages, including
-   the three stakeholder-facing donation pages that reuse DonationCard.jsx) so this stays
-   contained to the one page it was designed for. Literal hex per the design spec rather than
-   the app's shared --text/--muted/--line tokens, same reasoning as the Ratings & reviews
-   redesign — this section's palette shouldn't drift if those tokens change elsewhere. */
-.surplus-page {
-  display: grid;
-  gap: 24px;
-}
-
-.surplus-section {
-  padding: 24px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-}
-
-.surplus-section-header {
-  display: grid;
-  gap: 4px;
-  margin-bottom: 20px;
-}
-
-.surplus-section-header h2 {
-  color: #111827;
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.surplus-section-header p {
-  margin-top: 4px;
-  color: #6b7280;
-  font-size: 0.9375rem;
-}
-
-.surplus-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.surplus-card {
+/* The pickup-date picker sitting next to Accept/Decline in the Incoming requests card — a
+   bare, unlabeled native <input type="date"> looked like unstyled browser chrome next to
+   the two styled buttons beside it. Same border/radius/focus language as .form-field input,
+   just compact enough to sit inline in a card footer, with a real (if small) label instead
+   of relying on the date picker's own placeholder to explain what it's for. */
+.donation-pickup-field {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 24px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  gap: 3px;
 }
 
-.surplus-card:hover {
-  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
-  transform: translateY(-2px);
-}
-
-.surplus-card-media {
-  width: 100%;
-  height: 120px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--green-50);
-  color: var(--green-700);
-  overflow: hidden;
-}
-
-.surplus-card-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.surplus-card-body {
-  display: grid;
-  gap: 8px;
-}
-
-.surplus-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.surplus-card-top h3 {
-  color: #111827;
-  font-size: 1.05rem;
+.donation-pickup-field span {
+  color: var(--muted);
+  font-size: 0.7rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.surplus-card-org {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #111827;
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.surplus-card-avatar {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--green-800);
-  color: #ffffff;
-  font-size: 0.66rem;
-  font-weight: 700;
-}
-
-.surplus-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 14px;
-  color: #6b7280;
+.donation-pickup-field input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--panel);
   font-size: 0.84rem;
-  font-weight: 500;
 }
 
-.surplus-card-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.surplus-freshness.is-fresh {
-  color: var(--green-800);
-}
-
-.surplus-freshness.is-expiring {
-  color: var(--amber-700);
-}
-
-.surplus-freshness.is-expired {
-  color: var(--red-700);
-}
-
-.surplus-card-ref {
-  color: #9aa2af;
-  font-size: 0.76rem;
-}
-
-.surplus-card-footer {
-  margin-top: 2px;
-}
-
-/* Replaces the old shared dashed-box EmptyState.jsx look for this page specifically — a
-   centered content block on a soft, borderless gray fill instead of a dashed rectangle. */
-.surplus-empty {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  padding: 48px 24px;
-  border-radius: 12px;
-  background: #f8fafc;
-  text-align: center;
-}
-
-.surplus-empty-icon {
-  display: grid;
-  place-items: center;
-  width: 80px;
-  height: 80px;
-  margin-bottom: 8px;
-  border-radius: 999px;
-  background: var(--green-100);
-  color: var(--green-800);
-}
-
-.surplus-empty h3 {
-  color: #111827;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.surplus-empty p {
-  max-width: 360px;
-  margin-bottom: 4px;
-  color: #6b7280;
-  font-size: 0.9rem;
-}
-
-.surplus-empty .btn {
-  margin-top: 12px;
-}
-
-@media (max-width: 640px) {
-  .surplus-card-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.donation-pickup-field input:focus {
+  outline: none;
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
 }
 
 .discount-picker {
@@ -2830,6 +3262,7 @@ a.user-chip:hover {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -3154,11 +3587,15 @@ a.user-chip:hover {
   gap: 6px;
 }
 
+.product-drawer-body .form-section-heading {
+  font-weight: 700;
+}
+
 /* Field label — the FormField's own <span>, first child, ahead of the input/select/textarea
    it wraps. */
 .product-drawer-body .form-field > span:first-child {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: #23372b;
 }
 
@@ -3167,6 +3604,13 @@ a.user-chip:hover {
   min-height: 44px;
   border-radius: 12px;
   padding: 10px 14px;
+}
+
+/* Keeps the chevron's reserved right-hand clearance (see the base .form-field select rule) —
+   the drawer's own tighter 14px padding above would otherwise let the dropdown value text
+   run underneath it. */
+.product-drawer-body .form-field select {
+  padding-right: 34px;
 }
 
 .product-drawer-body .form-field textarea {
@@ -3318,6 +3762,11 @@ a.user-chip:hover {
   transform: translateY(-1px);
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -3443,6 +3892,654 @@ a.user-chip:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* ==========================================================================
+   Checkout (ProductDetails.jsx / CheckoutForm.jsx) — product card, order-
+   details section, quantity stepper, and the sticky order-summary panel.
+   Everything here is scoped under .checkout-* on purpose: .panel supplies the
+   shared border/radius/shadow (reused, not redefined), so this block only
+   adds what's actually specific to checkout.
+   ========================================================================== */
+
+.checkout-progress {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.checkout-progress-marker {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--panel);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.checkout-progress-step.is-active .checkout-progress-marker {
+  border-color: var(--green-700);
+  background: var(--green-700);
+  color: white;
+}
+
+.checkout-progress-step.is-active .checkout-progress-label {
+  color: var(--text);
+}
+
+.checkout-progress-step.is-done .checkout-progress-marker {
+  border-color: var(--green-600);
+  background: var(--green-50);
+  color: var(--green-700);
+}
+
+.checkout-progress-connector {
+  width: 32px;
+  height: 1.5px;
+  margin: 0 10px;
+  background: var(--line);
+}
+
+@media (max-width: 480px) {
+  .checkout-progress-connector {
+    width: 16px;
+  }
+
+  .checkout-progress-label {
+    display: none;
+  }
+}
+
+.checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 20px;
+}
+
+.checkout-main {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.checkout-product-card {
+  display: flex;
+  gap: 16px;
+}
+
+.checkout-product-media {
+  flex-shrink: 0;
+  width: 108px;
+  height: 108px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--green-50);
+  color: var(--green-700);
+  overflow: hidden;
+}
+
+.checkout-product-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.checkout-product-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.checkout-product-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.checkout-product-name {
+  color: var(--text);
+  font-size: 1.3rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.checkout-product-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.checkout-product-price {
+  color: var(--text);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.checkout-product-price small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.checkout-product-price-original {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: line-through;
+}
+
+.checkout-product-stock {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.checkout-product-stock-low {
+  color: var(--red-700);
+  font-weight: 600;
+}
+
+.checkout-product-divider {
+  margin: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.checkout-product-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.checkout-product-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+.checkout-product-meta svg {
+  color: var(--muted);
+}
+
+/* Deliberately the least prominent line on the card — a fact a buyer might want, not one
+   that should compete visually with price/stock/farmer for attention. */
+.checkout-product-listed {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.checkout-section-title {
+  margin-bottom: 16px;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* A bounded +/- stepper — same height/border/radius/focus language as every other
+   .form-field control (see the base .form-field input rule) so it doesn't read as a
+   different kind of control sitting in the same form. */
+/* Sized to its own content (buttons + a couple digits), not stretched to fill its container
+   — a full-width stepper left the input's box far wider than a 1-2 digit number needs, which
+   pushed the unit label an awkward gap away from the + button instead of sitting right next
+   to it. */
+.qty-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  width: fit-content;
+  height: 44px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.qty-stepper:focus-within {
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.qty-stepper button {
+  flex-shrink: 0;
+  width: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: var(--soft);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qty-stepper button:hover:not(:disabled) {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.qty-stepper button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.qty-stepper input {
+  width: 44px;
+  min-width: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  /* Chrome/Safari's default spinner arrows duplicate what the +/- buttons already do,
+     and look inconsistent squeezed into this narrow a field. */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.qty-stepper input::-webkit-outer-spin-button,
+.qty-stepper input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.qty-stepper.is-disabled {
+  opacity: 0.6;
+}
+
+.qty-stepper-unit {
+  align-self: center;
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+
+/* Sticky next to the form so the running total stays on screen while a buyer scrolls
+   through delivery/payment/message — only meaningful above the 900px breakpoint, where the
+   layout is actually two columns (see the max-width: 900px block further down). */
+.checkout-summary {
+  position: sticky;
+  top: 20px;
+}
+
+.checkout-summary-card {
+  display: grid;
+  gap: 16px;
+}
+
+.checkout-summary-title {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.checkout-summary-item {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-summary-item-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.checkout-summary-item-name {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.checkout-summary-item-total {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.94rem;
+}
+
+.checkout-summary-item-calc {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.checkout-summary-delivery {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-summary-delivery-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.checkout-summary-delivery-label .muted {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 0.84rem;
+}
+
+.checkout-summary-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.checkout-summary-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius);
+  background: var(--amber-100);
+  color: var(--amber-700);
+  font-size: 0.78rem;
+}
+
+.checkout-summary-warning button {
+  flex-shrink: 0;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.checkout-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+.checkout-summary-line.muted {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.checkout-summary-line.muted span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.checkout-summary-total-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.checkout-summary-total-row strong {
+  color: var(--green-800);
+  font-size: 1.3rem;
+}
+
+.checkout-submit-btn {
+  margin-top: 4px;
+}
+
+.checkout-submit-btn:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.checkout-submit-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.checkout-submit-btn-logo {
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .checkout-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .checkout-summary {
+    position: static;
+  }
+
+  .checkout-product-card {
+    flex-direction: column;
+  }
+
+  .checkout-product-media {
+    width: 100%;
+    height: 180px;
+  }
+}
+
+/* Delivery-method / payment-method selectable cards — deliberately NOT reusing
+   .segmented-control/.payment-grid (ProductForm.jsx and GcashPaymentPage.jsx already depend
+   on those exact pill styles), so this is its own scoped system: a light-bordered card per
+   option, green border + very light green fill + a small check badge when selected, instead
+   of a filled pill. `.three`/`.two` just set the column count for delivery vs payment. */
+.method-card-group {
+  display: grid;
+  gap: 10px;
+}
+
+.method-card-group.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.method-card-group.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.method-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1.5px solid #cfded4;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.method-card:hover {
+  border-color: var(--green-600);
+}
+
+.method-card:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.method-card.is-selected {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.method-card-icon {
+  color: var(--green-800);
+}
+
+/* GCash's real logo (gcash-com-logo.png) is a solid-color square asset, not a transparent
+   line icon like the lucide ones next to it — a small radius keeps its hard corners from
+   looking like a disconnected patch sitting on the card. */
+.method-card-icon-logo {
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.method-card-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.method-card-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: var(--green-700);
+  color: white;
+}
+
+/* A left-side icon on top of the existing .form-field select (which already draws its own
+   chevron — see that rule's comment) — the select just gets extra left padding to make room. */
+.select-with-icon {
+  position: relative;
+}
+
+.select-with-icon select {
+  padding-left: 38px;
+}
+
+.select-with-icon-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Secondary, not urgent — informational, not a warning, so it reads as a plain note rather
+   than competing with the field-error styling used everywhere else in this form. */
+.payment-method-notice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.textarea-with-counter {
+  position: relative;
+}
+
+.textarea-with-counter textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+}
+
+.textarea-counter {
+  display: block;
+  margin-top: 4px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.checkout-summary-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+/* Restrained — four small facts, not a marketing section. Wraps to 2 columns on tablet and 1
+   on mobile via the same auto-fit pattern used elsewhere in this file, no separate media
+   query needed. */
+.checkout-trust-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+  padding: 18px 20px;
+}
+
+.checkout-trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.checkout-trust-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--green-50);
+  color: var(--green-700);
+}
+
+.checkout-trust-title {
+  color: var(--text);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.checkout-trust-text {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+  .method-card-group.three {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* An even 50/50 split (the .form-grid default) starves "Complete address" — free text that
    routinely runs 25-40+ characters — to match "Zip code", which never holds more than 4
    digits. Scoped to this specific pairing (AuthPage.jsx's farmer/buyer address row,
@@ -3480,7 +4577,26 @@ a.user-chip:hover {
   color: var(--text);
   background: var(--panel);
   padding: 11px 12px;
+  /* .form-field itself is font-weight: 750 for its <span> label — without resetting it here,
+     every input/select/textarea silently inherits that same heavy weight for the VALUE text
+     too (e.g. a selected municipality rendering as bold as its own "Location" label). Values
+     read normally; only the label should be bold. */
+  font-weight: 500;
   outline: none;
+}
+
+/* Custom chevron replaces the browser's bare native arrow — visually unstyled selects were
+   the one control in this system that still looked like default browser chrome instead of
+   belonging to the rest of the app. */
+.form-field select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364756b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 15px;
+  cursor: pointer;
 }
 
 .form-field input:focus,
@@ -3519,43 +4635,75 @@ a.user-chip:hover {
 }
 
 .field-error {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: var(--red-700) !important;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
+.field-error svg {
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   Standardized alert/notification system — one shared visual language for every
+   success/error/warning/info message across the app (inline form banners, the OTP/
+   verification screen, dialogs, etc). Restrained on purpose: 1px border, moderate
+   weight, compact padding — no oversized boxes, no heavy shadows, no gradients.
+
+   Icons are added via a default ::before (a small inline SVG per type) rather than
+   requiring every one of this class's ~20 call sites to import and render a lucide
+   icon by hand — bare `<div class="form-alert success">message</div>` markup
+   everywhere in the app gets a consistent icon for free. `.has-icon` remains an
+   escape hatch for a caller that renders its own real lucide icon (see AuthPage.jsx),
+   which suppresses the auto icon so it never doubles up. New/updated call sites can
+   also opt into the richer two-line structure via .form-alert-title/.form-alert-body
+   (see FormAlert.jsx), while every existing bare-string usage keeps working exactly
+   as it did — this only changes presentation, not what any caller passes in.
+   ============================================================================ */
+/* Icon is absolutely positioned (not a flex item) on purpose — a handful of these divs hold
+   more than one child (e.g. ProductForm.jsx's validation summary: a <strong> heading plus a
+   <ul> of errors), and those need to keep stacking vertically in normal block flow exactly as
+   before. Reserving space with padding-left + positioning the icon over it gets a consistent
+   icon everywhere without depending on what shape each caller's children happen to take. */
 .form-alert {
-  padding: 12px 14px;
+  position: relative;
+  padding: 12px 14px 12px 41px;
+  border: 1px solid transparent;
   border-radius: var(--radius);
-  font-weight: 750;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
-.form-alert.success {
-  color: var(--green-800);
-  background: var(--green-100);
+.form-alert::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 13px;
+  width: 17px;
+  height: 17px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }
 
-.form-alert.error {
-  color: var(--red-700);
-  background: var(--red-100);
-}
-
-.form-alert.warning {
-  color: var(--amber-700);
-  background: var(--amber-100);
-}
-
-.form-alert.info {
-  color: var(--blue-700);
-  background: var(--blue-100);
-}
-
-/* Opt-in modifier — only alerts that render an icon get the flex layout, so every
-   other .form-alert (elsewhere in the app, some of which contain a plain <ul>) keeps
-   its original block layout untouched. */
+/* Escape hatch for a caller that renders its own real lucide icon as an actual child
+   (AuthPage.jsx's 3 has-icon spots, and FormAlert.jsx below) — flex row instead of the
+   reserved-padding technique above, since here the "icon" is a normal child, not a
+   pseudo-element standing in for one, and flex is the right tool once you control both
+   children involved. */
 .form-alert.has-icon {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.form-alert.has-icon::before {
+  content: none;
 }
 
 .form-alert.has-icon svg {
@@ -3563,8 +4711,136 @@ a.user-chip:hover {
   margin-top: 1px;
 }
 
-.form-alert.has-icon span {
-  line-height: 1.45;
+.form-alert.success {
+  color: var(--green-800);
+  background: var(--green-100);
+  border-color: color-mix(in srgb, var(--green-800) 22%, transparent);
+}
+
+.form-alert.success::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23166534' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
+}
+
+.form-alert.error {
+  color: var(--red-700);
+  background: var(--red-100);
+  border-color: color-mix(in srgb, var(--red-700) 22%, transparent);
+}
+
+.form-alert.error::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b91c1c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E");
+}
+
+.form-alert.warning {
+  color: var(--amber-700);
+  background: var(--amber-100);
+  border-color: color-mix(in srgb, var(--amber-700) 25%, transparent);
+}
+
+.form-alert.warning::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b45309' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E");
+}
+
+.form-alert.info {
+  color: var(--blue-700);
+  background: var(--blue-100);
+  border-color: color-mix(in srgb, var(--blue-700) 22%, transparent);
+}
+
+.form-alert.info::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231d4ed8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");
+}
+
+.form-alert-title {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.form-alert-body {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.48;
+  opacity: 0.92;
+}
+
+.form-alert-content {
+  min-width: 0;
+}
+
+/* Fixed to the corner, stacked oldest-on-top so a newly added toast appears at the bottom
+   and pushes upward — matches how a buyer would expect repeated "Added to cart" clicks to
+   accumulate. Kept genuinely small and short-lived (see ToastContext.jsx's 3.2s timer) on
+   purpose: this is a passive confirmation, not something that should demand a click to
+   dismiss or interrupt whatever the buyer is doing next. */
+.toast-stack {
+  position: fixed;
+  z-index: 300;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  width: min(340px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  position: relative;
+  padding-right: 36px;
+  background: var(--panel);
+  /* A real elevation shadow, unlike inline .form-alert usage — this is the one context where
+     that's earned: the toast is genuinely floating above page content, not sitting in flow. */
+  box-shadow: 0 10px 28px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06);
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: currentColor;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+@media (max-width: 640px) {
+  .toast-stack {
+    /* Clears the fixed mobile bottom nav (see .mobile-bottom-nav) instead of sitting behind
+       or overlapping it. */
+    left: 16px;
+    right: 16px;
+    bottom: 90px;
+    width: auto;
+  }
 }
 
 .farmer-filter-banner {
@@ -4362,6 +5638,7 @@ th {
   color: #6b7280;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.2;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -4370,7 +5647,11 @@ th {
 td {
   font-size: 14px;
   font-weight: 500;
-  line-height: 1.5;
+  /* The global :root default (1.5) is tuned for prose, not a dense table row — this table
+     already fixes each row to a 44px height (see .table-wrap tbody tr below), so the loose
+     line-height was just adding dead space above/below the text instead of changing anything
+     visible about row spacing. */
+  line-height: 1.3;
   color: #111827;
   white-space: nowrap;
 }
@@ -4484,6 +5765,105 @@ td {
   border-radius: var(--radius);
   color: var(--green-800);
   background: var(--green-100);
+}
+
+/* Neutral instead of the shared EmptyState.jsx default green tint — pass className="empty-state-neutral"
+   to a single EmptyState instance (see FarmerDashboard.jsx's donations panel) without touching
+   every other page's empty states, which still use the green badge. */
+.empty-state-neutral .empty-icon {
+  color: var(--muted);
+  background: var(--soft);
+}
+
+/* Warm amber instead of the shared default green tint — for a "waiting on someone else"
+   empty state (the Hourglass), matching the same amber used for "Pending requests" elsewhere
+   in the app rather than the neutral gray or default green, which don't carry that meaning. */
+.empty-state-amber .empty-icon {
+  color: var(--amber-700);
+  background: var(--amber-100);
+}
+
+/* Drops the badge box entirely — for an iconSrc image (already full-color art, like the
+   map page's account icon) the green tint box behind it just reads as a mismatched frame
+   rather than an accent. Scoped via className, not the shared default. The lighter green
+   only matters for an svg icon (color has no effect on a PNG) — the default --green-800 was
+   tuned for sitting on top of the --green-100 badge; floating free with no badge behind it,
+   that same dark a green reads heavier than intended, so this switches to the softer --green-600. */
+.empty-state-transparent-icon .empty-icon {
+  background: transparent;
+  color: var(--green-600);
+}
+
+/* "Pending requests" KPI card only (FarmerDonations.jsx) — a calm "still waiting" motion on
+   the Hourglass icon: a gentle tilt (a full spin would read as a loading spinner, which this
+   isn't — it's a static count that happens to be zero) plus a subtle breathing scale on the
+   icon's own box. Transform-only (GPU-composited), each keyframe returns exactly to its start
+   value so the loop never visibly jumps. Scoped via StatCard's iconClassName, so every other
+   stat card on every other page stays static. */
+.stat-icon-waiting {
+  animation: stat-icon-breathe 3.2s ease-in-out infinite;
+}
+
+.stat-icon-waiting svg {
+  animation: stat-icon-tilt 3.6s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes stat-icon-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes stat-icon-tilt {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-icon-waiting,
+  .stat-icon-waiting svg {
+    animation: none;
+  }
+}
+
+/* Same "still waiting" motion as .stat-icon-waiting above, reused for common/EmptyState.jsx
+   instances instead — that component's icon already sits inside its own .empty-icon wrapper
+   box, so the breathe/tilt split works the same way (box breathes, icon tilts). Scoped via
+   EmptyState's className, so every other page's empty states stay static. */
+.empty-state-waiting .empty-icon {
+  animation: stat-icon-breathe 3.2s ease-in-out infinite;
+}
+
+.empty-state-waiting .empty-icon svg {
+  animation: stat-icon-tilt 3.6s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-state-waiting .empty-icon,
+  .empty-state-waiting .empty-icon svg {
+    animation: none;
+  }
+}
+
+/* Same "still waiting" motion as .stat-icon-waiting above, but for admin/EmptyState.jsx
+   instances — there the icon (an svg) has no separate wrapper element to hang two animations
+   off of, so tilt+breathe are combined into a single keyframe on the svg itself instead of
+   two. Scoped via EmptyState's iconClassName; every other empty state stays static. */
+.empty-icon-waiting {
+  animation: empty-icon-waiting-motion 3.4s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+
+@keyframes empty-icon-waiting-motion {
+  0%, 100% { transform: scale(1) rotate(-10deg); }
+  50% { transform: scale(1.1) rotate(10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-icon-waiting {
+    animation: none;
+  }
 }
 
 .auth-page {
@@ -4833,6 +6213,54 @@ td {
 .file-upload-filename {
   color: var(--text);
   font-weight: 750;
+}
+
+/* Registration's Contact number field (AuthPage.jsx's PhoneNumberInput) — reuses the base
+   .form-field input styling (border/radius/padding/focus ring) as-is, this only adds the
+   green/red validity border and the live ✓/⚠ message + static note beneath it. */
+.phone-field {
+  display: grid;
+  gap: 6px;
+}
+
+.phone-field input.is-valid {
+  border-color: var(--green-600);
+}
+
+.phone-field input.is-invalid {
+  border-color: var(--red-700);
+}
+
+.phone-field input.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.13);
+}
+
+.phone-validation-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.phone-validation-message.valid {
+  color: var(--green-700);
+}
+
+.phone-validation-message.invalid {
+  color: var(--red-700);
+}
+
+.phone-validation-message.checking {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.phone-required-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .auth-switch {
@@ -5380,9 +6808,50 @@ td {
 .price-range-values {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
+}
+
+/* A typed exact price, not just a read-only echo of the slider's handle position — the ₱
+   sign lives inside the same bordered field as the number (a label wrapping both) rather
+   than floating beside it, so the two read as one control. */
+.price-range-value-input {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
   color: var(--green-800);
   font-size: 0.78rem;
   font-weight: 800;
+  transition: border-color 0.15s ease;
+}
+
+.price-range-value-input:focus-within {
+  border-color: var(--green-700);
+}
+
+.price-range-value-input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/* Native number-input spinner arrows would eat most of this field's ~50px width — this is
+   a filter value, not a form quantity stepper, so they're pure clutter here. */
+.price-range-value-input input::-webkit-outer-spin-button,
+.price-range-value-input input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 @media (max-width: 640px) {
@@ -5720,7 +7189,7 @@ td {
    not decoration, so Role/Location/Member-since above stay plain neutral. */
 .profile-summary-icon.status-verified {
   color: var(--green-800);
-  background: var(--green-100);
+  background: transparent;
 }
 
 .profile-summary-item small {
@@ -6436,6 +7905,10 @@ td {
   display: none;
 }
 
+.mobile-topbar {
+  display: none;
+}
+
 @media (max-width: 1080px) {
   .app-shell {
     /* minmax(0, 1fr), not a bare 1fr — a plain 1fr track still won't shrink below its
@@ -6447,6 +7920,27 @@ td {
 
   .sidebar {
     display: none;
+  }
+
+  /* The sidebar (and the logo/brand block that lives inside it) is gone below this
+     breakpoint — this is the only place the logo appears on mobile, so it stays visible in
+     exactly the same "logo + HarvestLink + workspace" shape as the desktop sidebar, just laid
+     out as a top strip instead of a side column. */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--sidebar-bg);
+  }
+
+  .mobile-topbar .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--green-50);
   }
 
   .mobile-bottom-nav {
@@ -6486,7 +7980,7 @@ td {
     display: grid;
     place-items: center;
     gap: 2px;
-    color: #4d6357;
+    color: var(--muted);
     font-size: 0.7rem;
     padding: 4px;
   }
@@ -6692,7 +8186,10 @@ td {
     flex-direction: column;
   }
 
-  .mobile-bottom-nav span {
+  /* :not(.nav-badge) — this collapses to icon-only at very narrow widths, but a badge is
+     also just a <span>; without the exclusion it silently hides the Orders/Messages unread
+     count exactly on the phone sizes farmers are most likely to use. */
+  .mobile-bottom-nav span:not(.nav-badge) {
     display: none;
   }
 

@@ -2,7 +2,10 @@
 // fetch — same PXWeb endpoint and CSV parsing, an in-memory cache instead of localStorage
 // (this runs on the server, not in a browser), and no admin-override support (that's a
 // browser-only, per-admin-session feature on the frontend's own price-recommendation UI).
-const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2E/CS/0142M4EFGP0.px';
+// PSA moved this table from DB/2E/CS to DB/2M/NFG — see the matching comment in
+// src/services/marketPriceService.js (the frontend copy of this same fetch) for how that was
+// confirmed; same table code and dimensions, only the folder changed.
+const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
 const TABLE_MIN_YEAR = 2010;

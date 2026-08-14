@@ -27,23 +27,23 @@ export default function Modal({ open, onClose, eyebrow, title, children }) {
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[#D0D7DE] bg-white"
+            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--line)] bg-white"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[#D0D7DE] px-5 py-4">
+            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
               <div>
-                {eyebrow ? <p className="text-[11px] font-medium uppercase tracking-wide text-[#57606A]">{eyebrow}</p> : null}
-                <h2 className="text-[18px] font-semibold text-[#24292F]">{title}</h2>
+                {eyebrow ? <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{eyebrow}</p> : null}
+                <h2 className="text-[18px] font-semibold text-[var(--text)]">{title}</h2>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-[#57606A] hover:bg-[#F6F8FA] hover:text-[#24292F]"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
               >
                 <X size={16} />
               </button>

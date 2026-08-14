@@ -197,6 +197,28 @@ export async function createProduct(req, res) {
     assertPlausiblePricePerKg('Cost per unit', values.costPrice, kgPerUnit);
     assertPlausiblePricePerKg('Price', values.price, kgPerUnit);
   }
+
+  // Optional discount set while creating the listing, instead of requiring a separate
+  // apply-discount call once the product already exists — same math and the same 0-100 bound
+  // as the standalone endpoint below, just folded into the initial insert. An empty/zero
+  // percent (the common case) leaves original_price/discount_percent null, identical to a
+  // listing that never had a discount.
+  let price = Number(values.price);
+  let originalPrice = null;
+  let discountPercent = null;
+  const hasDiscountInput = values.discountPercent !== undefined && values.discountPercent !== null && String(values.discountPercent).trim() !== '';
+  if (!values.isDonation && hasDiscountInput) {
+    const requestedDiscount = Number(values.discountPercent);
+    if (!Number.isFinite(requestedDiscount) || requestedDiscount < 0 || requestedDiscount > 100) {
+      throw new ApiError('Discount percent must be between 0 and 100.', 400);
+    }
+    if (requestedDiscount > 0) {
+      originalPrice = price;
+      discountPercent = requestedDiscount;
+      price = Number((originalPrice * (1 - requestedDiscount / 100)).toFixed(2));
+    }
+  }
+
   const now = new Date().toISOString();
   const row = {
     farmer_id: req.profile.id,
@@ -205,7 +227,7 @@ export async function createProduct(req, res) {
     grade: values.grade || 'A',
     selling_type: values.sellingType || 'retail',
     moq: values.sellingType === 'wholesale' ? Number(values.moq) : null,
-    price: Number(values.price),
+    price,
     unit: values.unit,
     kg_per_unit: values.unit === 'kg' ? null : kgPerUnit,
     quantity: Number(values.quantity),
@@ -215,6 +237,8 @@ export async function createProduct(req, res) {
     status: 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
+    original_price: originalPrice,
+    discount_percent: discountPercent,
     expiration_date: values.expirationDate || null,
     created_at: now,
     updated_at: now,
@@ -243,6 +267,11 @@ export async function createProduct(req, res) {
         description: row.description,
         image_url: row.image_url || mergeTarget.image_url,
         cost_price: row.cost_price,
+        // The rest of the submitted details win, so the discount does too — restocking with
+        // no discount typed clears any discount the existing listing had, exactly like
+        // resubmitting a plain price would; typing a fresh one replaces the old one outright.
+        original_price: row.original_price,
+        discount_percent: row.discount_percent,
         expiration_date: row.expiration_date,
         price_review: buildPriceReview(values.marketReference, values.price, mergeTarget.price_review, kgPerUnit),
         // Adding stock to a sold-out/archived listing puts it back on the marketplace —

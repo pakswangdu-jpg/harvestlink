@@ -46,19 +46,19 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
       {error ? <Alert tone="danger">{error}</Alert> : null}
 
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide text-[#57606A]">Commodity</p>
-        <p className="mt-0.5 text-[15px] font-semibold text-[#24292F]">{commodity.label}</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">Commodity</p>
+        <p className="mt-0.5 text-[15px] font-semibold text-[var(--text)]">{commodity.label}</p>
       </div>
 
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide text-[#57606A]">Current PSA Price</p>
-        <p className="mt-0.5 text-[14px] text-[#24292F]">
+        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">Current PSA Price</p>
+        <p className="mt-0.5 text-[14px] text-[var(--text)]">
           {commodity.referencePrice == null ? 'No data available' : `${formatCurrency(commodity.referencePrice)} / kg (${commodity.referenceYear})`}
         </p>
       </div>
 
       <div>
-        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[#57606A]" htmlFor="override-price-input">
+        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="override-price-input">
           New Override Price (₱/kg)
         </label>
         <Input
@@ -75,8 +75,8 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[#57606A]" htmlFor="override-reason-input">
-          Reason <span className="text-[#CF222E]">*</span>
+        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="override-reason-input">
+          Reason <span className="text-[var(--red-700)]">*</span>
         </label>
         <textarea
           id="override-reason-input"
@@ -85,11 +85,11 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
           onChange={(event) => setReason(event.target.value)}
           disabled={saving}
           placeholder="Why is this reference price being changed?"
-          className="w-full resize-none rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[13px] text-[#24292F] outline-none transition-shadow duration-150 placeholder:text-[#57606A] focus:border-[#166534] focus:ring-2 focus:ring-[#16653433]"
+          className="w-full resize-none rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--text)] outline-none transition-shadow duration-150 placeholder:text-[var(--muted)] focus:border-[var(--green-800)] focus:ring-2 focus:ring-[var(--green-800)]/20"
         />
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-[#D0D7DE] pt-4">
+      <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
         <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button variant="primary" onClick={handleConfirm} disabled={saving}>{saving ? 'Saving…' : 'Confirm'}</Button>
       </div>

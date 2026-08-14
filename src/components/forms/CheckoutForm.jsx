@@ -1,17 +1,39 @@
 import { useEffect, useState } from 'react';
-import Button from '../common/Button';
+import {
+  Banknote, Bike, Check, MapPin, Store, Truck,
+} from 'lucide-react';
+import gcashLogo from '../../assets/icons/gcash-logo.png';
 import FormField from '../common/FormField';
-import DeliveryFeeSummary from '../checkout/DeliveryFeeSummary';
+import CheckoutProductCard from '../checkout/CheckoutProductCard';
+import QuantityStepper from '../checkout/QuantityStepper';
+import OrderSummaryPanel from '../checkout/OrderSummaryPanel';
+import CheckoutTrustRow from '../checkout/CheckoutTrustRow';
 import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
 import { estimateDeliveryFee, haversineKm } from '../../utils/geo';
 import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
+import { formatQuantity } from '../../utils/formatters';
+
+const MESSAGE_MAX_LENGTH = 200;
+
+const DELIVERY_METHOD_ICONS = {
+  farmer_delivery: Truck,
+  buyer_pickup: Store,
+  courier: Bike,
+};
+
+// COD gets a plain lucide icon; GCash gets its real logo image (gcash-com-logo.png) instead
+// of a lucide stand-in — rendered separately below since one's a component and the other's
+// an <img src>.
+const PAYMENT_METHOD_ICONS = {
+  cod: Banknote,
+};
 
 // Used only if the live backend estimate (Smart Distance-Based Delivery Fee System — see
 // backend/src/lib/deliveryFee.js) fails to load, e.g. a network blip — a straight-line
 // distance and the old flat per-km formula, clearly not the real tiered pricing, just enough
-// to keep checkout usable and honest about it (see the warning banner in
-// DeliveryFeeSummary.jsx) rather than blocking the buyer entirely.
+// to keep checkout usable and honest about it (see the warning in OrderSummaryPanel.jsx)
+// rather than blocking the buyer entirely.
 function buildFallbackEstimate(originMunicipality, deliveryMunicipality) {
   return {
     fee: estimateDeliveryFee(originMunicipality, deliveryMunicipality, 'farmer_delivery'),
@@ -35,9 +57,24 @@ function buildPickupFallbackEstimate(originMunicipality, buyerCoords) {
   };
 }
 
-export default function CheckoutForm({ product, currentUser, onSubmit }) {
+// A real, in-range starting quantity instead of an empty field with a misleading placeholder
+// — the old `placeholder="25"` looked like a real value sitting in an empty input, which is
+// exactly why the subtotal showed ₱0.00 next to what looked like a quantity. Wholesale starts
+// at its minimum order; everything else starts at 1 — both capped to what's actually in stock,
+// so the very first render can never show an impossible order.
+function defaultQuantity(product, initialQuantity) {
+  if (initialQuantity) return initialQuantity;
+  const stock = Number(product.quantity) || 0;
+  if (stock <= 0) return '';
+  const floor = product.sellingType === 'wholesale' && product.moq ? Number(product.moq) : 1;
+  return String(Math.min(floor, stock));
+}
+
+export default function CheckoutForm({
+  product, currentUser, onSubmit, initialQuantity = '',
+}) {
   const [values, setValues] = useState(() => ({
-    quantity: '',
+    quantity: defaultQuantity(product, initialQuantity),
     message: '',
     paymentMethod: 'cod',
     deliveryMethod: 'farmer_delivery',
@@ -48,6 +85,7 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
 
   const originMunicipality = matchMunicipality(product.location);
   const isPickup = values.deliveryMethod === 'buyer_pickup';
+  const stock = Number(product.quantity) || 0;
 
   const [feeEstimate, setFeeEstimate] = useState(null);
   const [isEstimating, setIsEstimating] = useState(false);
@@ -75,7 +113,7 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     // never invoke either getCurrentPosition callback at all, which used to leave this
     // stuck on "Detecting your location…" forever with no way out. This guarantees the UI
     // always lands on an actionable state (with a "Try again" button, via
-    // DeliveryFeeSummary's onRetryLocation) shortly after the API's own deadline, even if
+    // OrderSummaryPanel's onRetryLocation) shortly after the API's own deadline, even if
     // the browser itself never calls back.
     let settled = false;
     const watchdog = setTimeout(() => {
@@ -166,8 +204,15 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
     setErrors((previous) => ({ ...previous, [field]: undefined, form: undefined }));
   };
 
-  const subtotal = (Number(values.quantity) || 0) * Number(product.price);
+  const quantityNumber = Number(values.quantity) || 0;
+  const subtotal = quantityNumber * Number(product.price);
   const isGcash = values.paymentMethod === 'gcash';
+  const deliveryMethodLabel = DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
+
+  // Live, not just on submit — the moment a typed quantity exceeds real stock, the field
+  // shows it immediately (see FormField's error prop below) instead of waiting for a submit
+  // attempt to reveal an order that was never going to be accepted.
+  const liveQuantityError = quantityNumber > stock ? `Only ${formatQuantity(stock)} ${product.unit} available.` : null;
 
   // The order is created immediately either way — for GCash, the caller (ProductDetails.jsx)
   // routes the buyer on to the dedicated GCash payment page (src/features/payments/
@@ -192,85 +237,129 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
   };
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit}>
-      {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
+    <form className="checkout-grid" onSubmit={handleSubmit}>
+      <div className="checkout-main">
+        <CheckoutProductCard product={product} />
 
-      <FormField
-        label="Quantity requested"
-        name="quantity"
-        error={errors.quantity}
-        helper={
-          product.sellingType === 'wholesale' && product.moq
-            ? `${product.quantity} ${product.unit} available — wholesale listing, minimum order ${product.moq} ${product.unit}`
-            : `${product.quantity} ${product.unit} available`
-        }
-      >
-        {/* step="any" — a fractional step made the spinner's first click jump to "0.01" before any typing */}
-        <input
-          id="quantity"
-          type="number"
-          min="0"
-          step="any"
-          value={values.quantity}
-          onChange={(event) => updateField('quantity', event.target.value)}
-          placeholder="25"
-        />
-      </FormField>
+        <div className="panel checkout-section">
+          <h2 className="checkout-section-title">Order details</h2>
 
-      <FormField label="Delivery method" name="deliveryMethod" error={errors.deliveryMethod}>
-        <div className="segmented-control three" role="radiogroup" aria-label="Delivery method">
-          {DELIVERY_METHODS.map((method) => (
-            <button
-              key={method.value}
-              type="button"
-              className={values.deliveryMethod === method.value ? 'active' : ''}
-              onClick={() => updateField('deliveryMethod', method.value)}
+          {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
+
+          <div className="form-stack">
+            <FormField
+              label="Quantity"
+              name="quantity"
+              error={errors.quantity || liveQuantityError}
+              helper={
+                product.sellingType === 'wholesale' && product.moq
+                  ? `Maximum available: ${formatQuantity(stock)} ${product.unit} · Wholesale minimum ${formatQuantity(product.moq)} ${product.unit}`
+                  : `Maximum available: ${formatQuantity(stock)} ${product.unit}`
+              }
             >
-              {method.label}
-            </button>
-          ))}
-        </div>
-      </FormField>
+              <QuantityStepper
+                id="quantity"
+                value={values.quantity}
+                onChange={(value) => updateField('quantity', value)}
+                min={0}
+                max={stock}
+                unit={product.unit}
+              />
+            </FormField>
 
-      {!isPickup ? (
-        <FormField label="Deliver to (municipality)" name="deliveryMunicipality" error={errors.deliveryMunicipality}>
-          <select
-            id="deliveryMunicipality"
-            value={values.deliveryMunicipality}
-            onChange={(event) => updateField('deliveryMunicipality', event.target.value)}
-          >
-            {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-          </select>
-        </FormField>
-      ) : null}
+            <FormField label="Delivery method" name="deliveryMethod" error={errors.deliveryMethod}>
+              <div className="method-card-group three" role="radiogroup" aria-label="Delivery method">
+                {DELIVERY_METHODS.map((method) => {
+                  const Icon = DELIVERY_METHOD_ICONS[method.value];
+                  const isSelected = values.deliveryMethod === method.value;
+                  return (
+                    <button
+                      key={method.value}
+                      type="button"
+                      className={`method-card${isSelected ? ' is-selected' : ''}`}
+                      aria-pressed={isSelected}
+                      onClick={() => updateField('deliveryMethod', method.value)}
+                    >
+                      {isSelected ? <span className="method-card-check"><Check size={11} strokeWidth={3} /></span> : null}
+                      <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
+                      <span className="method-card-label">{method.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FormField>
 
-      <FormField label="Payment method" name="paymentMethod" error={errors.paymentMethod}>
-        <div className="payment-grid" role="radiogroup" aria-label="Payment method">
-          {PAYMENT_METHODS.map((method) => (
-            <button
-              key={method.value}
-              type="button"
-              className={values.paymentMethod === method.value ? 'active' : ''}
-              onClick={() => updateField('paymentMethod', method.value)}
+            {!isPickup ? (
+              <FormField label="Deliver to (municipality)" name="deliveryMunicipality" error={errors.deliveryMunicipality}>
+                <div className="select-with-icon">
+                  <MapPin size={16} className="select-with-icon-icon" aria-hidden="true" />
+                  <select
+                    id="deliveryMunicipality"
+                    value={values.deliveryMunicipality}
+                    onChange={(event) => updateField('deliveryMunicipality', event.target.value)}
+                  >
+                    {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
+                  </select>
+                </div>
+              </FormField>
+            ) : null}
+
+            <FormField label="Payment method" name="paymentMethod" error={errors.paymentMethod}>
+              <div className="method-card-group two" role="radiogroup" aria-label="Payment method">
+                {PAYMENT_METHODS.map((method) => {
+                  const Icon = PAYMENT_METHOD_ICONS[method.value];
+                  const isSelected = values.paymentMethod === method.value;
+                  return (
+                    <button
+                      key={method.value}
+                      type="button"
+                      className={`method-card${isSelected ? ' is-selected' : ''}`}
+                      aria-pressed={isSelected}
+                      onClick={() => updateField('paymentMethod', method.value)}
+                    >
+                      {isSelected ? <span className="method-card-check"><Check size={11} strokeWidth={3} /></span> : null}
+                      {method.value === 'gcash' ? (
+                        <img src={gcashLogo} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
+                      ) : (
+                        <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
+                      )}
+                      <span className="method-card-label">{method.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {isGcash ? (
+                <p className="payment-method-notice">You will pay the farmer directly using your GCash account.</p>
+              ) : null}
+            </FormField>
+
+            <FormField
+              label="Message to farmer (optional)"
+              name="message"
+              helper="Add any pickup, delivery, or timing notes for the farmer."
             >
-              {method.label}
-            </button>
-          ))}
+              <div className="textarea-with-counter">
+                <textarea
+                  id="message"
+                  rows="4"
+                  maxLength={MESSAGE_MAX_LENGTH}
+                  value={values.message}
+                  onChange={(event) => updateField('message', event.target.value)}
+                  placeholder="Can we pick this up tomorrow morning?"
+                />
+                <span className="textarea-counter">{values.message.length} / {MESSAGE_MAX_LENGTH}</span>
+              </div>
+            </FormField>
+          </div>
         </div>
-      </FormField>
+      </div>
 
-      <FormField label="Message to farmer" name="message" helper="Optional pickup, delivery, or timing note.">
-        <textarea
-          id="message"
-          rows="4"
-          value={values.message}
-          onChange={(event) => updateField('message', event.target.value)}
-          placeholder="Can we pick this up tomorrow morning?"
-        />
-      </FormField>
-
-      <DeliveryFeeSummary
+      <OrderSummaryPanel
+        product={product}
+        quantity={values.quantity}
         subtotal={subtotal}
+        deliveryMethodLabel={deliveryMethodLabel}
+        deliveryMunicipality={!isPickup ? values.deliveryMunicipality : null}
         estimate={feeEstimate}
         isLoading={isEstimating}
         error={estimateError}
@@ -278,11 +367,11 @@ export default function CheckoutForm({ product, currentUser, onSubmit }) {
         locationStatus={locationStatus}
         locationNotice={locationNotice}
         onRetryLocation={requestBuyerLocation}
+        isSubmitting={isSubmitting}
+        isGcash={isGcash}
       />
 
-      <Button type="submit" className="full-width" disabled={isSubmitting}>
-        {isSubmitting ? 'Placing order…' : isGcash ? 'Continue to GCash payment' : 'Place order — pay on delivery'}
-      </Button>
+      <CheckoutTrustRow />
     </form>
   );
 }

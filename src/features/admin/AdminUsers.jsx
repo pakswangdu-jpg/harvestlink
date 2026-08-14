@@ -22,11 +22,11 @@ import { adminNavItems } from './adminNav';
 
 function InfoField({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-[#D0D7DE] bg-white p-3">
-      <Icon size={16} className="mt-0.5 shrink-0 text-[#57606A]" />
+    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-white p-3">
+      <Icon size={16} className="mt-0.5 shrink-0 text-[var(--muted)]" />
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[#57606A]">{label}</p>
-        <p className="break-words text-[13px] font-medium text-[#24292F]">{value || 'Not provided'}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
+        <p className="break-words text-[13px] font-medium text-[var(--text)]">{value || 'Not provided'}</p>
       </div>
     </div>
   );
@@ -48,7 +48,7 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
       </div>
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#57606A]">Personal information</p>
+        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Personal information</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <InfoField icon={Mail} label="Email" value={user.email} />
           {user.contactNumber ? <InfoField icon={Phone} label="Contact number" value={user.contactNumber} /> : null}
@@ -66,7 +66,7 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
 
       {isFarmer || isStakeholder ? (
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#57606A]">Verification document</p>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Verification document</p>
           <DocumentCard
             label={idLabel}
             file={idFile}
@@ -80,7 +80,7 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
 
       {user.verificationStatus === 'pending' || user.verificationStatus === 'rejected' ? (
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#57606A]">Verification</p>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Verification</p>
           <div className="flex flex-wrap gap-2">
             {user.verificationStatus === 'pending' ? (
               <>
@@ -95,7 +95,7 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
       ) : null}
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#57606A]">Account actions</p>
+        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Account actions</p>
         {isSuspended ? (
           <Button variant="primary" onClick={() => onToggleAccountStatus(user, 'active')}><RotateCcw size={14} /> Reactivate account</Button>
         ) : (
@@ -160,12 +160,12 @@ export default function AdminUsers() {
                     onClick={() => setRoleFilter(tab.value)}
                     className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[13px] font-medium transition-colors duration-150 ${
                       isActive
-                        ? 'border-[#166534] bg-[#166534] text-white'
-                        : 'border-[#D0D7DE] bg-white text-[#24292F] hover:bg-[#F6F8FA]'
+                        ? 'border-[var(--green-800)] bg-[var(--green-800)] text-white'
+                        : 'border-[var(--line)] bg-white text-[var(--text)] hover:bg-[var(--soft)]'
                     }`}
                   >
                     {tab.label}
-                    <span className={isActive ? 'text-white/80' : 'text-[#57606A]'}>{count}</span>
+                    <span className={isActive ? 'text-white/80' : 'text-[var(--muted)]'}>{count}</span>
                   </button>
                 );
               })}

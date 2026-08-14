@@ -35,7 +35,7 @@ export default function ProductDrawer({
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col bg-white shadow-2xl"
+            className="absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-white shadow-2xl"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -47,7 +47,7 @@ export default function ProductDrawer({
                 <p className="text-[12px] font-semibold uppercase tracking-widest text-emerald-700">
                   {product ? 'Edit listing' : 'New listing'}
                 </p>
-                <h2 className="mt-1 text-[28px] font-bold leading-tight text-gray-900">{product ? 'Edit product' : 'Add Product'}</h2>
+                <h2 className="mt-1 text-[28px] font-semibold leading-tight text-gray-900">{product ? 'Edit product' : 'Add Product'}</h2>
                 <p className="mt-1.5 text-[13px] text-gray-500">
                   {product
                     ? 'Update the information below to save your changes.'

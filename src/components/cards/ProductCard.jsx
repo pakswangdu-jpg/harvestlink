@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User,
+  ArrowRight, Check, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User, X,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
+import { ORDERING_ROLES } from '../../utils/constants';
+import { useAuth } from '../../features/auth/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { useToast } from '../../contexts/ToastContext';
 
 // Stricter than the farmer-facing LOW_STOCK_THRESHOLD (10 units — "you should restock soon,"
 // see utils/constants.js's isLowStock) — a buyer scanning the marketplace only needs a
@@ -13,16 +17,50 @@ import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatter
 // specific problems with the old card.
 const CRITICAL_STOCK_THRESHOLD = 5;
 
+// Non-permanent — reverts on its own so "Add to Cart" stays clickable for adding more,
+// matching how the cart badge itself just keeps incrementing rather than the button locking.
+const ADDED_FEEDBACK_MS = 1500;
+
 // The marketplace's product listing card — used in the buyer marketplace grid, the buyer
 // dashboard's "fresh listings" strip, and (via a caller-supplied `actions` override) the
-// public signed-out farmer profile page. No shopping-cart system exists in this app (an
-// order is placed directly from the product page, quantity and all) — "Add to Cart" here is
-// the real, functional entry point into that same flow, just framed as the quick-buy action
-// next to "View Details" the way a buyer would expect from any commerce card.
+// public signed-out farmer profile page. "Add to Cart" adds one unit of this listing to the
+// signed-in buyer/stakeholder's cart (see contexts/CartContext.jsx) without leaving this
+// page — "View Details" remains the way to open the full checkout form for a specific
+// quantity/delivery method.
 export default function ProductCard({ product, actions, showStatus = false }) {
+  const { currentUser } = useAuth();
+  const { addItem, removeItem, isInCart } = useCart();
+  const { showToast } = useToast();
   const isDiscounted = Boolean(product.discountPercent);
   const isCriticallyLow = product.quantity > 0 && product.quantity <= CRITICAL_STOCK_THRESHOLD;
+  const isOutOfStock = !(product.quantity > 0);
+  const canAddToCart = ORDERING_ROLES.includes(currentUser?.role);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  // Once this listing is already in the cart — including after coming back from the cart
+  // page's "Continue shopping" link — the button switches to a Cancel action instead of
+  // silently staying "Add to Cart" with no way to tell it's already there.
+  const inCart = isInCart(product.id);
+
+  const handleAddToCart = () => {
+    addItem(product.id, product.quantity, 1);
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), ADDED_FEEDBACK_MS);
+    showToast({
+      type: 'success',
+      title: 'Added to cart',
+      message: `${titleCase(product.name)} was added to your cart.`,
+    });
+  };
+
+  const handleRemoveFromCart = () => {
+    removeItem(product.id);
+    showToast({
+      type: 'info',
+      title: 'Removed from cart',
+      message: `${titleCase(product.name)} was removed from your cart.`,
+    });
+  };
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)]">
@@ -41,7 +79,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
               loading="lazy"
               decoding="async"
               onLoad={() => setImageLoaded(true)}
-              className={`h-full w-full object-cover object-center transition-[opacity,transform] duration-300 ease-out group-hover:scale-[1.03] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </>
         ) : (
@@ -64,7 +102,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
             <Link to={`/products/${product.id}`} className="focus-visible:outline-none">
               <h3
                 title={titleCase(product.name)}
-                className="mt-0.5 line-clamp-2 text-[19px] font-bold leading-snug text-gray-900 transition-colors duration-150 hover:text-green-800"
+                className="mt-0.5 line-clamp-2 text-[19px] font-semibold leading-snug text-gray-900 transition-colors duration-150 hover:text-green-800"
               >
                 {titleCase(product.name)}
               </h3>
@@ -112,7 +150,10 @@ export default function ProductCard({ product, actions, showStatus = false }) {
               <span className="text-2xl font-bold leading-none text-gray-900">{formatCurrency(product.price)}</span>
               <span className="text-[13px] font-medium text-gray-400">/{product.unit}</span>
               {isDiscounted ? (
-                <span className="text-[13px] font-medium text-gray-400 line-through">{formatCurrency(product.originalPrice)}</span>
+                <>
+                  <span className="text-[13px] font-medium text-gray-400 line-through">{formatCurrency(product.originalPrice)}</span>
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800">{product.discountPercent}% OFF</span>
+                </>
               ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-0.5">
@@ -131,12 +172,30 @@ export default function ProductCard({ product, actions, showStatus = false }) {
 
           {actions || (
             <div className="flex items-center gap-2">
-              <Link
-                to={`/products/${product.id}`}
-                className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-[13px] font-semibold text-gray-700 transition-colors duration-200 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none]"
-              >
-                <ShoppingCart size={15} /> Add to Cart
-              </Link>
+              {canAddToCart ? (
+                <button
+                  type="button"
+                  onClick={inCart && !justAdded ? handleRemoveFromCart : handleAddToCart}
+                  disabled={isOutOfStock}
+                  className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none] ${
+                    isOutOfStock
+                      ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                      : justAdded
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {isOutOfStock ? (
+                    'Out of Stock'
+                  ) : justAdded ? (
+                    <><Check size={15} /> Added to Cart</>
+                  ) : inCart ? (
+                    <><X size={15} /> Cancel</>
+                  ) : (
+                    <><ShoppingCart size={15} /> Add to Cart</>
+                  )}
+                </button>
+              ) : null}
               <Link
                 to={`/products/${product.id}`}
                 className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none]"

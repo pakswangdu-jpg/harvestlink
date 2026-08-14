@@ -1,5 +1,6 @@
-import { Award, Layers, MapPin, Search, Tag, Wallet, X } from 'lucide-react';
+import { Award, Layers, MapPin, Search, Tag, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import walletIcon from '../../assets/icons/marketplace-price-range.png';
 import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import ProductCard from '../../components/cards/ProductCard';
@@ -21,6 +22,14 @@ function PriceRangeSlider({ minPrice, maxPrice, bounds, onCommit }) {
   const [sliderMin, sliderMax] = bounds;
   const [draftMin, setDraftMin] = useState(minPrice === '' ? sliderMin : Number(minPrice));
   const [draftMax, setDraftMax] = useState(maxPrice === '' ? sliderMax : Number(maxPrice));
+  // What the number inputs actually display — deliberately NOT the same thing as draftMin/
+  // draftMax above. Those two always hold a real number (needed to position the slider
+  // thumbs/track even when unconstrained), but pre-filling the input with "0"/"200" makes it
+  // look like the customer already chose that price and has to notice + overwrite it. Blank
+  // means "no limit set" the way an empty filter field normally does; the actual bound only
+  // shows as a placeholder (grayed out, not a real value) until they type their own.
+  const [minText, setMinText] = useState(minPrice === '' ? '' : String(minPrice));
+  const [maxText, setMaxText] = useState(maxPrice === '' ? '' : String(maxPrice));
   // Tracks the last props this render loop has already adjusted for, so the "sync from
   // outside" branch below only fires once per real external change — either the committed
   // filter (e.g. the empty-state's "Clear filters" button) or the bounds themselves, which
@@ -38,27 +47,74 @@ function PriceRangeSlider({ minPrice, maxPrice, bounds, onCommit }) {
     setSyncedKey(syncKey);
     setDraftMin(minPrice === '' ? sliderMin : Number(minPrice));
     setDraftMax(maxPrice === '' ? sliderMax : Number(maxPrice));
+    setMinText(minPrice === '' ? '' : String(minPrice));
+    setMaxText(maxPrice === '' ? '' : String(maxPrice));
   }
 
-  const range = sliderMax - sliderMin || 1;
+  // The catalog-derived ceiling (bounds[1]) is a starting point, not a hard cap — someone
+  // filtering "up to ₱500" should be able to type that even if nothing's listed above ₱200
+  // right now, so the track/thumb extend to whatever's actually been typed instead of
+  // silently clamping it back down to today's highest listing.
+  const effectiveMax = Math.max(sliderMax, draftMax);
+  const range = effectiveMax - sliderMin || 1;
   const minPct = ((draftMin - sliderMin) / range) * 100;
   const maxPct = ((draftMax - sliderMin) / range) * 100;
 
-  // Sitting exactly at a slider's own min/max bound means "no constraint on that end" —
-  // committed as '' rather than the numeric edge, so it behaves identically to the old
-  // blank Min/Max inputs (and doesn't fool hasActiveFilters into thinking a filter is on
-  // when the handles are just resting at the full range).
-  const commit = () => {
+  // Resting exactly at the catalog's own bound means "no constraint on that end" — committed
+  // as '' rather than the numeric edge, so it behaves identically to the old blank Min/Max
+  // inputs (and doesn't fool hasActiveFilters into thinking a filter is on when the handles
+  // are just resting at the full range). Strict equality, not >=/<=: once a typed max can
+  // exceed sliderMax, ">= sliderMax" would wrongly treat every extended value as "no limit"
+  // instead of the real constraint it is. Also resets the input's displayed text back to
+  // blank at that same moment, same as clearing the field by hand — takes explicit values
+  // (rather than always reading draftMin/draftMax) so the drag/blur handlers below can commit
+  // the value they just settled on without waiting on a re-render to land in state first.
+  const commit = (nextMin = draftMin, nextMax = draftMax) => {
+    setMinText(nextMin === sliderMin ? '' : String(nextMin));
+    setMaxText(nextMax === sliderMax ? '' : String(nextMax));
     onCommit(
-      draftMin <= sliderMin ? '' : String(draftMin),
-      draftMax >= sliderMax ? '' : String(draftMax),
+      nextMin === sliderMin ? '' : String(nextMin),
+      nextMax === sliderMax ? '' : String(nextMax),
     );
   };
+
+  // The min field still clamps to the catalog bounds while typing (going below ₱0 or above
+  // today's highest listing isn't a meaningful floor). The max field doesn't clamp upward —
+  // that's the whole point of letting someone type a ceiling the catalog hasn't reached yet.
+  // Neither clamps against the *other* handle mid-keystroke — that would fight someone typing
+  // a multi-digit value one digit at a time. The min<max ordering is only enforced once they
+  // leave the field (handleMin/MaxInputBlur below), same moment the slider's drag already
+  // commits on release. minText/maxText track the raw typed characters (including a
+  // momentarily-empty field mid-edit) separately from draftMin/draftMax, which the slider
+  // still needs as real numbers to position its thumbs while typing is in progress.
+  const handleMinInputChange = (event) => {
+    const raw = event.target.value;
+    setMinText(raw);
+    if (raw === '') { setDraftMin(sliderMin); return; }
+    setDraftMin(Math.min(Math.max(Number(raw), sliderMin), sliderMax));
+  };
+  const handleMaxInputChange = (event) => {
+    const raw = event.target.value;
+    setMaxText(raw);
+    if (raw === '') { setDraftMax(sliderMax); return; }
+    setDraftMax(Math.max(Number(raw), sliderMin));
+  };
+  const handleMinInputBlur = () => {
+    const clamped = Math.min(draftMin, draftMax - 1);
+    setDraftMin(clamped);
+    commit(clamped, draftMax);
+  };
+  const handleMaxInputBlur = () => {
+    const clamped = Math.max(draftMax, draftMin + 1);
+    setDraftMax(clamped);
+    commit(draftMin, clamped);
+  };
+  const blurOnEnter = (event) => { if (event.key === 'Enter') event.currentTarget.blur(); };
 
   return (
     <div className="price-range-filter">
       <div className="price-range-header">
-        <Wallet size={16} /> <span>Price Range</span>
+        <img src={walletIcon} alt="" width={16} height={16} /> <span>Price Range</span>
       </div>
       <div className="price-range-slider">
         <div className="price-range-track">
@@ -68,30 +124,65 @@ function PriceRangeSlider({ minPrice, maxPrice, bounds, onCommit }) {
           type="range"
           className="price-range-input"
           min={sliderMin}
-          max={sliderMax}
+          max={effectiveMax}
           value={draftMin}
-          onChange={(event) => setDraftMin(Math.min(Number(event.target.value), draftMax - 1))}
-          onMouseUp={commit}
-          onTouchEnd={commit}
-          onKeyUp={commit}
+          onChange={(event) => {
+            const next = Math.min(Number(event.target.value), draftMax - 1);
+            setDraftMin(next);
+            setMinText(String(next));
+          }}
+          onMouseUp={() => commit()}
+          onTouchEnd={() => commit()}
+          onKeyUp={() => commit()}
           aria-label="Minimum price"
         />
         <input
           type="range"
           className="price-range-input"
           min={sliderMin}
-          max={sliderMax}
+          max={effectiveMax}
           value={draftMax}
-          onChange={(event) => setDraftMax(Math.max(Number(event.target.value), draftMin + 1))}
-          onMouseUp={commit}
-          onTouchEnd={commit}
-          onKeyUp={commit}
+          onChange={(event) => {
+            const next = Math.max(Number(event.target.value), draftMin + 1);
+            setDraftMax(next);
+            setMaxText(String(next));
+          }}
+          onMouseUp={() => commit()}
+          onTouchEnd={() => commit()}
+          onKeyUp={() => commit()}
           aria-label="Maximum price"
         />
       </div>
       <div className="price-range-values">
-        <span>₱{draftMin.toLocaleString()}</span>
-        <span>₱{draftMax.toLocaleString()}</span>
+        <label className="price-range-value-input">
+          <span>₱</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={sliderMin}
+            max={sliderMax}
+            value={minText}
+            placeholder={String(sliderMin)}
+            onChange={handleMinInputChange}
+            onBlur={handleMinInputBlur}
+            onKeyDown={blurOnEnter}
+            aria-label="Minimum price"
+          />
+        </label>
+        <label className="price-range-value-input">
+          <span>₱</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={sliderMin}
+            value={maxText}
+            placeholder={String(sliderMax)}
+            onChange={handleMaxInputChange}
+            onBlur={handleMaxInputBlur}
+            onKeyDown={blurOnEnter}
+            aria-label="Maximum price"
+          />
+        </label>
       </div>
     </div>
   );
@@ -257,6 +348,7 @@ export default function Marketplace() {
         </section>
       ) : (
         <EmptyState
+          className="empty-state-transparent-icon"
           title="No matching products"
           message={hasActiveFilters ? 'No active listings match your filters right now.' : 'Check back when farmers add new harvests.'}
           actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
