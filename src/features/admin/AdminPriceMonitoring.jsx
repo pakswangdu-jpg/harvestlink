@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Check, Database, Download, FileSpreadsheet, FileText, Info, Package, RotateCcw, Search, ShieldCheck, X,
+  AlertTriangle, Check, Database, Info, Package, RotateCcw, Search, ShieldCheck, X,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
@@ -26,28 +26,39 @@ import { useCommodityMonitoring } from './priceMonitoring/useCommodityMonitoring
 import { COMMODITY_CATEGORIES } from './priceMonitoring/commodityCategories';
 import { STATUS_META } from './priceMonitoring/statusMeta';
 import { SORT_PRESETS, sortCommodities } from './priceMonitoring/sortCommodities';
-import { exportCommodities } from './priceMonitoring/exportCommodities';
 import CommodityTable from './priceMonitoring/CommodityTable';
 import OverrideModal from './priceMonitoring/OverrideModal';
 import BulkUpdateModal from './priceMonitoring/BulkUpdateModal';
 
+// Same color-mix technique as components/admin/StatCard.jsx (the Reports page's summary
+// cards) — one tone token pair per card, background/border both derived from it, so the two
+// admin "tinted stat card" systems read as one family instead of two different designs.
+// Tone is fixed per card identity (not swapped to red/danger when a count is nonzero) — a
+// value like "2 price alerts" is communicated by the number and hint text, not by flipping the
+// whole card to an alarming color; see the zero-state hints below for how "0" reads as calm.
+const SUMMARY_TONES = {
+  green: { base: 'var(--green-100)', accent: 'var(--green-700)' },
+  blue: { base: 'var(--blue-100)', accent: 'var(--blue-700)' },
+  amber: { base: 'var(--amber-100)', accent: 'var(--amber-700)' },
+  violet: { base: 'var(--violet-100)', accent: 'var(--violet-700)' },
+};
+
 function SummaryCard({
-  icon: Icon, label, value, hint, tone = 'neutral',
+  icon: Icon, label, value, hint, tone = 'green',
 }) {
-  const toneClasses = {
-    neutral: 'bg-[#F0FDF4] text-[#166534]',
-    danger: 'bg-[#FFEBE9] text-[#CF222E]',
+  const { base, accent } = SUMMARY_TONES[tone] || SUMMARY_TONES.green;
+  const cardStyle = {
+    background: `color-mix(in srgb, ${base} 40%, white)`,
+    borderColor: `color-mix(in srgb, ${accent} 28%, white)`,
   };
   return (
-    <div className="rounded-lg border border-[#D0D7DE] bg-white p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[12px] font-medium uppercase tracking-wide text-[#57606A]">{label}</p>
-        <div className={`flex h-8 w-8 items-center justify-center rounded-md ${toneClasses[tone]}`}>
-          <Icon size={16} />
-        </div>
+    <div className="h-full rounded-lg border border-[var(--line)] bg-white p-4" style={cardStyle}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
+        <Icon size={18} strokeWidth={2} className="shrink-0" style={{ color: accent }} aria-hidden="true" />
       </div>
-      <p className="mt-2 text-[24px] font-semibold leading-none text-[#24292F]">{value}</p>
-      {hint ? <p className="mt-1.5 text-[12px] text-[#57606A]">{hint}</p> : null}
+      <p className="mt-2 text-[24px] font-semibold leading-none text-[var(--text)]">{value}</p>
+      {hint ? <p className="mt-1.5 text-[12px] text-[var(--muted)]">{hint}</p> : null}
     </div>
   );
 }
@@ -181,26 +192,32 @@ export default function AdminPriceMonitoring() {
     <AppShell user={currentUser} navItems={adminNavItems} title="Price Monitoring" hideHeader>
       <PageHeader title="Price Monitoring" description="Monitor PSA reference prices, farmer-listed commodity prices, and DTI overrides." />
 
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard icon={Database} label="PSA Commodities" value={rows.length} hint="Tracked commodities" />
-        <SummaryCard icon={Package} label="Farmer Listings" value={activeListingsCount.toLocaleString()} hint="Active listings" />
+      <div className="mb-4 grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SummaryCard icon={Database} label="PSA Commodities" value={rows.length} hint="Tracked commodities" tone="green" />
+        <SummaryCard icon={Package} label="Farmer Listings" value={activeListingsCount.toLocaleString()} hint="Active listings" tone="blue" />
         <SummaryCard
           icon={AlertTriangle}
           label="Price Alerts"
           value={flaggedListingsCount}
           hint={flaggedListingsCount ? 'Needs attention' : 'All clear'}
-          tone={flaggedListingsCount > 0 ? 'danger' : 'neutral'}
+          tone="amber"
         />
-        <SummaryCard icon={ShieldCheck} label="Overridden Prices" value={overriddenCount} hint="DTI-set reference prices" />
+        <SummaryCard
+          icon={ShieldCheck}
+          label="Overridden Prices"
+          value={overriddenCount}
+          hint={overriddenCount ? 'DTI-set reference prices' : 'No prices currently overridden'}
+          tone="violet"
+        />
       </div>
 
       {alerts.length ? (
         <div className="mb-4 space-y-2">
           {alerts.map((alert) => {
             const ALERT_TONE_CLASSES = {
-              warning: 'bg-[#FFF8C5] text-[#9A6700]',
-              danger: 'bg-[#FFEBE9] text-[#CF222E]',
-              info: 'bg-[#DDF4FF] text-[#0969DA]',
+              warning: 'bg-[var(--amber-100)] text-[var(--amber-700)]',
+              danger: 'bg-[var(--red-100)] text-[var(--red-700)]',
+              info: 'bg-[var(--blue-100)] text-[var(--blue-700)]',
             };
             const Icon = alert.icon;
             return (
@@ -223,59 +240,58 @@ export default function AdminPriceMonitoring() {
         </div>
       ) : null}
 
-      <Card className="mb-4">
-        <CardHeader
-          eyebrow="DTI oversight"
-          title="Commodity price monitoring"
-          action={(
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => exportCommodities(sortedRows, 'csv')}><Download size={14} /> CSV</Button>
-              <Button variant="secondary" onClick={() => exportCommodities(sortedRows, 'excel')}><FileSpreadsheet size={14} /> Excel</Button>
-              <Button variant="secondary" onClick={() => exportCommodities(sortedRows, 'pdf')}><FileText size={14} /> PDF</Button>
-            </div>
-          )}
-        />
+      {/* shadow-[...] is a one-off, scoped to this card only — not added to the shared Card
+          component, which every other admin page also renders and deliberately stays flat/
+          shadow-free. Same value as the app's own --shadow token (0 1px 2px), just applied
+          locally rather than changing that shared definition's blast radius. */}
+      <Card className="mb-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
+        <CardHeader eyebrow="DTI oversight" title="Commodity price monitoring" />
 
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[220px] flex-1">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#57606A]" />
+        {/* Search and the filter cluster are two visually separate groups (gap-4 between them)
+            instead of one undifferentiated row of controls (gap-2 within each group) — makes
+            "search" read as the primary action and the four selects as secondary refinements. */}
+        <div className="mb-3 flex flex-wrap items-center gap-4">
+          <div className="relative min-w-[240px] flex-1">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
             <Input placeholder="Search commodity…" value={search} onChange={(event) => setSearch(event.target.value)} className="pl-8" />
           </div>
-          <div className="w-[170px]">
-            <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-              <option value="all">All categories</option>
-              {COMMODITY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-            </Select>
-          </div>
-          <div className="w-[120px]">
-            <Select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
-              <option value="all">All years</option>
-              {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
-            </Select>
-          </div>
-          <div className="w-[170px]">
-            <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="all">All statuses</option>
-              {STATUS_FILTER_OPTIONS.filter((value) => value !== 'all').map((value) => (
-                <option key={value} value={value}>{STATUS_META[value].label}</option>
-              ))}
-            </Select>
-          </div>
-          <div className="w-[150px]">
-            <Select value={sortState} onChange={(event) => setSortState(event.target.value)}>
-              {SORT_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}
-            </Select>
-          </div>
-          <div className="w-[110px]">
-            <Select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
-              {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size} / page</option>)}
-            </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-[170px]">
+              <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+                <option value="all">All categories</option>
+                {COMMODITY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+              </Select>
+            </div>
+            <div className="w-[120px]">
+              <Select value={yearFilter} onChange={(event) => setYearFilter(event.target.value)}>
+                <option value="all">All years</option>
+                {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
+              </Select>
+            </div>
+            <div className="w-[170px]">
+              <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All statuses</option>
+                {STATUS_FILTER_OPTIONS.filter((value) => value !== 'all').map((value) => (
+                  <option key={value} value={value}>{STATUS_META[value].label}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="w-[150px]">
+              <Select value={sortState} onChange={(event) => setSortState(event.target.value)}>
+                {SORT_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}
+              </Select>
+            </div>
+            <div className="w-[130px]">
+              <Select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>
+                {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size} / page</option>)}
+              </Select>
+            </div>
           </div>
         </div>
 
         {selectedIds.size > 0 ? (
-          <div className="mb-3 flex items-center justify-between rounded-md border border-[#D0D7DE] bg-[#F6F8FA] px-3 py-2">
-            <p className="text-[13px] text-[#24292F]">{selectedIds.size} selected</p>
+          <div className="mb-3 flex items-center justify-between rounded-md border border-[var(--line)] bg-[var(--soft)] px-3 py-2">
+            <p className="text-[13px] text-[var(--text)]">{selectedIds.size} selected</p>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setSelectedIds(new Set())}>Clear</Button>
               <Button variant="primary" onClick={() => { setBulkNonce((n) => n + 1); setBulkOpen(true); }}>Bulk Update</Button>
@@ -288,7 +304,7 @@ export default function AdminPriceMonitoring() {
         ) : (
           <>
             {!rows.every((row) => !row.loading) ? (
-              <p className="mb-2 text-[12px] text-[#57606A]">Loading PSA reference prices… {Math.round(pricesProgress * 100)}%</p>
+              <p className="mb-2 text-[12px] text-[var(--muted)]">Loading PSA reference prices… {Math.round(pricesProgress * 100)}%</p>
             ) : null}
             <CommodityTable
               rows={pageRows}
@@ -416,7 +432,7 @@ function PendingReviews({ reviews, onNotice, onError, onReload }) {
         { key: 'farmerPrice', label: 'Listed price', render: (row) => `${formatCurrency(row.priceReview.farmerPrice)} / ${row.unit}` },
         { key: 'referencePrice', label: 'PSA reference', render: (row) => `${formatCurrency(row.priceReview.referencePrice)} (${row.priceReview.referenceYear})` },
         { key: 'deviationPct', label: 'Deviation', render: (row) => <Badge tone="warning">+{row.priceReview.deviationPct}%</Badge> },
-        { key: 'reason', label: 'Reason', render: (row) => <span className="text-[#57606A]">{row.priceReview.reason}</span> },
+        { key: 'reason', label: 'Reason', render: (row) => <span className="text-[var(--muted)]">{row.priceReview.reason}</span> },
         {
           key: 'actions',
           label: '',

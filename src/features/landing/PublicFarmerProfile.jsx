@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, ChevronRight, MapPin } from 'lucide-react';
+import { ArrowRight, ChevronRight, MapPin } from 'lucide-react';
+import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import ProductCard from '../../components/cards/ProductCard';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
@@ -87,7 +88,7 @@ export default function PublicFarmerProfile() {
                   {/* Every profile reachable on this page is already verification_status ===
                       'verified' server-side (see getPublicFarmerProfile) — no new field,
                       just finally surfacing what the backend already guarantees. */}
-                  <span className="public-farmer-verified"><BadgeCheck size={14} /> Verified</span>
+                  <span className="public-farmer-verified"><img src={verifiedIcon} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" /> Verified</span>
                 </div>
                 {farmer.farmName ? <p className="public-farmer-farm">{farmer.farmName}</p> : null}
                 <p className="top-farmer-location"><MapPin size={14} /> {farmer.municipality}</p>

@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Clock3, MapPin, PackageCheck, ShoppingBag, Store, Wallet } from 'lucide-react';
+import { Clock3, MapPin, PackageCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import noProductsIcon from '../../assets/icons/marketplace-no-products.png';
+import totalSpendIcon from '../../assets/icons/kpi-total-spend.png';
+import activeListingsIcon from '../../assets/icons/kpi-active-listings.png';
+import myOrdersIcon from '../../assets/icons/kpi-my-orders.png';
 import AppShell from '../../components/layout/AppShell';
-import StatCard from '../../components/cards/StatCard';
+import KpiGrid from '../../components/common/KpiGrid';
+import KpiCard from '../../components/common/KpiCard';
 import ProductCard from '../../components/cards/ProductCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
@@ -90,13 +95,13 @@ export default function BuyerDashboard() {
       title={`Welcome, ${getFirstName(currentUser.name)}!`}
       subtitle="Browse Cebu harvests, check out, and track delivery from local farmers."
     >
-      <section className="stats-grid">
-        <StatCard label="Total spend" value={formatCurrency(totalSpend)} icon={<Wallet size={20} />} />
-        <StatCard label="Active listings" value={products.length} icon={<Store size={20} />} />
-        <StatCard label="My orders" value={orders.length} icon={<ShoppingBag size={20} />} />
-        <StatCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={<Clock3 size={20} />} />
-        <StatCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={<PackageCheck size={20} />} />
-      </section>
+      <KpiGrid columns={5}>
+        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} iconSrc={totalSpendIcon} />
+        <KpiCard label="Active listings" value={products.length} iconSrc={activeListingsIcon} />
+        <KpiCard label="My orders" value={orders.length} iconSrc={myOrdersIcon} />
+        <KpiCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={Clock3} variant="warning" iconClassName="stat-icon-waiting" />
+        <KpiCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={PackageCheck} variant="success" />
+      </KpiGrid>
 
       <section className="content-grid two">
         <div className="panel">
@@ -137,7 +142,12 @@ export default function BuyerDashboard() {
               {freshListings.slice(0, 4).map((product) => <ProductCard key={product.id} product={product} />)}
             </div>
           ) : (
-            <EmptyState title="No products yet" message="Farmer listings will appear here once products are added." />
+            <EmptyState
+              className="empty-state-transparent-icon"
+              iconSrc={noProductsIcon}
+              title="No products yet"
+              message="Farmer listings will appear here once products are added."
+            />
           )}
         </div>
 

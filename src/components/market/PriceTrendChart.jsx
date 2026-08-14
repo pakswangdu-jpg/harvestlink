@@ -17,15 +17,28 @@ function niceTicks(min, max, count = 4) {
   return [...new Set(rounded)];
 }
 
-export default function PriceTrendChart({ points }) {
+// valueKey/formatValue let this same chart render a different PXWeb-sourced annual series
+// (see MarketInsights.jsx's Supply & Production section, which reuses this for production
+// volume) without duplicating the axis/path/tooltip math — every prop below defaults to the
+// original farmgate-price behavior, so the existing price-trend call site is unaffected.
+export default function PriceTrendChart({
+  points,
+  valueKey = 'price',
+  formatValue = formatCurrency,
+  emptyTitle = 'Not enough data',
+  emptyMessage = "PSA hasn't published enough farmgate price data for this crop in this region yet.",
+  chartAriaLabel = 'Farmgate price trend by year',
+  pointAriaSuffix = 'per kilogram',
+  tooltipCaption = 'annual average',
+}) {
   const [hoverIndex, setHoverIndex] = useState(null);
-  const validPrices = points.filter((point) => point.price != null).map((point) => point.price);
+  const validPrices = points.filter((point) => point[valueKey] != null).map((point) => point[valueKey]);
 
   if (validPrices.length < 2) {
     return (
       <div className="empty-state compact">
-        <h3>Not enough data</h3>
-        <p>PSA hasn't published enough farmgate price data for this crop in this region yet.</p>
+        <h3>{emptyTitle}</h3>
+        <p>{emptyMessage}</p>
       </div>
     );
   }
@@ -40,17 +53,17 @@ export default function PriceTrendChart({ points }) {
   const chartHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
   const xForIndex = (index) => PAD_LEFT + (points.length === 1 ? chartWidth / 2 : (index / (points.length - 1)) * chartWidth);
-  const yForPrice = (price) => PAD_TOP + chartHeight - ((price - yMin) / (yMax - yMin || 1)) * chartHeight;
+  const yForValue = (value) => PAD_TOP + chartHeight - ((value - yMin) / (yMax - yMin || 1)) * chartHeight;
 
   let path = '';
   let drawing = false;
   points.forEach((point, index) => {
-    if (point.price == null) {
+    if (point[valueKey] == null) {
       drawing = false;
       return;
     }
     const x = xForIndex(index);
-    const y = yForPrice(point.price);
+    const y = yForValue(point[valueKey]);
     path += `${drawing ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)} `;
     drawing = true;
   });
@@ -60,14 +73,14 @@ export default function PriceTrendChart({ points }) {
 
   return (
     <div className="price-chart">
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Farmgate price trend by year">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={chartAriaLabel}>
         {yTicks.map((tick) => {
-          const y = yForPrice(tick);
+          const y = yForValue(tick);
           return (
             <g key={tick}>
               <line x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y} y2={y} className="chart-gridline" />
               <text x={PAD_LEFT - 10} y={y} className="chart-axis-label" textAnchor="end" dominantBaseline="middle">
-                {formatCurrency(tick)}
+                {formatValue(tick)}
               </text>
             </g>
           );
@@ -82,9 +95,9 @@ export default function PriceTrendChart({ points }) {
         <path d={path.trim()} className="chart-line" fill="none" />
 
         {points.map((point, index) => {
-          if (point.price == null) return null;
+          if (point[valueKey] == null) return null;
           const x = xForIndex(index);
-          const y = yForPrice(point.price);
+          const y = yForValue(point[valueKey]);
           return (
             <g key={point.year}>
               {hoverIndex === index ? (
@@ -98,7 +111,7 @@ export default function PriceTrendChart({ points }) {
                 className="chart-hit-target"
                 tabIndex={0}
                 role="button"
-                aria-label={`${point.year}: ${formatCurrency(point.price)} per kilogram`}
+                aria-label={`${point.year}: ${formatValue(point[valueKey])} ${pointAriaSuffix}`}
                 onMouseEnter={() => setHoverIndex(index)}
                 onMouseLeave={() => setHoverIndex((current) => (current === index ? null : current))}
                 onFocus={() => setHoverIndex(index)}
@@ -109,10 +122,10 @@ export default function PriceTrendChart({ points }) {
         })}
       </svg>
 
-      {hovered && hovered.price != null ? (
+      {hovered && hovered[valueKey] != null ? (
         <div className="chart-tooltip" style={{ left: `${(xForIndex(hoverIndex) / WIDTH) * 100}%` }}>
-          <strong>{formatCurrency(hovered.price)}</strong>
-          <span>{hovered.year} annual average</span>
+          <strong>{formatValue(hovered[valueKey])}</strong>
+          <span>{hovered.year} {tooltipCaption}</span>
         </div>
       ) : null}
     </div>

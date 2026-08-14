@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { BadgeCheck, Check, FileText, MessageCircle, Navigation, Package, Truck, X } from 'lucide-react';
+import {
+  BadgeCheck, Check, CheckCircle2, Clock3, FileText, MapPin, MessageCircle, Navigation, Package, Truck, X,
+} from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
+import DeliveryTruckIcon from '../../components/icons/DeliveryTruckIcon';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
@@ -38,14 +41,19 @@ import {
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
-const TRACKING_STATUS_EMOJI = {
-  pending: '⏳',
-  confirmed: '✅',
-  'on-the-way': '🚚',
-  'near-destination': '📍',
-  delivered: '✅',
-  rejected: '✕',
-  cancelled: '✕',
+// Real vector icons, not emoji — a platform emoji font renders as a small, multi-colored,
+// inconsistent-weight glyph next to bold badge text, which is exactly the "looks generated,
+// not designed" mismatch this was flagged for. strokeWidth is bumped above the app's usual 2
+// specifically for these — at 12-13px badge size, a 2px stroke reads thin; 2.5 keeps the icon
+// visually as bold as the text sitting next to it.
+const TRACKING_STATUS_ICON = {
+  pending: Clock3,
+  confirmed: Check,
+  'on-the-way': Truck,
+  'near-destination': MapPin,
+  delivered: CheckCircle2,
+  rejected: X,
+  cancelled: X,
 };
 
 function fallbackOrdersPath(role) {
@@ -249,6 +257,7 @@ export default function OrderTracking() {
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
+  const TrackingStatusIcon = TRACKING_STATUS_ICON[trackingStatus.key];
   // Whether the farmer can click "Book with Lalamove" right now — the order must be packed
   // and ready (the courier order's own "packed -> out for delivery" step), same gate the
   // backend itself enforces in deliveries.controller.js's bookDelivery.
@@ -473,11 +482,11 @@ export default function OrderTracking() {
                 </div>
               </div>
               <div className="ot-summary-card">
-                <span className="ot-summary-icon"><Truck size={18} /></span>
+                <span className="ot-summary-icon"><DeliveryTruckIcon size={18} /></span>
                 <div>
                   <p>{isPickup ? 'Pickup Status' : 'Delivery Status'}</p>
                   <span className={`tracking-badge tracking-${trackingStatus.key}`}>
-                    {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
+                    <TrackingStatusIcon size={13} strokeWidth={2.5} /> {trackingStatus.label}
                   </span>
                 </div>
               </div>
@@ -535,7 +544,7 @@ export default function OrderTracking() {
               onRouteUpdate={setLiveRoute}
               deliveryStatusBadge={(
                 <span className={`tracking-badge tracking-${trackingStatus.key}`}>
-                  {TRACKING_STATUS_EMOJI[trackingStatus.key]} {trackingStatus.label}
+                  <TrackingStatusIcon size={13} strokeWidth={2.5} /> {trackingStatus.label}
                 </span>
               )}
             />

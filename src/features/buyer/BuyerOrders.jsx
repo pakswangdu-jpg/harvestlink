@@ -4,6 +4,7 @@ import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import DataTable from '../../components/dashboard/DataTable';
 import EmptyState from '../../components/common/EmptyState';
+import ordersEmptyIcon from '../../assets/icons/buyer-orders-empty.png';
 import StatusBadge from '../../components/common/StatusBadge';
 import { useAuth } from '../auth/AuthContext';
 import { cancelOrder, getOrdersByBuyer, isCancellable } from '../../services/orderService';
@@ -120,7 +121,7 @@ export default function BuyerOrders() {
             emptyMessage="No orders yet."
           />
         ) : (
-          <EmptyState title="No orders yet" message="Open a product in the marketplace and place your first order." />
+          <EmptyState className="empty-state-transparent-icon" iconSrc={ordersEmptyIcon} title="No orders yet" message="Open a product in the marketplace and place your first order." />
         )}
       </section>
     </AppShell>

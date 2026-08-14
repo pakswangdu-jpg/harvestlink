@@ -2,9 +2,9 @@
 // by every non-admin page) so this section's flatter, denser enterprise styling never leaks
 // into the farmer/buyer/stakeholder UI, and vice versa.
 const VARIANT_CLASSES = {
-  primary: 'border-[#166534] bg-[#166534] text-white hover:bg-[#12502a]',
-  secondary: 'border-[#D0D7DE] bg-white text-[#24292F] hover:bg-[#F6F8FA]',
-  danger: 'border-[#D0D7DE] bg-white text-[#CF222E] hover:border-[#CF222E] hover:bg-[#FFEBE9]',
+  primary: 'border-[var(--green-800)] bg-[var(--green-800)] text-white hover:bg-[#12502a]',
+  secondary: 'border-[var(--line)] bg-white text-[var(--text)] hover:bg-[var(--soft)]',
+  danger: 'border-[var(--line)] bg-white text-[var(--red-700)] hover:border-[var(--red-700)] hover:bg-[var(--red-100)]',
 };
 
 export default function Button({

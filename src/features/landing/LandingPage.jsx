@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   ArrowUp,
-  BadgeCheck,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCarousel';
 import logo from '../../assets/logo.png';
+import verifiedIcon from '../../assets/icons/verified-farmer.png';
 
 const NAV_LINKS = [
   { id: 'features', label: 'Features' },
@@ -52,7 +52,7 @@ const FEATURES = [
   { icon: Truck, title: 'Delivery & real-time order tracking', text: 'Every order moves through a visible pipeline — confirmed, preparing, packed, out for delivery or pickup, delivered.' },
   { icon: Gift, title: 'Surplus discount & donation program', text: 'Farmers discount aging stock or donate it to partner orphanages, elder-care homes, NGOs, and food banks instead of wasting it.' },
   { icon: LayoutDashboard, title: 'Role-based dashboards', text: 'Purpose-built workspaces for farmers, buyers, partner organizations, and admins.' },
-  { icon: ShieldCheck, title: 'Admin oversight', text: 'Admins monitor users, listings, orders, payments, deliveries, and donation activity in one place.' },
+  { icon: ShieldCheck, title: 'Admin oversight', text: 'Admins monitor users, listings, orders, price monitoring, payments, deliveries, and donation activity in one place.' },
 ];
 
 const STEPS = [
@@ -188,7 +188,7 @@ export default function LandingPage() {
               <span className="lp-preview-avatar">MD</span>
               <div>
                 <strong>Maria Dela Cruz</strong>
-                <span className="lp-preview-farm"><BadgeCheck size={13} /> Dela Cruz Farm · Verified farmer</span>
+                <span className="lp-preview-farm"><img src={verifiedIcon} alt="" width={13} height={13} className="h-[13px] w-[13px] object-contain" /> Dela Cruz Farm · Verified farmer</span>
               </div>
             </div>
 

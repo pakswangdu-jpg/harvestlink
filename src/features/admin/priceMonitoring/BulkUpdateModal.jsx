@@ -67,12 +67,12 @@ function BulkUpdateForm({ rows, onClose, onConfirm }) {
       ) : null}
 
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide text-[#57606A]">Selected commodities</p>
-        <p className="mt-0.5 text-[14px] text-[#24292F]">{rows.map((row) => row.label).join(', ')}</p>
+        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">Selected commodities</p>
+        <p className="mt-0.5 text-[14px] text-[var(--text)]">{rows.map((row) => row.label).join(', ')}</p>
       </div>
 
       <div>
-        <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-[#57606A]">Adjustment type</p>
+        <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">Adjustment type</p>
         <Select value={mode} onChange={(event) => setMode(event.target.value)} disabled={saving}>
           <option value="fixed">Set fixed override price (₱/kg)</option>
           <option value="percent">Adjust by percentage from current price</option>
@@ -80,7 +80,7 @@ function BulkUpdateForm({ rows, onClose, onConfirm }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[#57606A]" htmlFor="bulk-value-input">
+        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="bulk-value-input">
           {mode === 'fixed' ? 'Override price (₱/kg)' : 'Percentage adjustment (%)'}
         </label>
         <Input
@@ -95,8 +95,8 @@ function BulkUpdateForm({ rows, onClose, onConfirm }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[#57606A]" htmlFor="bulk-reason-input">
-          Reason <span className="text-[#CF222E]">*</span>
+        <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="bulk-reason-input">
+          Reason <span className="text-[var(--red-700)]">*</span>
         </label>
         <textarea
           id="bulk-reason-input"
@@ -105,11 +105,11 @@ function BulkUpdateForm({ rows, onClose, onConfirm }) {
           onChange={(event) => setReason(event.target.value)}
           disabled={saving}
           placeholder="Why are these reference prices being changed?"
-          className="w-full resize-none rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[13px] text-[#24292F] outline-none transition-shadow duration-150 placeholder:text-[#57606A] focus:border-[#166534] focus:ring-2 focus:ring-[#16653433]"
+          className="w-full resize-none rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[13px] text-[var(--text)] outline-none transition-shadow duration-150 placeholder:text-[var(--muted)] focus:border-[var(--green-800)] focus:ring-2 focus:ring-[var(--green-800)]/20"
         />
       </div>
 
-      <div className="flex justify-end gap-2 border-t border-[#D0D7DE] pt-4">
+      <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
         <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button variant="primary" onClick={handleConfirm} disabled={saving}>{saving ? 'Updating…' : 'Confirm'}</Button>
       </div>

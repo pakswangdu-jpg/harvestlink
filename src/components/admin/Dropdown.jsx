@@ -21,13 +21,13 @@ export default function Dropdown({ trigger, items }) {
         {trigger}
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-md border border-[#D0D7DE] bg-white py-1 shadow-md">
+        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-md border border-[var(--line)] bg-white py-1 shadow-md">
           {items.map((item) => (
             <button
               key={item.label}
               type="button"
               onClick={() => { item.onClick(); setOpen(false); }}
-              className={`flex w-full items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] hover:bg-[#F6F8FA] ${item.danger ? 'text-[#CF222E]' : 'text-[#24292F]'}`}
+              className={`flex w-full items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] hover:bg-[var(--soft)] ${item.danger ? 'text-[var(--red-700)]' : 'text-[var(--text)]'}`}
             >
               {item.icon ? <item.icon size={14} /> : null}
               {item.label}

@@ -10,6 +10,7 @@ import CostBasedEstimateCard from './CostBasedEstimateCard';
 import HistoricalMarketAnalysisCard from './HistoricalMarketAnalysisCard';
 import SellingBelowCostWarning from './SellingBelowCostWarning';
 import DiscountCalculator from './DiscountCalculator';
+import NewProductDiscountField from './NewProductDiscountField';
 import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { useCatalog } from '../../contexts/CatalogContext';
 import {
@@ -114,7 +115,7 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 const FIELD_LABELS = {
   name: 'Product',
@@ -123,6 +124,7 @@ const FIELD_LABELS = {
   sellingType: 'Sales type',
   moq: 'Minimum Order Quantity (MOQ)',
   price: 'Price',
+  discountPercent: 'Discount',
   unit: 'Unit',
   quantity: 'Quantity available',
   expirationDate: 'Expiration date',
@@ -155,6 +157,10 @@ function buildDefaultValues(product, currentUser) {
     isDonation: false,
     ...product,
     costPrice: product?.costPrice ?? '',
+    // Only ever read/submitted while creating a brand-new listing (see the Discount field
+    // below) — editing an existing product uses DiscountCalculator's own live save against
+    // product.discountPercent instead, so this always starts blank there.
+    discountPercent: '',
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
@@ -479,6 +485,22 @@ export default function ProductForm({
             <input id="quantity" type="number" min="0" step="any" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
           </FormField>
         </div>
+
+        {!product && !values.isDonation ? (
+          <FormField
+            label="Discount (optional)"
+            name="discountPercent"
+            error={errors.discountPercent}
+            helper="Optional promotional discount visible to buyers — leave blank to list at full price."
+          >
+            <NewProductDiscountField
+              percent={values.discountPercent}
+              onChange={(value) => updateField('discountPercent', value)}
+              price={values.price}
+              unit={values.unit}
+            />
+          </FormField>
+        ) : null}
 
         <FormField
           label="Expiration date (optional)"

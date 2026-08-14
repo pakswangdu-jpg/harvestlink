@@ -42,14 +42,14 @@ export default function DocumentCard({ label, file, resolveUrl }) {
   };
 
   return (
-    <div className="rounded-lg border border-[#D0D7DE] bg-white p-4">
+    <div className="rounded-lg border border-[var(--line)] bg-white p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#F6F8FA] text-[#57606A]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--soft)] text-[var(--muted)]">
             <FileText size={16} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-medium text-[#24292F]">{label}</p>
+            <p className="truncate text-[13px] font-medium text-[var(--text)]">{label}</p>
             <div className="mt-1">
               <Badge tone={file ? 'success' : 'neutral'}>
                 <span className="flex items-center gap-1">
@@ -66,7 +66,7 @@ export default function DocumentCard({ label, file, resolveUrl }) {
           </Button>
         ) : null}
       </div>
-      {error ? <p className="mt-2 text-[12px] text-[#CF222E]">{error}</p> : null}
+      {error ? <p className="mt-2 text-[12px] text-[var(--red-700)]">{error}</p> : null}
     </div>
   );
 }

@@ -20,6 +20,49 @@ const httpServer = createServer(app);
 const io = setupOrderTrackingSocket(httpServer, allowedOrigins);
 setupChatSocket(io);
 
-httpServer.listen(port, () => {
-  console.log(`HarvestLink API listening on port ${port}`);
+// Attempt to listen on the configured port. If it's in use, try the next few ports
+// rather than crashing with an unhandled exception (useful during dev when restarts
+// can race). This keeps behavior deterministic in production while improving
+// resilience during local development and CI.
+async function tryListen(startPort, attempts = 5) {
+  let p = Number(startPort) || 4000;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      await new Promise((resolve, reject) => {
+        const onError = (err) => {
+          httpServer.removeListener('listening', onListen);
+          reject(err);
+        };
+        const onListen = () => {
+          httpServer.removeListener('error', onError);
+          resolve();
+        };
+        httpServer.once('error', onError);
+        httpServer.once('listening', onListen);
+        httpServer.listen(p);
+      });
+      console.log(`HarvestLink API listening on port ${p}`);
+      return p;
+    } catch (err) {
+      if (err && err.code === 'EADDRINUSE') {
+        console.warn(`Port ${p} is in use, trying port ${p + 1}...`);
+        p += 1;
+        // brief delay before retrying
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, 250));
+        continue;
+      }
+      // Unknown error — rethrow so it surfaces.
+      throw err;
+    }
+  }
+  throw new Error(`Unable to bind to a port starting at ${startPort} after ${attempts} attempts.`);
+}
+
+tryListen(port).catch((err) => {
+  // If this still fails, surface a clear message and exit so the watch process
+  // can restart it if appropriate.
+  // eslint-disable-next-line no-console
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

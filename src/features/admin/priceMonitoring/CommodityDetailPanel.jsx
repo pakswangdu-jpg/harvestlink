@@ -12,9 +12,9 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[12px] shadow-sm">
-      <p className="font-medium text-[#24292F]">{label}</p>
-      <p className="text-[#57606A]">
+    <div className="rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[12px] shadow-sm">
+      <p className="font-medium text-[var(--text)]">{label}</p>
+      <p className="text-[var(--muted)]">
         {formatCurrency(point.price)}/kg {point.isOverride ? '(admin override)' : '(PSA)'}
       </p>
     </div>
@@ -25,9 +25,9 @@ function HistoryChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[12px] shadow-sm">
-      <p className="font-medium text-[#24292F]">{label}</p>
-      <p className="text-[#57606A]">
+    <div className="rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[12px] shadow-sm">
+      <p className="font-medium text-[var(--text)]">{label}</p>
+      <p className="text-[var(--muted)]">
         {point.price == null ? 'Reset to PSA' : `${formatCurrency(point.price)}/kg`}
       </p>
     </div>
@@ -39,7 +39,11 @@ function HistoryChartTooltip({ active, payload, label }) {
 // trend chart above it. Distinct blue (matches the "Overridden" status badge elsewhere on
 // this page) rather than the trend chart's green, so the two are never visually confused.
 function PriceHistoryChart({ history }) {
-  if (!history.length) return null;
+  // A single point has no line to draw — recharts still renders it as one dot floating in the
+  // middle of an arbitrarily-padded Y axis, which reads as a broken/misaligned chart rather
+  // than "not enough data yet" (see PriceTrendChart's identical guard below). The table right
+  // underneath already shows this one entry in full, so skip the chart entirely here.
+  if (history.length < 2) return null;
   const points = [...history].reverse().map((entry) => ({
     date: formatDate(entry.createdAt),
     price: entry.newPrice,
@@ -49,22 +53,22 @@ function PriceHistoryChart({ history }) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="#EAEEF2" />
-          <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#57606A' }} axisLine={{ stroke: '#D0D7DE' }} tickLine={false} />
+          <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={{ stroke: 'var(--line)' }} tickLine={false} />
           <YAxis
-            tick={{ fontSize: 11, fill: '#57606A' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
             width={56}
             tickFormatter={(value) => formatCurrency(value)}
             domain={['auto', 'auto']}
           />
-          <Tooltip content={<HistoryChartTooltip />} cursor={{ stroke: '#D0D7DE' }} />
+          <Tooltip content={<HistoryChartTooltip />} cursor={{ stroke: 'var(--line)' }} />
           <Line
             type="stepAfter"
             dataKey="price"
-            stroke="#0969DA"
+            stroke="var(--blue-700)"
             strokeWidth={1.75}
-            dot={{ r: 3, fill: '#0969DA', strokeWidth: 0 }}
+            dot={{ r: 3, fill: 'var(--blue-700)', strokeWidth: 0 }}
             activeDot={{ r: 5 }}
             connectNulls
             isAnimationActive
@@ -79,29 +83,29 @@ function PriceHistoryChart({ history }) {
 function PriceTrendChart({ points }) {
   const plotted = points.filter((point) => point.price != null);
   if (plotted.length < 2) {
-    return <p className="py-6 text-center text-[13px] text-[#57606A]">Not enough PSA history yet to chart a trend.</p>;
+    return <p className="py-6 text-center text-[13px] text-[var(--muted)]">Not enough PSA history yet to chart a trend.</p>;
   }
   return (
     <div style={{ height: 160 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="#EAEEF2" />
-          <XAxis dataKey="year" tick={{ fontSize: 11, fill: '#57606A' }} axisLine={{ stroke: '#D0D7DE' }} tickLine={false} />
+          <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={{ stroke: 'var(--line)' }} tickLine={false} />
           <YAxis
-            tick={{ fontSize: 11, fill: '#57606A' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
             width={56}
             tickFormatter={(value) => formatCurrency(value)}
             domain={['auto', 'auto']}
           />
-          <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#D0D7DE' }} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--line)' }} />
           <Line
             type="monotone"
             dataKey="price"
-            stroke="#166534"
+            stroke="var(--green-800)"
             strokeWidth={1.75}
-            dot={{ r: 2.5, fill: '#166534', strokeWidth: 0 }}
+            dot={{ r: 2.5, fill: 'var(--green-800)', strokeWidth: 0 }}
             activeDot={{ r: 4 }}
             connectNulls
             isAnimationActive
@@ -126,7 +130,7 @@ export default function CommodityDetailPanel({ row }) {
   }, [row.id]);
 
   return (
-    <div className="space-y-4 bg-[#F6F8FA] px-5 py-4">
+    <div className="space-y-4 bg-[var(--soft)] px-5 py-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="PSA Reference" value={row.referencePrice == null ? '—' : `${formatCurrency(row.referencePrice)}/kg`} />
         <StatCard label="Avg Farmer Price" value={row.avgFarmerPrice == null ? '—' : `${formatCurrency(row.avgFarmerPrice)}/kg`} />
@@ -134,13 +138,13 @@ export default function CommodityDetailPanel({ row }) {
         <StatCard label="Lowest Price" value={row.lowFarmerPrice == null ? '—' : `${formatCurrency(row.lowFarmerPrice)}/kg`} />
       </div>
 
-      <div className="rounded-lg border border-[#D0D7DE] bg-white p-4">
-        <p className="mb-2 text-[13px] font-semibold text-[#24292F]">Price trend (last 5 years)</p>
+      <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+        <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price trend (last 5 years)</p>
         <PriceTrendChart points={row.trendPoints} />
       </div>
 
-      <div className="rounded-lg border border-[#D0D7DE] bg-white p-4">
-        <p className="mb-2 text-[13px] font-semibold text-[#24292F]">Price history</p>
+      <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+        <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price history</p>
         {history === null ? (
           <LoadingState rows={2} />
         ) : (

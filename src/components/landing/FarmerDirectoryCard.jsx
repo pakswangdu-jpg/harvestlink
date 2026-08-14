@@ -2,8 +2,9 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
-  BadgeCheck, MapPin, PackageCheck, Star,
+  MapPin, PackageCheck, Star,
 } from 'lucide-react';
+import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import StarRating from '../common/StarRating';
 import { getInitials } from '../../utils/formatters';
 
@@ -47,10 +48,12 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
             <h3 title={farmer.name} className="line-clamp-2 text-[15px] font-bold leading-snug text-gray-900">
               {farmer.name}
             </h3>
-            <BadgeCheck
-              size={15}
-              className="mt-0.5 shrink-0 text-green-600 transition-transform duration-300 group-hover:scale-110"
-              aria-label="Verified farmer"
+            <img
+              src={verifiedIcon}
+              alt="Verified farmer"
+              width={15}
+              height={15}
+              className="mt-0.5 h-[15px] w-[15px] shrink-0 object-contain transition-transform duration-300 group-hover:scale-110"
             />
           </div>
           {farmer.farmName ? <p className="truncate text-[13px] font-medium text-green-700">{farmer.farmName}</p> : null}

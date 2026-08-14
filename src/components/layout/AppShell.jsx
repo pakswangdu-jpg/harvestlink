@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LogOut, Settings } from 'lucide-react';
 import Button from '../common/Button';
 import NotificationBell from '../notifications/NotificationBell';
+import CartButton from '../cart/CartButton';
 import SidebarNavItem from './SidebarNavItem';
 import SidebarUserCard from './SidebarUserCard';
-import { ROLE_DASHBOARDS } from '../../utils/constants';
+import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
 import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
@@ -22,8 +23,13 @@ const navListVariants = {
   show: { transition: { staggerChildren: 0.04 } },
 };
 
+// Determines section order for nav items that declare a `group` (currently just farmerNav.js).
+// Items with no `group` — every other role's nav config — all land in the "Menu" bucket, which
+// reproduces today's single flat list exactly, so this is additive rather than a behavior change.
+const NAV_GROUP_ORDER = ['Menu', 'Sales', 'Market', 'Community'];
+
 export default function AppShell({
-  user, navItems, title, subtitle, children, fullBleed = false, wide = false, hideHeader = false,
+  user, navItems, title, subtitle, children, fullBleed = false, wide = false, hideHeader = false, headerActions = null,
 }) {
   const { logout } = useAuth();
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
@@ -91,6 +97,21 @@ export default function AppShell({
   const menuItems = navItemsWithBadges.filter((item) => item.label !== 'Profile');
   const profileItem = navItemsWithBadges.find((item) => item.label === 'Profile');
 
+  // Buckets menuItems by their declared `group`, defaulting ungrouped items into "Menu".
+  const menuGroups = useMemo(() => {
+    const byLabel = new Map();
+    menuItems.forEach((item) => {
+      const label = item.group || 'Menu';
+      if (!byLabel.has(label)) byLabel.set(label, []);
+      byLabel.get(label).push(item);
+    });
+    const orderedLabels = [
+      ...NAV_GROUP_ORDER.filter((label) => byLabel.has(label)),
+      ...[...byLabel.keys()].filter((label) => !NAV_GROUP_ORDER.includes(label)),
+    ];
+    return orderedLabels.map((label) => ({ label, items: byLabel.get(label) }));
+  }, [menuItems]);
+
   const handleLogout = () => {
     // A client-side navigate() here raced with ProtectedRoute's own "no user -> /login"
     // redirect and lost (React Router kept matching the old protected route for a beat
@@ -119,17 +140,21 @@ export default function AppShell({
         </Link>
 
         <div className="sidebar-scroll flex flex-col gap-4">
-          <div>
-            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">Menu</p>
-            <motion.nav className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
-              {menuItems.map((item) => (
-                <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} badge={item.badge} />
-              ))}
-            </motion.nav>
-          </div>
+          <nav aria-label="Primary" className="flex flex-col gap-4">
+            {menuGroups.map((group) => (
+              <div key={group.label}>
+                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">{group.label}</p>
+                <motion.div className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
+                  {group.items.map((item) => (
+                    <SidebarNavItem key={item.to} to={item.to} label={item.label} icon={item.icon} badge={item.badge} />
+                  ))}
+                </motion.div>
+              </div>
+            ))}
+          </nav>
 
           <div className="flex flex-col gap-1">
-            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-gray-400">General</p>
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">General</p>
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} /> : null}
             {profileItem ? <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} /> : null}
           </div>
@@ -138,12 +163,31 @@ export default function AppShell({
         <button
           type="button"
           onClick={handleLogout}
-          className="flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-[14px] font-medium text-gray-600 transition-colors duration-150 hover:bg-red-50 hover:text-red-700"
+          className="flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-[14px] font-medium text-[var(--text)] transition-colors duration-150 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)]"
         >
-          <LogOut size={18} strokeWidth={2} className="shrink-0" />
+          <LogOut size={20} strokeWidth={2} className="shrink-0" aria-hidden="true" />
           Logout
         </button>
       </motion.aside>
+
+      {/* .sidebar is display:none under the same breakpoint that switches on
+          .mobile-bottom-nav (see globals.css) — without this, the logo/HarvestLink brand
+          disappeared entirely below 1080px, since it only ever lived inside .sidebar. Hidden
+          on desktop (display:none by default, only switched on inside that same media query)
+          so there's never a duplicate logo once the real sidebar is visible again. Skipped for
+          fullBleed pages (MessagesPage) — that layout locks to an exact 100vh for its own
+          internal split-pane scroll, and this would push it taller than the viewport. */}
+      {!fullBleed ? (
+        <Link className="brand mobile-topbar" to={ROLE_DASHBOARDS[user.role]}>
+          <span className="brand-mark">
+            <img src={logo} alt="" />
+          </span>
+          <span>
+            <strong>HarvestLink</strong>
+            <small>{user.role} workspace</small>
+          </span>
+        </Link>
+      ) : null}
 
       {/* fullBleed locks .main-content to a fixed height:100vh (see globals.css) for pages that
           manage their own internal scroll region edge-to-edge — genuinely only MessagesPage.
@@ -163,7 +207,11 @@ export default function AppShell({
               <h1>{title}</h1>
               {subtitle ? <p>{subtitle}</p> : null}
             </div>
-            {hasProfile ? <NotificationBell userId={user.id} /> : null}
+            <div className="page-header-actions">
+              {headerActions}
+              {ORDERING_ROLES.includes(user.role) ? <CartButton /> : null}
+              {hasProfile ? <NotificationBell userId={user.id} /> : null}
+            </div>
           </header>
         ) : null}
         {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}

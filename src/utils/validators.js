@@ -146,6 +146,12 @@ export function validateProductForm(values, availableUnits) {
       if (priceMessage) errors.price = priceMessage;
     }
   }
+  if (!values.isDonation && required(values.discountPercent)) {
+    const discountPercent = Number(values.discountPercent);
+    if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+      errors.discountPercent = 'Enter a value between 0 and 100.';
+    }
+  }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
   if (required(values.expirationDate)) {
     const today = new Date();

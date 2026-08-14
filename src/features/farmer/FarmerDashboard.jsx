@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Clock3, Gift, Package, Store, TrendingUp, Wallet } from 'lucide-react';
+import { Gift, Hourglass } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
-import StatCard from '../../components/cards/StatCard';
+import MetricsSummary from '../../components/dashboard/MetricsSummary';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import Button from '../../components/common/Button';
@@ -80,6 +80,7 @@ export default function FarmerDashboard() {
   // Profit = income minus recorded cost, but only for orders whose product had a cost on
   // file at checkout (see reportService.js).
   const totalProfit = getTotalProfit(orders);
+  const activeListings = products.filter((product) => product.status === 'active').length;
 
   const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
@@ -109,14 +110,20 @@ export default function FarmerDashboard() {
         </div>
       ) : null}
 
-      <section className="stats-grid">
-        <StatCard label="Total income" value={formatCurrency(totalIncome)} icon={<Wallet size={20} />} />
-        <StatCard label="Profit" value={formatCurrency(totalProfit)} icon={<TrendingUp size={20} />} />
-        <StatCard label="Total products" value={products.length} icon={<Store size={20} />} />
-        <StatCard label="Active listings" value={products.filter((product) => product.status === 'active').length} icon={<Package size={20} />} />
-        <StatCard label="Pending orders" value={pendingOrders.length} icon={<Clock3 size={20} />} />
-        <StatCard label="Confirmed orders" value={confirmedOrders.length} icon={<CheckCircle2 size={20} />} />
-      </section>
+      <MetricsSummary
+        financialMetrics={[
+          { label: 'Total income', value: formatCurrency(totalIncome) },
+          { label: 'Profit', value: formatCurrency(totalProfit), trend: totalProfit > 0 },
+        ]}
+        productMetrics={[
+          { label: 'Total products', value: products.length },
+          { label: 'Active listings', value: activeListings },
+        ]}
+        orderMetrics={[
+          { label: 'Pending orders', value: pendingOrders.length, tone: 'warning' },
+          { label: 'Confirmed orders', value: confirmedOrders.length, tone: 'success' },
+        ]}
+      />
 
       <section className="content-grid two">
         <div className="panel">
@@ -213,7 +220,7 @@ export default function FarmerDashboard() {
             emptyMessage="No pending donation requests."
           />
         ) : (
-          <EmptyState title="No pending donation requests" message="Donate unsold stock so partner organizations can request it." />
+          <EmptyState icon={Hourglass} className="empty-state-amber empty-state-transparent-icon empty-state-waiting" title="No pending donation requests" message="Donate unsold stock so partner organizations can request it." />
         )}
       </section>
 

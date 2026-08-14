@@ -22,11 +22,11 @@ import { adminNavItems } from './adminNav';
 
 function InfoField({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-[#D0D7DE] bg-white p-3">
-      <Icon size={16} className="mt-0.5 shrink-0 text-[#57606A]" />
+    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-white p-3">
+      <Icon size={16} className="mt-0.5 shrink-0 text-[var(--muted)]" />
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[#57606A]">{label}</p>
-        <p className="break-words text-[13px] font-medium text-[#24292F]">{value || 'Not provided'}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
+        <p className="break-words text-[13px] font-medium text-[var(--text)]">{value || 'Not provided'}</p>
       </div>
     </div>
   );
@@ -38,7 +38,7 @@ function InfoField({ icon: Icon, label, value }) {
 // buyer relies on, without a second, drifting implementation of the same data.
 function DeliveryDetail({ order, delivery }) {
   if (!delivery) {
-    return <p className="text-[13px] text-[#57606A]">No courier has been booked for this order yet.</p>;
+    return <p className="text-[13px] text-[var(--muted)]">No courier has been booked for this order yet.</p>;
   }
 
   return (
@@ -55,14 +55,14 @@ function DeliveryDetail({ order, delivery }) {
           href={delivery.trackingUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[#166534] px-3 py-2 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-[#14532d]"
+          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[var(--green-800)] px-3 py-2 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-[#14532d]"
         >
           <ExternalLink size={14} /> Open tracking page
         </a>
       ) : null}
 
       <div>
-        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[#57606A]">Delivery timeline</p>
+        <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Delivery timeline</p>
         <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={false} />
       </div>
     </div>

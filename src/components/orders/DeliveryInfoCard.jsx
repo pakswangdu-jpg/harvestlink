@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import {
-  Bike, Clock, ExternalLink, Hash, Pencil, Truck, User,
+  Bike, Clock, ExternalLink, Hash, Pencil, User,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import Button from '../common/Button';
+import DeliveryTruckIcon from '../icons/DeliveryTruckIcon';
 import LinkLalamoveDeliveryDialog from './LinkLalamoveDeliveryDialog';
 
 const LALAMOVE_URL = 'https://www.lalamove.com/philippines';
@@ -46,7 +47,7 @@ export default function DeliveryInfoCard({ order, delivery, isFarmer, canBook, o
         <>
           <dl className="delivery-info-grid">
             <div className="delivery-info-item">
-              <span className="delivery-info-icon"><Truck size={16} /></span>
+              <span className="delivery-info-icon"><DeliveryTruckIcon size={16} /></span>
               <div><dt>Courier</dt><dd>{delivery.courierCompany}</dd></div>
             </div>
             <div className="delivery-info-item">
@@ -94,7 +95,7 @@ export default function DeliveryInfoCard({ order, delivery, isFarmer, canBook, o
         <>
           <dl className="delivery-info-grid">
             <div className="delivery-info-item">
-              <span className="delivery-info-icon"><Truck size={16} /></span>
+              <span className="delivery-info-icon"><DeliveryTruckIcon size={16} /></span>
               <div><dt>Courier</dt><dd className="muted">Not Assigned</dd></div>
             </div>
             <div className="delivery-info-item">
@@ -106,7 +107,7 @@ export default function DeliveryInfoCard({ order, delivery, isFarmer, canBook, o
           {isFarmer ? (
             canBook ? (
               <Button onClick={handleStartBooking}>
-                <Truck size={15} /> Book with Lalamove
+                <DeliveryTruckIcon size={15} /> Book with Lalamove
               </Button>
             ) : (
               <p className="muted">Book a courier once this order is packed and ready for pickup.</p>

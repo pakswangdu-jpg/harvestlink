@@ -226,3 +226,8 @@ export const ROLE_DASHBOARDS = {
   stakeholder: '/stakeholder-dashboard',
   admin: '/admin-dashboard',
 };
+
+// Farmers can browse the marketplace but never place orders on it (they sell, not buy) — the
+// single source of truth for that rule, shared by ProductDetails' checkout gate, ProductCard's
+// Add to Cart button, and the cart icon/route's own visibility.
+export const ORDERING_ROLES = ['buyer', 'stakeholder'];
