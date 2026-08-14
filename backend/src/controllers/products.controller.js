@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeProduct } from '../lib/serialize.js';
 import { assertPlausiblePricePerKg, buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
+import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '../lib/historicalPriceService.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 
@@ -152,6 +153,15 @@ export async function getProduct(req, res) {
   const product = await fetchProductOr404(req.params.id);
   const [serialized] = await withFarmerNames([product]);
   res.json(serialized);
+}
+
+// GET /api/products/historical-price?name=...&unit=... — the third pricing tier
+// ProductForm.jsx falls back to once it already knows PSA has no reference for this
+// product (see historicalPriceService.js). Farmer-only, matching createProduct — this only
+// ever backs the "what should I charge?" UI on the listing form.
+export async function getHistoricalPriceAnalysis(req, res) {
+  const analysis = await computeHistoricalPriceAnalysis(req.query.name, req.query.unit);
+  res.json(analysis);
 }
 
 // What makes two listings "the same product" for the restock-merge below. Deliberately

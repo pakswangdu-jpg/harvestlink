@@ -6,12 +6,15 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
+import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
-import { hasErrors, validateAuthForm } from '../../utils/validators';
+import { checkContactNumberAvailability } from '../../services/authService';
+import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
+import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
 
@@ -20,6 +23,84 @@ const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 // Convenience only — re-fills the email field on a later visit, never the session itself.
 // Kept separate from the real login() call so the login logic itself stays untouched.
 const REMEMBERED_EMAIL_KEY = 'harvestlink:rememberedEmail';
+
+// In-progress registration draft — survives clicking Terms of Service/Privacy Policy (see
+// LegalPageLayout.jsx's returnTo), Home, Back, or any other accidental navigation away and
+// back, instead of losing everything already typed. sessionStorage, not localStorage: scoped
+// to this one tab's lifetime, which is exactly the "quick trip elsewhere, then come back" case
+// this exists for, not something that should still be sitting there weeks later on a shared
+// computer — doubly so now that it can also hold a photo of a government ID.
+const REGISTER_DRAFT_KEY = 'harvestlink:registerDraft';
+// Never persisted as plain fields: password/confirmPassword (no reason for a typed password to
+// sit in Web Storage a moment longer than necessary — a deliberate choice, not an oversight)
+// and govIdFile/accreditationFile, which are handled separately below (as base64, under their
+// own `files` key) since a live File object can't survive JSON.stringify at all.
+const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile'];
+const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile'];
+// sessionStorage's per-origin quota (roughly 5-10MB depending on browser) has to fit the
+// file's base64 form (~33% larger than its raw bytes) alongside everything else in the draft —
+// a file above this just doesn't get persisted. The live selection still works fine for the
+// rest of this tab session either way; only an actual navigate-away-and-back trip would lose
+// one that large, which is the "if possible" the brief for this feature already allowed for.
+const MAX_PERSISTED_FILE_BYTES = 4 * 1024 * 1024;
+const DRAFT_SAVE_DEBOUNCE_MS = 400;
+const SAVED_NOTICE_VISIBLE_MS = 2000;
+
+function readRegisterDraft() {
+  try {
+    const raw = sessionStorage.getItem(REGISTER_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRegisterDraft(form, agreedToTerms, files) {
+  const draftForm = { ...form };
+  REGISTER_DRAFT_EXCLUDED_FIELDS.forEach((field) => delete draftForm[field]);
+  try {
+    sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files }));
+  } catch {
+    // Most likely a large file's base64 payload pushed this over sessionStorage's quota —
+    // retry without the file data so the far more important lightweight fields (name, email,
+    // address, ...) still survive the round trip instead of losing everything.
+    try {
+      sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files: null }));
+    } catch {
+      // Storage unavailable entirely (private browsing, disabled) — best-effort only, never
+      // something registration itself depends on.
+    }
+  }
+}
+
+function clearRegisterDraft() {
+  try {
+    sessionStorage.removeItem(REGISTER_DRAFT_KEY);
+  } catch {
+    // no-op
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// The inverse of readFileAsDataUrl — reconstructs a real File the moment a draft is restored,
+// so govIdFile/accreditationFile behave identically to a freshly-picked file everywhere else in
+// this component (validators.js's instanceof File check, the upload step, the preview UI)
+// instead of needing a separate "restored file" shape threaded through all of them.
+function dataUrlToFile(entry) {
+  const [, base64] = entry.dataUrl.split(',');
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i += 1) bytes[i] = byteChars.charCodeAt(i);
+  return new File([bytes], entry.name, { type: entry.type });
+}
 
 const PASSWORD_REQUIREMENTS = [
   { key: 'length', label: 'At least 8 characters', test: (value) => value.length >= 8 },
@@ -75,7 +156,49 @@ function formatAlertMessage(message) {
   return message;
 }
 
+// Maps the backend's raw verification notice/error strings (auth.controller.js — see
+// verifyRegistrationCode/resendRegistrationCode) to the standardized {title, message} pairs
+// the verification screen's alerts display. The backend's own response text isn't changing —
+// this only splits the same sentence it already sends into a short title plus the fuller
+// message for FormAlert.jsx's two-line layout. Anything not explicitly listed here still
+// displays fine, under a generic fallback title.
+const KNOWN_VERIFICATION_ALERTS = {
+  'Please wait a moment before requesting a new verification code.': {
+    title: 'Please wait',
+    message: 'Please wait a moment before requesting a new verification code.',
+  },
+  'Your verification code has expired. Please request a new verification code.': {
+    title: 'Code expired',
+    message: 'Your verification code has expired. Please request a new code.',
+  },
+  'Too many verification attempts. Please request a new verification code.': {
+    title: 'Too many attempts',
+    message: 'Too many incorrect attempts. Please request a new verification code.',
+  },
+  'You have reached the resend limit. Please try again later.': {
+    title: 'Resend limit reached',
+    message: 'You have reached the resend limit. Please try again later.',
+  },
+  'Incorrect verification code.\n\nPlease try again.': {
+    title: 'Invalid verification code',
+    message: 'The code you entered is incorrect. Please try again.',
+  },
+  'A new code is on its way.': {
+    title: 'Verification code sent',
+    message: 'A new verification code has been sent to your email.',
+  },
+};
+
+function mapVerificationAlert(raw, fallbackTitle) {
+  if (!raw) return null;
+  return KNOWN_VERIFICATION_ALERTS[raw] || { title: fallbackTitle, message: raw };
+}
+
 const OTP_LENGTH = 6;
+// Matches the backend's own RESEND_COOLDOWN_MS (auth.controller.js) — showing a shorter
+// countdown here would let the farmer/buyer click "Resend code" while it's still within the
+// backend's real cooldown window, just to get a 429 back.
+const RESEND_COOLDOWN_SECONDS = 60;
 
 // One box per digit — the standard OTP input pattern (Gmail, banking apps, etc.): numeric
 // keypad on mobile (inputMode), digit-only filtering, auto-advances to the next box as you
@@ -145,6 +268,44 @@ function FileUploadField({ id, accept, file, onChange }) {
           {fileName ? <span className="file-upload-filename">{fileName}</span> : 'Click to upload a file (image or PDF)'}
         </span>
       </div>
+    </div>
+  );
+}
+
+// Live PH mobile format/prefix feedback as the farmer/buyer/stakeholder types (✓ Valid
+// Philippine mobile number / ⚠ Please enter a valid Philippine mobile number.), plus a green/
+// red input border the moment there's something to validate — errors.contactNumber (the
+// required-field message, or the async duplicate-number check) always wins over the plain
+// live-format message when both would otherwise apply, so only one message ever shows at
+// once. The static note underneath is always shown, independent of validity, per the brief.
+function PhoneNumberInput({ id, value, onChange, onBlur, error, isChecking }) {
+  const hasValue = value.trim().length > 0;
+  const isFormatValid = isValidPhilippineMobile(value);
+  const showAsValid = hasValue && isFormatValid && !error;
+  const showAsInvalid = hasValue && (!isFormatValid || Boolean(error));
+
+  return (
+    <div className="phone-field">
+      <input
+        id={id}
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        value={value}
+        onChange={(event) => onChange(sanitizePhoneInput(event.target.value))}
+        onBlur={onBlur}
+        placeholder="09XX XXX XXXX"
+        className={showAsValid ? 'is-valid' : showAsInvalid ? 'is-invalid' : ''}
+      />
+      {isChecking ? (
+        <p className="phone-validation-message checking">Checking availability…</p>
+      ) : error ? (
+        <p className="phone-validation-message invalid"><AlertTriangle size={13} /> {error}</p>
+      ) : hasValue && !isFormatValid ? (
+        <p className="phone-validation-message invalid"><AlertTriangle size={13} /> Please enter a valid Philippine mobile number.</p>
+      ) : hasValue && isFormatValid ? (
+        <p className="phone-validation-message valid"><CheckCircle size={13} /> Valid Philippine mobile number</p>
+      ) : null}
     </div>
   );
 }
@@ -253,7 +414,16 @@ function VerificationDocumentUpload({ file, error, onFileSelect, onValidationErr
 // already capture the representative's name, so this slot is free to describe their title
 // within the organization instead of duplicating it.
 function StakeholderRegisterFields({
-  form, errors, updateField, handleBlur, isLocating, locationNotice, handleUseMyLocation, setFieldError,
+  form,
+  errors,
+  updateField,
+  handleBlur,
+  isLocating,
+  locationNotice,
+  handleUseMyLocation,
+  setFieldError,
+  handleContactNumberBlur,
+  isCheckingPhone,
 }) {
   return (
     <div className="stakeholder-register">
@@ -336,14 +506,14 @@ function StakeholderRegisterFields({
               placeholder="e.g. Program Director, Coordinator"
             />
           </FormField>
-          <FormField label="Contact number" name="contactNumber" error={errors.contactNumber}>
-            <input
+          <FormField label="Contact number" name="contactNumber">
+            <PhoneNumberInput
               id="contactNumber"
-              type="tel"
               value={form.contactNumber}
-              onChange={(event) => updateField('contactNumber', event.target.value)}
-              onBlur={() => handleBlur('contactNumber')}
-              placeholder="09XX XXX XXXX"
+              onChange={(next) => updateField('contactNumber', next)}
+              onBlur={handleContactNumberBlur}
+              error={errors.contactNumber}
+              isChecking={isCheckingPhone}
             />
           </FormField>
         </div>
@@ -387,6 +557,7 @@ function StakeholderRegisterFields({
             id="address"
             value={form.address}
             onChange={(next) => updateField('address', next)}
+            onSelect={(details) => { if (details.zipCode) updateField('zipCode', details.zipCode); }}
             onBlur={() => handleBlur('address')}
             error={errors.address}
             placeholder="House/Unit No., Street, Barangay"
@@ -515,6 +686,28 @@ export default function AuthPage({ mode }) {
     const base = buildEmptyForm(searchParams.get('role'));
     const rememberedEmail = !isRegister && localStorage.getItem(REMEMBERED_EMAIL_KEY);
     if (rememberedEmail) base.email = rememberedEmail;
+    // Restores whatever was already typed (and, where it fit, any selected file) if this
+    // mount is a "came back from Terms of Service/Privacy Policy, Home, Back, or anywhere
+    // else" return trip (see LegalPageLayout.jsx's returnTo) rather than a genuinely fresh
+    // visit. Password is never in here to begin with (see REGISTER_DRAFT_EXCLUDED_FIELDS), so
+    // it stays exactly as fresh/empty as buildEmptyForm already left it.
+    if (isRegister) {
+      const draft = readRegisterDraft();
+      if (draft?.form) {
+        const restored = { ...base, ...draft.form };
+        PERSISTED_FILE_FIELDS.forEach((field) => {
+          const entry = draft.files?.[field];
+          if (!entry) return;
+          try {
+            restored[field] = dataUrlToFile(entry);
+          } catch {
+            // Corrupted/unreadable entry — leave just that one field empty rather than fail
+            // the whole restore.
+          }
+        });
+        return restored;
+      }
+    }
     return base;
   });
   const [errors, setErrors] = useState({});
@@ -525,8 +718,22 @@ export default function AuthPage({ mode }) {
   const [rememberMe, setRememberMe] = useState(() => !isRegister && Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY)));
   // Partner-organization registration only (see StakeholderRegisterFields) — a client-side
   // gate on the submit button, not sent anywhere; farmer/buyer registration is unaffected.
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(() => isRegister && Boolean(readRegisterDraft()?.agreedToTerms));
   const isStakeholderRegister = isRegister && form.role === 'stakeholder';
+  // In-flight state for the async "is this number already registered?" check fired from
+  // PhoneNumberInput's onBlur — see handleContactNumberBlur below.
+  const [isCheckingPhone, setIsCheckingPhone] = useState(false);
+  // "✓ Your progress is automatically saved." — briefly shown right after a debounced draft
+  // write actually happens (see the effect below), then faded back out.
+  const [showSavedNotice, setShowSavedNotice] = useState(false);
+  // Per-field { file, entry } cache so a debounced write that fires while some OTHER field
+  // changed doesn't re-read+re-encode a file that hasn't actually changed since last time.
+  const fileDataUrlCacheRef = useRef({});
+  // Skips writing to sessionStorage again when the serialized draft is identical to what's
+  // already stored there — "save only modified values" in practice, given the draft is one
+  // JSON blob rather than individually-addressable storage keys.
+  const lastSavedSnapshotRef = useRef('');
+  const savedNoticeTimeoutRef = useRef(null);
 
   // 'otp' covers two entry points: right after registering (always required now — see
   // authService.registerUser), and a returning-but-never-verified user hitting "Email not
@@ -545,6 +752,50 @@ export default function AuthPage({ mode }) {
     const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  // Keeps the draft in sync with every keystroke, so whichever moment the farmer actually
+  // clicks away (Terms of Service, Privacy Policy, Home, Back, or anywhere else) is always
+  // covered — there's no separate "save" action to remember to call first. Debounced
+  // (300-500ms) so a fast typist doesn't hit sessionStorage on every keystroke, and the
+  // eventual write is skipped entirely if nothing actually changed since the last one.
+  useEffect(() => {
+    if (!isRegister) return undefined;
+    const timeoutId = window.setTimeout(async () => {
+      const files = {};
+      await Promise.all(PERSISTED_FILE_FIELDS.map(async (field) => {
+        const value = form[field];
+        if (!(value instanceof File) || value.size > MAX_PERSISTED_FILE_BYTES) return;
+        const cached = fileDataUrlCacheRef.current[field];
+        if (cached?.file === value) {
+          files[field] = cached.entry;
+          return;
+        }
+        try {
+          const dataUrl = await readFileAsDataUrl(value);
+          const entry = { name: value.name, type: value.type, size: value.size, dataUrl };
+          fileDataUrlCacheRef.current[field] = { file: value, entry };
+          files[field] = entry;
+        } catch {
+          // Couldn't read this one file — the rest of the draft still saves fine below.
+        }
+      }));
+
+      const snapshot = JSON.stringify({ form, agreedToTerms, files });
+      if (snapshot === lastSavedSnapshotRef.current) return;
+      lastSavedSnapshotRef.current = snapshot;
+
+      writeRegisterDraft(form, agreedToTerms, files);
+      setShowSavedNotice(true);
+      window.clearTimeout(savedNoticeTimeoutRef.current);
+      savedNoticeTimeoutRef.current = window.setTimeout(() => setShowSavedNotice(false), SAVED_NOTICE_VISIBLE_MS);
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isRegister, form, agreedToTerms]);
+
+  // Cleans up the "saved" notice's own timer on unmount only — a plain teardown, not tied to
+  // any particular value changing.
+  useEffect(() => () => window.clearTimeout(savedNoticeTimeoutRef.current), []);
 
   if (!authLoading && currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
 
@@ -572,6 +823,30 @@ export default function AuthPage({ mode }) {
   // validateAuthForm — e.g. VerificationDocumentUpload rejecting a file for its type or
   // size the moment it's dropped, rather than waiting for submit.
   const setFieldError = (field, message) => setErrors((previous) => ({ ...previous, [field]: message }));
+
+  // Runs the normal required/format check first (same as handleBlur), then — only once the
+  // number is actually a well-formed Philippine mobile number — asks the backend whether it's
+  // already registered, so a duplicate is caught right after typing it rather than only after
+  // submitting the whole form. Fails open on a network error: register() itself is still the
+  // real, unbypassable enforcement (see auth.controller.js), so the worst case here is just
+  // finding out at submit time instead of on blur.
+  const handleContactNumberBlur = async () => {
+    const nextErrors = validateAuthForm(form, mode);
+    setErrors((previous) => ({ ...previous, contactNumber: nextErrors.contactNumber }));
+    if (nextErrors.contactNumber) return;
+
+    setIsCheckingPhone(true);
+    try {
+      const result = await checkContactNumberAvailability(form.contactNumber);
+      if (!result.available && result.reason === 'duplicate') {
+        setFieldError('contactNumber', 'This mobile number is already associated with an existing HarvestLink account.');
+      }
+    } catch {
+      // no-op — see comment above.
+    } finally {
+      setIsCheckingPhone(false);
+    }
+  };
 
   // The actual upload happens later, in handleSubmit (via authService.registerUser) —
   // Storage's bucket policy requires an authenticated session to write into a user's own
@@ -628,29 +903,42 @@ export default function AuthPage({ mode }) {
     }
 
     setIsSubmitting(true);
+    // Whatever shape the farmer/buyer/stakeholder actually typed (09.../+639.../639...) is
+    // normalized to the one canonical storage form right before it's sent — validateAuthForm
+    // above already confirmed it's a valid Philippine mobile number, so this can't return null.
+    const submitForm = isRegister ? { ...form, contactNumber: toE164PhilippineMobile(form.contactNumber) } : form;
     try {
-      // Registration is instant-confirmed again (see authService.registerUser) — register()
-      // and login() both just return a logged-in user now, so they navigate the same way.
-      const user = isRegister ? await register(form) : await login(form.email, form.password);
+      const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
+      if (isRegister && result.pendingVerification) {
+        setOtpEmail(form.email.trim().toLowerCase());
+        setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
+        setOtpValue('');
+        setOtpError('');
+        setOtpNotice('We sent a verification code to your email. Enter the 6-digit code to complete registration.');
+        setAuthStage('otp');
+        setResendCooldown(RESEND_COOLDOWN_SECONDS);
+        setIsSubmitting(false);
+        return;
+      }
+      if (isRegister) clearRegisterDraft();
       if (!isRegister) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, form.email.trim().toLowerCase());
         else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
       }
-      const fallback = ROLE_DASHBOARDS[user.role];
+      const fallback = ROLE_DASHBOARDS[result.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
-      // Dormant for any newly-created account (they're instant-confirmed now), but kept as
-      // a safety net for an already-existing unconfirmed account from before this reverted —
-      // sends them to the same OTP screen instead of a dead-end error.
+      // When an existing account is not yet verified, send the visitor to the
+      // email verification screen instead of showing a dead-end error.
       if (!isRegister && error.code === 'email_not_confirmed') {
         const email = form.email.trim().toLowerCase();
         setOtpEmail(email);
         setPendingFiles({});
         setOtpValue('');
         setOtpError('');
-        setOtpNotice("Your email isn't verified yet. We've sent a new code — enter it below.");
+        setOtpNotice("Your email isn't verified yet. We've sent a new verification code — enter it below to continue.");
         setAuthStage('otp');
-        setResendCooldown(45);
+        setResendCooldown(RESEND_COOLDOWN_SECONDS);
         resendOtp(email).catch(() => {});
         setIsSubmitting(false);
         return;
@@ -667,7 +955,8 @@ export default function AuthPage({ mode }) {
     setOtpError('');
     setIsVerifyingOtp(true);
     try {
-      const user = await verifyOtp(otpEmail, otpValue, pendingFiles);
+      const user = await verifyOtp(otpEmail, otpValue, form.password, pendingFiles);
+      if (isRegister) clearRegisterDraft();
       if (!isRegister) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, otpEmail);
         else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
@@ -687,7 +976,7 @@ export default function AuthPage({ mode }) {
     try {
       await resendOtp(otpEmail);
       setOtpNotice('A new code is on its way.');
-      setResendCooldown(45);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (error) {
       setOtpError(error.message);
     }
@@ -700,6 +989,21 @@ export default function AuthPage({ mode }) {
     setOtpNotice('');
     setResendCooldown(0);
   };
+
+  // Gates "Create account" itself, not just a submit-time error after clicking it — valid
+  // mobile number, valid email, every password requirement met, and Terms accepted. Every
+  // other register-only field (address, municipality, farm name, accreditation document, ...)
+  // is still enforced the moment they actually click it, by the full validateAuthForm check
+  // at the top of handleSubmit above — this only covers the 4 conditions asked for here.
+  const isRegisterFormReady = !isRegister || (
+    isValidPhilippineMobile(form.contactNumber)
+    && isValidEmail(form.email)
+    && PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(form.password))
+    && agreedToTerms
+  );
+
+  const otpNoticeAlert = mapVerificationAlert(otpNotice, 'Verification code sent');
+  const otpErrorAlert = mapVerificationAlert(otpError, 'Verification failed');
 
   return (
     <main className={`auth-page ${isRegister ? 'auth-page-register' : ''} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''}`}>
@@ -753,26 +1057,22 @@ export default function AuthPage({ mode }) {
           onSubmit={authStage === 'otp' ? handleVerifyOtp : handleSubmit}
         >
           {errors.form ? (
-            <div className="form-alert error has-icon">
-              <AlertTriangle size={16} />
-              <span>{formatAlertMessage(errors.form)}</span>
-            </div>
+            <FormAlert
+              type="error"
+              title={isRegister ? 'Registration failed' : 'Sign-in failed'}
+              message={formatAlertMessage(errors.form)}
+            />
           ) : null}
-          {message ? <div className="form-alert success">{message}</div> : null}
+          {message ? <FormAlert type="success" message={message} /> : null}
 
           {authStage === 'otp' ? (
             <div className="otp-stage">
               <span className="otp-icon"><Mail size={22} /></span>
               <p className="otp-instructions">
-                We sent a 6-digit code to <strong>{otpEmail}</strong>. It expires after a while, so verify soon.
+                We sent a verification code to <strong>{otpEmail}</strong>. Enter the 6-digit code from the email to verify your account.
               </p>
-              {otpNotice ? <div className="form-alert info">{otpNotice}</div> : null}
-              {otpError ? (
-                <div className="form-alert error has-icon">
-                  <AlertTriangle size={16} />
-                  <span>{formatAlertMessage(otpError)}</span>
-                </div>
-              ) : null}
+              {otpNoticeAlert ? <FormAlert type="info" title={otpNoticeAlert.title} message={otpNoticeAlert.message} /> : null}
+              {otpErrorAlert ? <FormAlert type="error" title={otpErrorAlert.title} message={formatAlertMessage(otpErrorAlert.message)} /> : null}
               <OtpInput value={otpValue} onChange={setOtpValue} disabled={isVerifyingOtp} />
               <div className="otp-footer">
                 <button type="button" onClick={handleResendOtp} disabled={resendCooldown > 0}>
@@ -803,6 +1103,8 @@ export default function AuthPage({ mode }) {
                   locationNotice={locationNotice}
                   handleUseMyLocation={handleUseMyLocation}
                   setFieldError={setFieldError}
+                  handleContactNumberBlur={handleContactNumberBlur}
+                  isCheckingPhone={isCheckingPhone}
                 />
               ) : (
                 <>
@@ -847,14 +1149,14 @@ export default function AuthPage({ mode }) {
                             onBlur={() => handleBlur('birthday')}
                           />
                         </FormField>
-                        <FormField label="Contact number" name="contactNumber" error={errors.contactNumber}>
-                          <input
+                        <FormField label="Contact number" name="contactNumber">
+                          <PhoneNumberInput
                             id="contactNumber"
-                            type="tel"
                             value={form.contactNumber}
-                            onChange={(event) => updateField('contactNumber', event.target.value)}
-                            onBlur={() => handleBlur('contactNumber')}
-                            placeholder="09XX XXX XXXX"
+                            onChange={(next) => updateField('contactNumber', next)}
+                            onBlur={handleContactNumberBlur}
+                            error={errors.contactNumber}
+                            isChecking={isCheckingPhone}
                           />
                         </FormField>
                       </div>
@@ -892,14 +1194,14 @@ export default function AuthPage({ mode }) {
 
                   {form.role === 'buyer' ? (
                     <div className="form-grid">
-                      <FormField label="Contact number" name="contactNumber" error={errors.contactNumber}>
-                        <input
+                      <FormField label="Contact number" name="contactNumber">
+                        <PhoneNumberInput
                           id="contactNumber"
-                          type="tel"
                           value={form.contactNumber}
-                          onChange={(event) => updateField('contactNumber', event.target.value)}
-                          onBlur={() => handleBlur('contactNumber')}
-                          placeholder="09XX XXX XXXX"
+                          onChange={(next) => updateField('contactNumber', next)}
+                          onBlur={handleContactNumberBlur}
+                          error={errors.contactNumber}
+                          isChecking={isCheckingPhone}
                         />
                       </FormField>
                       <FormField label="Location" name="municipality" error={errors.municipality}>
@@ -923,12 +1225,13 @@ export default function AuthPage({ mode }) {
                         </Button>
                         {locationNotice ? <p className="muted">{locationNotice}</p> : null}
                       </div>
-                      <div className="form-grid">
+                      <div className="form-grid address-row">
                         <FormField label="Complete address" name="address" error={errors.address}>
                           <AddressAutocomplete
                             id="address"
                             value={form.address}
                             onChange={(next) => updateField('address', next)}
+                            onSelect={(details) => { if (details.zipCode) updateField('zipCode', details.zipCode); }}
                             onBlur={() => handleBlur('address')}
                             error={errors.address}
                             placeholder="House/Unit No., Street, Barangay"
@@ -1035,11 +1338,23 @@ export default function AuthPage({ mode }) {
               />
               <span>
                 I agree to the{' '}
-                <Link to="/terms-of-service" target="_blank" rel="noreferrer"><strong>Terms of Service</strong></Link>
+                {/* Same-tab, not target="_blank" — a new tab doesn't inherit this tab's
+                    sessionStorage (browsers only copy it over when an opener relationship
+                    exists, which rel="noreferrer" deliberately severs for tabnabbing safety),
+                    so the draft saved here would be invisible to that second tab's own copy
+                    of /register. Same-tab navigation means Back always lands back in the
+                    exact tab/storage the draft was written to. */}
+                <Link to="/terms-of-service?returnTo=/register"><strong>Terms of Service</strong></Link>
                 {' '}and{' '}
-                <Link to="/privacy-policy" target="_blank" rel="noreferrer"><strong>Privacy Policy</strong></Link>.
+                <Link to="/privacy-policy?returnTo=/register"><strong>Privacy Policy</strong></Link>.
               </span>
             </label>
+          ) : null}
+
+          {isRegister && authStage !== 'otp' ? (
+            <p className={`autosave-notice${showSavedNotice ? ' visible' : ''}`} role="status" aria-live="polite">
+              <CheckCircle size={14} /> Your progress is automatically saved.
+            </p>
           ) : null}
 
           <Button
@@ -1048,7 +1363,7 @@ export default function AuthPage({ mode }) {
             disabled={
               authStage === 'otp'
                 ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
-                : isSubmitting || (isRegister && !agreedToTerms)
+                : isSubmitting || !isRegisterFormReady
             }
           >
             {authStage === 'otp'

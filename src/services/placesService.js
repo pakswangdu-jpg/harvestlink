@@ -93,19 +93,25 @@ export async function searchAddressSuggestions(query, { sessionToken } = {}) {
 }
 
 // Fetched once, only when the user actually selects a suggestion — turns the lightweight
-// prediction into the full { placeId, formattedAddress, lat, lng } the caller stores. Reuses
-// the SAME session token the search calls for this field used, per Google's session-token
-// billing model (see createAutocompleteSessionToken above) — the caller is responsible for
-// minting a fresh token for whatever the user types next.
+// prediction into the full { placeId, formattedAddress, lat, lng, zipCode } the caller stores.
+// Reuses the SAME session token the search calls for this field used, per Google's
+// session-token billing model (see createAutocompleteSessionToken above) — the caller is
+// responsible for minting a fresh token for whatever the user types next.
 export async function getPlaceDetails(placeId, { sessionToken } = {}) {
   const { Place } = await getPlacesLibrary();
   const place = new Place({ id: placeId, requestedLanguage: 'en' });
-  await place.fetchFields({ fields: ['formattedAddress', 'location'], sessionToken });
+  await place.fetchFields({ fields: ['formattedAddress', 'location', 'addressComponents'], sessionToken });
+
+  // New Places API shape: [{ longText, shortText, types }], vs. the older Geocoding API's
+  // { long_name, short_name, types } used in geocodeService.js — same `types` vocabulary
+  // ('postal_code' etc), different property names, since these are two separate Google APIs.
+  const zipCode = place.addressComponents?.find((component) => component.types.includes('postal_code'))?.longText || '';
 
   return {
     placeId,
     formattedAddress: place.formattedAddress,
     lat: place.location?.lat() ?? null,
     lng: place.location?.lng() ?? null,
+    zipCode,
   };
 }

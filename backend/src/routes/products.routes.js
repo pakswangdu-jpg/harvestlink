@@ -8,6 +8,7 @@ import {
   declinePriceReview,
   deleteProduct,
   getDeclinedPriceReviews,
+  getHistoricalPriceAnalysis,
   getPendingPriceReviews,
   getProduct,
   listProducts,
@@ -25,6 +26,8 @@ router.get('/price-reviews/declined', requireAuth, requireRole('admin'), getDecl
 // Public, no requireAuth — must stay above GET /:id below, or Express would match "public"
 // as an :id instead of this handler.
 router.get('/public', listPublicProducts);
+// Must also stay above GET /:id, same reason — this is a static path, not a product id.
+router.get('/historical-price', requireAuth, requireRole('farmer'), getHistoricalPriceAnalysis);
 
 router.get('/', requireAuth, listProducts);
 router.post('/', requireAuth, requireRole('farmer'), createProduct);

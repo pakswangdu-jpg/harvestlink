@@ -88,7 +88,7 @@ export function getCommodityById(id) {
 // and retail markups over farmgate commonly run 40-60%+ once a trader is involved, so a
 // modest markup here keeps the farmer clearly profitable while the listing still undercuts
 // typical retail — a real selling point for buyers browsing the marketplace.
-const RECOMMENDED_MARGIN_PERCENT = 15;
+export const RECOMMENDED_MARGIN_PERCENT = 15;
 
 // `referencePrice` is whatever value the caller wants marked up — a raw per-kg PSA figure,
 // or (see ProductForm.jsx) that same figure already converted into the farmer's selling unit.

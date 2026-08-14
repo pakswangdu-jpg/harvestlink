@@ -16,7 +16,7 @@ const MIN_SEND_MOVE_KM = 0.01;
 // shares the BUYER's instead (see useBuyerActivePickupSharing.js), and courier orders are
 // handed off to a third party (Lalamove) entirely: HarvestLink never tracks a courier's GPS,
 // so there's nothing for the farmer's device to share once a courier order goes out for
-// delivery (see BookLalamoveFlow.jsx / DeliveryInfoCard.jsx instead).
+// delivery (see DeliveryInfoCard.jsx / LinkLalamoveDeliveryDialog.jsx instead).
 function isActiveDeliveryOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery';
 }
@@ -30,14 +30,30 @@ function isActiveDeliveryOrder(order) {
 // REST endpoint — broadcasts to every currently-active order at once (rare in practice, but a
 // farmer could have more than one out for delivery in the same trip): one real device
 // position, joined into each active order's own room.
+
+// Rejects a raw GPS reading that's non-finite, physically impossible (outside real lat/lng
+// bounds), or (0, 0) — "null island", which is what a chip commonly reports mid-reacquisition
+// rather than erroring out, so a literal 0/0 is treated as invalid rather than a real position.
+function isValidCoordinate(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  if (lat === 0 && lng === 0) return false;
+  return true;
+}
+
 export function useFarmerActiveDeliverySharing(farmerId) {
   const [activeOrderIds, setActiveOrderIds] = useState([]);
   const [error, setError] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('online');
   const activeOrderIdsRef = useRef([]);
   const joinedOrderIdsRef = useRef(new Set());
   const watchIdRef = useRef(null);
   const lastSentAtRef = useRef(0);
   const lastSentPositionRef = useRef(null);
+  const isOnlineRef = useRef(typeof navigator === 'undefined' || navigator.onLine !== false);
+  const isSocketConnectedRef = useRef(false);
+  const hasGpsErrorRef = useRef(false);
+  const connectionStatusRef = useRef('online');
 
   useEffect(() => {
     if (!farmerId) return undefined;
@@ -63,16 +79,6 @@ export function useFarmerActiveDeliverySharing(farmerId) {
     };
   }, [farmerId]);
 
-  // A network drop resets socket.data server-side on reconnect, so every room this socket
-  // had joined needs rejoining — clearing the local cache here means the next GPS tick's
-  // joinOrder() call naturally does that instead of assuming a stale join still holds.
-  useEffect(() => {
-    const socket = getSocket();
-    const handleConnect = () => joinedOrderIdsRef.current.clear();
-    socket.on('connect', handleConnect);
-    return () => socket.off('connect', handleConnect);
-  }, []);
-
   const joinOrder = async (orderId) => {
     if (joinedOrderIdsRef.current.has(orderId)) return true;
     const socket = getSocket();
@@ -86,6 +92,78 @@ export function useFarmerActiveDeliverySharing(farmerId) {
     if (joined) joinedOrderIdsRef.current.add(orderId);
     return joined;
   };
+
+  // Recomputes 'online' | 'offline' | 'reconnecting' | 'gps-lost' from the three signals that
+  // feed it (network state, socket connection, GPS watch health) and — only when it actually
+  // changed — updates local state and best-effort announces it to whichever orders are
+  // currently joined. Deliberately does NOT try to announce 'offline' itself: a socket that's
+  // already disconnected can't emit anything, which is exactly why the server's own
+  // 'disconnect' handler (backend/src/realtime/orderTracking.js) broadcasts that on this
+  // client's behalf instead — the one signal this function can never send is the one that
+  // matters most, so it doesn't try.
+  const refreshConnectionStatus = () => {
+    const next = !isOnlineRef.current
+      ? 'offline'
+      : !isSocketConnectedRef.current
+        ? 'reconnecting'
+        : hasGpsErrorRef.current
+          ? 'gps-lost'
+          : 'online';
+    if (next === connectionStatusRef.current) return;
+    connectionStatusRef.current = next;
+    setConnectionStatus(next);
+    const socket = getSocket();
+    if (!socket.connected) return;
+    joinedOrderIdsRef.current.forEach((orderId) => socket.emit('share-status', { orderId, status: next }));
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+      isOnlineRef.current = true;
+      refreshConnectionStatus();
+    };
+    const handleOffline = () => {
+      isOnlineRef.current = false;
+      refreshConnectionStatus();
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // A network drop resets socket.data server-side on reconnect, so every room this socket
+  // had joined needs rejoining — clearing the local cache here means the next GPS tick's
+  // joinOrder() call naturally does that instead of assuming a stale join still holds. Also
+  // rejoins every currently-active order right away (rather than waiting for the next
+  // throttled GPS tick, up to MIN_SEND_INTERVAL_MS later) and confirms the current status to
+  // each the moment its rejoin lands — this is what makes a viewer's badge flip back to
+  // Online within a second of the connection actually returning, not several seconds after.
+  useEffect(() => {
+    const socket = getSocket();
+    isSocketConnectedRef.current = socket.connected;
+    const handleConnect = () => {
+      joinedOrderIdsRef.current.clear();
+      isSocketConnectedRef.current = true;
+      refreshConnectionStatus();
+      activeOrderIdsRef.current.forEach(async (orderId) => {
+        const joined = await joinOrder(orderId);
+        if (joined) socket.emit('share-status', { orderId, status: connectionStatusRef.current });
+      });
+    };
+    const handleDisconnect = () => {
+      isSocketConnectedRef.current = false;
+      refreshConnectionStatus();
+    };
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, []);
 
   const stopWatch = () => {
     if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -102,10 +180,23 @@ export function useFarmerActiveDeliverySharing(farmerId) {
     setError('');
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
-        const now = Date.now();
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
+        // A GPS chip mid-reacquisition commonly reports (0,0) or an out-of-range value rather
+        // than erroring out — never worth sending, and never worth even counting as "the GPS
+        // is healthy again" below.
+        if (!isValidCoordinate(lat, lng)) return;
 
+        // A fix arrived at all, so whatever earlier TIMEOUT/POSITION_UNAVAILABLE run this
+        // watch was in is over — matters even on a tick that gets throttled away below, since
+        // "gps-lost" should clear the moment a fix actually succeeds, not only on a tick that
+        // happens to also be due to send.
+        if (hasGpsErrorRef.current) {
+          hasGpsErrorRef.current = false;
+          refreshConnectionStatus();
+        }
+
+        const now = Date.now();
         const dueByTime = now - lastSentAtRef.current >= MIN_SEND_INTERVAL_MS;
         const dueByMovement = lastSentPositionRef.current
           ? haversineKm(lastSentPositionRef.current, { lat, lng }) >= MIN_SEND_MOVE_KM
@@ -141,8 +232,12 @@ export function useFarmerActiveDeliverySharing(farmerId) {
           stopWatch();
         } else if (geoError.code === geoError.TIMEOUT) {
           setError('Location signal is weak — retrying…');
+          hasGpsErrorRef.current = true;
+          refreshConnectionStatus();
         } else {
           setError('Could not access your location. Check your device’s location/GPS is turned on.');
+          hasGpsErrorRef.current = true;
+          refreshConnectionStatus();
         }
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
@@ -165,5 +260,5 @@ export function useFarmerActiveDeliverySharing(farmerId) {
     };
   }, []);
 
-  return { isSharing: activeOrderIds.length > 0, error };
+  return { isSharing: activeOrderIds.length > 0, error, connectionStatus };
 }

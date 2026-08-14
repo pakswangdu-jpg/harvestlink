@@ -7,48 +7,45 @@ import { uploadAccreditationFile, uploadGovIdFile } from './uploadService';
 // for the matching API surface. Session state itself (login/logout/current-user) is no
 // longer this file's concern — AuthContext.jsx manages it directly via `supabase.auth`.
 
-// Account creation goes through the backend's admin-privileged /auth/register endpoint
-// instead of calling supabase.auth.signUp() directly from here — see
-// backend/src/controllers/auth.controller.js for the full reasoning. The account is
-// created instant-confirmed (no OTP email step) — that flow (registerUser returning
-// { pendingVerification }, AuthPage.jsx's OTP screen, verifyRegistrationOtp/
-// resendRegistrationOtp below) is dormant, not deleted, in case OTP verification is
-// turned back on again later; it was disabled because Supabase's default ~2-emails/hour
-// sending cap kept locking users out mid-registration. Configuring custom SMTP in the
-// Supabase dashboard would remove that cap if OTP is ever re-enabled.
+// Account creation is deferred until the user verifies their registered email code.
+// The backend stores a pending registration, sends a 6-digit code, and only creates
+// the Supabase auth user and profile row once that code is confirmed.
 export async function registerUser(values) {
   const email = values.email.trim().toLowerCase();
   // confirmPassword rides along harmlessly in profileFields — the backend only ever picks
   // out the specific fields it recognizes, so an extra key here is simply ignored.
-  const { govIdFile, accreditationFile, password, ...profileFields } = values;
+  const { password, ...profileFields } = values;
 
   await apiClient.post('/auth/register', { ...profileFields, email, password });
-
-  // The admin API above creates the account server-side but doesn't establish a browser
-  // session — sign in here so the file upload below (Storage requires an authenticated
-  // session) and everything after registration has one, same as a normal login.
-  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-  if (signInError) throw new Error(signInError.message);
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const filePatch = {};
-  if (values.role === 'farmer' && govIdFile instanceof File) {
-    filePatch.govIdFile = await uploadGovIdFile(govIdFile, user.id);
-  }
-  if (values.role === 'stakeholder' && accreditationFile instanceof File) {
-    filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
-  }
-
-  return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
+  return { pendingVerification: true };
 }
 
-// Dormant — see registerUser's comment above. Verifies the 6-digit code, which — on
-// success — both confirms the email AND establishes a real session (Supabase does both as
-// one step for an 'email' OTP), then performs the gov-ID/accreditation upload that
-// registerUser would otherwise defer for lack of a session.
-export async function verifyRegistrationOtp(email, token, pendingFiles = {}) {
-  const { error: verifyError } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-  if (verifyError) throw new Error('That code is invalid or has expired. Please try again or resend a new one.');
+// Public (no session needed — same as registerUser itself). Lets the registration form warn
+// the farmer/buyer/stakeholder their number is already taken as soon as they finish typing it,
+// rather than only finding out after submitting the whole form — see AuthPage.jsx's
+// PhoneNumberInput. Purely advisory: the backend's own register() call is what actually
+// enforces this and can't be bypassed by skipping this check.
+export async function checkContactNumberAvailability(value) {
+  return apiClient.get(`/auth/check-contact-number?value=${encodeURIComponent(value)}`);
+}
+
+export async function verifyRegistrationOtp(email, token, password, pendingFiles = {}) {
+  if (!password) {
+    throw new Error('Unable to complete verification because the password is missing. Please try again.');
+  }
+
+  await apiClient.post('/auth/verify-registration-code', {
+    email: email.trim().toLowerCase(),
+    code: token,
+  });
+
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+  if (signInError) {
+    throw new Error('Unable to sign in after verification. Please try again.');
+  }
 
   const { data: { user } } = await supabase.auth.getUser();
   const { govIdFile, accreditationFile, role } = pendingFiles;
@@ -64,10 +61,11 @@ export async function verifyRegistrationOtp(email, token, pendingFiles = {}) {
 }
 
 // Also used to re-send when a returning, still-unverified user hits "Email not confirmed"
-// on the login page (see AuthPage.jsx) — the same call either way, just a different caller.
+// on the login page (see AuthPage.jsx) — this re-sends the built-in Supabase signup
+// verification email for an unconfirmed account.
 export async function resendRegistrationOtp(email) {
-  const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: false } });
-  if (error) throw new Error(error.message);
+  const response = await apiClient.post('/auth/resend-registration-code', { email: email.trim().toLowerCase() });
+  if (response.error) throw new Error(response.error);
 }
 
 // GET /profiles/top-farmers is public (no requireAuth on the backend) — safe to call from

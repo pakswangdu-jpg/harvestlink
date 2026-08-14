@@ -218,11 +218,6 @@ export default function FarmerDashboard() {
       </section>
 
       <FarmerReviewsPanel farmerId={currentUser.id} />
-
-      <div className="quick-actions">
-        <Button onClick={() => navigate('/farmer-products')}>Add a product</Button>
-        <Link className="btn btn-secondary btn-md" to="/marketplace">View marketplace</Link>
-      </div>
     </AppShell>
   );
 }

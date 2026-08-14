@@ -5,15 +5,15 @@ import ProgressBar from '../common/ProgressBar';
 import { formatCurrency } from '../../utils/formatters';
 
 const TREND_STYLE = {
-  Rising: { icon: TrendingUp, color: 'text-green-700', bg: 'bg-green-50' },
-  Falling: { icon: TrendingDown, color: 'text-red-700', bg: 'bg-red-50' },
-  Steady: { icon: Minus, color: 'text-amber-700', bg: 'bg-amber-50' },
+  Rising: { icon: TrendingUp, color: 'text-green-700' },
+  Falling: { icon: TrendingDown, color: 'text-red-700' },
+  Steady: { icon: Minus, color: 'text-amber-700' },
 };
 
 const RISK_STYLE = {
-  Low: { color: 'text-green-700', bg: 'bg-green-50' },
-  Medium: { color: 'text-amber-700', bg: 'bg-amber-50' },
-  High: { color: 'text-red-700', bg: 'bg-red-50' },
+  Low: { color: 'text-green-700' },
+  Medium: { color: 'text-amber-700' },
+  High: { color: 'text-red-700' },
 };
 
 function rainWarning(weather) {
@@ -31,12 +31,10 @@ function Card({ children }) {
   );
 }
 
-function CardHeader({ icon: Icon, iconBg, iconColor, label }) {
+function CardHeader({ icon: Icon, iconColor, label }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg} ${iconColor}`}>
-        <Icon size={18} strokeWidth={2} />
-      </span>
+      <Icon size={20} strokeWidth={2} className={`shrink-0 ${iconColor}`} />
       <p className="text-[12px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
     </div>
   );
@@ -56,7 +54,7 @@ export default function ForecastKpiGrid({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Card>
-        <CardHeader icon={Sprout} iconBg="bg-green-50" iconColor="text-green-700" label="High Demand Crops" />
+        <CardHeader icon={Sprout} iconColor="text-green-700" label="High Demand Crops" />
         <p className="text-[28px] font-bold leading-none text-gray-900">{highDemandCrops.length}</p>
         <p className="line-clamp-2 text-[13px] text-gray-500">
           {highDemandCrops.length ? highDemandCrops.map((entry) => entry.crop).join(', ') : 'No crops currently in high demand'}
@@ -64,7 +62,7 @@ export default function ForecastKpiGrid({
       </Card>
 
       <Card>
-        <CardHeader icon={DollarSign} iconBg="bg-green-50" iconColor="text-green-700" label="Average Forecast Price" />
+        <CardHeader icon={DollarSign} iconColor="text-green-700" label="Average Forecast Price" />
         <p className="text-[28px] font-bold leading-none text-gray-900">
           {averageForecastPrice != null ? formatCurrency(averageForecastPrice) : '—'}
         </p>
@@ -76,7 +74,7 @@ export default function ForecastKpiGrid({
       </Card>
 
       <Card>
-        <CardHeader icon={Award} iconBg="bg-amber-50" iconColor="text-amber-700" label="Best Crop" />
+        <CardHeader icon={Award} iconColor="text-amber-700" label="Best Crop" />
         <p className="text-[22px] font-bold leading-tight text-gray-900">{bestCrop?.crop || '—'}</p>
         <p className="text-[13px] font-semibold text-green-700">
           {bestCrop?.expectedChangePercent != null
@@ -86,19 +84,19 @@ export default function ForecastKpiGrid({
       </Card>
 
       <Card>
-        <CardHeader icon={TrendIcon} iconBg={trendStyle.bg} iconColor={trendStyle.color} label="Market Trend" />
+        <CardHeader icon={TrendIcon} iconColor={trendStyle.color} label="Market Trend" />
         <p className={`text-[24px] font-bold leading-none ${trendStyle.color}`}>{marketTrend}</p>
         <p className="text-[13px] text-gray-500">Across every crop shown</p>
       </Card>
 
       <Card>
-        <CardHeader icon={CloudRain} iconBg={riskStyle.bg} iconColor={riskStyle.color} label="Weather Risk" />
+        <CardHeader icon={CloudRain} iconColor={riskStyle.color} label="Weather Risk" />
         <p className={`text-[24px] font-bold leading-none ${riskStyle.color}`}>{weatherRiskLevel}</p>
         <p className="text-[13px] text-gray-500">{rainWarning(weather)}</p>
       </Card>
 
       <Card>
-        <CardHeader icon={Bot} iconBg="bg-green-50" iconColor="text-green-700" label="AI Confidence" />
+        <CardHeader icon={Bot} iconColor="text-green-700" label="AI Confidence" />
         <p className="text-[28px] font-bold leading-none text-gray-900">
           {averageConfidence != null ? `${averageConfidence}%` : '—'}
         </p>

@@ -13,11 +13,24 @@ import { haversineKm, resolveDeliveryDestination } from '../lib/geo.js';
 // behavior).
 const ROOM_PREFIX = 'order:';
 const NEAR_DESTINATION_KM = 0.5;
+const VALID_SHARER_STATUSES = new Set(['online', 'offline', 'reconnecting', 'gps-lost']);
 
 // One-shot guard so a farmer idling within 500m doesn't get a fresh notification on every
 // 3-5s tick — a per-process Set is enough here (not persisted): worst case after a server
 // restart is a single duplicate "almost there" notification, never a missed one.
 const notifiedNearOrders = new Set();
+
+// Rejects three failure shapes a raw GPS reading can arrive in: non-finite (NaN/undefined,
+// already caught by the Number.isFinite checks that used this before it existed), physically
+// impossible (outside real lat/lng bounds), and (0, 0) — "null island", which is what a GPS
+// chip commonly reports when it hasn't actually acquired a fix yet rather than throwing, so a
+// literal 0/0 is treated as invalid rather than a real position off the coast of Africa.
+function isValidCoordinate(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  if (lat === 0 && lng === 0) return false;
+  return true;
+}
 
 async function verifyOrderParty(token, orderId) {
   if (!token) return null;
@@ -73,19 +86,23 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
     // `orderId` is required in the payload (not inferred from a single joined room) since
     // one socket may be sharing to several active orders at once.
     socket.on('farmer-location', async ({ orderId, lat, lng, accuracy, heading, speed } = {}, ack) => {
+      // Captured before any DB round-trip — the yardstick the staleness guard below compares
+      // against, so it reflects when THIS update was actually received, not when its (async)
+      // processing happened to finish.
+      const receivedAt = Date.now();
       const userId = socket.data.userId;
       if (!orderId || !socket.data.orderIds?.has(orderId) || !userId) {
         ack?.({ ok: false, error: 'Join the order room before sharing a location.' });
         return;
       }
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      if (!isValidCoordinate(lat, lng)) {
         ack?.({ ok: false, error: 'A valid lat and lng are required.' });
         return;
       }
 
       const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
-        .select('farmer_id, buyer_id, farmer_name, delivery_method, status, delivery_status, origin_municipality, delivery_municipality')
+        .select('farmer_id, buyer_id, farmer_name, delivery_method, status, delivery_status, origin_municipality, delivery_municipality, location_updated_at')
         .eq('id', orderId)
         .single();
       if (orderError || !order) {
@@ -105,6 +122,14 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
       }
       if (order.status !== 'confirmed' || order.delivery_status !== 'out_for_delivery') {
         ack?.({ ok: false, error: 'You can only share your location while the order is out for delivery.' });
+        return;
+      }
+      // A fresher update (from a later-arriving-but-faster request, or a reconnect racing a
+      // still-in-flight update from the old connection) already committed while this one was
+      // in transit — skip it rather than let an out-of-order write clobber newer data. Not an
+      // error: the client did nothing wrong, its reading was just superseded.
+      if (order.location_updated_at && new Date(order.location_updated_at).getTime() > receivedAt) {
+        ack?.({ ok: true, skipped: true });
         return;
       }
 
@@ -167,19 +192,20 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
     // "in transit" step — see DELIVERY_SEQUENCES.buyer_pickup in src/utils/constants.js — the
     // same way out_for_delivery is for a real delivery).
     socket.on('buyer-location', async ({ orderId, lat, lng, accuracy, heading, speed } = {}, ack) => {
+      const receivedAt = Date.now();
       const userId = socket.data.userId;
       if (!orderId || !socket.data.orderIds?.has(orderId) || !userId) {
         ack?.({ ok: false, error: 'Join the order room before sharing a location.' });
         return;
       }
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      if (!isValidCoordinate(lat, lng)) {
         ack?.({ ok: false, error: 'A valid lat and lng are required.' });
         return;
       }
 
       const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
-        .select('farmer_id, buyer_id, buyer_name, delivery_method, status, delivery_status, origin_municipality')
+        .select('farmer_id, buyer_id, buyer_name, delivery_method, status, delivery_status, origin_municipality, location_updated_at')
         .eq('id', orderId)
         .single();
       if (orderError || !order) {
@@ -196,6 +222,11 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
       }
       if (order.status !== 'confirmed' || order.delivery_status !== 'ready_for_pickup') {
         ack?.({ ok: false, error: 'You can only share your location once the order is ready for pickup.' });
+        return;
+      }
+      // See the matching staleness guard on 'farmer-location' above — same reasoning.
+      if (order.location_updated_at && new Date(order.location_updated_at).getTime() > receivedAt) {
+        ack?.({ ok: true, skipped: true });
         return;
       }
 
@@ -249,6 +280,32 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
           });
         }
       }
+    });
+
+    // The sharing device's own connection-health read (network state + GPS watch errors —
+    // see useFarmerActiveDeliverySharing.js/useBuyerActivePickupSharing.js) — re-broadcast
+    // as-is so every viewer's LiveDeliveryMap gets the same status within one room hop,
+    // without waiting for the next location tick (which might be seconds away, or — if the
+    // device is genuinely offline — might not come at all). No DB write: online/offline is
+    // inherently a live, ephemeral signal, not something that needs to outlive this process
+    // or that a page reload should "remember" — the last valid coordinates already do that.
+    socket.on('share-status', ({ orderId, status } = {}) => {
+      if (!orderId || !socket.data.orderIds?.has(orderId) || !VALID_SHARER_STATUSES.has(status)) return;
+      io.to(ROOM_PREFIX + orderId).emit('sharer-status', { orderId, status, at: new Date().toISOString() });
+    });
+
+    // The authoritative "driver went offline" signal — a client can only ever emit
+    // 'share-status' while it still HAS a connection, so the one moment that actually matters
+    // (the connection dying) is exactly the one moment it can't self-report. The server sees
+    // the disconnect regardless of why it happened (lost internet, app closed, tab killed,
+    // battery died) and broadcasts on the sharer's behalf, to every order it was sharing to —
+    // near-instant, rather than making viewers infer "offline" from a staleness timeout alone.
+    socket.on('disconnect', () => {
+      if (!socket.data.orderIds?.size) return;
+      const at = new Date().toISOString();
+      socket.data.orderIds.forEach((orderId) => {
+        io.to(ROOM_PREFIX + orderId).emit('sharer-status', { orderId, status: 'offline', at });
+      });
     });
   });
 

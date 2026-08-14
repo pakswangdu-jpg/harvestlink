@@ -171,13 +171,13 @@ export default function FarmerOrders() {
                     // A courier order's packed -> out_for_delivery step is booking a real
                     // Lalamove delivery (driver/vehicle/tracking link) — too much for a
                     // table cell, so this just sends the farmer to the order page, which has
-                    // the full "Book Lalamove Delivery" flow (see BookLalamoveFlow.jsx).
+                    // the full "Book with Lalamove" flow (see DeliveryInfoCard.jsx).
                     const isCourierReadyForBooking = row.deliveryMethod === 'courier' && nextStep === 'out_for_delivery';
                     return (
                       <div className="table-actions">
                         {isCourierReadyForBooking ? (
                           <Link className="btn btn-primary btn-sm" to={`/orders/${row.id}`}>
-                            <Truck size={14} /> Book Lalamove Delivery
+                            <Truck size={14} /> Book with Lalamove
                           </Link>
                         ) : nextStep ? (
                           <Button size="sm" onClick={() => run(() => advanceDelivery(row.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>

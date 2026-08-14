@@ -393,12 +393,13 @@ export default function Profile() {
                 </FormField>
               ) : null}
 
-              <div className="form-grid">
+              <div className="form-grid address-row">
                 <FormField label="Complete address" name="address" error={profileErrors.address}>
                   <AddressAutocomplete
                     id="address"
                     value={profileDraft.address}
                     onChange={(next) => updateProfileField('address', next)}
+                    onSelect={(details) => { if (details.zipCode) updateProfileField('zipCode', details.zipCode); }}
                     error={profileErrors.address}
                     placeholder="House/Unit No., Street, Barangay"
                   />

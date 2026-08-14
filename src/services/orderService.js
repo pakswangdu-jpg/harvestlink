@@ -36,8 +36,8 @@ export function getLiveTransitProgress(order) {
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   // A courier (Lalamove) order has no HarvestLink-tracked live position at all — the courier
   // is a third party, and HarvestLink deliberately never implements its own GPS tracking for
-  // it (see BookLalamoveFlow.jsx / DeliveryInfoCard.jsx — the buyer follows Lalamove's own
-  // tracking link instead). So this never reports "in transit" for one, unlike
+  // it (see DeliveryInfoCard.jsx — the buyer follows Lalamove's own tracking link instead).
+  // So this never reports "in transit" for one, unlike
   // farmer_delivery/buyer_pickup below.
   const isCourier = order.deliveryMethod === 'courier';
   const transitStatus = sequence[sequence.length - 2];

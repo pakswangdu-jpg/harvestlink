@@ -74,8 +74,8 @@ export function AuthProvider({ children }) {
       setCurrentUserState(result);
       return result;
     },
-    async verifyOtp(email, token, pendingFiles) {
-      const user = await verifyRegistrationOtp(email, token, pendingFiles);
+    async verifyOtp(email, token, password, pendingFiles) {
+      const user = await verifyRegistrationOtp(email, token, password, pendingFiles);
       setCurrentUserState(user);
       return user;
     },

@@ -29,7 +29,7 @@ export default function EmojiPicker({ onSelect, onClose }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.97 }}
       transition={{ duration: 0.15 }}
-      className="absolute bottom-full left-0 mb-2 w-72 max-h-80 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3 shadow-xl z-20"
+      className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3 shadow-xl z-20"
     >
       {EMOJI_GROUPS.map((group) => (
         <div key={group.label} className="mb-2 last:mb-0">

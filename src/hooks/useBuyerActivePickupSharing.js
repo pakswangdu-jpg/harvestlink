@@ -13,6 +13,14 @@ function isActivePickupOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'ready_for_pickup' && order.deliveryMethod === 'buyer_pickup';
 }
 
+// See the matching helper in useFarmerActiveDeliverySharing.js — same reasoning.
+function isValidCoordinate(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  if (lat === 0 && lng === 0) return false;
+  return true;
+}
+
 // The buyer_pickup mirror of useFarmerActiveDeliverySharing.js — same shape, same reasoning
 // (mounted once at the app shell level so sharing starts/stops based on whether the signed-in
 // account HAS an active pickup at all, regardless of which page they're looking at), just the
@@ -24,11 +32,16 @@ function isActivePickupOrder(order) {
 export function useBuyerActivePickupSharing(buyerId) {
   const [activeOrderIds, setActiveOrderIds] = useState([]);
   const [error, setError] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('online');
   const activeOrderIdsRef = useRef([]);
   const joinedOrderIdsRef = useRef(new Set());
   const watchIdRef = useRef(null);
   const lastSentAtRef = useRef(0);
   const lastSentPositionRef = useRef(null);
+  const isOnlineRef = useRef(typeof navigator === 'undefined' || navigator.onLine !== false);
+  const isSocketConnectedRef = useRef(false);
+  const hasGpsErrorRef = useRef(false);
+  const connectionStatusRef = useRef('online');
 
   useEffect(() => {
     if (!buyerId) return undefined;
@@ -54,13 +67,6 @@ export function useBuyerActivePickupSharing(buyerId) {
     };
   }, [buyerId]);
 
-  useEffect(() => {
-    const socket = getSocket();
-    const handleConnect = () => joinedOrderIdsRef.current.clear();
-    socket.on('connect', handleConnect);
-    return () => socket.off('connect', handleConnect);
-  }, []);
-
   const joinOrder = async (orderId) => {
     if (joinedOrderIdsRef.current.has(orderId)) return true;
     const socket = getSocket();
@@ -74,6 +80,65 @@ export function useBuyerActivePickupSharing(buyerId) {
     if (joined) joinedOrderIdsRef.current.add(orderId);
     return joined;
   };
+
+  // See the matching, more fully-commented version of this in
+  // useFarmerActiveDeliverySharing.js — same reasoning throughout.
+  const refreshConnectionStatus = () => {
+    const next = !isOnlineRef.current
+      ? 'offline'
+      : !isSocketConnectedRef.current
+        ? 'reconnecting'
+        : hasGpsErrorRef.current
+          ? 'gps-lost'
+          : 'online';
+    if (next === connectionStatusRef.current) return;
+    connectionStatusRef.current = next;
+    setConnectionStatus(next);
+    const socket = getSocket();
+    if (!socket.connected) return;
+    joinedOrderIdsRef.current.forEach((orderId) => socket.emit('share-status', { orderId, status: next }));
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+      isOnlineRef.current = true;
+      refreshConnectionStatus();
+    };
+    const handleOffline = () => {
+      isOnlineRef.current = false;
+      refreshConnectionStatus();
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+    isSocketConnectedRef.current = socket.connected;
+    const handleConnect = () => {
+      joinedOrderIdsRef.current.clear();
+      isSocketConnectedRef.current = true;
+      refreshConnectionStatus();
+      activeOrderIdsRef.current.forEach(async (orderId) => {
+        const joined = await joinOrder(orderId);
+        if (joined) socket.emit('share-status', { orderId, status: connectionStatusRef.current });
+      });
+    };
+    const handleDisconnect = () => {
+      isSocketConnectedRef.current = false;
+      refreshConnectionStatus();
+    };
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, []);
 
   const stopWatch = () => {
     if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
@@ -90,10 +155,18 @@ export function useBuyerActivePickupSharing(buyerId) {
     setError('');
     watchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
-        const now = Date.now();
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
+        // See the matching check in useFarmerActiveDeliverySharing.js — never worth sending,
+        // never worth counting as "the GPS is healthy again" below.
+        if (!isValidCoordinate(lat, lng)) return;
 
+        if (hasGpsErrorRef.current) {
+          hasGpsErrorRef.current = false;
+          refreshConnectionStatus();
+        }
+
+        const now = Date.now();
         const dueByTime = now - lastSentAtRef.current >= MIN_SEND_INTERVAL_MS;
         const dueByMovement = lastSentPositionRef.current
           ? haversineKm(lastSentPositionRef.current, { lat, lng }) >= MIN_SEND_MOVE_KM
@@ -121,8 +194,12 @@ export function useBuyerActivePickupSharing(buyerId) {
           stopWatch();
         } else if (geoError.code === geoError.TIMEOUT) {
           setError('Location signal is weak — retrying…');
+          hasGpsErrorRef.current = true;
+          refreshConnectionStatus();
         } else {
           setError('Could not access your location. Check your device’s location/GPS is turned on.');
+          hasGpsErrorRef.current = true;
+          refreshConnectionStatus();
         }
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
@@ -142,5 +219,5 @@ export function useBuyerActivePickupSharing(buyerId) {
     };
   }, []);
 
-  return { isSharing: activeOrderIds.length > 0, error };
+  return { isSharing: activeOrderIds.length > 0, error, connectionStatus };
 }

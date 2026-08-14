@@ -1487,7 +1487,9 @@ a.lp-contact-card:hover {
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
-  padding-bottom: 4px;
+  padding-bottom: 20px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
 }
 
 .page-header h1 {
@@ -1951,116 +1953,276 @@ a.user-chip:hover {
 }
 
 /* Farmer's own rating history — a "Ratings & reviews" panel embedded directly on
-   FarmerDashboard.jsx (see FarmerReviewsPanel.jsx), not its own page. Score+breakdown
-   summary card, then a list of individual reviews reusing the .ot-review-* classes above
-   (same visual language as the review a buyer sees on their own completed order). */
-.review-summary {
-  display: grid;
-  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
-  gap: 28px;
-  align-items: center;
-  max-width: 640px;
-  margin-bottom: 20px;
+   FarmerDashboard.jsx (see FarmerReviewsPanel.jsx), not its own page. Compact summary card
+   (~30%) beside a scrollable review list (~70%), Stripe/Linear-style. Kept independent from
+   the ot-review and review- prefixed classes above (still used as-is by OrderTracking.jsx's
+   own single "your review" card) via an rr- prefix, and uses literal hex rather than the
+   shared --text/--muted/--line tokens so this section's palette can't drift if those tokens
+   change elsewhere. */
+.ratings-reviews {
+  padding: 32px;
 }
 
-.review-summary-score {
+.rr-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.rr-title {
+  color: #111827;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rr-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 3fr) minmax(0, 7fr);
+  align-items: start;
+  gap: 32px;
+}
+
+.rr-summary {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.rr-summary-top {
   display: grid;
   justify-items: center;
-  gap: 4px;
-  padding: 20px;
-  border-radius: 14px;
-  background: var(--soft);
+  gap: 6px;
+  text-align: center;
 }
 
-.review-summary-score strong {
-  font-size: 2.2rem;
-  color: var(--green-900);
+.rr-score {
+  color: #111827;
+  font-size: 3.25rem;
+  font-weight: 700;
   line-height: 1;
 }
 
-.review-summary-score span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 700;
+.rr-count {
+  color: #6b7280;
+  font-size: 0.8125rem;
 }
 
-.review-summary-breakdown {
+.rr-breakdown {
   display: grid;
   gap: 8px;
 }
 
-.review-summary-bar-row {
+.rr-bar-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 28px;
+  grid-template-columns: 32px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.review-summary-bar-label {
+.rr-bar-label {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
-.review-summary-bar-label svg {
-  color: var(--amber-700);
-  fill: var(--amber-100);
+.rr-bar-label svg {
+  color: #f59e0b;
+  fill: #f59e0b;
 }
 
-.review-summary-bar-track {
-  height: 8px;
+.rr-bar-track {
+  height: 6px;
   border-radius: 999px;
-  background: var(--line);
+  background: #e5e7eb;
   overflow: hidden;
 }
 
-.review-summary-bar-fill {
+.rr-bar-fill {
   height: 100%;
   border-radius: 999px;
-  background: var(--green-600);
+  background: var(--green-800);
+  transform-origin: left;
+  animation: rr-bar-grow 0.5s ease;
 }
 
-.review-summary-bar-count {
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
+@keyframes rr-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.rr-bar-count {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
   text-align: right;
 }
 
-.review-list {
+.rr-list {
   display: grid;
+  gap: 16px;
+}
+
+.rr-card {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.rr-card:hover {
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+  transform: translateY(-1px);
+}
+
+.rr-card-header {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
 }
 
-/* Recent-reviews panel on FarmerDashboard.jsx is full-width — without a cap, each card's
-   header (name/date on the left, stars on the right) stretches edge to edge with a huge
-   dead gap between them, and comment text runs uncomfortably long per line. */
-.review-list-recent .ot-review-card {
-  max-width: 640px;
+.rr-avatar {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green-800);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: transform 0.15s ease;
 }
 
-.review-rater {
+.rr-card:hover .rr-avatar {
+  transform: scale(1.05);
+}
+
+.rr-card-identity {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.rr-card-identity strong {
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.rr-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: var(--green-800);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rr-card-date {
+  flex-shrink: 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
+.rr-card-comment {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.rr-card-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
 }
 
-.review-rater strong {
-  display: block;
-  font-size: 0.9rem;
-  color: var(--text);
+.rr-order-ref {
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
-.review-order-link {
-  justify-self: start;
+.rr-view-order {
+  color: var(--green-800);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-@media (max-width: 640px) {
-  .review-summary {
+.rr-view-order:hover {
+  background: #f0fdf4;
+  border-color: var(--green-800);
+}
+
+.rr-view-order:focus-visible {
+  outline: 2px solid var(--green-800);
+  outline-offset: 2px;
+}
+
+.rr-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.rr-footer-btn {
+  min-height: 44px;
+}
+
+@media (max-width: 1024px) {
+  .rr-layout {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .ratings-reviews {
+    padding: 24px 20px;
+  }
+
+  .rr-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rr-footer {
+    flex-direction: column;
+  }
+
+  .rr-footer-btn,
+  .rr-footer .btn {
+    width: 100%;
   }
 }
 
@@ -2120,8 +2282,9 @@ a.user-chip:hover {
   margin: -4px 0 14px;
 }
 
-/* Third-party courier (Lalamove) delivery — DeliveryInfoCard.jsx (buyer-facing summary +
-   Track Delivery link) and BookLalamoveFlow.jsx (farmer's booking form), scoped to a
+/* Third-party courier (Lalamove) delivery — DeliveryInfoCard.jsx (the persistent card, both
+   the not-yet-booked placeholder and the booked summary + Track Delivery link) and
+   LinkLalamoveDeliveryDialog.jsx (the farmer's booking/edit form), scoped to a
    deliveryMethod === 'courier' order. The map panel below it still renders for a courier
    order (see LiveDeliveryMap.jsx's isCourier handling) but only ever as a static route
    preview, never a live/simulated vehicle position — HarvestLink has no GPS feed from a
@@ -2173,24 +2336,42 @@ a.user-chip:hover {
   word-break: break-word;
 }
 
-.lalamove-booking-card {
-  display: grid;
-  gap: 16px;
+.delivery-info-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-/* The "Complete the booking on Lalamove" link now lives inside the card's info alert
-   (BookLalamoveFlow.jsx) rather than a bare <p class="muted">. Inherits the alert's own blue
-   rather than the app green, so it reads as part of the callout instead of fighting it —
-   underlined so it's still unmistakably a link. inline-flex keeps the trailing
-   external-link icon optically centered against the text. */
-.lalamove-booking-card .form-alert.info a {
+/* LinkLalamoveDeliveryDialog.jsx's own "Courier" row — reads as a filled-in, non-editable
+   field (Lalamove is the only courier this workflow supports) rather than a live input, so it
+   doesn't look like a form control the farmer forgot to fill in. */
+.delivery-link-courier-fixed {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  color: inherit;
-  font-weight: 800;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--green-50);
+  color: var(--green-800);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.delivery-link-description {
+  margin-top: -8px;
+}
+
+/* Narrower than the base .tracking-modal (sized for LiveTrackingModal's map+timeline) — this
+   dialog is just a short form, so the wider width would leave awkward empty side margins. */
+.delivery-link-modal {
+  width: min(520px, 100%);
+}
+
+.tracker-manual-advance {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 @media (max-width: 640px) {
@@ -2357,6 +2538,208 @@ a.user-chip:hover {
   width: 100%;
 }
 
+/* Surplus Donations page (FarmerDonations.jsx) redesign — scoped under .surplus-* rather
+   than touching .panel/.product-card/EmptyState.jsx (all shared with other pages, including
+   the three stakeholder-facing donation pages that reuse DonationCard.jsx) so this stays
+   contained to the one page it was designed for. Literal hex per the design spec rather than
+   the app's shared --text/--muted/--line tokens, same reasoning as the Ratings & reviews
+   redesign — this section's palette shouldn't drift if those tokens change elsewhere. */
+.surplus-page {
+  display: grid;
+  gap: 24px;
+}
+
+.surplus-section {
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.surplus-section-header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.surplus-section-header h2 {
+  color: #111827;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.surplus-section-header p {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+.surplus-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.surplus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.surplus-card:hover {
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+  transform: translateY(-2px);
+}
+
+.surplus-card-media {
+  width: 100%;
+  height: 120px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--green-50);
+  color: var(--green-700);
+  overflow: hidden;
+}
+
+.surplus-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.surplus-card-body {
+  display: grid;
+  gap: 8px;
+}
+
+.surplus-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.surplus-card-top h3 {
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.surplus-card-org {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.surplus-card-avatar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--green-800);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.surplus-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  color: #6b7280;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.surplus-card-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.surplus-freshness.is-fresh {
+  color: var(--green-800);
+}
+
+.surplus-freshness.is-expiring {
+  color: var(--amber-700);
+}
+
+.surplus-freshness.is-expired {
+  color: var(--red-700);
+}
+
+.surplus-card-ref {
+  color: #9aa2af;
+  font-size: 0.76rem;
+}
+
+.surplus-card-footer {
+  margin-top: 2px;
+}
+
+/* Replaces the old shared dashed-box EmptyState.jsx look for this page specifically — a
+   centered content block on a soft, borderless gray fill instead of a dashed rectangle. */
+.surplus-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.surplus-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 80px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.surplus-empty h3 {
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.surplus-empty p {
+  max-width: 360px;
+  margin-bottom: 4px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.surplus-empty .btn {
+  margin-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .surplus-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .discount-picker {
   display: flex;
   flex-wrap: wrap;
@@ -2471,6 +2854,7 @@ a.user-chip:hover {
 .badge-packed,
 .badge-out_for_delivery,
 .badge-ready_for_pickup,
+.badge-waiting_for_pickup,
 .badge-requested {
   color: var(--amber-700);
   background: var(--amber-100);
@@ -2740,18 +3124,140 @@ a.user-chip:hover {
 
 /* Product drawer only — each .form-section becomes its own white card instead of the plain
    divider-separated flow used by every other .form-section consumer (e.g. stakeholder
-   registration), which is left completely untouched. */
+   registration), which is left completely untouched. Everything below is scoped under
+   .product-drawer-body the same way, so none of it leaks onto .form-field/.form-grid/
+   .form-stack's dozens of other consumers app-wide (registration, profile, payment forms). */
+.product-drawer-body .form-stack {
+  gap: 24px;
+}
+
 .product-drawer-body .form-section {
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 20px;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
 .product-drawer-body .form-section + .form-section {
   margin-top: 0;
-  padding-top: 18px;
+  padding-top: 20px;
   border-top: none;
+}
+
+.product-drawer-body .form-grid {
+  gap: 16px;
+}
+
+.product-drawer-body .form-field {
+  gap: 6px;
+}
+
+/* Field label — the FormField's own <span>, first child, ahead of the input/select/textarea
+   it wraps. */
+.product-drawer-body .form-field > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: #23372b;
+}
+
+.product-drawer-body .form-field input,
+.product-drawer-body .form-field select {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.product-drawer-body .form-field textarea {
+  min-height: 140px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+/* Reserves the helper/error line's own row height whether or not one is currently rendered,
+   so a field's box never shifts position the moment a validation error appears next to it. */
+.product-drawer-body .form-field small {
+  min-height: 15px;
+  font-size: 12px;
+}
+
+.product-drawer-body .form-field input:disabled,
+.product-drawer-body .form-field select:disabled,
+.product-drawer-body .form-field textarea:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: #f3f4f6;
+}
+
+/* The donation checkbox's own "subtle information container" plus, once checked, the
+   explanatory line directly beneath it — kept as a wrapper around .donation-toggle (rather
+   than inside it) so the note can appear/disappear without affecting the toggle's own
+   clickable area. */
+.donation-toggle-wrap {
+  display: grid;
+  gap: 8px;
+}
+
+.donation-toggle-note {
+  padding: 0 2px;
+  color: var(--green-800);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Sales type segmented control, disabled while donating — dims in place rather than
+   disappearing, matching the Price/Cost per unit fields beside it. */
+.segmented-control.is-disabled {
+  opacity: 0.55;
+}
+
+.segmented-control button:disabled {
+  cursor: not-allowed;
+}
+
+/* Location — a read-only fact about the account, not a form control, so it reads as a
+   pill/badge rather than a field the farmer might mistake for editable. */
+.product-drawer-body .location-badge {
+  width: fit-content;
+  min-height: 0;
+  padding: 7px 14px;
+  border: 1px solid var(--green-100);
+  border-radius: 999px;
+  background: var(--green-50);
+  color: var(--green-800);
+  font-weight: 700;
+}
+
+/* Product image dropzone — reuses .verification-upload-* as-is (see
+   src/components/forms/ProductForm.jsx's ProductImageDropzone); only this drawer-scoped thumb
+   size differs, since a product's own photo is the visual centerpiece of its listing and
+   deserves a bigger preview than a document icon does elsewhere. */
+.product-drawer-body .verification-upload-thumb,
+.product-drawer-body .verification-upload-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.product-image-replace {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--green-800);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.product-image-replace:hover {
+  background: var(--green-50);
+  border-color: var(--green-100);
 }
 
 @media (max-width: 1080px) {
@@ -2937,6 +3443,26 @@ a.user-chip:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* An even 50/50 split (the .form-grid default) starves "Complete address" — free text that
+   routinely runs 25-40+ characters — to match "Zip code", which never holds more than 4
+   digits. Scoped to this specific pairing (AuthPage.jsx's farmer/buyer address row,
+   Profile.jsx's address edit row) rather than every .form-grid, since plenty of other pairs
+   in this grid (First name / Last name, Organization Name / Organization Type) are genuinely
+   even splits that shouldn't change. */
+.form-grid.address-row {
+  grid-template-columns: 2fr 1fr;
+}
+
+/* minmax(0, 1fr) above fixes the TRACK's own sizing, but a grid item's default min-width is
+   still "auto" (effectively its content's min-content size) unless told otherwise — a <select>
+   with a long option (e.g. "Community Feeding Program") reports that as its min-content width
+   regardless of its own width:100%, which was overriding the column split and squeezing the
+   field next to it down to a sliver (Organization Name next to Organization Type, in the
+   partner-organization registration form). */
+.form-grid > .form-field {
+  min-width: 0;
+}
+
 .form-field {
   display: grid;
   gap: 7px;
@@ -2968,6 +3494,28 @@ a.user-chip:hover {
 .form-field small {
   color: var(--muted);
   font-weight: 500;
+}
+
+/* A FormField whose value isn't user-editable (see ProductForm.jsx's Location field, locked
+   to the farmer's registered municipality) — same box dimensions as .form-field input so it
+   sits in the layout identically, but visually inert: muted background, no border-color
+   change, no focus ring, default cursor. */
+.static-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: var(--soft);
+  padding: 11px 12px;
+  cursor: default;
+}
+
+.static-field svg {
+  flex-shrink: 0;
+  color: var(--muted);
 }
 
 .field-error {
@@ -4636,6 +5184,28 @@ td {
   text-underline-offset: 2px;
 }
 
+/* Toggled by AuthPage's `visible` class, not conditionally rendered — stays mounted so the
+   opacity/transform transition actually gets to play both ways (in when a debounced draft
+   save just happened, back out ~2s later) instead of popping in and disappearing instantly. */
+.autosave-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--green-700);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 400ms ease, transform 400ms ease;
+  pointer-events: none;
+}
+
+.autosave-notice.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @media (max-width: 640px) {
   .form-section-icon {
     width: 34px;
@@ -5830,7 +6400,10 @@ td {
 }
 
 .image-lightbox img {
-  max-width: min(92vw, 1100px);
+  /* 100%, not a vw unit — vw is relative to the viewport, not this grid item's own content
+     box, so it ignored the parent's 40px padding and could size itself wider than the space
+     actually available on a narrow phone. 100% correctly resolves against the padded box. */
+  max-width: min(100%, 1100px);
   max-height: 88vh;
   object-fit: contain;
   border-radius: var(--radius);
@@ -6165,7 +6738,8 @@ td {
   }
 }
 
-.price-hint {
+.donation-toggle {
+  cursor: pointer;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -6173,10 +6747,6 @@ td {
   border-radius: var(--radius);
   background: var(--soft);
   border: 1px solid var(--line);
-}
-
-.donation-toggle {
-  cursor: pointer;
 }
 
 .donation-toggle input {
@@ -6195,81 +6765,213 @@ td {
   color: var(--green-900);
 }
 
-.price-hint > svg {
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--blue-700);
-}
-
-.price-hint.warning > svg {
-  color: var(--amber-700);
-}
-
-.price-hint strong {
-  color: var(--green-900);
-}
-
-.price-hint span {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
 .price-hint-badge {
   margin-left: 8px;
   vertical-align: middle;
 }
 
-.price-hint p {
-  margin-top: 6px;
+/* PriceAnalysisPanel's four cards (NoMarketDataCard / CostBasedEstimateCard /
+   HistoricalMarketAnalysisCard / the PSA branch inline in ProductForm.jsx) — one tone per
+   pricing tier, so the color itself tells a farmer at a glance whether a price came from
+   verified market data or is just a cost-based guess. Never more than one renders at once. */
+.price-analysis-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--soft);
+}
+
+.price-analysis-card-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* CostBasedEstimateCard's implausible-cost title is a full sentence next to an icon, not a
+   short label — without this, the icon (an SVG, never allowed to shrink) can still crush the
+   text against the card's edge on a narrow phone even with the wrap above, since a bare text
+   node as a flex child doesn't reliably get its own wrap box in every browser. Wrapping it in
+   its own span (see the .jsx) gives it one explicitly. */
+.price-analysis-card-title span {
+  min-width: 0;
+}
+
+.price-analysis-card-desc {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* Green — an AI market recommendation grounded in verified data, PSA or HarvestLink's own
+   transaction history (see globals.css usage in ProductForm.jsx / HistoricalMarketAnalysisCard.jsx). */
+.price-analysis-card.tone-ai {
+  background: var(--green-50);
+  border-color: var(--green-100);
+}
+
+.price-analysis-card.tone-ai .price-analysis-card-title {
+  color: var(--green-900);
+}
+
+/* Gray — explicitly NOT an AI recommendation (CostBasedEstimateCard.jsx): a plain cost +
+   markup calculation, distinguished on purpose from the green tier above. */
+.price-analysis-card.tone-cost {
+  background: #F6F8FA;
+  border-color: #D0D7DE;
+}
+
+.price-analysis-card.tone-cost .price-analysis-card-title {
+  color: #24292F;
+}
+
+/* Same amber accent as everywhere else a listing needs a second look (DTI price-review
+   deviation, an implausible cost) — layered on top of whichever tone is already active
+   rather than replacing it. */
+.price-analysis-card.warning {
+  border-color: var(--amber-700);
+}
+
+.price-analysis-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 12px;
+}
+
+.price-analysis-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.badge-unavailable {
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.price-analysis-prompt {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.price-analysis-warning-note {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
   color: var(--amber-700);
   font-weight: 750;
   font-size: 0.85rem;
 }
 
-.price-hint p.price-recommendation {
+.price-analysis-disclaimer {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px dashed var(--line);
-  color: var(--text);
-  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: italic;
+  line-height: 1.5;
 }
 
-.price-recommendation strong {
-  color: var(--green-700);
-  font-weight: 750;
-}
-
-.price-recommendation .btn {
+/* The Cost-Based card's editable "Markup Percentage" field — sits inline at the right edge
+   of its .price-breakdown-row, same small-input treatment as the rest of this form. */
+.price-analysis-inline-input {
   display: inline-flex;
-  margin-top: 8px;
+  align-items: center;
+  gap: 6px;
 }
 
-.price-recommendation.manual {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--line);
-}
-
-.price-recommendation.manual label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-
-.price-recommendation.manual input {
-  width: 140px;
+.price-analysis-inline-input input {
+  width: 64px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 7px 10px;
+  padding: 5px 8px;
   background: var(--panel);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.price-analysis-inline-input span {
+  color: var(--muted);
   font-size: 0.85rem;
 }
 
-.price-recommendation.manual p {
-  margin-top: 8px;
+.price-trend-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-trend-value.trend-up {
+  color: var(--green-700);
+}
+
+.price-trend-value.trend-down {
+  color: var(--red-700);
+}
+
+.price-trend-value.trend-flat {
+  color: var(--muted);
+}
+
+/* Red — a genuinely certain problem (the AI's own recommendation would sell at a loss), one
+   step more urgent than the amber .warning modifier used for "this needs a second look"
+   cases (DTI price-review deviation, an implausible cost). Its own full tone rather than a
+   modifier layered on tone-ai/tone-cost, since SellingBelowCostWarning.jsx replaces those
+   cards outright instead of nesting inside one. */
+.price-analysis-card.tone-danger {
+  background: var(--red-100);
+  border-color: var(--red-700);
+}
+
+.price-analysis-card.tone-danger .price-analysis-card-title {
+  color: var(--red-700);
+}
+
+.price-breakdown-row.loss strong {
+  color: var(--red-700);
+  font-size: 0.95rem;
+}
+
+.price-breakdown-row.profit strong {
+  color: var(--green-700);
+  font-size: 0.95rem;
+}
+
+.price-analysis-suggestions {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.price-analysis-suggestions .price-analysis-card-title {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.price-analysis-suggestions ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.price-analysis-suggestions li {
+  font-size: 0.85rem;
   color: var(--text);
-  font-weight: 400;
 }
 
 .price-breakdown {
@@ -6285,13 +6987,32 @@ td {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  row-gap: 2px;
+  column-gap: 12px;
   font-size: 0.85rem;
   color: var(--text);
 }
 
 .price-breakdown-label {
   color: var(--muted);
+  /* Some of these labels are genuinely long ("Historical Average Price", "At your entered
+     price (₱X/kg)") — min-width: 0 lets it actually shrink/wrap inside the flex row instead
+     of forcing the row wider than its card on a narrow screen. */
+  min-width: 0;
+}
+
+/* Below the width most phones actually have, space-between + baseline squeezed a long label
+   and its value onto one cramped line (or pushed the row past the card's own edge) instead
+   of relying on wrap alone, which still looked lopsided with only two flex items. Stacking
+   label-above-value is the same "narrow screen" treatment .form-grid and friends already get
+   elsewhere in this file — this block just never had one until now. */
+@media (max-width: 480px) {
+  .price-breakdown-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
 }
 
 .price-breakdown-row.emphasize strong {
@@ -6494,7 +7215,55 @@ td {
 }
 
 .market-select {
-  max-width: 280px;
+  max-width: none;
+}
+
+/* Replaces the old <select> with a permanently-visible, scrollable, clickable list — same
+   .market-select wrapper/label as before, just what's inside it. A single horizontally-
+   scrolling row rather than a vertical column, so the selected indicator moves from the left
+   edge to the bottom edge of each option to match. Reuses the existing --line/--radius/--panel/
+   --green-* tokens throughout so it reads as part of the same, otherwise-untouched page rather
+   than a new design. */
+.crop-select-list {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-top: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.crop-select-option {
+  flex-shrink: 0;
+  display: block;
+  white-space: nowrap;
+  text-align: left;
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.crop-select-option:hover {
+  background: var(--soft);
+}
+
+.crop-select-option.is-selected,
+.crop-select-option.is-selected:hover {
+  background: var(--green-50);
+  border-bottom-color: var(--green-600);
+  color: var(--green-900);
+  font-weight: 700;
 }
 
 .sparkline {
@@ -6975,9 +7744,105 @@ td {
   background: var(--muted);
 }
 
-.nav-status-dot.live {
+.nav-status-dot.live,
+.nav-status-dot.status-online {
   background: #1a7f37;
   box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.18);
+}
+
+.nav-status-dot.status-offline {
+  background: #cf222e;
+  box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.16);
+}
+
+.nav-status-dot.status-reconnecting {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16);
+  animation: connection-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.nav-status-dot.status-gps-lost {
+  background: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.16);
+}
+
+@keyframes connection-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* DriverConnectionBadge.jsx — the four-state (Online/Offline/Reconnecting/GPS Signal Lost)
+   status badge shown wherever LiveDeliveryMap.jsx displays a live sharer's connection health.
+   A colored dot + label, not emoji, matching every other status indicator in this app. */
+.driver-connection-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.driver-connection-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.driver-connection-badge.is-online .driver-connection-dot {
+  background: #1a7f37;
+  box-shadow: 0 0 0 3px rgba(26, 127, 55, 0.18);
+}
+
+.driver-connection-badge.is-offline .driver-connection-dot {
+  background: #cf222e;
+  box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.16);
+}
+
+.driver-connection-badge.is-reconnecting .driver-connection-dot {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16);
+  animation: connection-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.driver-connection-badge.is-gps-lost .driver-connection-dot {
+  background: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.16);
+}
+
+.driver-connection-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.driver-connection-text strong {
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.driver-connection-text span {
+  color: var(--muted);
+}
+
+/* A small pill floating over the map itself (not just the side info card) while the sharer is
+   offline/reconnecting — "freeze the marker, but make it obvious why it isn't moving" is the
+   whole point, and that needs to be visible on the map, not only in text off to the side. */
+.nav-map-overlay-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.92);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .nav-info-card-header strong {
@@ -7017,19 +7882,13 @@ td {
 }
 
 .nav-info-card-gps {
-  display: flex;
-  justify-content: space-between;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #eef1f4;
-  color: var(--muted);
-  font-size: 0.74rem;
 }
 
-.nav-info-card-gps span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.nav-info-card-grid strong.is-paused {
+  color: var(--muted);
 }
 
 .nav-recenter-btn {
@@ -7075,8 +7934,8 @@ td {
 }
 
 .tracking-gps-card {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
@@ -7084,14 +7943,17 @@ td {
   font-size: 0.82rem;
 }
 
+.tracking-gps-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .tracking-gps-card span {
-  display: block;
   color: var(--muted);
 }
 
 .tracking-gps-card strong {
-  display: block;
-  margin-top: 2px;
   color: var(--green-900);
 }
 
@@ -7111,10 +7973,6 @@ td {
 @media (max-width: 640px) {
   .tracking-info-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tracking-gps-card {
-    grid-template-columns: 1fr;
   }
 
   .tracking-modal {

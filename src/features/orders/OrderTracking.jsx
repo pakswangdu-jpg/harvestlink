@@ -8,7 +8,6 @@ import StatusBadge from '../../components/common/StatusBadge';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
-import BookLalamoveFlow from '../../components/orders/BookLalamoveFlow';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -143,7 +142,7 @@ export default function OrderTracking() {
   }, [needsPickupBuyerLookup, order?.buyerId]);
 
   // Courier (Lalamove) booking details — polled the same 4s cadence as the order itself,
-  // since a farmer booking one (see BookLalamoveFlow.jsx) happens in this same page for
+  // since a farmer booking one (see DeliveryInfoCard.jsx) happens in this same page for
   // them, but the BUYER's copy of this page only finds out via this poll. null until a
   // courier has actually been booked, which is a normal state, not an error.
   const needsDeliveryLookup = Boolean(order) && order.deliveryMethod === 'courier';
@@ -250,6 +249,10 @@ export default function OrderTracking() {
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
+  // Whether the farmer can click "Book with Lalamove" right now — the order must be packed
+  // and ready (the courier order's own "packed -> out for delivery" step), same gate the
+  // backend itself enforces in deliveries.controller.js's bookDelivery.
+  const canBookCourier = isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery' && !isFinalNextStep;
 
   // The real Google-based numbers once available, falling back to the OSRM-based estimate
   // above until they are — see the comment on `liveRoute` for why these exist.
@@ -289,7 +292,9 @@ export default function OrderTracking() {
               </div>
               <span className="live-indicator"><span className="live-dot" /> Live</span>
             </div>
-            {isCourier ? <CourierDeliveryTimeline order={order} delivery={delivery} /> : <OrderTracker order={order} />}
+            {isCourier ? (
+              <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={isFarmer} onDeliveryUpdate={setDelivery} />
+            ) : <OrderTracker order={order} />}
           </div>
 
           <div className="panel ot-details-panel">
@@ -409,18 +414,6 @@ export default function OrderTracking() {
           </div>
         </section>
 
-        {isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery' && !isFinalNextStep ? (
-          <BookLalamoveFlow
-            order={order}
-            onBooked={({ order: updatedOrder, delivery: newDelivery }) => {
-              setOrder(updatedOrder);
-              setDelivery(newDelivery);
-              setError('');
-              setNotice('Delivery booked — order is now out for delivery.');
-            }}
-          />
-        ) : null}
-
         {isBuyer && order.status === 'completed' ? (
           <section className="panel ot-feedback-panel">
             <div className="section-heading">
@@ -493,23 +486,20 @@ export default function OrderTracking() {
         ) : null}
 
         {isTrackable && isCourier ? (
-          delivery ? (
-            <DeliveryInfoCard delivery={delivery} />
-          ) : (
-            <section className="panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Courier</p>
-                  <h2>Delivery Information</h2>
-                </div>
-              </div>
-              <p className="muted">
-                {isFarmer
-                  ? 'Book a courier once this order is packed and ready — see "Book Lalamove Delivery" above.'
-                  : "The farmer hasn't booked a courier for this order yet."}
-              </p>
-            </section>
-          )
+          <DeliveryInfoCard
+            order={order}
+            delivery={delivery}
+            isFarmer={isFarmer}
+            canBook={canBookCourier}
+            onBooked={(result) => {
+              if (result.order) setOrder(result.order);
+              setDelivery(result.delivery);
+              setError('');
+              setNotice(result.order
+                ? '✓ Delivery successfully linked with Lalamove.'
+                : 'Delivery information updated.');
+            }}
+          />
         ) : null}
 
         {isTrackable ? (
