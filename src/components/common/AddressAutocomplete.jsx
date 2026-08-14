@@ -12,8 +12,8 @@ const DEBOUNCE_MS = 300;
 // it exactly like the bare input it replaces) needs no other change. `onChange(text)` fires
 // on every keystroke AND once more on selection (with the picked suggestion's text) — a
 // caller that only cares about the address string can keep using onChange alone, unchanged
-// from before this component existed. `onSelect({ placeId, formattedAddress, lat, lng })`
-// is purely additive, for a caller that also wants coordinates.
+// from before this component existed. `onSelect({ placeId, formattedAddress, lat, lng, zipCode })`
+// is purely additive, for a caller that also wants coordinates and/or the postal code.
 export default function AddressAutocomplete({
   id, name, value, onChange, onSelect, onBlur, placeholder, disabled = false, error,
 }) {
@@ -145,10 +145,10 @@ export default function AddressAutocomplete({
       const details = await getPlaceDetails(suggestion.placeId, { sessionToken: token });
       onSelect(details);
     } catch {
-      // The address text is already filled in above — only the lat/lng enrichment is
+      // The address text is already filled in above — only the lat/lng/zipCode enrichment is
       // missing, so the field is still fully usable.
       onSelect({
-        placeId: suggestion.placeId, formattedAddress: suggestion.description, lat: null, lng: null,
+        placeId: suggestion.placeId, formattedAddress: suggestion.description, lat: null, lng: null, zipCode: '',
       });
     }
   };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BadgeDollarSign, TrendingDown, TrendingUp } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import StatCard from '../../components/cards/StatCard';
@@ -44,6 +44,16 @@ export default function MarketInsights() {
     };
   }, [commodityId]);
 
+  // 'nearest' only scrolls the crop list if the selected row genuinely isn't visible — a
+  // direct click (the only way commodityId ever changes today) already has its target on
+  // screen, so this is a no-op then and the list's own scroll position is left exactly where
+  // the user had it, while still covering any future non-click path that selects a crop
+  // that's currently scrolled out of view.
+  const selectedCropRowRef = useRef(null);
+  useEffect(() => {
+    selectedCropRowRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [commodityId]);
+
   const valid = points ? points.filter((point) => point.price != null) : [];
   const latest = valid[valid.length - 1];
   const earliest = valid[0];
@@ -61,12 +71,27 @@ export default function MarketInsights() {
       subtitle="Historical farmgate crop prices from the Philippine Statistics Authority, for Central Visayas."
     >
       <section className="panel marketplace-toolbar">
-        <label className="form-field market-select">
+        <div className="form-field market-select">
           <span>Crop</span>
-          <select value={commodityId} onChange={(event) => setCommodityId(event.target.value)}>
-            {MARKET_COMMODITIES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-        </label>
+          <div className="crop-select-list" role="listbox" aria-label="Crop">
+            {MARKET_COMMODITIES.map((item) => {
+              const isSelected = item.id === commodityId;
+              return (
+                <button
+                  key={item.id}
+                  ref={isSelected ? selectedCropRowRef : undefined}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`crop-select-option${isSelected ? ' is-selected' : ''}`}
+                  onClick={() => setCommodityId(item.id)}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       <section className="stats-grid">

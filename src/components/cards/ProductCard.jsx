@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, Leaf, MapPin, Package, ShoppingCart, Star, User,
+  ArrowRight, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
@@ -21,20 +22,32 @@ const CRITICAL_STOCK_THRESHOLD = 5;
 export default function ProductCard({ product, actions, showStatus = false }) {
   const isDiscounted = Boolean(product.discountPercent);
   const isCriticallyLow = product.quantity > 0 && product.quantity <= CRITICAL_STOCK_THRESHOLD;
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)]">
-      <Link to={`/products/${product.id}`} className="relative block aspect-[4/3] shrink-0 overflow-hidden bg-green-50">
+      {/* Fixed px height per breakpoint (not aspect-ratio) so every card's image band is
+          identical regardless of the uploaded photo's own dimensions or the card's own width —
+          object-cover then crops any portrait/landscape/panoramic source to fill it. */}
+      <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-green-50 sm:h-[220px] lg:h-[240px]">
         {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-          />
+          <>
+            {!imageLoaded ? (
+              <div className="absolute inset-0 animate-pulse bg-gray-200" aria-hidden="true" />
+            ) : null}
+            <img
+              src={product.image}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setImageLoaded(true)}
+              className={`h-full w-full object-cover object-center transition-[opacity,transform] duration-300 ease-out group-hover:scale-[1.03] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            />
+          </>
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-green-800">
-            <Package size={40} strokeWidth={1.5} />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-green-800/70">
+            <Sprout size={36} strokeWidth={1.5} />
+            <span className="text-[12px] font-medium">No image available</span>
           </div>
         )}
         {showStatus ? (

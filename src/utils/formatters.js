@@ -207,6 +207,8 @@ export function paymentVerificationStatusLabel(value) {
 
 const COURIER_DELIVERY_STATUS_LABELS = {
   booked: 'Booked',
+  waiting_for_pickup: 'Waiting for Pickup',
+  picked_up: 'Picked Up',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
@@ -217,7 +219,7 @@ export function courierDeliveryStatusLabel(value) {
 }
 
 const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified'];
-const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested'];
+const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked'];
 const STATUS_TONE_CRITICAL = ['rejected', 'inactive', 'failed', 'cancelled', 'refunded', 'declined', 'suspended'];
 
 // Mirrors the .badge-* color groups in globals.css, so a report chart's bar color

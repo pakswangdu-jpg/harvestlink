@@ -19,12 +19,22 @@ export default function DocumentCard({ label, file, resolveUrl }) {
     if (!resolveUrl) return;
     setError('');
     setIsResolving(true);
+    // Opened blank, synchronously, in the same tick as the click — then redirected once the
+    // signed URL resolves. Mobile Safari/Chrome block a window.open() that happens after an
+    // await (crossing an async boundary drops it from the "trusted user gesture" the popup
+    // blocker requires), which is exactly why "View Document" silently did nothing on mobile
+    // for any private file needing a signed URL first — the fast direct-URL path above never
+    // hit this since it has no await before the open.
+    const newTab = window.open('', '_blank');
+    if (newTab) newTab.opener = null; // same tabnabbing guard 'noreferrer' gives, without losing the reference this needs
     try {
       const url = await resolveUrl();
       if (!url) throw new Error('File unavailable.');
-      window.open(url, '_blank', 'noreferrer');
+      if (newTab) newTab.location.href = url;
+      else window.open(url, '_blank', 'noreferrer');
     } catch {
       setError('Unable to load this file.');
+      newTab?.close();
     } finally {
       setIsResolving(false);
     }

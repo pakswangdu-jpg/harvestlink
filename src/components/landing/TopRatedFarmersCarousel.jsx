@@ -3,34 +3,50 @@ import {
 } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { FarmerDirectoryCard, FarmerDirectoryCardSkeleton } from './FarmerDirectoryCard';
 import { getTopRatedFarmers } from '../../services/authService';
 
-const AUTOPLAY_DELAY_MS = 5000;
+// Testimonial-strip style autoplay, no manual UI — every ~4s, mid the 3.5-4s range asked for.
+const AUTOPLAY_DELAY_MS = 4000;
 // A wheel gesture fires many small 'wheel' events per physical scroll — this throttle turns
 // that stream into one slide advance per gesture instead of racing through several slides.
 const WHEEL_THROTTLE_MS = 350;
 
-// Mobile = 1 card, tablet (md, 768px+) = 2, desktop (lg, 1024px+) and up = 4 — 4 is the hard
-// cap at every desktop size, not just up to some breakpoint (a wider "show 5" tier was tried
-// and dropped: with the still-small number of verified farmers in most deployments, 5-per-view
-// often has more slide slots than there are distinct cards to fill them, which looks broken
-// rather than just sparse). Controls "cards visible" declaratively via slide width, the
-// standard Embla pattern (Embla itself has no built-in "slides per view" option).
-const SLIDE_CLASSNAME = 'min-w-0 shrink-0 grow-0 basis-full px-3 md:basis-1/2 lg:basis-1/4';
+// Mobile (<768px) = 1 card with ~15% of the next one peeking in as a "there's more" affordance,
+// tablet (768-1023px) = 2, laptop (1024-1439px) = 3, desktop (1440px+) = 4. 1440 isn't one of
+// Tailwind's default breakpoints, hence the arbitrary min-[1440px] variant. Controls "cards
+// visible" declaratively via slide width, the standard Embla pattern (Embla itself has no
+// built-in "slides per view" option).
+const SLIDE_CLASSNAME = 'min-w-0 shrink-0 grow-0 basis-[85%] px-3 md:basis-1/2 lg:basis-1/3 min-[1440px]:basis-1/4';
+
+// Entrance stagger only makes sense for the cards visible on first paint (the brief specifies
+// delays for cards 1-4); capping it means farmer #20 in a long list doesn't inherit an
+// ever-growing, pointless delay.
+const MAX_STAGGER_INDEX = 3;
+const STAGGER_STEP_S = 0.1;
 
 export default function TopRatedFarmersCarousel() {
   const [farmers, setFarmers] = useState(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [scrollSnaps, setScrollSnaps] = useState([]);
+  const prefersReducedMotion = useReducedMotion();
+  const sectionRef = useRef(null);
+  const hasEnteredView = useInView(sectionRef, { once: true, amount: 0.15 });
   // Lazy useState initializer (not a ref read during render) — still only constructs the
   // Autoplay plugin instance once per mount, which is what useEmblaCarousel needs a stable
-  // plugins array for.
+  // plugins array for. stopOnInteraction: false is what makes a manual swipe/drag resume
+  // autoplay on its own afterwards (rather than killing it for the rest of the session) — the
+  // plugin resets its full delay on pointerUp, so the next auto-advance still lands a few
+  // seconds later rather than immediately.
   const [autoplayPlugins] = useState(() => [
     Autoplay({ delay: AUTOPLAY_DELAY_MS, stopOnMouseEnter: true, stopOnInteraction: false }),
   ]);
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start', skipSnaps: false }, autoplayPlugins);
+  // duration bumped up from Embla's default (25) for a slower, more graceful glide between
+  // slides instead of a quick snap — the closest lever Embla exposes to a longer, smoother
+  // ease, since its scroll is physics-driven rather than a literal CSS transition.
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: 'start', skipSnaps: false, duration: 30 },
+    autoplayPlugins,
+  );
   const lastWheelAtRef = useRef(0);
 
   useEffect(() => {
@@ -43,34 +59,21 @@ export default function TopRatedFarmersCarousel() {
     };
   }, []);
 
-  const onSelect = useCallback((api) => {
-    setSelectedIndex(api.selectedScrollSnap());
-  }, []);
-
-  // Synchronizing React state with the embla instance's own internal state (current snap
-  // list/selected index) the moment it's ready — a legitimate "sync with an external
-  // system" effect, not derived state.
+  // Respect the user's OS-level motion preference by disabling autoplay outright rather than
+  // just shortening transitions — a carousel that keeps moving on its own is exactly the kind
+  // of motion this setting exists to suppress.
   useEffect(() => {
-    if (!emblaApi) return undefined;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setScrollSnaps(emblaApi.scrollSnapList());
-    onSelect(emblaApi);
-    emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', (api) => {
-      setScrollSnaps(api.scrollSnapList());
-      onSelect(api);
-    });
-    return () => {
-      emblaApi.off('select', onSelect);
-    };
-  }, [emblaApi, onSelect]);
+    if (!emblaApi || !prefersReducedMotion) return;
+    const autoplay = emblaApi.plugins()?.autoplay;
+    autoplay?.stop();
+  }, [emblaApi, prefersReducedMotion]);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
-  const scrollTo = useCallback((index) => emblaApi?.scrollTo(index), [emblaApi]);
 
   // Horizontal (or shift+vertical trackpad) wheel gestures nudge the carousel — throttled to
-  // one slide per gesture so a single scroll doesn't blow through several cards at once.
+  // one slide per gesture so a single scroll doesn't blow through several cards at once. Not a
+  // visible control, just an extra input path alongside drag/swipe.
   const handleWheel = useCallback((event) => {
     if (!emblaApi) return;
     const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
@@ -82,6 +85,8 @@ export default function TopRatedFarmersCarousel() {
     else emblaApi.scrollPrev();
   }, [emblaApi]);
 
+  // Keyboard equivalent of drag/swipe for a focusable region with no visible buttons — arrow
+  // keys are the standard way a keyboard-only user drives a carousel that has none.
   const handleKeyDown = useCallback((event) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
@@ -95,7 +100,7 @@ export default function TopRatedFarmersCarousel() {
   const isLoading = farmers === null;
   const isEmpty = farmers !== null && farmers.length === 0;
   // Skeletons render as their own single-page "carousel" (no real embla instance needed) —
-  // four is enough to fill the widest (lg+, 4-up) breakpoint without a layout shift once
+  // four is enough to fill the widest (1440px+, 4-up) breakpoint without a layout shift once
   // real cards swap in.
   const skeletonCount = 4;
 
@@ -103,79 +108,58 @@ export default function TopRatedFarmersCarousel() {
     ? Array.from({ length: skeletonCount }, (_, index) => ({ id: `skeleton-${index}`, skeleton: true }))
     : farmers), [isLoading, farmers]);
 
-  return (
-    <section className="mx-auto w-full max-w-[1400px] px-4 py-16 sm:px-6 lg:px-10">
-      <div className="mx-auto mb-10 max-w-2xl text-center">
-        <p className="text-xs font-bold uppercase tracking-wider text-green-700">Trusted by Buyers</p>
-        <h2 className="mt-2 text-[1.75rem] font-extrabold tracking-tight text-gray-900 sm:text-3xl">Top-rated Farmers</h2>
-        <p className="mt-3 text-[15px] leading-6 text-gray-500">
-          Meet our highest-rated verified farmers who consistently provide quality agricultural products.
-        </p>
-      </div>
+  const entranceInitial = prefersReducedMotion ? false : { opacity: 0, y: 40 };
+  const entranceAnimate = !prefersReducedMotion && hasEnteredView ? { opacity: 1, y: 0 } : undefined;
 
-      {isEmpty ? (
-        <p className="py-10 text-center text-sm font-medium text-gray-500">No top-rated farmers available yet.</p>
-      ) : (
-        <div
-          className="relative"
-          role="region"
-          aria-roledescription="carousel"
-          aria-label="Top-rated farmers"
-          tabIndex={0}
-          onKeyDown={handleKeyDown}
+  return (
+    <section ref={sectionRef} className="w-full bg-[#F8FAFC] py-16">
+      <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-10">
+        <motion.div
+          initial={entranceInitial}
+          animate={entranceAnimate}
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="mx-auto mb-10 max-w-2xl text-center"
         >
-          <div className="embla-viewport overflow-hidden" ref={emblaRef} onWheel={handleWheel}>
-            {/* select-none stops a mouse-drag gesture from also triggering the browser's
-                native text selection (which was highlighting card text blue mid-drag) —
-                Embla's own drag handling covers the actual scrolling. */}
-            <div className={`flex select-none ${isLoading ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}>
-              {slides.map((farmer) => (
-                <div key={farmer.id} className={SLIDE_CLASSNAME} aria-hidden={farmer.skeleton ? 'true' : undefined}>
-                  {farmer.skeleton ? <FarmerDirectoryCardSkeleton /> : <FarmerDirectoryCard farmer={farmer} />}
-                </div>
-              ))}
+          <p className="text-xs font-bold uppercase tracking-wider text-green-700">Trusted by Buyers</p>
+          <h2 className="mt-2 text-[1.75rem] font-extrabold tracking-tight text-gray-900 sm:text-3xl">Top-rated Farmers</h2>
+          <p className="mt-3 text-[15px] leading-6 text-gray-500">
+            Meet our highest-rated verified farmers who consistently provide quality agricultural products.
+          </p>
+        </motion.div>
+
+        {isEmpty ? (
+          <p className="py-10 text-center text-sm font-medium text-gray-500">No top-rated farmers available yet.</p>
+        ) : (
+          <div
+            className="relative"
+            role="region"
+            aria-roledescription="carousel"
+            aria-label="Top-rated farmers"
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+          >
+            <div className="embla-viewport overflow-hidden" ref={emblaRef} onWheel={handleWheel}>
+              {/* select-none stops a mouse-drag gesture from also triggering the browser's
+                  native text selection (which was highlighting card text blue mid-drag) —
+                  Embla's own drag handling covers the actual scrolling. */}
+              <div className={`flex select-none ${isLoading ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}>
+                {slides.map((farmer, index) => (
+                  <div key={farmer.id} className={SLIDE_CLASSNAME} aria-hidden={farmer.skeleton ? 'true' : undefined}>
+                    <motion.div
+                      initial={entranceInitial}
+                      animate={entranceAnimate}
+                      transition={{ duration: 0.7, ease: 'easeOut', delay: Math.min(index, MAX_STAGGER_INDEX) * STAGGER_STEP_S }}
+                      className="h-full"
+                    >
+                      {farmer.skeleton ? <FarmerDirectoryCardSkeleton /> : <FarmerDirectoryCard farmer={farmer} />}
+                    </motion.div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-
-          {!isLoading && farmers.length > 1 ? (
-            <>
-              <button
-                type="button"
-                onClick={scrollPrev}
-                aria-label="Previous farmers"
-                className="absolute left-0 top-1/2 z-10 hidden h-11 w-11 -translate-x-4 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-lg transition-colors hover:border-green-300 hover:text-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 sm:flex"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                type="button"
-                onClick={scrollNext}
-                aria-label="Next farmers"
-                className="absolute right-0 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-lg transition-colors hover:border-green-300 hover:text-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 sm:flex"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </>
-          ) : null}
-
-          {!isLoading && scrollSnaps.length > 1 ? (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              {scrollSnaps.map((_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => scrollTo(index)}
-                  aria-label={`Go to slide ${index + 1}`}
-                  aria-current={index === selectedIndex ? 'true' : undefined}
-                  className={`h-2 rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 ${
-                    index === selectedIndex ? 'w-6 bg-green-600' : 'w-2 bg-gray-200 hover:bg-gray-300'
-                  }`}
-                />
-              ))}
-            </div>
-          ) : null}
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { getFixedKgPerUnit, hasFixedConversion } from './unitConversion';
+import { isValidPhilippineMobile } from './philippineMobile';
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -47,6 +48,15 @@ function implausiblePerKgMessage(label, amount, kgPerUnit) {
   return `${label} works out to ₱${perKg.toFixed(2)}/kg, which is unrealistically high for produce — please double-check this value.`;
 }
 
+// Registration only (see AuthPage.jsx's PhoneNumberInput, which also runs this live as the
+// farmer/buyer/stakeholder types) — Profile.jsx's own edit form still just requires a
+// non-empty value, unchanged, since re-validating every existing account's already-saved
+// number was never part of this.
+function validateContactNumber(values, errors) {
+  if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
+  else if (!isValidPhilippineMobile(values.contactNumber)) errors.contactNumber = 'Please enter a valid Philippine mobile number.';
+}
+
 export function validateAuthForm(values, mode) {
   const errors = {};
   if (mode === 'register' && !required(values.firstName)) errors.firstName = 'Enter your first name.';
@@ -72,7 +82,7 @@ export function validateAuthForm(values, mode) {
     // StakeholderRegisterFields in AuthPage.jsx) — same field/column, just describing the
     // representative's title instead of duplicating their name (already firstName/lastName).
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter your position or role in the organization.';
-    if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
+    validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose a municipality.';
     // Type/size are validated inline as soon as a file is picked (see
     // VerificationDocumentUpload in AuthPage.jsx) — this only catches never having picked
@@ -84,11 +94,11 @@ export function validateAuthForm(values, mode) {
   if (mode === 'register' && values.role === 'farmer') {
     if (!required(values.birthday)) errors.birthday = 'Enter your birthday.';
     if (!required(values.farmName)) errors.farmName = 'Enter your farm name.';
-    if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
+    validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose your farm location.';
   }
   if (mode === 'register' && values.role === 'buyer') {
-    if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
+    validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose your location.';
   }
   return errors;

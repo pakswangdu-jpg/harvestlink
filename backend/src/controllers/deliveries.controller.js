@@ -21,6 +21,33 @@ async function fetchOrderOr404(orderId) {
   return data;
 }
 
+async function fetchDeliveryOr404(orderId) {
+  const { data, error } = await supabaseAdmin.from('deliveries').select('*').eq('order_id', orderId).maybeSingle();
+  if (error) throw new ApiError(error.message, 400);
+  if (!data) throw new ApiError('No delivery has been booked for this order yet.', 404);
+  return data;
+}
+
+// Server-side mirror of the client-side check in LinkLalamoveDeliveryDialog.jsx — never trust
+// the browser alone for what ends up in a field the buyer's "Track Delivery" button blindly
+// opens in a new tab.
+function assertValidTrackingUrl(trackingUrl) {
+  if (!trackingUrl?.trim()) throw new ApiError('Enter the Lalamove tracking link.', 400);
+  if (!trackingUrl.trim().startsWith('https://')) throw new ApiError('The tracking URL must begin with https://.', 400);
+}
+
+function assertValidBookingReference(bookingReference) {
+  if (bookingReference && bookingReference.trim().length > 100) {
+    throw new ApiError('Booking reference must be 100 characters or fewer.', 400);
+  }
+}
+
+// The farmer-narrated timeline (see CourierDeliveryTimeline.jsx) — entirely separate from the
+// order's own delivery_status state machine, which only the buyer's "Got it" confirmation
+// (or the generic advance-delivery action) ever moves. This is informational narration for
+// the buyer/admin to follow while waiting, not an authoritative order state.
+const DELIVERY_NARRATION_SEQUENCE = ['booked', 'waiting_for_pickup', 'picked_up', 'delivered'];
+
 // GET /api/deliveries/:orderId — either party on the order can read the booking details
 // once they exist (buyer to see/track it, farmer to see what they already booked). Returns
 // null (not 404) when no delivery has been booked yet — "not booked yet" is a normal,
@@ -41,7 +68,7 @@ export async function getDelivery(req, res) {
 // method — see FarmerOrders.jsx / OrderTracking.jsx, which show "Book Lalamove Delivery"
 // instead of the generic "Mark Out for delivery" button at this exact point).
 export async function bookDelivery(req, res) {
-  const { orderId, courierCompany, driverName, driverPhone, vehicleType, bookingReference, trackingUrl, estimatedArrival } = req.body;
+  const { orderId, driverName, vehicleType, bookingReference, trackingUrl, estimatedArrival } = req.body;
   if (!orderId) throw new ApiError('An order is required.', 400);
 
   const order = await fetchOrderOr404(orderId);
@@ -62,20 +89,22 @@ export async function bookDelivery(req, res) {
     throw new ApiError('This order\'s payment must be verified before booking a courier.', 400);
   }
 
-  if (!driverName?.trim()) throw new ApiError('Enter the driver\'s name.', 400);
-  if (!driverPhone?.trim()) throw new ApiError('Enter the driver\'s contact number.', 400);
-  if (!trackingUrl?.trim()) throw new ApiError('Enter the Lalamove tracking link.', 400);
+  assertValidTrackingUrl(trackingUrl);
+  assertValidBookingReference(bookingReference);
 
   const deliveryRow = {
     order_id: order.id,
-    courier_company: courierCompany?.trim() || 'Lalamove',
-    driver_name: driverName.trim(),
-    driver_phone: driverPhone.trim(),
+    // Courier is always Lalamove here — HarvestLink only supports the Lalamove-website
+    // workflow, never a farmer-editable "which courier" choice (see the dialog's fixed
+    // "Courier: Lalamove" display, not an input).
+    courier_company: 'Lalamove',
+    driver_name: driverName?.trim() || null,
+    driver_phone: null,
     vehicle_type: vehicleType?.trim() || null,
     booking_reference: bookingReference?.trim() || null,
     tracking_url: trackingUrl.trim(),
     estimated_arrival: estimatedArrival?.trim() || null,
-    delivery_status: 'out_for_delivery',
+    delivery_status: 'booked',
   };
 
   const { data: delivery, error: deliveryError } = await supabaseAdmin
@@ -97,11 +126,70 @@ export async function bookDelivery(req, res) {
     userId: order.buyer_id,
     type: 'order',
     title: 'Your order is now out for delivery',
-    message: `Courier: ${deliveryRow.courier_company}. Driver: ${deliveryRow.driver_name}.`
+    message: `Courier: ${deliveryRow.courier_company}.`
+      + (deliveryRow.driver_name ? ` Driver: ${deliveryRow.driver_name}.` : '')
       + (deliveryRow.vehicle_type ? ` Vehicle: ${deliveryRow.vehicle_type}.` : '')
       + ' Tap "Track Delivery" to monitor your delivery.',
     link: `/orders/${order.id}`,
   });
 
   res.status(201).json({ order: serializeOrder(updatedOrder), delivery: serializeDelivery(delivery) });
+}
+
+// PATCH /api/deliveries/:orderId — farmer-only. Edits an already-booked delivery's details
+// (e.g. fixing a mistyped tracking link, or filling in the driver's name once Lalamove
+// assigns one) without re-running the "packed and ready" booking gate above or touching the
+// order's own delivery_status — see DeliveryInfoCard.jsx's "Edit Delivery Information".
+export async function updateDelivery(req, res) {
+  const order = await fetchOrderOr404(req.params.orderId);
+  if (req.profile.id !== order.farmer_id) throw new ApiError('You do not have permission to edit this delivery.', 403);
+  await fetchDeliveryOr404(order.id);
+
+  const { driverName, vehicleType, bookingReference, trackingUrl, estimatedArrival } = req.body;
+  assertValidTrackingUrl(trackingUrl);
+  assertValidBookingReference(bookingReference);
+
+  const { data: delivery, error } = await supabaseAdmin
+    .from('deliveries')
+    .update({
+      driver_name: driverName?.trim() || null,
+      vehicle_type: vehicleType?.trim() || null,
+      booking_reference: bookingReference?.trim() || null,
+      tracking_url: trackingUrl.trim(),
+      estimated_arrival: estimatedArrival?.trim() || null,
+    })
+    .eq('order_id', order.id)
+    .select()
+    .single();
+  if (error) throw new ApiError(error.message, 400);
+
+  res.json(serializeDelivery(delivery));
+}
+
+// PATCH /api/deliveries/:orderId/status — farmer-only. Advances the delivery's own narrated
+// timeline (Booked -> Waiting for Pickup -> Picked Up -> Delivered) one step at a time, same
+// "can't skip ahead, can't go back" discipline as the order's own advanceDelivery action —
+// this exists specifically because HarvestLink has no live Lalamove API to learn this from
+// automatically, so the farmer reports it by hand (see CourierDeliveryTimeline.jsx).
+export async function updateDeliveryStatus(req, res) {
+  const order = await fetchOrderOr404(req.params.orderId);
+  if (req.profile.id !== order.farmer_id) throw new ApiError('You do not have permission to update this delivery.', 403);
+  const delivery = await fetchDeliveryOr404(order.id);
+
+  const { status } = req.body;
+  const currentIndex = DELIVERY_NARRATION_SEQUENCE.indexOf(delivery.delivery_status);
+  const nextStatus = currentIndex === -1 ? null : DELIVERY_NARRATION_SEQUENCE[currentIndex + 1];
+  if (!nextStatus || status !== nextStatus) {
+    throw new ApiError(`This delivery's next status must be "${nextStatus || 'none — already delivered'}".`, 400);
+  }
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('deliveries')
+    .update({ delivery_status: nextStatus })
+    .eq('order_id', order.id)
+    .select()
+    .single();
+  if (error) throw new ApiError(error.message, 400);
+
+  res.json(serializeDelivery(updated));
 }

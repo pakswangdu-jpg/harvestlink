@@ -33,6 +33,14 @@ export async function createProduct(values) {
   return apiClient.post('/products', values);
 }
 
+// Third pricing tier for ProductForm.jsx's price-analysis panel — only ever called once PSA
+// has already come back with no reference for this product name. Returns
+// `{ matched: false }` when there isn't enough real transaction history either (see
+// backend/src/lib/historicalPriceService.js) — never a fabricated fallback.
+export async function getHistoricalPriceAnalysis(name, unit) {
+  return apiClient.get(`/products/historical-price?name=${encodeURIComponent(name)}&unit=${encodeURIComponent(unit)}`);
+}
+
 export async function updateProduct(id, values) {
   return apiClient.patch(`/products/${id}`, values);
 }

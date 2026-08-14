@@ -87,6 +87,28 @@
   alter table public.profiles drop column if exists notif_email;
   alter table public.profiles drop column if exists notif_prompted;
 
+    -- ==========================================================================
+    -- pending_registrations — stores temporary pre-confirmation signup data until
+    -- the user verifies their email with a 6-digit code.
+    -- ==========================================================================
+    create table if not exists public.pending_registrations (
+      email text primary key,
+      password_encrypted text not null,
+      data jsonb not null,
+      code_hash text not null,
+      expires_at timestamptz not null,
+      attempt_count integer not null default 0,
+      resend_count integer not null default 0,
+      last_sent_at timestamptz not null default now(),
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+
+    create index if not exists pending_registrations_email_idx on public.pending_registrations (email);
+
+    -- Backwards-compatible migrations for older installs: ensure the new columns exist
+    alter table public.pending_registrations add column if not exists attempt_count integer not null default 0;
+
   -- ============================================================================
   -- products
   -- ============================================================================
@@ -314,6 +336,16 @@
   create unique index if not exists deliveries_order_id_unique on public.deliveries (order_id);
 
   alter table public.deliveries enable row level security;
+
+  -- 'waiting_for_pickup'/'picked_up' — the farmer-narrated delivery timeline (see
+  -- backend/src/controllers/deliveries.controller.js's updateDeliveryStatus and
+  -- src/components/orders/CourierDeliveryTimeline.jsx) manually walks through these between
+  -- booking and delivery, entirely separate from the order's own delivery_status state
+  -- machine (still only ever advanced by the buyer's "Got it" confirmation) — this is
+  -- informational narration for the buyer/admin to follow, not an authoritative order state.
+  alter table public.deliveries drop constraint if exists deliveries_delivery_status_check;
+  alter table public.deliveries add constraint deliveries_delivery_status_check
+    check (delivery_status in ('booked','waiting_for_pickup','picked_up','out_for_delivery','delivered','cancelled'));
 
   -- ============================================================================
   -- notifications

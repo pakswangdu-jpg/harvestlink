@@ -25,7 +25,14 @@ export default function PriceRecommendationBreakdown({
         <>
           <Row label="Markup" value={`${recommendedPrice.marginPercent}%`} />
           <Row label="Recommended Selling Price" value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
-          {profit != null ? <Row label="Estimated Profit" value={formatCurrency(profit)} emphasize /> : null}
+          {/* Always shown, never just omitted when cost is missing — a farmer scanning this
+              card for a profit figure that silently isn't there reads as broken, not as "go
+              fill in another field." */}
+          <Row
+            label="Estimated Profit"
+            value={profit != null ? formatCurrency(profit) : 'Enter your Cost per Unit to calculate your estimated profit.'}
+            emphasize={profit != null}
+          />
           <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(recommendedPrice.price)}>
             Use this price
           </Button>

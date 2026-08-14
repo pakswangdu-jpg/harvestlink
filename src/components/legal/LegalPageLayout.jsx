@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
@@ -12,7 +12,27 @@ import logo from '../../assets/logo.png';
 // use h3, since this layout renders each entry's own h2). `intro` is optional JSX rendered
 // between the title block and the first section (a short "what this document covers" lede).
 export default function LegalPageLayout({ title, lastUpdated, intro, sections }) {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeId, setActiveId] = useState(sections[0]?.id);
+
+  // Terms of Service / Privacy Policy can be opened from mid-flow (registration, checkout).
+  // AuthPage.jsx links here same-tab on purpose (a target="_blank" tab doesn't inherit this
+  // origin's sessionStorage without an opener relationship, which would silently disconnect
+  // it from the registration draft saved there — see AuthPage.jsx's own comment on those
+  // links). Browser history is still an unreliable "back" signal on its own even same-tab
+  // (e.g. arriving via a hard navigation), so this always prefers an explicit destination.
+  //
+  // The reliable fix: whoever links here says explicitly where "back" means, via
+  // ?returnTo=/register (see AuthPage.jsx) — this always wins once present. Only a visitor
+  // who reached this page some other way (no returnTo at all — a bookmark, the footer, a
+  // shared link) falls through to real browser history, and only failing that, home.
+  const returnTo = searchParams.get('returnTo');
+  const handleBack = () => {
+    if (returnTo && returnTo.startsWith('/')) navigate(returnTo);
+    else if (window.history.length > 1) navigate(-1);
+    else navigate('/');
+  };
 
   useEffect(() => {
     const targets = sections.map((section) => document.getElementById(section.id)).filter(Boolean);
@@ -59,12 +79,13 @@ export default function LegalPageLayout({ title, lastUpdated, intro, sections })
             <span className="truncate text-[15px] font-bold tracking-tight">HarvestLink</span>
           </Link>
           <p className="hidden truncate text-sm font-medium text-gray-500 sm:block">{title}</p>
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={handleBack}
             className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-3.5 py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:border-emerald-300 hover:text-emerald-700"
           >
-            <ArrowLeft size={15} /> <span className="hidden sm:inline">Back to home</span>
-          </Link>
+            <ArrowLeft size={15} /> <span className="hidden sm:inline">Back</span>
+          </button>
         </div>
       </header>
 

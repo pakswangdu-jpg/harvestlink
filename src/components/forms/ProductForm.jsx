@@ -1,17 +1,116 @@
 import { useEffect, useState } from 'react';
-import { Gift, Info, TriangleAlert } from 'lucide-react';
+import {
+  Gift, ImageIcon, MapPin, UploadCloud, X,
+} from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
 import PriceRecommendationBreakdown from './PriceRecommendationBreakdown';
+import NoMarketDataCard from './NoMarketDataCard';
+import CostBasedEstimateCard from './CostBasedEstimateCard';
+import HistoricalMarketAnalysisCard from './HistoricalMarketAnalysisCard';
+import SellingBelowCostWarning from './SellingBelowCostWarning';
 import DiscountCalculator from './DiscountCalculator';
-import { CEBU_MUNICIPALITIES, matchMunicipality, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { useCatalog } from '../../contexts/CatalogContext';
-import { fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity } from '../../services/marketPriceService';
+import {
+  fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity, RECOMMENDED_MARGIN_PERCENT,
+} from '../../services/marketPriceService';
+import { getHistoricalPriceAnalysis } from '../../services/productService';
 import { uploadProductImage } from '../../services/uploadService';
+import { formatCurrency } from '../../utils/formatters';
 import { hasErrors, MAX_PLAUSIBLE_PRICE_PER_KG, validateProductForm } from '../../utils/validators';
 import { getFixedKgPerUnit } from '../../utils/unitConversion';
 
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
+
+const PRODUCT_IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const PRODUCT_IMAGE_ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+
+// The modern upload-area replacement for the raw <input type="file"> — same drag-and-drop
+// dropzone/preview/remove pattern as AuthPage.jsx's VerificationDocumentUpload and
+// ConfirmGcashPaymentPage.jsx's ReceiptDropzone (reuses their .verification-upload-* CSS
+// as-is), kept local here since the accepted types/labels/size limit are product-image
+// specific. Client-side type/size checks are just an immediate, friendly first pass — the
+// upload itself (and its own validation) is still whatever uploadProductImage/the storage
+// bucket already enforced before this redesign.
+function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onValidationError, onRemove }) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  const validateAndSelect = (candidate) => {
+    if (!candidate) return;
+    const extension = `.${candidate.name.split('.').pop()?.toLowerCase() || ''}`;
+    const isAcceptedType = PRODUCT_IMAGE_ACCEPTED_TYPES.includes(candidate.type) || PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.includes(extension);
+    if (!isAcceptedType) {
+      onValidationError('Only JPG, PNG, or WEBP images are accepted.');
+      return;
+    }
+    if (candidate.size > PRODUCT_IMAGE_MAX_SIZE_BYTES) {
+      onValidationError('Image size must be under 5 MB.');
+      return;
+    }
+    onFileSelect(candidate);
+  };
+
+  if (isUploading) {
+    return (
+      <div className="verification-upload-dropzone">
+        <span className="verification-upload-icon"><UploadCloud size={22} className="animate-pulse" /></span>
+        <p>Uploading image…</p>
+      </div>
+    );
+  }
+
+  if (imageUrl) {
+    return (
+      <div className={`verification-upload-preview${error ? ' has-error' : ''}`}>
+        <img src={imageUrl} alt="" className="verification-upload-thumb" />
+        <div className="verification-upload-meta">
+          <strong>Product image</strong>
+          <span>Visible to every buyer browsing the marketplace</span>
+        </div>
+        <label className="product-image-replace" htmlFor="image">
+          Replace
+          <input
+            id="image"
+            type="file"
+            accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
+            onChange={(event) => validateAndSelect(event.target.files?.[0])}
+            hidden
+          />
+        </label>
+        <button type="button" className="verification-upload-remove" onClick={onRemove} aria-label="Remove image">
+          <X size={16} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`verification-upload-dropzone${isDragging ? ' dragging' : ''}${error ? ' has-error' : ''}`}
+      onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragging(false);
+        validateAndSelect(event.dataTransfer.files?.[0]);
+      }}
+    >
+      <input
+        id="image"
+        type="file"
+        accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
+        onChange={(event) => validateAndSelect(event.target.files?.[0])}
+        className="verification-upload-input"
+        aria-label="Upload product image"
+      />
+      <ImageIcon size={24} className="verification-upload-cloud" />
+      <p><strong>Upload Product Image</strong> — drag and drop, or click to browse</p>
+      <span className="verification-upload-hint">Supported formats: JPG, PNG, WEBP · Maximum file size: 5 MB</span>
+    </div>
+  );
+}
 
 // Order matches the form's visual top-to-bottom layout, so the first error found here
 // is always the first one the farmer would encounter while scrolling down.
@@ -50,7 +149,6 @@ function buildDefaultValues(product, currentUser) {
     price: '',
     unit: '',
     quantity: '',
-    location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
     description: '',
     image: '',
     status: 'active',
@@ -60,7 +158,14 @@ function buildDefaultValues(product, currentUser) {
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
-    ...(product ? { location: matchMunicipality(product.location) } : {}),
+    // Never persisted (see CostBasedEstimateCard.jsx) — only ever drives the live Cost-Based
+    // Price Estimate preview, so it always starts at the spec default, edit mode or not.
+    markupPercent: RECOMMENDED_MARGIN_PERCENT,
+    // Always the farmer's own registered municipality (see the static Location field below)
+    // — placed after the ...product spread so it wins even when editing an older listing
+    // whose saved location predates a since-updated profile, keeping every listing in sync
+    // with the farmer's current account rather than possibly going stale.
+    location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
   };
 }
 
@@ -74,6 +179,12 @@ export default function ProductForm({
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
+  // Third pricing tier — only fetched once PSA has already answered (see the effect below)
+  // so a PSA-covered crop, the common case, never pays for a wasted historical-price query.
+  // No separate loading flag — "loading" is derived below by comparing this against the key
+  // the current name/unit actually want, the same pattern marketResult/isLoadingReference
+  // above already uses.
+  const [historicalResult, setHistoricalResult] = useState({ key: null, data: null });
 
   useEffect(() => {
     onSubmittingChange?.(isSubmitting || isReadingImage);
@@ -137,61 +248,64 @@ export default function ProductForm({
   const hasTypedName = values.name.trim().length > 0;
   const isLoadingReference = Boolean(matchedCommodity) && marketResult.commodityId !== matchedCommodity.id;
 
-  // Self-reported fallback for when PSA has no data at all for this product — the farmer's
-  // own cost is already in their chosen selling unit, so the margin applies directly with
-  // no kg conversion needed.
   const costNum = Number(values.costPrice);
-  const manualRecommendation = costNum > 0 ? getRecommendedPrice(costNum) : null;
-  // Sanity bound on the fallback recommendation, normalized to per-kg (same conversion the
-  // PSA comparison above already computes) so it holds a sack-priced and a kg-priced listing
-  // to the same real-world bar. Without this, a mistyped cost (an extra digit, or the total
-  // cost of a whole harvest typed into a per-unit field) produced an equally absurd
-  // "recommended price" one click away from becoming the live listing — the exact bug this
-  // catches. Same MAX_PLAUSIBLE_PRICE_PER_KG the submit-blocking validator in validators.js
-  // uses, so what's flagged here always matches what submission actually rejects.
+  // Sanity bound on any cost-based figure, normalized to per-kg (same conversion the PSA
+  // comparison above already computes) so it holds a sack-priced and a kg-priced listing to
+  // the same real-world bar. Without this, a mistyped cost (an extra digit, or the total
+  // cost of a whole harvest typed into a per-unit field) could still produce an equally
+  // absurd Cost-Based estimate — the exact bug this catches. Same MAX_PLAUSIBLE_PRICE_PER_KG
+  // the submit-blocking validator in validators.js uses, so what's flagged here always
+  // matches what submission actually rejects.
   const costPerKg = hasKgConversion && costNum > 0 ? costNum / kgPerUnitValue : null;
   const isCostImplausible = costPerKg != null && costPerKg > MAX_PLAUSIBLE_PRICE_PER_KG;
+
+  // Third pricing tier — real HarvestLink transaction history for this exact product name +
+  // unit, platform-wide (see historicalPriceService.js), consulted only once PSA itself has
+  // definitively come back with nothing (never both at once — PSA always wins when it has an
+  // answer, per the tier order the whole feature is built around).
+  const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit) && !isLoadingReference && !marketReference;
+  const historicalKey = wantsHistoricalLookup ? `${values.name.trim().toLowerCase()}::${values.unit}` : null;
+
+  useEffect(() => {
+    if (!historicalKey || historicalResult.key === historicalKey) return undefined;
+
+    let cancelled = false;
+    getHistoricalPriceAnalysis(values.name.trim(), values.unit)
+      .then((data) => { if (!cancelled) setHistoricalResult({ key: historicalKey, data }); })
+      .catch(() => { if (!cancelled) setHistoricalResult({ key: historicalKey, data: null }); });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historicalKey]);
+
+  // Loading whenever we want an answer for this exact key but don't have one yet — the same
+  // "derive it, don't store it" style isLoadingReference above uses.
+  const isLoadingHistorical = historicalKey != null && historicalResult.key !== historicalKey;
+  const historicalAnalysis = !isLoadingHistorical && historicalResult.data?.matched ? historicalResult.data : null;
+
+  // General rule: never recommend selling below production cost — checked against BOTH AI
+  // tiers, not just PSA, since the rule itself isn't PSA-specific. Only evaluated once a cost
+  // is actually on file (costNum > 0) — with no cost yet there's nothing to compare against,
+  // so the normal recommendation still shows (this is what lets a farmer see a PSA/historical
+  // price before they've even gotten to the cost field).
+  const isPsaRecommendationLoss = Boolean(marketReference) && hasKgConversion && Boolean(recommendedPrice) && costNum > 0 && recommendedPrice.price <= costNum;
+  const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice <= costNum;
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
 
-  // Reuses the persisted "Cost per unit" field below (see the form-grid three block) rather
-  // than asking for cost a second time here — this section just reacts to it. Implausible
-  // takes priority over having a recommendation at all — offering "Use this price" for a
-  // number this section itself doesn't believe would just be a one-click way to hit the
-  // validator's block on submit.
-  const costRecommendationSection = isCostImplausible ? (
-    <p className="price-recommendation">
-      <strong>That cost looks unusually high for produce{costPerKg != null ? ` (≈ ₱${costPerKg.toFixed(2)}/kg)` : ''}.</strong>
-      <span> Double-check it — an unrealistic cost like this will block saving this listing until it's corrected.</span>
-    </p>
-  ) : manualRecommendation ? (
-    <p className="price-recommendation">
-      <strong>Recommended price: ₱{manualRecommendation.price.toFixed(2)}/{values.unit}</strong>
-      <span> — {manualRecommendation.marginPercent}% above your stated cost, since there's no PSA reference to compare against for this product.</span>
-      <Button
-        type="button"
-        size="sm"
-        variant="secondary"
-        onClick={() => updateField('price', String(manualRecommendation.price))}
-      >
-        Use this price
-      </Button>
-    </p>
-  ) : (
-    <p className="price-recommendation">Enter your cost per {values.unit} below to see a recommended price for this product.</p>
-  );
-
   const handleUnitChange = (event) => {
     updateField('unit', event.target.value);
     updateField('kgPerUnit', '');
   };
 
-  const handleImageChange = async (event) => {
-    const file = event.target.files?.[0];
+  const handleImageSelect = async (file) => {
     if (!file) return;
+    setErrors((previous) => ({ ...previous, image: undefined }));
 
     try {
       setIsReadingImage(true);
@@ -288,35 +402,39 @@ export default function ProductForm({
         <p className="form-section-heading">Pricing</p>
 
         {!product ? (
-          <label className="price-hint donation-toggle">
-            <input
-              type="checkbox"
-              checked={values.isDonation}
-              onChange={(event) => updateField('isDonation', event.target.checked)}
-            />
-            <div>
-              <strong><Gift size={15} /> Donate this listing</strong>
-              <span> — Skips pricing and goes straight to partner organizations (orphanages, elder-care homes, NGOs, food banks) instead of the marketplace.</span>
-            </div>
-          </label>
+          <div className="donation-toggle-wrap">
+            <label className="donation-toggle">
+              <input
+                type="checkbox"
+                checked={values.isDonation}
+                onChange={(event) => updateField('isDonation', event.target.checked)}
+              />
+              <div>
+                <strong><Gift size={15} /> Donate this listing</strong>
+                <span> — Skips pricing and goes straight to partner organizations (orphanages, elder-care homes, NGOs, food banks) instead of the marketplace.</span>
+              </div>
+            </label>
+            {values.isDonation ? (
+              <p className="donation-toggle-note">This product will be donated instead of sold through the marketplace.</p>
+            ) : null}
+          </div>
         ) : null}
 
-        {!values.isDonation ? (
-          <FormField label="Sales type" name="sellingType" error={errors.sellingType}>
-            <div className="segmented-control" role="radiogroup" aria-label="Sales type">
-              {SALES_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  type="button"
-                  className={values.sellingType === type.value ? 'active' : ''}
-                  onClick={() => updateField('sellingType', type.value)}
-                >
-                  {type.label}
-                </button>
-              ))}
-            </div>
-          </FormField>
-        ) : null}
+        <FormField label="Sales type" name="sellingType" error={errors.sellingType}>
+          <div className={`segmented-control${values.isDonation ? ' is-disabled' : ''}`} role="radiogroup" aria-label="Sales type" aria-disabled={values.isDonation}>
+            {SALES_TYPES.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                disabled={values.isDonation}
+                className={values.sellingType === type.value ? 'active' : ''}
+                onClick={() => updateField('sellingType', type.value)}
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+        </FormField>
 
         {!values.isDonation && isWholesale ? (
           <FormField
@@ -337,12 +455,19 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
-        <div className={values.isDonation ? 'form-grid' : 'form-grid three'}>
-          {!values.isDonation ? (
-            <FormField label={isWholesale ? 'Wholesale price' : 'Price'} name="price" error={errors.price}>
-              <input id="price" type="number" min="0" step="0.01" value={values.price} onChange={(event) => updateField('price', event.target.value)} placeholder="55.00" />
-            </FormField>
-          ) : null}
+        <div className="form-grid three">
+          <FormField label={isWholesale ? 'Wholesale price' : 'Price'} name="price" error={errors.price}>
+            <input
+              id="price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={values.price}
+              onChange={(event) => updateField('price', event.target.value)}
+              placeholder="55.00"
+              disabled={values.isDonation}
+            />
+          </FormField>
           <FormField label="Unit" name="unit" error={errors.unit}>
             <select id="unit" value={values.unit} onChange={handleUnitChange}>
               <option value="">Select a unit</option>
@@ -369,24 +494,23 @@ export default function ProductForm({
           />
         </FormField>
 
-        {!values.isDonation ? (
-          <FormField
-            label="Cost per unit"
-            name="costPrice"
-            error={errors.costPrice}
-            helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
-          >
-            <input
-              id="costPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              value={values.costPrice}
-              onChange={(event) => updateField('costPrice', event.target.value)}
-              placeholder="e.g. 30.00"
-            />
-          </FormField>
-        ) : null}
+        <FormField
+          label="Cost per unit"
+          name="costPrice"
+          error={errors.costPrice}
+          helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
+        >
+          <input
+            id="costPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            value={values.costPrice}
+            onChange={(event) => updateField('costPrice', event.target.value)}
+            placeholder="e.g. 30.00"
+            disabled={values.isDonation}
+          />
+        </FormField>
 
         {!values.isDonation && needsManualConversion ? (
           <FormField
@@ -407,56 +531,91 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
+        {/* Tier order is the whole point of this feature: PSA > HarvestLink's own verified
+            transaction history > a plain cost+markup estimate that's explicitly labeled as
+            NOT an AI recommendation > an honest "we have nothing" card. Never more than one
+            tier renders at once, and a lower tier is only ever reached once every tier above
+            it has definitively come back empty — see the effects above for how PSA and
+            historical data are each fetched. Either AI tier is further replaced outright by
+            SellingBelowCostWarning the moment its own recommendation would sell at a loss —
+            never shown alongside/nested in the normal card, since there's nothing safe to
+            recommend in that case. */}
         {!values.isDonation && hasTypedName ? (
-          <div className={`price-hint ${isOverThreshold || isCostImplausible ? 'warning' : ''}`}>
-            {isOverThreshold || isCostImplausible ? <TriangleAlert size={16} /> : <Info size={16} />}
-            <div>
-              {isLoadingReference ? (
-                <strong>Checking PSA market prices…</strong>
-              ) : marketReference ? (
-                <>
-                  <strong>
-                    {marketReference.isOverride ? 'Reference price' : 'PSA farmgate reference'}: ₱{marketReference.referencePrice.toFixed(2)}/kg
-                  </strong>
-                  {marketReference.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
-                  <span>
-                    {' '}— {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})
-                    {marketReference.isOverride ? ', overriding the PSA figure for this year' : ''}
-                  </span>
-                  {hasKgConversion ? (
-                    <PriceRecommendationBreakdown
-                      unit={values.unit}
-                      kgPerUnitValue={kgPerUnitValue}
-                      referencePrice={marketReference.referencePrice}
-                      equivalentPsaPricePerUnit={equivalentPsaPricePerUnit}
-                      recommendedPrice={recommendedPrice}
-                      costPrice={values.costPrice}
-                      onUsePrice={(price) => updateField('price', String(price))}
-                    />
-                  ) : (
-                    <p className="price-recommendation">
-                      Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
-                    </p>
-                  )}
-                  {isOverThreshold ? (
-                    <p>Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.</p>
-                  ) : null}
-                </>
-              ) : matchedCommodity ? (
-                <>
-                  <strong>No recent PSA price data</strong>
-                  <span> — {matchedCommodity.label} has no published farmgate price for Central Visayas in the last few years.</span>
-                  {costRecommendationSection}
-                </>
-              ) : (
-                <>
-                  <strong>No PSA market reference available</strong>
-                  <span> — "{values.name.trim()}" isn't in PSA's tracked crop list yet.</span>
-                  {costRecommendationSection}
-                </>
-              )}
+          isLoadingReference || isLoadingHistorical ? (
+            <div className="price-analysis-card">
+              <p className="price-analysis-card-title">Checking market data…</p>
             </div>
-          </div>
+          ) : isPsaRecommendationLoss ? (
+            <SellingBelowCostWarning
+              costPrice={costNum}
+              unit={values.unit}
+              marketPriceLabel="PSA Price"
+              marketPriceValue={marketReference.referencePrice}
+              marketPriceUnit="kg"
+              recommendedPrice={recommendedPrice}
+              currentPrice={values.price}
+            />
+          ) : marketReference ? (
+            <div className={`price-analysis-card tone-ai${isOverThreshold ? ' warning' : ''}`}>
+              <p className="price-analysis-card-title">
+                <span>
+                  {marketReference.isOverride ? 'Reference price' : 'PSA farmgate reference'}: {formatCurrency(marketReference.referencePrice)}/kg
+                </span>
+                {marketReference.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
+              </p>
+              <p className="price-analysis-card-desc">
+                {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})
+                {marketReference.isOverride ? ', overriding the PSA figure for this year' : ''}
+              </p>
+              {hasKgConversion ? (
+                <PriceRecommendationBreakdown
+                  unit={values.unit}
+                  kgPerUnitValue={kgPerUnitValue}
+                  referencePrice={marketReference.referencePrice}
+                  equivalentPsaPricePerUnit={equivalentPsaPricePerUnit}
+                  recommendedPrice={recommendedPrice}
+                  costPrice={values.costPrice}
+                  onUsePrice={(price) => updateField('price', String(price))}
+                />
+              ) : (
+                <p className="price-analysis-prompt">
+                  Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
+                </p>
+              )}
+              {isOverThreshold ? (
+                <p className="price-analysis-warning-note">
+                  Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.
+                </p>
+              ) : null}
+            </div>
+          ) : isHistoricalRecommendationLoss ? (
+            <SellingBelowCostWarning
+              costPrice={costNum}
+              unit={values.unit}
+              marketPriceLabel="Historical Average Price"
+              marketPriceValue={historicalAnalysis.averagePrice}
+              marketPriceUnit={values.unit}
+              recommendedPrice={{ price: historicalAnalysis.recommendedPrice }}
+              currentPrice={values.price}
+            />
+          ) : historicalAnalysis ? (
+            <HistoricalMarketAnalysisCard
+              analysis={historicalAnalysis}
+              unit={values.unit}
+              onUsePrice={(price) => updateField('price', String(price))}
+            />
+          ) : costNum > 0 ? (
+            <CostBasedEstimateCard
+              costPrice={costNum}
+              unit={values.unit}
+              markupPercent={values.markupPercent}
+              onMarkupChange={(value) => updateField('markupPercent', value)}
+              isImplausible={isCostImplausible}
+              costPerKg={costPerKg}
+            />
+          ) : (
+            <NoMarketDataCard />
+          )
         ) : null}
 
         {product && !values.isDonation ? (
@@ -473,29 +632,41 @@ export default function ProductForm({
 
       <div className="form-section">
         <p className="form-section-heading">Location &amp; description</p>
-        <FormField label="Location" name="location" error={errors.location} helper="Cebu municipality where this product is available.">
-          <select id="location" value={values.location} onChange={(event) => updateField('location', event.target.value)}>
-            {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-          </select>
+        <FormField
+          label="Location"
+          name="location"
+          error={errors.location}
+          helper="Set from your registered farm municipality — update it in your profile to change this."
+        >
+          <div id="location" className="static-field location-badge">
+            <MapPin size={15} />
+            {values.location}
+          </div>
         </FormField>
 
         <FormField label="Description" name="description" error={errors.description}>
-          <textarea id="description" rows="4" value={values.description} onChange={(event) => updateField('description', event.target.value)} placeholder="Describe freshness, harvest date, pickup notes, or handling requirements." />
+          <textarea
+            id="description"
+            rows="6"
+            value={values.description}
+            onChange={(event) => updateField('description', event.target.value)}
+            placeholder="Describe freshness, harvest date, storage condition, pickup notes, or additional information."
+          />
         </FormField>
       </div>
 
       <div className="form-section">
         <p className="form-section-heading">Product image</p>
-        <FormField label="Product image" name="image" error={errors.image} helper="Visible to every buyer browsing the marketplace.">
-          <input id="image" type="file" accept="image/*" onChange={handleImageChange} />
+        <FormField label="Product image" name="image" error={errors.image} helper={!values.image ? 'Visible to every buyer browsing the marketplace.' : undefined}>
+          <ProductImageDropzone
+            imageUrl={values.image}
+            isUploading={isReadingImage}
+            error={errors.image}
+            onFileSelect={handleImageSelect}
+            onValidationError={(message) => setErrors((previous) => ({ ...previous, image: message }))}
+            onRemove={() => updateField('image', '')}
+          />
         </FormField>
-
-        {values.image ? (
-          <div className="image-preview">
-            <img src={values.image} alt="Product preview" />
-            <Button variant="ghost" onClick={() => updateField('image', '')}>Remove image</Button>
-          </div>
-        ) : null}
       </div>
 
       {!hideActions ? (

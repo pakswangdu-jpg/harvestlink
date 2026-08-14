@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock3, Crosshair, Gauge, MapPin, Truck, Wifi, WifiOff } from 'lucide-react';
+import { Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
 import { GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { haversineKm } from '../../utils/geo';
 import { distanceToPolylineKm, nearestIndexOnPath } from '../../services/routingService';
@@ -7,7 +7,8 @@ import { fetchGoogleRoute, fetchNavigationRoute } from '../../services/googleDir
 import { getLiveTransitProgress } from '../../services/orderService';
 import { getUserById } from '../../services/authService';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
-import { formatRelativeTime } from '../../utils/formatters';
+import { useOrderConnectionStatus } from '../../hooks/useOrderConnectionStatus';
+import DriverConnectionBadge from './DriverConnectionBadge';
 
 // A Google-Maps-navigation-style live tracking view — position comes from
 // `order.currentLat/currentLng` — kept fresh by OrderTracking.jsx's Supabase Realtime
@@ -248,6 +249,12 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   // math below needs the swapped pair, not the raw origin/destination.
   const travelOrigin = isPickup ? destination : origin;
   const travelDestination = isPickup ? origin : destination;
+
+  // A courier (Lalamove) order never has a HarvestLink-tracked sharer at all (see the file
+  // header comment) — no point tracking a connection status for one. 'Driver' for a real
+  // delivery (the farmer is the one sharing/moving); 'Buyer' for a pickup order (the buyer is).
+  const sharerLabel = isPickup ? 'Buyer' : 'Driver';
+  const connectionStatus = useOrderConnectionStatus(order.id, { active: !isCourier, lastUpdateAt: order.locationUpdatedAt });
 
   const transit = getLiveTransitProgress(order);
 
@@ -566,25 +573,28 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
             <Crosshair size={18} />
           </button>
         ) : null}
+
+        {deliveryState === 'navigating' && (connectionStatus === 'offline' || connectionStatus === 'reconnecting') ? (
+          <div className="nav-map-overlay-banner">Waiting for driver connection…</div>
+        ) : null}
       </div>
 
       {deliveryState === 'navigating' ? (
         <div className="nav-info-card">
           <div className="nav-info-card-header">
-            <span className={`nav-status-dot ${currentPosition ? 'live' : 'waiting'}`} />
+            <span className={`nav-status-dot status-${connectionStatus || 'reconnecting'}`} />
             <strong>{isPickup ? order.buyerName : order.farmerName}</strong>
             <span className="nav-info-card-vehicle">{isPickup ? 'On the way to pickup' : 'Delivery vehicle'}</span>
           </div>
           <div className="nav-info-card-grid">
-            <div><p>ETA</p><strong>{etaCardValue}</strong></div>
+            <div><p>ETA</p><strong className={connectionStatus === 'online' || connectionStatus == null ? '' : 'is-paused'}>{etaCardValue}</strong></div>
             <div><p>Distance</p><strong>{distanceCardValue}</strong></div>
             <div><p>Arrival</p><strong>{arrivalLabel}</strong></div>
             <div><p>Speed</p><strong>{speedCardValue}</strong></div>
           </div>
           {deliveryStatusBadge ? <div className="nav-info-card-status">{deliveryStatusBadge}</div> : null}
           <div className="nav-info-card-gps">
-            <span>{currentPosition ? <><Wifi size={12} /> Live GPS</> : <><WifiOff size={12} /> Waiting for signal…</>}</span>
-            <span>{order.locationUpdatedAt ? formatRelativeTime(order.locationUpdatedAt) : 'Not shared yet'}</span>
+            <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={order.locationUpdatedAt} />
           </div>
         </div>
       ) : null}
@@ -614,16 +624,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
       {!isPickup && !isCourier && !isDelivered && deliveryState !== 'navigating' ? (
         <div className="tracking-gps-card">
-          <div>
-            <span>Last GPS update</span>
-            <strong>{order.locationUpdatedAt ? formatRelativeTime(order.locationUpdatedAt) : 'Not shared yet'}</strong>
-          </div>
-          <div>
-            <span>Signal</span>
-            <strong className="tracking-connection-status">
-              {currentPosition ? <><Wifi size={14} /> Live GPS</> : <><WifiOff size={14} /> Waiting for signal…</>}
-            </strong>
-          </div>
+          <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={order.locationUpdatedAt} />
           <div>
             <span>Route source</span>
             <strong>Google Maps{googleRoute?.hasTrafficData ? ' (live traffic)' : ''}</strong>

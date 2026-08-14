@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BadgeCheck, Star } from 'lucide-react';
 import StarRating from '../../components/common/StarRating';
+import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import { getRatingsForFarmer } from '../../services/ratingService';
 import { getUserById } from '../../services/authService';
@@ -12,8 +13,10 @@ const RECENT_REVIEWS_LIMIT = 3;
 // A "Ratings & reviews" panel embedded directly on FarmerDashboard.jsx — this is the only
 // place a farmer's rating history is shown (deliberately not its own page/nav item). Shows
 // a score+breakdown summary plus the most recent reviews, the same "recent N, not the full
-// list" treatment the dashboard's Products/Orders panels already use.
+// list" treatment the dashboard's Products/Orders panels already use. "Add a product"/"View
+// marketplace" live in this panel's own footer rather than floating below it on the dashboard.
 export default function FarmerReviewsPanel({ farmerId }) {
+  const navigate = useNavigate();
   const [ratings, setRatings] = useState([]);
   const [ratersById, setRatersById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
@@ -48,12 +51,10 @@ export default function FarmerReviewsPanel({ farmerId }) {
   }));
 
   return (
-    <section className="panel">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Reputation</p>
-          <h2>Ratings &amp; reviews</h2>
-        </div>
+    <section className="panel ratings-reviews">
+      <div className="rr-heading">
+        <p className="eyebrow">Reputation</p>
+        <h2 className="rr-title">Ratings &amp; reviews</h2>
       </div>
 
       {isLoading ? null : totalRatings === 0 ? (
@@ -62,58 +63,63 @@ export default function FarmerReviewsPanel({ farmerId }) {
           message="Ratings from buyers and partner organizations will appear here once they rate a completed order or donation."
         />
       ) : (
-        <>
-          <div className="review-summary">
-            <div className="review-summary-score">
-              <strong>{averageRating.toFixed(1)}</strong>
-              <StarRating value={averageRating} size={20} />
-              <span>{totalRatings} rating{totalRatings === 1 ? '' : 's'}</span>
+        <div className="rr-layout">
+          <div className="rr-summary">
+            <div className="rr-summary-top">
+              <span className="rr-score">{averageRating.toFixed(1)}</span>
+              <StarRating value={averageRating} size={18} />
+              <p className="rr-count">Based on {totalRatings} verified review{totalRatings === 1 ? '' : 's'}</p>
             </div>
-            <div className="review-summary-breakdown">
+            <div className="rr-breakdown">
               {starBreakdown.map(({ star, count }) => (
-                <div key={star} className="review-summary-bar-row">
-                  <span className="review-summary-bar-label">{star} <Star size={12} /></span>
-                  <div className="review-summary-bar-track">
+                <div key={star} className="rr-bar-row">
+                  <span className="rr-bar-label">{star} <Star size={11} /></span>
+                  <div className="rr-bar-track">
                     <div
-                      className="review-summary-bar-fill"
+                      className="rr-bar-fill"
                       style={{ width: `${totalRatings ? (count / totalRatings) * 100 : 0}%` }}
                     />
                   </div>
-                  <span className="review-summary-bar-count">{count}</span>
+                  <span className="rr-bar-count">{count}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="review-list review-list-recent">
+          <div className="rr-list">
             {ratings.slice(0, RECENT_REVIEWS_LIMIT).map((rating) => {
               const rater = ratersById[rating.raterId];
               const raterName = rater?.organizationName || rater?.name
                 || (rating.raterRole === 'stakeholder' ? 'Partner organization' : 'Buyer');
               return (
-                <div key={rating.id} className="ot-review-card">
-                  <div className="ot-review-header">
-                    <div className="review-rater">
-                      <span className="farmer-list-avatar buyer">{getInitials(raterName)}</span>
-                      <div>
-                        <strong>{raterName}</strong>
-                        <span className="ot-review-date">{formatDate(rating.createdAt)}</span>
-                      </div>
+                <article key={rating.id} className="rr-card">
+                  <header className="rr-card-header">
+                    <span className="rr-avatar">{getInitials(raterName)}</span>
+                    <div className="rr-card-identity">
+                      <strong>{raterName}</strong>
+                      <span className="rr-verified"><BadgeCheck size={13} /> Verified Buyer</span>
                     </div>
-                    <StarRating value={rating.rating} size={16} />
-                  </div>
-                  {rating.comment ? <p className="ot-review-comment">&quot;{rating.comment}&quot;</p> : null}
+                    <span className="rr-card-date">{formatDate(rating.createdAt)}</span>
+                  </header>
+                  <StarRating value={rating.rating} size={14} />
+                  {rating.comment ? <p className="rr-card-comment">&quot;{rating.comment}&quot;</p> : null}
                   {rating.orderId ? (
-                    <Link className="btn btn-secondary btn-sm review-order-link" to={`/orders/${rating.orderId}`}>
-                      View order #{shortOrderId(rating.orderId)}
-                    </Link>
+                    <footer className="rr-card-footer">
+                      <span className="rr-order-ref">Order #{shortOrderId(rating.orderId)}</span>
+                      <Link className="rr-view-order" to={`/orders/${rating.orderId}`}>View Order</Link>
+                    </footer>
                   ) : null}
-                </div>
+                </article>
               );
             })}
           </div>
-        </>
+        </div>
       )}
+
+      <div className="rr-footer">
+        <Button className="rr-footer-btn" onClick={() => navigate('/farmer-products')}>Add Product</Button>
+        <Link className="btn btn-secondary rr-footer-btn" to="/marketplace">View Marketplace</Link>
+      </div>
     </section>
   );
 }
