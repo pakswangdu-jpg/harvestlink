@@ -30,7 +30,7 @@ export const farmerNavItems = [
   { to: '/farmer-orders', label: 'Orders', icon: OrdersNavIcon, group: 'Sales' },
   { to: '/messages', label: 'Messages', icon: MessagesNavIcon, group: 'Sales' },
   { to: '/marketplace', label: 'Marketplace', icon: MarketplaceNavIcon, group: 'Market' },
-  { to: '/farmer-map', label: 'Shared Map', icon: MapNavIcon, group: 'Market' },
+  { to: '/farmer-map', label: 'Nearby', icon: MapNavIcon, group: 'Market' },
   { to: '/market-insights', label: 'Market Insights', icon: MarketInsightsNavIcon, group: 'Market' },
   { to: '/demand-forecast', label: 'Demand Forecast', icon: ForecastNavIcon, group: 'Market' },
   { to: '/farmer-donations', label: 'Donations', icon: DonationsNavIcon, group: 'Community' },

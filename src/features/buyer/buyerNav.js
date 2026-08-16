@@ -19,7 +19,7 @@ export const buyerNavItems = [
   { to: '/marketplace', label: 'Marketplace', icon: MarketplaceNavIcon },
   { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon },
   { to: '/messages', label: 'Messages', icon: MessagesNavIcon },
-  { to: '/farmer-map', label: 'View Map', icon: MapNavIcon },
+  { to: '/farmer-map', label: 'Nearby', icon: MapNavIcon },
   { to: '/market-insights', label: 'Market Insights', icon: MarketInsightsNavIcon },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

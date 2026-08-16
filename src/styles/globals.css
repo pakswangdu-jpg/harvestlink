@@ -5808,6 +5808,16 @@ td {
    that same dark a green reads heavier than intended, so this switches to the softer --green-600. */
 .empty-state-transparent-icon .empty-icon {
   background: transparent;
+}
+
+/* :where() keeps this at zero specificity so a tone modifier like .empty-state-amber
+   (0,2,0) always wins regardless of which class comes later in the stylesheet — this used
+   to be a plain `.empty-state-transparent-icon .empty-icon { color: ... }` rule, which
+   silently overrode .empty-state-amber's color on every combined use (e.g.
+   FarmerDashboard.jsx's "No pending donation requests") since it happened to be declared
+   after it above, turning the amber icon green. Only applies as a fallback when nothing
+   more specific sets a color. */
+:where(.empty-state-transparent-icon .empty-icon) {
   color: var(--green-600);
 }
 
