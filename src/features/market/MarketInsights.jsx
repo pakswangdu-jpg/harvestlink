@@ -15,12 +15,11 @@ import {
   PSA_SOURCE_URL,
 } from '../../services/marketPriceService';
 import { formatCurrency } from '../../utils/formatters';
-import { farmerNavItems } from '../farmer/farmerNav';
-import { buyerNavItems } from '../buyer/buyerNav';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 export default function MarketInsights() {
   const { currentUser } = useAuth();
-  const navItems = currentUser.role === 'farmer' ? farmerNavItems : buyerNavItems;
+  const navItems = getNavItemsForRole(currentUser.role);
   const [commodityId, setCommodityId] = useState(MARKET_COMMODITIES[0].id);
   const [result, setResult] = useState({ commodityId: null, points: null, error: '' });
   const commodity = getCommodityById(commodityId);

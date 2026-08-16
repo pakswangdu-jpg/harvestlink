@@ -206,7 +206,7 @@ export default function AdminPriceMonitoring() {
           icon={ShieldCheck}
           label="Overridden Prices"
           value={overriddenCount}
-          hint={overriddenCount ? 'DTI-set reference prices' : 'No prices currently overridden'}
+          hint={overriddenCount ? 'Admin-set reference prices' : 'No prices currently overridden'}
           tone="violet"
         />
       </div>

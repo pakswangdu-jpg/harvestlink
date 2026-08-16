@@ -172,7 +172,14 @@ export default function FarmerDashboard() {
               emptyMessage="No products yet."
             />
           ) : (
-            <EmptyState icon={Package} title="No products yet" message="Add your first harvest listing so buyers can discover it." actionLabel="Add product" onAction={() => navigate('/farmer-products')} />
+            <EmptyState
+              className="empty-state-transparent-icon"
+              icon={Package}
+              title="No products yet"
+              message="Add your first harvest listing so buyers can discover it."
+              actionLabel="Add product"
+              onAction={() => navigate('/farmer-products')}
+            />
           )}
         </div>
 
