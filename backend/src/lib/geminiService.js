@@ -2,6 +2,18 @@
 const MODEL = 'gemini-flash-latest';
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+// Gemini's own 503 body literally says "usually temporary... try again later" — one quick
+// retry recovers most of those without the farmer ever seeing the deterministic fallback
+// instead of Gemini's actual writeup. Not applied to other error codes (400/403/etc.),
+// where retrying identically can't change the outcome and would only add latency to a
+// guaranteed failure.
+const RETRYABLE_STATUS_CODES = new Set([429, 503]);
+const RETRY_DELAY_MS = 700;
+
+function sleep(ms) {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
 // `forecast` carries only already-computed, real values (see priceForecastEngine.js and
 // forecastEngine.js) — the prompt explicitly forbids Gemini from stating any other price,
 // percentage, or demand figure than the ones given.
@@ -46,18 +58,29 @@ Best time to sell: ${bestTimeToSell}
 
 Respond with strict JSON: {"summary": "2-3 sentence plain-language market summary a farmer with no data background can follow, mentioning both the demand outlook and the price change", "recommendation": "1-2 sentence actionable recommendation on timing (harvesting/selling)"}. Keep both fields concise, friendly, and grounded only in the numbers above.`;
 
-    const response = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
+    const requestBody = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      // Gemini's newer flash models spend "thinking" tokens out of maxOutputTokens before
+      // producing the actual answer, which can truncate a small budget before any JSON is
+      // written — a generous budget leaves room for both, without depending on a
+      // thinkingConfig shape that isn't consistently accepted across model versions.
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 2048 },
+    });
+
+    let response = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        // Gemini's newer flash models spend "thinking" tokens out of maxOutputTokens before
-        // producing the actual answer, which can truncate a small budget before any JSON is
-        // written — a generous budget leaves room for both, without depending on a
-        // thinkingConfig shape that isn't consistently accepted across model versions.
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 2048 },
-      }),
+      body: requestBody,
     });
+
+    if (!response.ok && RETRYABLE_STATUS_CODES.has(response.status)) {
+      await sleep(RETRY_DELAY_MS);
+      response = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: requestBody,
+      });
+    }
 
     if (!response.ok) {
       const errorBody = await response.text();

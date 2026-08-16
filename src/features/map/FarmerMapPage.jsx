@@ -5,6 +5,7 @@ import FarmerMap from '../../components/map/FarmerMap';
 import EmptyState from '../../components/common/EmptyState';
 import noAccountsIcon from '../../assets/icons/map-no-accounts.png';
 import noLocationIcon from '../../assets/icons/map-no-location.png';
+import noMatchIcon from '../../assets/icons/directory-no-match.png';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
@@ -46,7 +47,13 @@ function DirectoryGroup({
           ))}
         </div>
       ) : (
-        <EmptyState compact title={emptyMessage} message="Try a different search term." />
+        <EmptyState
+          compact
+          className="empty-state-transparent-icon"
+          iconSrc={noMatchIcon}
+          title={emptyMessage}
+          message="Try a different search term."
+        />
       )}
     </div>
   );
@@ -65,6 +72,7 @@ export default function FarmerMapPage() {
   const [stakeholders, setStakeholders] = useState([]);
   const [farmersWithProducts, setFarmersWithProducts] = useState(() => new Set());
   const directoryItemRefs = useRef({});
+  const selectedLocationRef = useRef(null);
 
   useEffect(() => {
     const reload = () => {
@@ -136,10 +144,14 @@ export default function FarmerMapPage() {
 
   // Selecting a marker on the map should surface the matching row in the directory list even
   // if it's currently scrolled out of view — the directory is meant to work as a navigation
-  // panel, not just a static list.
+  // panel, not just a static list. Same reasoning for the "Selected location" detail panel
+  // below the map/directory split — it starts out of view on most screens, so clicking a pin
+  // or a directory row should bring the details into view too, instead of leaving the farmer/
+  // buyer/stakeholder to scroll down and find it themselves.
   useEffect(() => {
     if (!selectedId) return;
     directoryItemRefs.current[selectedId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    selectedLocationRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
 
   const isYou = selected?.id === currentUser.id;
@@ -153,7 +165,7 @@ export default function FarmerMapPage() {
     <AppShell
       user={currentUser}
       navItems={navItems}
-      title="View Map"
+      title="Nearby"
       subtitle="Find nearby verified farmers and buyers across Cebu."
       wide
     >
@@ -242,7 +254,7 @@ export default function FarmerMapPage() {
             </div>
           </section>
 
-          <section className="panel selected-location-panel">
+          <section className="panel selected-location-panel" ref={selectedLocationRef}>
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Selected location</p>

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Hourglass } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
+import historyEmptyIcon from '../../assets/icons/history-empty.png';
+import pickupScheduledIcon from '../../assets/icons/pickup-scheduled.png';
 import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
 import { confirmReceipt, getDonationsForStakeholder, markDonationRated } from '../../services/donationService';
@@ -106,7 +108,7 @@ export default function StakeholderRequests() {
               {requested.map((donation) => <DonationCard key={donation.id} donation={donation} />)}
             </div>
           ) : (
-            <EmptyState title="No pending requests" message="Requests you send will appear here until the farmer responds." />
+            <EmptyState icon={Hourglass} className="empty-state-amber empty-state-transparent-icon empty-state-waiting" title="No pending requests" message="Requests you send will appear here until the farmer responds." />
           )}
         </div>
 
@@ -132,7 +134,7 @@ export default function StakeholderRequests() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Nothing scheduled" message="Accepted requests with a pickup date will appear here." />
+            <EmptyState className="empty-state-transparent-icon" iconSrc={pickupScheduledIcon} title="Nothing scheduled" message="Accepted requests with a pickup date will appear here." />
           )}
         </div>
       </section>
@@ -155,7 +157,12 @@ export default function StakeholderRequests() {
             ))}
           </div>
         ) : (
-          <EmptyState title="No history yet" message="Completed and cancelled donation requests will be listed here." />
+          <EmptyState
+            className="empty-state-transparent-icon"
+            iconSrc={historyEmptyIcon}
+            title="No history yet"
+            message="Completed and cancelled donation requests will be listed here."
+          />
         )}
       </section>
     </AppShell>

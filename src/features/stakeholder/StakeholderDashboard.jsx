@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck, CheckCircle2, Gift, ListChecks } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
-import StatCard from '../../components/cards/StatCard';
+import KpiGrid from '../../components/common/KpiGrid';
+import KpiCard from '../../components/common/KpiCard';
+import availableDonationsIcon from '../../assets/icons/kpi-available-donations.png';
+import completedDonationsIcon from '../../assets/icons/kpi-completed-donations.png';
+import myRequestsIcon from '../../assets/icons/kpi-my-requests.png';
+import scheduledPickupsIcon from '../../assets/icons/kpi-scheduled-pickups.png';
 import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
+import donationsEmptyIcon from '../../assets/icons/donations-empty.png';
 import FarmerMap from '../../components/map/FarmerMap';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
@@ -156,12 +161,12 @@ export default function StakeholderDashboard() {
         </div>
       ) : null}
 
-      <section className="stats-grid">
-        <StatCard label="Available donations" value={available.length} icon={<Gift size={20} />} />
-        <StatCard label="My requests" value={myRequests.length} icon={<ListChecks size={20} />} />
-        <StatCard label="Scheduled pickups" value={scheduled.length} icon={<CalendarCheck size={20} />} />
-        <StatCard label="Completed" value={completed.length} icon={<CheckCircle2 size={20} />} />
-      </section>
+      <KpiGrid>
+        <KpiCard label="Available donations" value={available.length} iconSrc={availableDonationsIcon} />
+        <KpiCard label="My requests" value={myRequests.length} iconSrc={myRequestsIcon} />
+        <KpiCard label="Scheduled pickups" value={scheduled.length} iconSrc={scheduledPickupsIcon} />
+        <KpiCard label="Completed" value={completed.length} iconSrc={completedDonationsIcon} variant="success" />
+      </KpiGrid>
 
       <section className="content-grid two">
         <div className="panel">
@@ -177,7 +182,12 @@ export default function StakeholderDashboard() {
               {available.slice(0, 4).map((donation) => <DonationCard key={donation.id} donation={donation} />)}
             </div>
           ) : (
-            <EmptyState title="No donations yet" message="Available surplus produce will appear here." />
+            <EmptyState
+              className="empty-state-transparent-icon"
+              iconSrc={donationsEmptyIcon}
+              title="No donations yet"
+              message="Available surplus produce will appear here."
+            />
           )}
         </div>
 
