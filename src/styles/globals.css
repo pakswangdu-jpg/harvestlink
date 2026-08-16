@@ -1395,6 +1395,16 @@ a.lp-contact-card:hover {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
   background: var(--soft);
+  transition: grid-template-columns 0.25s ease;
+}
+
+/* Collapsed sidebar — icon-only rail. Toggled from the chevron button next to the logo (see
+   AppShell.jsx); persisted in localStorage so it stays collapsed across navigations (every
+   page mounts its own <AppShell>) and future visits. Desktop-only in practice: .sidebar
+   itself is display:none below 1080px regardless of this class, in favor of the mobile
+   bottom nav, so there's nothing to collapse on a small screen. */
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -1426,10 +1436,52 @@ a.lp-contact-card:hover {
 
 /* A hairline divider under the logo, not just gap spacing — separates "who/where you are"
    from the navigation below it, the same way Notion/Linear split their workspace switcher
-   from the nav list underneath. */
-.sidebar .brand {
+   from the nav list underneath. Lives on the row (logo + collapse toggle) now, not .brand
+   alone, so the divider still spans the toggle button too. */
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
+}
+
+.sidebar .brand {
+  min-width: 0;
+}
+
+/* Collapsed: the toggle drops below the now icon-only logo instead of squeezing beside it
+   in a 76px rail — center both, keep the same divider. */
+.app-shell.sidebar-collapsed .sidebar-brand-row {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-collapse-toggle {
+  display: flex;
+  height: 26px;
+  width: 26px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+  color: var(--green-700);
+  border-color: var(--green-600);
+  background: var(--green-50);
+}
+
+.sidebar-collapse-toggle:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
 }
 
 .sidebar .brand strong {
