@@ -7,7 +7,7 @@ import {
 function BubbleTimestamp({ message, isMine, showStatus }) {
   const time = new Date(message.createdAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
   return (
-    <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'justify-end text-emerald-100' : 'text-gray-400'}`}>
+    <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'justify-end text-emerald-100' : 'text-[var(--muted)]'}`}>
       {message.edited ? <span className="italic">Edited</span> : null}
       <span>{time}</span>
       {/* Seen/Sent are real states derived from the same `read` flag the inbox unread badge
@@ -24,7 +24,7 @@ function ReplyPreview({ replyMessage, isMine }) {
   if (!replyMessage) return null;
   return (
     <div className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[12px] ${
-      isMine ? 'border-emerald-200 bg-emerald-800/30 text-emerald-50' : 'border-emerald-600 bg-emerald-50 text-gray-600'
+      isMine ? 'border-emerald-200 bg-emerald-800/30 text-emerald-50' : 'border-[var(--green-600)] bg-[var(--green-50)] text-[var(--muted)]'
     }`}
     >
       <p className="font-semibold">{replyMessage.senderName}</p>
@@ -35,7 +35,7 @@ function ReplyPreview({ replyMessage, isMine }) {
   );
 }
 
-const MENU_ITEM_CLASS = 'flex w-full items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] text-gray-700 hover:bg-gray-50';
+const MENU_ITEM_CLASS = 'flex w-full items-center gap-2 border-0 bg-transparent px-3 py-1.5 text-left text-[13px] text-[var(--text)] hover:bg-[var(--soft)]';
 
 export default function MessageBubble({
   message, isMine, replyMessage, showStatus, onReply, onEdit, onDelete, onForward, onCopy, translation, onToggleTranslate,
@@ -47,7 +47,7 @@ export default function MessageBubble({
   if (message.deleted) {
     return (
       <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} px-1`}>
-        <p className="rounded-3xl bg-gray-100 px-4 py-2.5 text-[13px] italic text-gray-400">This message was deleted</p>
+        <p className="rounded-3xl bg-[var(--soft)] px-4 py-2.5 text-[13px] italic text-[var(--muted)]">This message was deleted</p>
       </div>
     );
   }
@@ -64,8 +64,8 @@ export default function MessageBubble({
       <div className="relative max-w-[75%] sm:max-w-[65%]">
         <div className={`rounded-3xl px-4 py-2.5 shadow-sm ${
           isMine
-            ? 'rounded-br-lg bg-[#166534] text-white'
-            : 'rounded-bl-lg border border-gray-100 bg-gray-100 text-gray-900'
+            ? 'rounded-br-lg bg-[var(--green-800)] text-white'
+            : 'rounded-bl-lg border border-[var(--line)] bg-[var(--soft)] text-[var(--text)]'
         }`}
         >
           <ReplyPreview replyMessage={replyMessage} isMine={isMine} />
@@ -81,11 +81,11 @@ export default function MessageBubble({
               href={message.fileUrl}
               target="_blank"
               rel="noreferrer"
-              className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${isMine ? 'bg-emerald-800/40' : 'bg-white border border-gray-200'}`}
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)] border border-[var(--line)]'}`}
             >
-              <FileIcon size={20} className={isMine ? 'text-emerald-100' : 'text-gray-500'} />
+              <FileIcon size={20} className={isMine ? 'text-emerald-100' : 'text-[var(--muted)]'} />
               <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{message.fileName || 'Attachment'}</span>
-              <Download size={15} className={isMine ? 'text-emerald-100' : 'text-gray-400'} />
+              <Download size={15} className={isMine ? 'text-emerald-100' : 'text-[var(--muted)]'} />
             </a>
           ) : null}
 
@@ -96,11 +96,11 @@ export default function MessageBubble({
           ) : null}
 
           {showTranslation ? (
-            <div className="mt-1.5 border-t border-gray-200/70 pt-1.5">
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            <div className="mt-1.5 border-t border-[var(--line)] pt-1.5">
+              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
                 <Globe size={10} /> Translated
               </p>
-              <p className="mt-0.5 text-[13px] italic leading-relaxed text-gray-600">
+              <p className="mt-0.5 text-[13px] italic leading-relaxed text-[var(--muted)]">
                 {translation.loading ? 'Translating…' : translation.error ? 'Translation unavailable.' : translation.text}
               </p>
             </div>
@@ -116,7 +116,7 @@ export default function MessageBubble({
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
-            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-white p-0 text-gray-400 shadow-sm ring-1 ring-gray-200 hover:text-gray-700"
+            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-[var(--panel)] p-0 text-[var(--muted)] shadow-sm ring-1 ring-[var(--line)] hover:text-[var(--text)]"
           >
             <MoreHorizontal size={15} />
           </button>
@@ -124,7 +124,7 @@ export default function MessageBubble({
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`absolute top-full z-10 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg ${isMine ? 'right-0' : 'left-0'}`}
+              className={`absolute top-full z-10 mt-1 w-44 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-elevated)] py-1 shadow-lg ${isMine ? 'right-0' : 'left-0'}`}
             >
               <button type="button" onClick={() => { onReply(message); setMenuOpen(false); }} className={MENU_ITEM_CLASS}>
                 <Reply size={14} /> Reply
@@ -148,7 +148,7 @@ export default function MessageBubble({
                 </button>
               ) : null}
               {isMine ? (
-                <button type="button" onClick={() => { onDelete(message); setMenuOpen(false); }} className={`${MENU_ITEM_CLASS} text-red-600 hover:bg-red-50`}>
+                <button type="button" onClick={() => { onDelete(message); setMenuOpen(false); }} className={`${MENU_ITEM_CLASS} text-[var(--red-700)] hover:bg-[var(--red-100)]`}>
                   <Trash2 size={14} /> Delete
                 </button>
               ) : null}

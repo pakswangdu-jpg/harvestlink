@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { CalendarDays, MapPin, RefreshCw } from 'lucide-react';
 import { CEBU_MUNICIPALITIES } from '../../utils/constants';
 
-const selectClass = 'h-10 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-[14px] font-medium text-gray-700 outline-none transition-colors duration-200 focus:border-green-600 appearance-none';
+const selectClass = 'h-10 rounded-lg border border-[var(--line)] bg-[var(--input-bg)] pl-9 pr-3 text-[14px] font-medium text-[var(--text-secondary)] outline-none transition-colors duration-200 focus:border-[var(--green-600)] appearance-none';
 
 // Replaces the old ForecastHeader — same municipality/refresh controls, plus the fuller
 // period list (Today through Custom Date) and a date input that appears once "Custom Date"
@@ -17,7 +17,7 @@ export default function ForecastFilters({
   return (
     <div className="flex flex-wrap items-center justify-end gap-2.5">
       <span className="relative">
-        <MapPin size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <MapPin size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
         <select
           className={selectClass}
           value={municipality}
@@ -31,7 +31,7 @@ export default function ForecastFilters({
 
       {periods.length ? (
         <span className="relative">
-          <CalendarDays size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <CalendarDays size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <select
             className={selectClass}
             value={period}
@@ -50,7 +50,7 @@ export default function ForecastFilters({
           min={todayIso}
           onChange={(event) => onCustomDateChange(event.target.value)}
           aria-label="Custom forecast date"
-          className="h-10 rounded-lg border border-gray-200 bg-white px-3 text-[14px] font-medium text-gray-700 outline-none transition-colors duration-200 focus:border-green-600"
+          className="h-10 rounded-lg border border-[var(--line)] bg-[var(--input-bg)] px-3 text-[14px] font-medium text-[var(--text-secondary)] outline-none transition-colors duration-200 focus:border-[var(--green-600)]"
         />
       ) : null}
 
@@ -59,7 +59,7 @@ export default function ForecastFilters({
         onClick={onRefresh}
         whileTap={{ scale: 0.96 }}
         disabled={isRefreshing}
-        className="flex h-9 items-center gap-2 rounded-md bg-green-700 px-4 text-[14px] font-semibold text-white transition-colors duration-150 hover:bg-green-800 disabled:opacity-60"
+        className="flex h-9 items-center gap-2 rounded-md bg-[var(--green-700)] px-4 text-[14px] font-semibold text-white transition-colors duration-150 hover:bg-[var(--green-800)] disabled:opacity-60"
       >
         <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
         Refresh

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import EmptyState from '../../components/common/EmptyState';
-import cartEmptyIcon from '../../assets/icons/cart-empty.png';
 import CartItemRow from '../../components/cart/CartItemRow';
 import { useAuth } from '../auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
@@ -75,7 +75,7 @@ export default function CartPage() {
     >
       {!loading && !items.length ? (
         <EmptyState
-          iconSrc={cartEmptyIcon}
+          icon={ShoppingCart}
           title="Your cart is empty"
           message="Browse the marketplace and add products you'd like to order."
           actionLabel="Go to Marketplace"

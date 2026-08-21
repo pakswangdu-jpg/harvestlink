@@ -8,6 +8,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import ZoomableImage from '../../components/common/ZoomableImage';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import { useAuth } from '../auth/AuthContext';
 import { changePassword, updateUserProfile } from '../../services/authService';
 import { getSignedDocumentUrl, uploadAvatar, uploadPaymentQr } from '../../services/uploadService';
@@ -612,6 +613,19 @@ export default function Profile() {
         ) : (
           <p className="muted">Keep your account secure by using a password you don't use elsewhere.</p>
         )}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Preferences</p>
+            <h2>Appearance</h2>
+          </div>
+        </div>
+        <p className="muted" style={{ marginBottom: 12 }}>Choose how HarvestLink looks on this device. System matches your OS setting automatically.</p>
+        <div style={{ maxWidth: 320 }}>
+          <ThemeToggle />
+        </div>
       </section>
     </AppShell>
   );

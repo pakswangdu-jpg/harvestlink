@@ -24,19 +24,19 @@ function formatAxisDate(dateIso, todayIso) {
 // "today" marker.
 function TodayDot({ cx, cy }) {
   if (cx == null || cy == null) return null;
-  return <circle cx={cx} cy={cy} r={4} fill="#F59E0B" stroke="#fff" strokeWidth={2} />;
+  return <circle cx={cx} cy={cy} r={4} fill="var(--amber-700)" stroke="var(--panel)" strokeWidth={2} />;
 }
 
 function EmptyHistoryState() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-14 text-center" style={{ height: CHART_HEIGHT }}>
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-50 text-gray-300">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--text-faint)]">
         <Activity size={26} strokeWidth={1.5} />
       </span>
-      <p className="max-w-xs text-[15px] font-medium text-gray-600">
+      <p className="max-w-xs text-[15px] font-medium text-[var(--text-secondary)]">
         Not enough historical order data to display a meaningful demand trend.
       </p>
-      <p className="max-w-xs text-[13px] text-gray-400">
+      <p className="max-w-xs text-[13px] text-[var(--muted)]">
         Historical records will appear automatically after completed customer orders.
       </p>
     </div>
@@ -88,17 +88,17 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
     <div style={{ height: CHART_HEIGHT }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="#F3F4F6" />
+          <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: '#6B7280' }}
-            axisLine={{ stroke: '#E5E7EB' }}
+            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            axisLine={{ stroke: 'var(--line)' }}
             tickLine={false}
             tickFormatter={(value) => formatAxisDate(value, todayIso)}
             minTickGap={20}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: '#6B7280' }}
+            tick={{ fontSize: 12, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
             width={48}
@@ -115,7 +115,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
                 name="Confidence Band"
                 stackId="band"
                 stroke="none"
-                fill="#16A34A"
+                fill="var(--green-600)"
                 fillOpacity={0.08}
                 isAnimationActive
                 animationDuration={700}
@@ -128,9 +128,9 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
             type="monotone"
             dataKey="historicalVolume"
             name="Historical"
-            stroke="#16A34A"
+            stroke="var(--green-600)"
             strokeWidth={2}
-            dot={{ r: 3, fill: '#16A34A', strokeWidth: 0 }}
+            dot={{ r: 3, fill: 'var(--green-600)', strokeWidth: 0 }}
             activeDot={{ r: 5 }}
             connectNulls
             isAnimationActive
@@ -142,10 +142,10 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
               type="monotone"
               dataKey="forecastVolume"
               name="Forecast"
-              stroke="#2563EB"
+              stroke="var(--blue-700)"
               strokeWidth={2}
               strokeDasharray="5 3"
-              dot={{ r: 3, fill: '#2563EB', strokeWidth: 0 }}
+              dot={{ r: 3, fill: 'var(--blue-700)', strokeWidth: 0 }}
               activeDot={{ r: 5 }}
               connectNulls
               isAnimationActive
@@ -156,7 +156,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
           {hasForecastAnchor && todayIso ? (
             <ReferenceLine
               x={todayIso}
-              stroke="#9CA3AF"
+              stroke="var(--muted)"
               strokeDasharray="3 3"
               strokeWidth={1}
               label={{
@@ -164,7 +164,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
                 position: 'insideTopRight',
                 fontSize: 11,
                 fontWeight: 600,
-                fill: '#6B7280',
+                fill: 'var(--muted)',
               }}
             />
           ) : null}

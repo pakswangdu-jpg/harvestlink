@@ -38,21 +38,21 @@ export default function ForecastTooltip({
   const formatValue = (raw) => (mode === 'price' ? `${formatCurrency(raw)}${unit ? `/${unit}` : ''}` : `${formatVolume(raw)} ${unit || 'unit'}/day`);
 
   return (
-    <div className="min-w-[230px] rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-lg">
+    <div className="min-w-[230px] rounded-xl border border-[var(--line)] bg-[var(--surface-elevated)] px-4 py-3 shadow-lg">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] font-semibold text-gray-900">{formatLongDate(point.date)}</p>
+        <p className="text-[13px] font-semibold text-[var(--text)]">{formatLongDate(point.date)}</p>
         <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-          isHistorical ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+          isHistorical ? 'bg-[var(--green-100)] text-[var(--green-700)]' : 'bg-[var(--blue-100)] text-[var(--blue-700)]'
         }`}
         >
           {isToday ? 'Today' : isHistorical ? 'Historical' : 'Forecast'}
         </span>
       </div>
 
-      <p className="mt-2 text-[18px] font-bold text-gray-900">{formatValue(value)}</p>
+      <p className="mt-2 text-[18px] font-bold text-[var(--text)]">{formatValue(value)}</p>
 
       {diff != null ? (
-        <p className={`mt-0.5 text-[12.5px] font-semibold ${diff >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+        <p className={`mt-0.5 text-[12.5px] font-semibold ${diff >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'}`}>
           {diff >= 0 ? '+' : ''}{mode === 'price' ? formatCurrency(diff) : formatVolume(diff)}
           {percent != null ? ` (${percent > 0 ? '+' : ''}${percent}%)` : ''} vs previous point
         </p>
@@ -60,25 +60,25 @@ export default function ForecastTooltip({
 
       {!isHistorical && point.confidence != null ? (
         <div className="mt-2 flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Confidence</span>
-          <span className="text-[12.5px] font-bold text-gray-700">{point.confidence}%</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Confidence</span>
+          <span className="text-[12.5px] font-bold text-[var(--text-secondary)]">{point.confidence}%</span>
         </div>
       ) : null}
 
       {!isHistorical && point.upper != null && point.lower != null ? (
-        <p className="mt-0.5 text-[11.5px] text-gray-500">
+        <p className="mt-0.5 text-[11.5px] text-[var(--muted)]">
           Range: {mode === 'price' ? `${formatCurrency(point.lower)} – ${formatCurrency(point.upper)}` : `${formatVolume(point.lower)} – ${formatVolume(point.upper)}`}
         </p>
       ) : null}
 
       {point.reason ? (
-        <p className="mt-2 border-t border-gray-100 pt-2 text-[12px] leading-snug text-gray-600">
-          <span className="font-semibold text-gray-700">AI Reason: </span>{point.reason}
+        <p className="mt-2 border-t border-[var(--line)] pt-2 text-[12px] leading-snug text-[var(--text-secondary)]">
+          <span className="font-semibold text-[var(--text-secondary)]">AI Reason: </span>{point.reason}
         </p>
       ) : null}
 
       {point.source === 'psa' ? (
-        <p className="mt-2 text-[11px] text-gray-400">Source: PSA farmgate reference price</p>
+        <p className="mt-2 text-[11px] text-[var(--muted)]">Source: PSA farmgate reference price</p>
       ) : null}
     </div>
   );

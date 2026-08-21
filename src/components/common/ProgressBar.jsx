@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 
 const TONE_COLOR = {
-  green: '#15803D',
-  amber: '#9A6700',
-  red: '#CF222E',
+  green: 'var(--green-700)',
+  amber: 'var(--amber-700)',
+  red: 'var(--red-700)',
 };
 
 // `value` is a 0-100 percentage the caller already computed from real data (e.g. a
@@ -14,7 +14,7 @@ export default function ProgressBar({ value, tone = 'green', label }) {
 
   return (
     <div className="w-full" role="progressbar" aria-valuenow={clamped} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--soft)]">
         <motion.div
           className="h-full rounded-full"
           style={{ backgroundColor: color }}

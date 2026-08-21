@@ -11,17 +11,17 @@ const FOG_CONDITIONS = new Set(['Mist', 'Smoke', 'Haze', 'Dust', 'Fog', 'Sand', 
 // computeWeatherImpact) — never from parsing OpenWeatherMap's free-text description.
 function getConditionBadge(condition, rainfallProbability) {
   const main = condition?.main || '';
-  if (main === 'Thunderstorm') return { label: 'Storm', icon: CloudLightning, className: 'bg-red-50 text-red-700' };
-  if (main === 'Snow') return { label: 'Snow', icon: CloudSnow, className: 'bg-sky-50 text-sky-700' };
+  if (main === 'Thunderstorm') return { label: 'Storm', icon: CloudLightning, className: 'bg-[var(--red-100)] text-[var(--red-700)]' };
+  if (main === 'Snow') return { label: 'Snow', icon: CloudSnow, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
   if (main === 'Rain' || main === 'Drizzle') {
-    if (rainfallProbability >= 60) return { label: 'Heavy Rain', icon: CloudRain, className: 'bg-blue-100 text-blue-800' };
-    if (rainfallProbability >= 30) return { label: 'Moderate Rain', icon: CloudRain, className: 'bg-blue-50 text-blue-700' };
-    return { label: 'Light Rain', icon: CloudDrizzle, className: 'bg-blue-50 text-blue-600' };
+    if (rainfallProbability >= 60) return { label: 'Heavy Rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
+    if (rainfallProbability >= 30) return { label: 'Moderate Rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
+    return { label: 'Light Rain', icon: CloudDrizzle, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
   }
-  if (FOG_CONDITIONS.has(main)) return { label: 'Foggy', icon: CloudFog, className: 'bg-gray-100 text-gray-600' };
-  if (main === 'Clouds') return { label: 'Cloudy', icon: Cloud, className: 'bg-gray-100 text-gray-600' };
-  if (main === 'Clear') return { label: 'Sunny', icon: Sun, className: 'bg-amber-50 text-amber-700' };
-  return { label: condition?.description || 'Unknown', icon: Cloud, className: 'bg-gray-100 text-gray-600' };
+  if (FOG_CONDITIONS.has(main)) return { label: 'Foggy', icon: CloudFog, className: 'bg-[var(--soft)] text-[var(--muted)]' };
+  if (main === 'Clouds') return { label: 'Cloudy', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
+  if (main === 'Clear') return { label: 'Sunny', icon: Sun, className: 'bg-[var(--amber-100)] text-[var(--amber-700)]' };
+  return { label: condition?.description || 'Unknown', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
 }
 
 // Same real rainfall-probability tiers computeWeatherImpact() already uses elsewhere on this
@@ -58,15 +58,15 @@ function getWeatherGuidance(rainfallProbability) {
 
 function WeatherStat({ icon: Icon, label, value, unit }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/70 p-4 transition-colors duration-200 hover:bg-gray-100">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-blue-600 shadow-sm">
+    <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--soft)]/70 p-4 transition-colors duration-200 hover:bg-[var(--soft)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--panel)] text-[var(--blue-700)] shadow-sm">
         <Icon size={18} strokeWidth={2} />
       </span>
       <div className="min-w-0">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label}</p>
         <p className="mt-0.5 flex items-baseline gap-1">
-          <span className="text-[26px] font-bold leading-none text-gray-900">{value}</span>
-          {unit ? <span className="text-[12px] font-medium text-gray-400">{unit}</span> : null}
+          <span className="text-[26px] font-bold leading-none text-[var(--text)]">{value}</span>
+          {unit ? <span className="text-[12px] font-medium text-[var(--muted)]">{unit}</span> : null}
         </p>
       </div>
     </div>
@@ -75,20 +75,20 @@ function WeatherStat({ icon: Icon, label, value, unit }) {
 
 function WeatherSkeleton() {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <div className="h-6 w-40 animate-pulse rounded bg-gray-100" />
-          <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
+          <div className="h-6 w-40 animate-pulse rounded bg-[var(--soft)]" />
+          <div className="h-3 w-24 animate-pulse rounded bg-[var(--soft)]" />
         </div>
-        <div className="h-7 w-28 animate-pulse rounded-full bg-gray-100" />
+        <div className="h-7 w-28 animate-pulse rounded-full bg-[var(--soft)]" />
       </div>
       <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="h-[68px] animate-pulse rounded-xl bg-gray-100" />
+          <div key={index} className="h-[68px] animate-pulse rounded-xl bg-[var(--soft)]" />
         ))}
       </div>
-      <div className="mt-4 h-20 animate-pulse rounded-xl bg-gray-100" />
+      <div className="mt-4 h-20 animate-pulse rounded-xl bg-[var(--soft)]" />
     </div>
   );
 }
@@ -101,12 +101,12 @@ export default function WeatherPanel({ weather, isLoading }) {
 
   if (!weather) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
         <div className="flex items-center gap-2">
-          <CloudSun size={22} className="text-blue-600" />
-          <h3 className="text-[20px] font-bold text-gray-900">Today's Weather</h3>
+          <CloudSun size={22} className="text-[var(--blue-700)]" />
+          <h3 className="text-[20px] font-bold text-[var(--text)]">Today's Weather</h3>
         </div>
-        <p className="mt-3 text-[14px] text-gray-500">OpenWeatherMap not configured.</p>
+        <p className="mt-3 text-[14px] text-[var(--muted)]">OpenWeatherMap not configured.</p>
       </div>
     );
   }
@@ -116,20 +116,20 @@ export default function WeatherPanel({ weather, isLoading }) {
   const guidance = getWeatherGuidance(weather.rainfallProbability);
   const ImpactIcon = guidance.tone === 'favorable' ? CheckCircle2 : AlertTriangle;
   const impactClass = guidance.tone === 'favorable'
-    ? 'bg-green-50 text-green-800'
+    ? 'bg-[var(--green-50)] text-[var(--green-800)]'
     : guidance.tone === 'warning'
-      ? 'bg-amber-50 text-amber-800'
-      : 'bg-gray-50 text-gray-600';
+      ? 'bg-[var(--amber-100)] text-[var(--amber-700)]'
+      : 'bg-[var(--soft)] text-[var(--muted)]';
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <CloudSun size={22} className="text-blue-600" />
-            <h3 className="text-[20px] font-bold leading-tight text-gray-900">Today's Weather</h3>
+            <CloudSun size={22} className="text-[var(--blue-700)]" />
+            <h3 className="text-[20px] font-bold leading-tight text-[var(--text)]">Today's Weather</h3>
           </div>
-          <p className="mt-1 text-[13px] text-gray-500">{weather.municipality}</p>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">{weather.municipality}</p>
         </div>
         <span className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${badge.className}`}>
           <BadgeIcon size={13} strokeWidth={2.5} /> {badge.label}

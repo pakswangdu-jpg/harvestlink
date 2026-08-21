@@ -36,6 +36,18 @@ export function isLowStock(quantity) {
   return value > 0 && value <= LOW_STOCK_THRESHOLD;
 }
 
+// A single status per product for anywhere that used to show the raw `status` field and a
+// separate inventory badge side by side (My Products' table/cards) — inactive is the most
+// specific truth (a farmer deliberately paused it) so it wins even over an empty quantity;
+// otherwise inventory drives it. `value` doubles as the `badge-${value}` CSS class suffix.
+export function getProductStatusInfo(product) {
+  if (product.status === 'inactive') return { value: 'inactive', label: 'Inactive' };
+  const quantity = Number(product.quantity);
+  if (quantity <= 0) return { value: 'out-of-stock', label: 'Out of stock' };
+  if (isLowStock(quantity)) return { value: 'low-stock', label: 'Low stock' };
+  return { value: 'active', label: 'Active' };
+}
+
 // How many days out an expiration date starts showing an "Expiring soon" warning, instead
 // of only flagging it once it's already too late to act on.
 export const EXPIRING_SOON_DAYS = 3;

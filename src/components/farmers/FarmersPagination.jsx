@@ -22,7 +22,7 @@ export default function FarmersPagination({ page, totalPages, onPageChange }) {
         onClick={() => onPageChange(page - 1)}
         disabled={page === 1}
         aria-label="Previous page"
-        className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         <ChevronLeft size={15} /> Previous
       </button>
@@ -32,15 +32,15 @@ export default function FarmersPagination({ page, totalPages, onPageChange }) {
         const showEllipsis = previous !== undefined && pageNumber - previous > 1;
         return (
           <span key={pageNumber} className="flex items-center gap-1.5">
-            {showEllipsis ? <span className="px-1 text-[13px] text-gray-300">…</span> : null}
+            {showEllipsis ? <span className="px-1 text-[13px] text-[var(--text-faint)]">…</span> : null}
             <button
               type="button"
               onClick={() => onPageChange(pageNumber)}
               aria-current={pageNumber === page ? 'page' : undefined}
               className={`flex h-9 w-9 items-center justify-center rounded-lg text-[13px] font-semibold transition-colors ${
                 pageNumber === page
-                  ? 'bg-green-800 text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  ? 'bg-[var(--green-800)] text-white'
+                  : 'text-[var(--muted)] hover:bg-[var(--soft)]'
               }`}
             >
               {pageNumber}
@@ -54,7 +54,7 @@ export default function FarmersPagination({ page, totalPages, onPageChange }) {
         onClick={() => onPageChange(page + 1)}
         disabled={page === totalPages}
         aria-label="Next page"
-        className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+        className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         Next <ChevronRight size={15} />
       </button>

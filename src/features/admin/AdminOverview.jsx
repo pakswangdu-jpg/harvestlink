@@ -29,7 +29,7 @@ function ReviewQueueBanner({ count, label, to }) {
   return (
     <Link
       to={to}
-      className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--amber-100)] px-4 py-3 text-[13px] text-[var(--text)] transition-colors duration-150 hover:bg-[#FFF3AD]"
+      className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--amber-100)] px-4 py-3 text-[13px] text-[var(--text)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--amber-700)_15%,var(--amber-100))]"
     >
       <span className="flex items-center gap-2 font-medium">
         <BadgeAlert size={16} className="text-[var(--amber-700)]" />

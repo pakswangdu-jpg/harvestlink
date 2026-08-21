@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import { loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { isRecentlyActive } from '../../utils/formatters';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -63,6 +64,7 @@ export default function FarmerMap({
   const fittedSignatureRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const { effectiveTheme } = useTheme();
   const farmerCoordsById = useMapCoordinates(farmers);
   const buyerCoordsById = useMapCoordinates(buyers);
   const stakeholderCoordsById = useMapCoordinates(stakeholders);
@@ -95,6 +97,7 @@ export default function FarmerMap({
         zoomControl: true,
         gestureHandling: 'greedy',
         clickableIcons: false,
+        styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [],
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
@@ -104,7 +107,19 @@ export default function FarmerMap({
     return () => {
       cancelled = true;
     };
+    // Deliberately mount-once — effectiveTheme is read for the map's initial styling only;
+    // a later theme switch is handled by the dedicated effect below instead of recreating
+    // the whole map (and its markers) from scratch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-styles the already-created map in place when the theme changes (e.g. the user flips
+  // light/dark while this page is open) — Google's base tiles have no swappable "dark tile
+  // URL" the way a Leaflet map would, so a `styles` array is the Maps-JS-native equivalent.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
+  }, [effectiveTheme, mapReady]);
 
   // The container's real size is only final after the CSS grid layout settles, which can
   // happen after Google's own initial measurement (and again on the fullscreen toggle)

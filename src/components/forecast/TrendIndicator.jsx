@@ -1,9 +1,9 @@
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
 
 const TREND_STYLES = {
-  increasing: { icon: TrendingUp, bg: 'bg-green-50', text: 'text-green-700', label: 'Increasing' },
-  stable: { icon: Minus, bg: 'bg-amber-50', text: 'text-amber-700', label: 'Stable' },
-  decreasing: { icon: TrendingDown, bg: 'bg-red-50', text: 'text-red-700', label: 'Decreasing' },
+  increasing: { icon: TrendingUp, bg: 'bg-[var(--green-50)]', text: 'text-[var(--green-700)]', label: 'Increasing' },
+  stable: { icon: Minus, bg: 'bg-[var(--amber-100)]', text: 'text-[var(--amber-700)]', label: 'Stable' },
+  decreasing: { icon: TrendingDown, bg: 'bg-[var(--red-100)]', text: 'text-[var(--red-700)]', label: 'Decreasing' },
 };
 
 // Green = increasing, Yellow = stable, Red = decreasing — the one color rule this whole

@@ -27,7 +27,7 @@ export default function Modal({ open, onClose, eyebrow, title, children }) {
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--line)] bg-white"
+            className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--line)] bg-[var(--surface-elevated)]"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}

@@ -11,26 +11,26 @@ const ALL_TIME = 'all';
 // pulls from a different status vocabulary (order vs. donation lifecycle). Muted rather than
 // saturated — distinct enough to read, not a rainbow.
 const STATUS_COLORS = {
-  completed: '#1A7F37',
-  pending: '#9A6700',
-  confirmed: '#57606A',
-  cancelled: '#CF222E',
-  rejected: '#CF222E',
-  available: '#57606A',
-  requested: '#9A6700',
-  scheduled: '#57606A',
-  farmer: '#166534',
-  buyer: '#57606A',
-  stakeholder: '#9A6700',
-  admin: '#24292F',
+  completed: 'var(--green-700)',
+  pending: 'var(--amber-700)',
+  confirmed: 'var(--muted)',
+  cancelled: 'var(--red-700)',
+  rejected: 'var(--red-700)',
+  available: 'var(--muted)',
+  requested: 'var(--amber-700)',
+  scheduled: 'var(--muted)',
+  farmer: 'var(--green-800)',
+  buyer: 'var(--muted)',
+  stakeholder: 'var(--amber-700)',
+  admin: 'var(--text)',
 };
-const DEFAULT_COLOR = '#57606A';
+const DEFAULT_COLOR = 'var(--muted)';
 
 function AxisTick({ x, y, payload }) {
   const words = String(payload.value).split(' ');
   return (
     <g transform={`translate(${x},${y})`}>
-      <text textAnchor="middle" fontSize={12} fill="#57606A">
+      <text textAnchor="middle" fontSize={12} fill="var(--muted)">
         {words.map((word) => (
           <tspan key={word} x={0} dy={14}>{word}</tspan>
         ))}
@@ -43,9 +43,9 @@ function ChartTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (
-    <div className="rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[12px] shadow-sm">
-      <p className="font-medium text-[#24292F]">{entry.label}</p>
-      <p className="text-[#57606A]">{entry.count} {entry.count === 1 ? 'entry' : 'entries'}</p>
+    <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] shadow-sm">
+      <p className="font-medium text-[var(--text)]">{entry.label}</p>
+      <p className="text-[var(--muted)]">{entry.count} {entry.count === 1 ? 'entry' : 'entries'}</p>
     </div>
   );
 }
@@ -112,16 +112,16 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
               onMouseMove={(state) => setActiveIndex(state?.isTooltipActive ? state.activeTooltipIndex : null)}
               onMouseLeave={() => setActiveIndex(null)}
             >
-              <CartesianGrid vertical={false} stroke="#EAEEF2" />
+              <CartesianGrid vertical={false} stroke="var(--line)" />
               <XAxis
                 dataKey="label"
-                axisLine={{ stroke: '#D0D7DE' }}
+                axisLine={{ stroke: 'var(--line)' }}
                 tickLine={false}
                 interval={0}
                 height={36}
                 tick={<AxisTick />}
               />
-              <Tooltip cursor={{ fill: '#F6F8FA' }} content={<ChartTooltip />} />
+              <Tooltip cursor={{ fill: 'var(--soft)' }} content={<ChartTooltip />} />
               <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={40} animationDuration={300} animationEasing="ease-out">
                 {data.map((entry, index) => (
                   <Cell
@@ -131,7 +131,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
                     style={{ transition: 'opacity 0.15s ease' }}
                   />
                 ))}
-                <LabelList dataKey="count" position="top" style={{ fontSize: 12, fontWeight: 600, fill: '#24292F' }} />
+                <LabelList dataKey="count" position="top" style={{ fontSize: 12, fontWeight: 600, fill: 'var(--text)' }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

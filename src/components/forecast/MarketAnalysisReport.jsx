@@ -10,8 +10,8 @@ import {
   cropActionRecommendation, formatCurrency, formatDate, formatRelativeTime, harvestActionLabel, sellWindowLabel,
 } from '../../utils/formatters';
 
-const SECTION_CLASS = 'rounded-2xl border border-gray-200 bg-white p-6';
-const SECTION_TITLE_CLASS = 'text-[20px] font-semibold leading-tight text-gray-900';
+const SECTION_CLASS = 'rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-6';
+const SECTION_TITLE_CLASS = 'text-[20px] font-semibold leading-tight text-[var(--text)]';
 
 const fadeIn = {
   initial: { opacity: 0, y: 8 },
@@ -97,37 +97,37 @@ function buildRecommendationDetails(forecast) {
 }
 
 const TREND_META = {
-  increasing: { label: 'Bullish', icon: TrendingUp, tone: 'text-green-700' },
-  decreasing: { label: 'Bearish', icon: TrendingDown, tone: 'text-red-700' },
-  stable: { label: 'Steady', icon: Minus, tone: 'text-gray-900' },
+  increasing: { label: 'Bullish', icon: TrendingUp, tone: 'text-[var(--green-700)]' },
+  decreasing: { label: 'Bearish', icon: TrendingDown, tone: 'text-[var(--red-700)]' },
+  stable: { label: 'Steady', icon: Minus, tone: 'text-[var(--text)]' },
 };
 const DEMAND_NOTE = {
   'Very High': 'Well above typical demand', High: 'Higher than seasonal average', Moderate: 'In line with seasonal average', Low: 'Below seasonal average',
 };
 const SUPPLY_NOTE = { High: 'Ample active listings', Moderate: 'Adequate harvest availability', Low: 'Limited harvest availability' };
 const RISK_NOTE = { Low: 'Stable conditions', Medium: 'Moderate price swings expected', High: 'Significant price swings possible' };
-const RISK_TONE = { Low: 'text-green-700', Medium: 'text-amber-700', High: 'text-red-700' };
+const RISK_TONE = { Low: 'text-[var(--green-700)]', Medium: 'text-[var(--amber-700)]', High: 'text-[var(--red-700)]' };
 
 function MetricTile({
-  icon: Icon, label, value, tone = 'text-gray-900', supporting,
+  icon: Icon, label, value, tone = 'text-[var(--text)]', supporting,
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 text-gray-400">
+      <div className="flex items-center gap-1.5 text-[var(--muted)]">
         <Icon size={14} strokeWidth={2} />
-        <span className="text-[13px] font-medium text-gray-500">{label}</span>
+        <span className="text-[13px] font-medium text-[var(--muted)]">{label}</span>
       </div>
       <p className={`text-2xl font-bold leading-none ${tone}`}>{value}</p>
-      {supporting ? <p className="text-[13px] text-gray-500">{supporting}</p> : null}
+      {supporting ? <p className="text-[13px] text-[var(--muted)]">{supporting}</p> : null}
     </div>
   );
 }
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-100 py-2 text-[15px] last:border-b-0">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-900">{value}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] py-2 text-[15px] last:border-b-0">
+      <span className="text-[var(--muted)]">{label}</span>
+      <span className="font-medium text-[var(--text)]">{value}</span>
     </div>
   );
 }
@@ -138,7 +138,7 @@ function InfoRow({ label, value }) {
 // dishonest the same way a fabricated number would be.
 function GeminiBadge() {
   return (
-    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-gray-400">
+    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--muted)]">
       <Sparkles size={12} /> Powered by Gemini
     </span>
   );
@@ -175,20 +175,20 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
               <Bot size={16} strokeWidth={2} />
             </span>
             <div>
               <p className={SECTION_TITLE_CLASS}>AI Market Analysis</p>
-              <p className="mt-0.5 text-[15px] text-gray-500">{crop} · {municipality || 'All Municipalities'}</p>
+              <p className="mt-0.5 text-[15px] text-[var(--muted)]">{crop} · {municipality || 'All Municipalities'}</p>
             </div>
           </div>
-          <span className="text-[13px] font-medium text-gray-400">Forecast generated today</span>
+          <span className="text-[13px] font-medium text-[var(--muted)]">Forecast generated today</span>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4">
+        <div className="mt-4 flex flex-col gap-2 border-t border-[var(--line)] pt-4">
           {summaryLines.map((line) => (
-            <p key={line} className="text-[15px] leading-relaxed text-gray-700">{line}</p>
+            <p key={line} className="text-[15px] leading-relaxed text-[var(--text-secondary)]">{line}</p>
           ))}
         </div>
         {aiSummary ? <div className="mt-3"><GeminiBadge /></div> : null}
@@ -205,7 +205,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             icon={Activity}
             label="Risk"
             value={riskLevel}
-            tone={RISK_TONE[riskLevel] || 'text-gray-900'}
+            tone={RISK_TONE[riskLevel] || 'text-[var(--text)]'}
             supporting={`${RISK_NOTE[riskLevel] || ''}${priceVolatilityPercent != null ? ` (${priceVolatilityPercent}% volatility)` : ''}`}
           />
         </div>
@@ -227,7 +227,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
                 type="button"
                 onClick={() => setChartTab(option.value)}
                 className={`h-7 rounded-md border-0 px-3 text-[13px] font-medium forced-color-adjust-none transition-colors duration-150 ${
-                  chartTab === option.value ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  chartTab === option.value ? 'bg-[var(--soft)] text-[var(--text)]' : 'text-[var(--muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 {option.label}
@@ -244,7 +244,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             icon={TrendingUp}
             label="Predicted Change"
             value={changeLabel}
-            tone={expectedChangePercent > 0 ? 'text-green-700' : expectedChangePercent < 0 ? 'text-red-700' : 'text-gray-900'}
+            tone={expectedChangePercent > 0 ? 'text-[var(--green-700)]' : expectedChangePercent < 0 ? 'text-[var(--red-700)]' : 'text-[var(--text)]'}
           />
         </div>
 
@@ -263,7 +263,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
       {/* AI Recommendation */}
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex items-start gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
             <Lightbulb size={16} strokeWidth={2} />
           </span>
           <p className={SECTION_TITLE_CLASS}>Recommended Action</p>
@@ -271,7 +271,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
 
         <div className="mt-4 flex flex-wrap gap-2">
           {chips.map((chip) => (
-            <span key={chip} className="rounded-full border border-gray-200 px-3 py-1 text-[13px] font-medium text-gray-700">
+            <span key={chip} className="rounded-full border border-[var(--line)] px-3 py-1 text-[13px] font-medium text-[var(--text-secondary)]">
               {chip}
             </span>
           ))}
@@ -279,27 +279,27 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
 
         {aiRecommendation ? (
           <div className="mt-4">
-            <p className="text-[15px] leading-relaxed text-gray-700">{aiRecommendation}</p>
+            <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">{aiRecommendation}</p>
             <div className="mt-1.5"><GeminiBadge /></div>
           </div>
         ) : null}
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-gray-400">What to do</p>
-            <p className="mt-1 text-[15px] leading-relaxed text-gray-700">{recDetails.what}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">What to do</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-[var(--text-secondary)]">{recDetails.what}</p>
           </div>
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-gray-400">Why</p>
-            <p className="mt-1 text-[15px] leading-relaxed text-gray-700">{recDetails.why}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">Why</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-[var(--text-secondary)]">{recDetails.why}</p>
           </div>
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-gray-400">Expected Benefit</p>
-            <p className="mt-1 text-[15px] leading-relaxed text-gray-700">{recDetails.benefit}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">Expected Benefit</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-[var(--text-secondary)]">{recDetails.benefit}</p>
           </div>
           <div>
-            <p className="text-[13px] font-semibold uppercase tracking-wide text-gray-400">When to Sell</p>
-            <p className="mt-1 text-[15px] leading-relaxed text-gray-700">{recDetails.when}</p>
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">When to Sell</p>
+            <p className="mt-1 text-[15px] leading-relaxed text-[var(--text-secondary)]">{recDetails.when}</p>
           </div>
         </div>
       </motion.section>
@@ -309,7 +309,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         <p className={SECTION_TITLE_CLASS}>Supporting Information</p>
         <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div>
-            <p className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-gray-400">
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">
               <ClipboardList size={13} /> Prediction Factors
             </p>
             <div className="mt-2">
@@ -321,7 +321,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             </div>
           </div>
           <div>
-            <p className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-gray-400">
+            <p className="flex items-center gap-1.5 text-[13px] font-semibold uppercase tracking-wide text-[var(--muted)]">
               <Gauge size={13} /> Forecast Details
             </p>
             <div className="mt-2">

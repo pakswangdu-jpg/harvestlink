@@ -33,12 +33,15 @@ export default function StatCard({
 
   const cardStyle = hasIcon
     ? {
-      // Same two source tokens (base/accent) mixed at two ratios — a soft, mostly-white fill
-      // for the card, and a slightly more saturated version of the same hue for its border —
-      // rather than a flat neutral border that would make four different-colored cards look
-      // like they don't belong to the same set.
-      background: `color-mix(in srgb, ${base} 40%, white)`,
-      borderColor: `color-mix(in srgb, ${accent} 28%, white)`,
+      // Same two source tokens (base/accent) mixed at two ratios — a soft, mostly-panel-color
+      // fill for the card, and a slightly more saturated version of the same hue for its
+      // border — rather than a flat neutral border that would make four different-colored
+      // cards look like they don't belong to the same set. Mixed toward --panel, not a literal
+      // white, so this stays correct in Dark Mode too: --panel is white in Light Mode (same
+      // result as before) and a dark surface in Dark Mode (a dark tinted card, not a stray
+      // light pastel one).
+      background: `color-mix(in srgb, ${base} 40%, var(--panel))`,
+      borderColor: `color-mix(in srgb, ${accent} 28%, var(--panel))`,
     }
     : undefined;
 
@@ -47,7 +50,7 @@ export default function StatCard({
     // its row partner (a label that wraps to two lines) on some widths instead of both filling
     // the grid row's full height, since a grid item only stretches by default as long as
     // nothing inside overrides its own height; asserting it here removes that ambiguity.
-    <div className="h-full rounded-lg border border-[var(--line)] bg-white p-4" style={cardStyle}>
+    <div className="h-full rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4" style={cardStyle}>
       <div className="flex items-center gap-3">
         {hasIcon ? (
           // No background of its own — sits directly on the card's tint (the PNGs are true

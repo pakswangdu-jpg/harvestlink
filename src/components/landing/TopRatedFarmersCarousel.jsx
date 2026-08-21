@@ -112,7 +112,7 @@ export default function TopRatedFarmersCarousel() {
   const entranceAnimate = !prefersReducedMotion && hasEnteredView ? { opacity: 1, y: 0 } : undefined;
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#F8FAFC] py-16">
+    <section ref={sectionRef} className="w-full bg-[var(--soft)] py-16">
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-10">
         <motion.div
           initial={entranceInitial}
@@ -120,15 +120,15 @@ export default function TopRatedFarmersCarousel() {
           transition={{ duration: 0.7, ease: 'easeOut' }}
           className="mx-auto mb-10 max-w-2xl text-center"
         >
-          <p className="text-xs font-bold uppercase tracking-wider text-green-700">Trusted by Buyers</p>
-          <h2 className="mt-2 text-[1.75rem] font-extrabold tracking-tight text-gray-900 sm:text-3xl">Top-rated Farmers</h2>
-          <p className="mt-3 text-[15px] leading-6 text-gray-500">
+          <p className="text-xs font-bold uppercase tracking-wider text-[var(--green-700)]">Trusted by Buyers</p>
+          <h2 className="mt-2 text-[1.75rem] font-extrabold tracking-tight text-[var(--text)] sm:text-3xl">Top-rated Farmers</h2>
+          <p className="mt-3 text-[15px] leading-6 text-[var(--muted)]">
             Meet our highest-rated verified farmers who consistently provide quality agricultural products.
           </p>
         </motion.div>
 
         {isEmpty ? (
-          <p className="py-10 text-center text-sm font-medium text-gray-500">No top-rated farmers available yet.</p>
+          <p className="py-10 text-center text-sm font-medium text-[var(--muted)]">No top-rated farmers available yet.</p>
         ) : (
           <div
             className="relative"

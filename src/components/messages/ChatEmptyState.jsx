@@ -10,12 +10,12 @@ export function StartConversationState({ name }) {
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 16 }}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--green-50)] text-[var(--green-700)]"
       >
         <MessageCircle size={28} strokeWidth={1.5} />
       </motion.span>
-      <h3 className="text-[16px] font-bold text-gray-900">Start your conversation</h3>
-      <p className="max-w-xs text-[13px] text-gray-500">
+      <h3 className="text-[16px] font-bold text-[var(--text)]">Start your conversation</h3>
+      <p className="max-w-xs text-[13px] text-[var(--muted)]">
         {name ? `Ask ${name} about availability, delivery, or pricing.` : 'Ask about availability, delivery, or pricing.'}
       </p>
     </div>
@@ -26,11 +26,11 @@ export function StartConversationState({ name }) {
 export function NoConversationSelectedState() {
   return (
     <div className="hidden flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:flex">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-50 text-gray-300">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--muted)]">
         <MessagesSquare size={28} strokeWidth={1.5} />
       </span>
-      <h3 className="text-[16px] font-bold text-gray-700">Your messages</h3>
-      <p className="max-w-xs text-[13px] text-gray-400">Select a conversation to start chatting.</p>
+      <h3 className="text-[16px] font-bold text-[var(--text-secondary)]">Your messages</h3>
+      <p className="max-w-xs text-[13px] text-[var(--muted)]">Select a conversation to start chatting.</p>
     </div>
   );
 }

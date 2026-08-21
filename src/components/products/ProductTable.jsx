@@ -1,41 +1,30 @@
-import { Archive, ArchiveRestore, Copy, Edit3, Eye, Gift, Package, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Copy, Eye, Gift, Package, Trash2 } from 'lucide-react';
 import DataTable from '../dashboard/DataTable';
-import StatusBadge from '../common/StatusBadge';
+import Button from '../common/Button';
 import ActionMenu from './ActionMenu';
+import ZoomableImage from '../common/ZoomableImage';
 import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
-import { isLowStock } from '../../utils/constants';
+import { getProductStatusInfo } from '../../utils/constants';
 
 export default function ProductTable({ products, onView, onEdit, onDuplicate, onArchive, onDonate, onDelete }) {
   const columns = [
     {
-      key: 'image',
-      label: 'Image',
+      key: 'name',
+      label: 'Product',
       render: (product) => (
-        <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-gray-50">
-          {product.image ? <img src={product.image} alt={product.name} className="h-full w-full object-cover" /> : <Package size={18} className="text-gray-300" />}
+        <div className="flex items-center gap-3">
+          <div className="product-row-thumb">
+            {product.image ? (
+              <ZoomableImage src={product.image} alt={product.name} fallbackMessage="Image unavailable" />
+            ) : (
+              <Package size={16} className="text-[var(--text-faint)]" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <strong className="block truncate">{titleCase(product.name)}</strong>
+            <span className="muted text-[12.5px]">Grade {product.grade || 'A'} · per {product.unit}</span>
+          </div>
         </div>
-      ),
-    },
-    { key: 'name', label: 'Product', render: (product) => <strong>{titleCase(product.name)}</strong> },
-    { key: 'category', label: 'Category', render: (product) => <span className="category-pill">{product.category}</span> },
-    {
-      key: 'grade',
-      label: 'Grade',
-      render: (product) => <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>,
-    },
-    { key: 'unit', label: 'Unit' },
-    {
-      key: 'quantity',
-      label: 'Available Qty',
-      render: (product) => (
-        <span className="stacked-badges">
-          <span>{product.quantity}</span>
-          {Number(product.quantity) <= 0 ? (
-            <span className="badge badge-out-of-stock">Out of stock</span>
-          ) : isLowStock(product.quantity) ? (
-            <span className="badge badge-low-stock">Low stock</span>
-          ) : null}
-        </span>
       ),
     },
     {
@@ -44,48 +33,87 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
       render: (product) => (
         <span>
           {product.discountPercent ? <span className="muted price-original">{formatCurrency(product.originalPrice)}</span> : null}
-          <strong>{formatCurrency(product.price)}</strong>
+          <strong>{formatCurrency(product.price)}</strong>/{product.unit}
         </span>
       ),
     },
     {
-      key: 'sellingType',
-      label: 'Sales Type',
-      render: (product) => (
-        <span className={`badge ${product.sellingType === 'wholesale' ? 'badge-wholesale' : 'badge-active'}`}>
-          {product.sellingType === 'wholesale' ? 'Wholesale' : 'Retail'}
-        </span>
-      ),
+      key: 'quantity',
+      label: 'Stock',
+      render: (product) => <span>{product.quantity} {product.unit}</span>,
     },
-    { key: 'status', label: 'Status', render: (product) => <StatusBadge value={product.status} /> },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (product) => {
+        const { value, label } = getProductStatusInfo(product);
+        return <span className={`badge badge-${value}`}>{label}</span>;
+      },
+    },
     { key: 'updatedAt', label: 'Updated', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'Action',
       render: (product) => (
-        <ActionMenu
-          items={[
-            { label: 'View', icon: Eye, onClick: () => onView(product) },
-            { label: 'Edit', icon: Edit3, onClick: () => onEdit(product) },
-            { label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(product) },
-            {
-              label: 'Donate remaining stock',
-              icon: Gift,
-              onClick: () => onDonate(product),
-              hidden: Number(product.quantity) <= 0,
-            },
-            {
-              label: product.status === 'active' ? 'Archive' : 'Unarchive',
-              icon: product.status === 'active' ? Archive : ArchiveRestore,
-              onClick: () => onArchive(product),
-              dividerBefore: true,
-            },
-            { label: 'Delete', icon: Trash2, onClick: () => onDelete(product), danger: true },
-          ]}
-        />
+        <div className="table-actions">
+          <Button size="sm" variant="secondary" onClick={() => onEdit(product)}>Edit</Button>
+          <ActionMenu
+            items={[
+              { label: 'View', icon: Eye, onClick: () => onView(product) },
+              { label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(product) },
+              {
+                label: 'Donate remaining stock',
+                icon: Gift,
+                onClick: () => onDonate(product),
+                hidden: Number(product.quantity) <= 0,
+              },
+              {
+                label: product.status === 'active' ? 'Deactivate Listing' : 'Reactivate Listing',
+                icon: product.status === 'active' ? Archive : ArchiveRestore,
+                onClick: () => onArchive(product),
+                dividerBefore: true,
+              },
+              { label: 'Delete Product', icon: Trash2, onClick: () => onDelete(product), danger: true },
+            ]}
+          />
+        </div>
       ),
     },
   ];
 
   return <DataTable columns={columns} rows={products} emptyMessage="No matching products." />;
+}
+
+const SKELETON_WIDTHS = ['70%', '45%', '35%', '55%', '50%', '40%'];
+
+// Column-shaped loading rows — a farmer opening this page mid-fetch should see "this is still
+// loading," not a flash of "No products yet" (see FarmerProducts.jsx's isLoading branch).
+export function ProductTableSkeleton({ rows = 4 }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Updated</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rows }, (_, rowIndex) => (
+            <tr key={`skeleton-row-${rowIndex}`} className="product-skeleton-row">
+              {SKELETON_WIDTHS.map((width, columnIndex) => (
+                <td key={`skeleton-cell-${columnIndex}`}>
+                  <div className="product-skeleton-block" style={{ width }} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

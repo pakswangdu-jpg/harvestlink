@@ -27,7 +27,7 @@ export default function ProductDrawer({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 bg-gray-900/40"
+          className="fixed inset-0 z-50 bg-black/40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -35,20 +35,20 @@ export default function ProductDrawer({
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-white shadow-2xl"
+            className="absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-[var(--surface-elevated)] shadow-2xl"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-8 py-6">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-8 py-6">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-widest text-emerald-700">
+                <p className="text-[12px] font-semibold uppercase tracking-widest text-[var(--green-700)]">
                   {product ? 'Edit listing' : 'New listing'}
                 </p>
-                <h2 className="mt-1 text-[28px] font-semibold leading-tight text-gray-900">{product ? 'Edit product' : 'Add Product'}</h2>
-                <p className="mt-1.5 text-[13px] text-gray-500">
+                <h2 className="mt-1 text-[28px] font-semibold leading-tight text-[var(--text)]">{product ? 'Edit product' : 'Add Product'}</h2>
+                <p className="mt-1.5 text-[13px] text-[var(--muted)]">
                   {product
                     ? 'Update the information below to save your changes.'
                     : 'Fill in the information below to publish your product listing.'}
@@ -58,7 +58,7 @@ export default function ProductDrawer({
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-gray-400 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-700"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--muted)] transition-colors duration-200 hover:bg-[var(--soft)] hover:text-[var(--text)]"
               >
                 <X size={20} strokeWidth={2} />
               </button>
@@ -78,7 +78,7 @@ export default function ProductDrawer({
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 border-t border-gray-100 px-8 py-5">
+            <div className="flex items-center justify-end gap-2.5 border-t border-[var(--line)] px-8 py-5">
               <Button variant="secondary" onClick={onClose}>Cancel</Button>
               <Button type="submit" form={FORM_ID} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving…' : 'Save Product'}

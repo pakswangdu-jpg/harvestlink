@@ -22,7 +22,7 @@ import { adminNavItems } from './adminNav';
 
 function InfoField({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-white p-3">
+    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
       <Icon size={16} className="mt-0.5 shrink-0 text-[var(--muted)]" />
       <div className="min-w-0">
         <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
@@ -55,7 +55,7 @@ function DeliveryDetail({ order, delivery }) {
           href={delivery.trackingUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[var(--green-800)] px-3 py-2 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-[#14532d]"
+          className="inline-flex w-fit items-center gap-1.5 rounded-md bg-[var(--green-800)] px-3 py-2 text-[13px] font-semibold text-white transition-colors duration-150 hover:bg-[var(--green-700)]"
         >
           <ExternalLink size={14} /> Open tracking page
         </a>

@@ -12,7 +12,7 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[12px] shadow-sm">
+    <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] shadow-sm">
       <p className="font-medium text-[var(--text)]">{label}</p>
       <p className="text-[var(--muted)]">
         {formatCurrency(point.price)}/kg {point.isOverride ? '(admin override)' : '(PSA)'}
@@ -25,7 +25,7 @@ function HistoryChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div className="rounded-md border border-[var(--line)] bg-white px-3 py-2 text-[12px] shadow-sm">
+    <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] shadow-sm">
       <p className="font-medium text-[var(--text)]">{label}</p>
       <p className="text-[var(--muted)]">
         {point.price == null ? 'Reset to PSA' : `${formatCurrency(point.price)}/kg`}
@@ -52,7 +52,7 @@ function PriceHistoryChart({ history }) {
     <div style={{ height: 140 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="#EAEEF2" />
+          <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={{ stroke: 'var(--line)' }} tickLine={false} />
           <YAxis
             tick={{ fontSize: 11, fill: 'var(--muted)' }}
@@ -89,7 +89,7 @@ function PriceTrendChart({ points }) {
     <div style={{ height: 160 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="#EAEEF2" />
+          <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={{ stroke: 'var(--line)' }} tickLine={false} />
           <YAxis
             tick={{ fontSize: 11, fill: 'var(--muted)' }}
@@ -138,12 +138,12 @@ export default function CommodityDetailPanel({ row }) {
         <StatCard label="Lowest Price" value={row.lowFarmerPrice == null ? '—' : `${formatCurrency(row.lowFarmerPrice)}/kg`} />
       </div>
 
-      <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
         <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price trend (last 5 years)</p>
         <PriceTrendChart points={row.trendPoints} />
       </div>
 
-      <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
         <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price history</p>
         {history === null ? (
           <LoadingState rows={2} />

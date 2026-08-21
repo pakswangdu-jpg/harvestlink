@@ -5,6 +5,21 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HarvestLink</title>
+    <!-- Applies the saved theme before first paint — mirrors ThemeContext.jsx's own
+         resolution logic exactly. Without this, a farmer who chose Dark would see a flash
+         of the light theme on every load, between this HTML rendering and React mounting. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('harvestlink:theme') || 'system';
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = saved === 'system' ? (prefersDark ? 'dark' : 'light') : saved;
+          document.documentElement.setAttribute('data-theme', effective);
+        } catch (e) {
+          // Storage/matchMedia unavailable — falls back to the CSS default (light).
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

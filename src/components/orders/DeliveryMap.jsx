@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
-import { loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { getMunicipalityCoords } from '../../utils/constants';
 import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -137,6 +138,7 @@ export default function DeliveryMap({
   const pendingLiveFetchRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const { effectiveTheme } = useTheme();
   const [roadGeometries, setRoadGeometries] = useState({});
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
   const farmerCoordsById = useMapCoordinates(farmers);
@@ -184,6 +186,7 @@ export default function DeliveryMap({
         zoomControl: true,
         gestureHandling: 'greedy',
         clickableIcons: false,
+        styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [],
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
@@ -193,7 +196,19 @@ export default function DeliveryMap({
     return () => {
       cancelled = true;
     };
+    // Deliberately mount-once — effectiveTheme is read for the map's initial styling only;
+    // a later theme switch is handled by the dedicated effect below instead of recreating
+    // the whole map (and every route/marker layer) from scratch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-styles the already-created map in place when the theme changes — Google's base tiles
+  // have no swappable "dark tile URL" the way a Leaflet map would, so a `styles` array is the
+  // Maps-JS-native equivalent.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
+  }, [effectiveTheme, mapReady]);
 
   // The container's real size is only final after the CSS grid layout settles, which can
   // happen after Google's own initial measurement (and again on the fullscreen toggle) —

@@ -13,13 +13,14 @@ import {
   WifiOff,
   X,
 } from 'lucide-react';
-import { loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { distanceToPolylineKm } from '../../services/routingService';
 import { fetchGoogleRoute } from '../../services/googleDirectionsService';
 import { advanceDelivery, getLiveTransitProgress, getNextDeliveryStatus } from '../../services/orderService';
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { useSocketLocationSharing } from '../../hooks/useSocketLocationSharing';
+import { useTheme } from '../../contexts/ThemeContext';
 import { formatRelativeTime } from '../../utils/formatters';
 import Button from '../common/Button';
 
@@ -58,12 +59,16 @@ function getTimelineStageIndex(order, isInTransit, isNearDestination) {
   return 0;
 }
 
+// Backgrounds/foregrounds reference the app's own badge-color tokens (see globals.css's
+// :root / .app-shell dark-mode blocks) instead of hardcoded hex, so these pills re-theme for
+// dark mode along with every other pastel status badge in the app instead of staying stuck
+// on light-mode-only pastels.
 const STATUS_BADGE_STYLES = {
-  confirmed: { bg: '#dbeafe', fg: '#1d4ed8', label: 'Confirmed' },
-  preparing: { bg: '#fef3c7', fg: '#92400e', label: 'Farmer Preparing' },
-  'on-the-way': { bg: '#ffedd5', fg: '#c2410c', label: 'On the Way' },
-  'near-destination': { bg: '#f3e8ff', fg: '#7e22ce', label: 'Near Destination' },
-  delivered: { bg: '#dcfce7', fg: '#166534', label: 'Delivered' },
+  confirmed: { bg: 'var(--blue-100)', fg: 'var(--blue-700)', label: 'Confirmed' },
+  preparing: { bg: 'var(--amber-100)', fg: 'var(--amber-700)', label: 'Farmer Preparing' },
+  'on-the-way': { bg: 'var(--orange-100)', fg: 'var(--orange-700)', label: 'On the Way' },
+  'near-destination': { bg: 'var(--violet-100)', fg: 'var(--violet-700)', label: 'Near Destination' },
+  delivered: { bg: 'var(--green-100)', fg: 'var(--green-800)', label: 'Delivered' },
 };
 
 function buildPinIcon(mapsApi, color) {
@@ -115,6 +120,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const [googleRoute, setGoogleRoute] = useState(null);
   const [actionError, setActionError] = useState('');
   const [farmerMarkedComplete, setFarmerMarkedComplete] = useState(false);
+  const { effectiveTheme } = useTheme();
 
   const { livePosition, connectionStatus } = useOrderTrackingSocket(order.id);
   const { isSharing, error: shareError, start: startSharing, stop: stopSharing } = useSocketLocationSharing(order.id);
@@ -183,6 +189,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: 'greedy',
+        styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [],
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
@@ -193,6 +200,14 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-styles the already-created map in place when the theme changes — Google's base tiles
+  // have no swappable "dark tile URL" the way a Leaflet map would, so a `styles` array is the
+  // Maps-JS-native equivalent.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
+  }, [effectiveTheme, mapReady]);
 
   // Fetches (and throttles refetching) the actual Google driving route once a live position
   // exists — see the ROUTE_REFRESH_* constants above for the cost-control reasoning.

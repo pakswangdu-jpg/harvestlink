@@ -80,7 +80,7 @@ export default function MessageInput({
 
   return (
     <div
-      className="relative border-t border-gray-100 bg-white px-4 py-3"
+      className="relative border-t border-[var(--line)] bg-[var(--panel)] px-4 py-3"
       onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
@@ -91,7 +91,7 @@ export default function MessageInput({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-emerald-50/95 text-[14px] font-semibold text-emerald-700"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--green-100)]/95 text-[14px] font-semibold text-[var(--green-700)]"
           >
             Drop an image or file to attach
           </motion.div>
@@ -104,15 +104,15 @@ export default function MessageInput({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mb-2 flex items-center justify-between gap-2 overflow-hidden rounded-lg bg-gray-50 px-3 py-1.5"
+            className="mb-2 flex items-center justify-between gap-2 overflow-hidden rounded-lg bg-[var(--soft)] px-3 py-1.5"
           >
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-emerald-700">Replying to {replyingTo.senderName}</p>
-              <p className="truncate text-[12px] text-gray-500">
+              <p className="text-[11px] font-semibold text-[var(--green-700)]">Replying to {replyingTo.senderName}</p>
+              <p className="truncate text-[12px] text-[var(--muted)]">
                 {replyingTo.messageType === 'text' ? replyingTo.text : `📎 ${replyingTo.messageType}`}
               </p>
             </div>
-            <button type="button" onClick={onCancelReply} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+            <button type="button" onClick={onCancelReply} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--text)]">
               <X size={15} />
             </button>
           </motion.div>
@@ -123,29 +123,29 @@ export default function MessageInput({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mb-2 flex items-center gap-2 overflow-hidden rounded-lg bg-gray-50 px-3 py-2"
+            className="mb-2 flex items-center gap-2 overflow-hidden rounded-lg bg-[var(--soft)] px-3 py-2"
           >
             {pendingPreviewUrl ? (
               <img src={pendingPreviewUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
             ) : (
-              <Paperclip size={16} className="text-gray-400" />
+              <Paperclip size={16} className="text-[var(--muted)]" />
             )}
-            <span className="min-w-0 flex-1 truncate text-[12px] text-gray-600">{pendingFile.name}</span>
-            <button type="button" onClick={clearPendingFile} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+            <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--text)]">{pendingFile.name}</span>
+            <button type="button" onClick={clearPendingFile} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[var(--line)] hover:text-[var(--text)]">
               <X size={15} />
             </button>
           </motion.div>
         ) : null}
       </AnimatePresence>
 
-      {error ? <p className="mb-2 text-[12px] text-red-600">{error}</p> : null}
+      {error ? <p className="mb-2 text-[12px] text-[var(--red-700)]">{error}</p> : null}
 
       <div className="flex items-end gap-2">
         <div className="relative">
           <button
             type="button"
             onClick={() => setShowEmoji((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-emerald-700"
+            className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)]"
           >
             <Smile size={19} />
           </button>
@@ -165,7 +165,7 @@ export default function MessageInput({
         <button
           type="button"
           onClick={() => imageInputRef.current?.click()}
-          className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-emerald-700"
+          className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)]"
         >
           <ImageIcon size={19} />
         </button>
@@ -174,13 +174,13 @@ export default function MessageInput({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-emerald-700"
+          className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)]"
         >
           <Paperclip size={19} />
         </button>
         <input ref={fileInputRef} type="file" hidden onChange={(event) => pickFile(event.target.files?.[0])} />
 
-        <div className="flex-1 rounded-2xl bg-gray-100 px-4 py-2">
+        <div className="flex-1 rounded-2xl bg-[var(--soft)] px-4 py-2">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -189,7 +189,7 @@ export default function MessageInput({
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             disabled={disabled}
-            className="max-h-28 w-full resize-none bg-transparent text-[14px] text-gray-800 placeholder:text-gray-400 focus:outline-none"
+            className="max-h-28 w-full resize-none bg-transparent text-[14px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none"
             style={{ minHeight: '22px' }}
           />
         </div>
@@ -198,7 +198,7 @@ export default function MessageInput({
           type="button"
           disabled
           title="Voice messages are coming soon"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-300"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)]"
         >
           <Mic size={19} />
         </button>
@@ -207,7 +207,7 @@ export default function MessageInput({
           type="button"
           onClick={handleSend}
           disabled={!canSend}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-[#166534] p-0 text-white shadow-sm transition-all duration-150 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--green-800)] p-0 text-white shadow-sm transition-all duration-150 hover:bg-[var(--green-700)] disabled:cursor-not-allowed disabled:bg-[var(--line)] disabled:text-[var(--muted)]"
         >
           {isSending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
         </button>

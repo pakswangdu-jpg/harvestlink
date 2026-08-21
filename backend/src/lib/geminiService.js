@@ -9,6 +9,12 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // guaranteed failure.
 const RETRYABLE_STATUS_CODES = new Set([429, 503]);
 const RETRY_DELAY_MS = 700;
+// Google's endpoint can black-hole a request under network trouble (proxy/firewall, brief
+// outage) instead of returning a fast error — without a hard cap, that hang propagates all
+// the way up through getCropForecastDetail and leaves the whole crop-detail request (not
+// just the AI narrative) stuck forever. 10s is generous for a real answer but still short
+// enough that a farmer isn't staring at a stalled report.
+const REQUEST_TIMEOUT_MS = 10000;
 
 function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
@@ -71,6 +77,7 @@ Respond with strict JSON: {"summary": "2-3 sentence plain-language market summar
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: requestBody,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok && RETRYABLE_STATUS_CODES.has(response.status)) {
@@ -79,6 +86,7 @@ Respond with strict JSON: {"summary": "2-3 sentence plain-language market summar
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: requestBody,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     }
 

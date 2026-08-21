@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import TrendIndicator from './TrendIndicator';
 import { cropActionRecommendation, formatCurrency } from '../../utils/formatters';
 
-const inputClass = 'h-10 rounded-lg border border-gray-200 bg-white px-3 text-[14px] font-medium text-gray-700 outline-none transition-colors duration-200 focus:border-green-600';
+const inputClass = 'h-10 rounded-lg border border-[var(--line)] bg-[var(--input-bg)] px-3 text-[14px] font-medium text-[var(--text-secondary)] outline-none transition-colors duration-200 focus:border-[var(--green-600)]';
 
 const SORT_OPTIONS = [
   { value: 'profit_desc', label: 'Highest profit' },
@@ -12,10 +12,10 @@ const SORT_OPTIONS = [
 ];
 
 const ACTION_STYLE = {
-  Sell: 'bg-blue-100 text-blue-700',
-  Hold: 'bg-amber-100 text-amber-700',
-  Plant: 'bg-green-100 text-green-800',
-  Harvest: 'bg-purple-100 text-purple-700',
+  Sell: 'bg-[var(--blue-100)] text-[var(--blue-700)]',
+  Hold: 'bg-[var(--amber-100)] text-[var(--amber-700)]',
+  Plant: 'bg-[var(--green-100)] text-[var(--green-800)]',
+  Harvest: 'bg-[var(--violet-100)] text-[var(--violet-700)]',
 };
 
 const DEMAND_LEVEL_OPTIONS = [
@@ -39,7 +39,7 @@ function sortCrops(list, sortBy) {
 function priceChangeCell(value) {
   if (value == null) return '—';
   const sign = value > 0 ? '+' : '';
-  return <span className={value >= 0 ? 'text-green-700' : 'text-red-700'}>{sign}{value}%</span>;
+  return <span className={value >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'}>{sign}{value}%</span>;
 }
 
 // The full comparison table — search/sort/filter added client-side over already-fetched
@@ -60,18 +60,18 @@ export default function ForecastTable({
   }, [crops, search, sortBy]);
 
   return (
-    <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-6">
+    <div className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-widest text-green-700">Comparison</p>
-          <h3 className="mt-1 text-[18px] font-bold text-gray-900">Forecast by Crop</h3>
+          <p className="text-[12px] font-semibold uppercase tracking-widest text-[var(--green-700)]">Comparison</p>
+          <h3 className="mt-1 text-[18px] font-bold text-[var(--text)]">Forecast by Crop</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <label className={`flex w-56 items-center gap-2 ${inputClass}`} htmlFor="forecast-table-search">
-            <Search size={15} className="shrink-0 text-gray-400" />
+            <Search size={15} className="shrink-0 text-[var(--muted)]" />
             <input
               id="forecast-table-search"
-              className="w-full border-0 bg-transparent p-0 text-[14px] font-medium text-gray-700 outline-none"
+              className="w-full border-0 bg-transparent p-0 text-[14px] font-medium text-[var(--text-secondary)] outline-none"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search crops"
@@ -90,26 +90,26 @@ export default function ForecastTable({
         </div>
       </div>
 
-      <div className="mt-5 max-h-[520px] overflow-auto rounded-xl border border-gray-100">
+      <div className="mt-5 max-h-[520px] overflow-auto rounded-xl border border-[var(--line)]">
         <table className="w-full border-separate border-spacing-0 text-left">
-          <thead className="sticky top-0 z-10 bg-gray-50">
+          <thead className="sticky top-0 z-10 bg-[var(--soft)]">
             <tr>
               {['Crop', 'Current Price', 'Forecast Price', 'Price Change', 'Demand', 'Market Trend', 'Recommendation'].map((label) => (
-                <th key={label} className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</th>
+                <th key={label} className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-[14px] text-gray-500">No crops match this search.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-[14px] text-[var(--muted)]">No crops match this search.</td></tr>
             ) : rows.map((entry) => (
               <tr
                 key={entry.crop}
                 onClick={() => onSelectCrop(entry.crop)}
-                className={`cursor-pointer transition-colors duration-150 hover:bg-green-50/60 ${entry.crop === selectedCrop ? 'bg-green-50' : ''}`}
+                className={`cursor-pointer transition-colors duration-150 hover:bg-[var(--green-50)]/60 ${entry.crop === selectedCrop ? 'bg-[var(--green-50)]' : ''}`}
               >
-                <td className="whitespace-nowrap rounded-l-xl px-4 py-3.5 text-[14px] font-bold text-gray-900">{entry.crop}</td>
-                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-gray-700">
+                <td className="whitespace-nowrap rounded-l-xl px-4 py-3.5 text-[14px] font-bold text-[var(--text)]">{entry.crop}</td>
+                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-[var(--text-secondary)]">
                   {/* referencePrice falls back from a live active listing to this crop's real
                       historical order average, then to a farmer's own last-listed price (see
                       forecast.controller.js) — the "~" flags when it isn't a live listing, so
@@ -117,16 +117,16 @@ export default function ForecastTable({
                       real price signal exists. */}
                   {entry.referencePrice != null ? (
                     <>
-                      {entry.priceBasis !== 'listing' ? <span className="text-gray-400">~</span> : null}
+                      {entry.priceBasis !== 'listing' ? <span className="text-[var(--muted)]">~</span> : null}
                       {formatCurrency(entry.referencePrice)}
                     </>
                   ) : '—'}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold text-gray-900">
+                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold text-[var(--text)]">
                   {entry.forecastPrice != null ? formatCurrency(entry.forecastPrice) : '—'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3.5 text-[14px] font-semibold">{priceChangeCell(entry.expectedChangePercent)}</td>
-                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-gray-700">{entry.currentDemand}</td>
+                <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-[var(--text-secondary)]">{entry.currentDemand}</td>
                 <td className="whitespace-nowrap px-4 py-3.5"><TrendIndicator trend={entry.marketTrend} /></td>
                 <td className="whitespace-nowrap rounded-r-xl px-4 py-3.5">
                   <span className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${ACTION_STYLE[cropActionRecommendation(entry)]}`}>

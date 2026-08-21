@@ -29,10 +29,22 @@
   --red-700: #b91c1c;
   --blue-100: #dbeafe;
   --blue-700: #1d4ed8;
+  --orange-100: #fff1e5;
+  --orange-700: #bc4c00;
+  --teal-100: #ddf9f4;
+  --teal-700: #0c7566;
+  --violet-100: #f3e8ff;
+  --violet-700: #7e22ce;
+  --text-secondary: #3d5146;
+  --text-strong: #23372b;
+  --text-faint: #b9c4bd;
   --text: #16251d;
   --muted: #64756b;
   --line: #dfe9e2;
   --panel: #ffffff;
+  --panel-subtle: #f9fafb;
+  --surface-elevated: #ffffff;
+  --input-bg: #ffffff;
   --soft: #eef6ef;
   --shadow: 0 18px 40px rgba(20, 65, 38, 0.08);
   --radius: 8px;
@@ -52,6 +64,69 @@
   --lp-shadow-lg: 0 24px 64px rgba(6, 95, 70, 0.16);
   --lp-glass-bg: rgba(255, 255, 255, 0.72);
   --lp-line: rgba(6, 95, 70, 0.1);
+}
+
+/* Dark Mode — same variable names as :root above, reused rather than renamed, so every
+   existing var(--x) consumer across the app (~9700 lines of rules, 160+ components) re-themes
+   automatically with zero further edits. Values are hand-tuned per token, not a blanket
+   invert: an audit of actual usage found --green-900/800/700 are all dominantly used as TEXT
+   (links, active states, icon accents — 700 and 800 alone account for 86 `color:` declarations
+   vs 19 `background:` ones), so all three lean bright enough to stay legible on a dark page,
+   graduated 900 (brightest) > 700 > 800 so .btn-primary's 700-base/800-hover still darkens on
+   hover like it does in light mode. The minority "solid fill behind white button text" role
+   (.btn-primary, Button.jsx primary, etc.) trades some of its own contrast for this — legible
+   but not top-tier — since the dominant text role is the one nearly every page actually shows.
+   Elevation runs light-on-dark (page < panel < surface-elevated < input), matching how depth
+   is actually perceived in dark UIs — the opposite of light mode's shadow-only elevation. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #f2f4f2;
+  background: #141816;
+  /* 900/800 share the bright "hover/high-emphasis" tone and 700/600 share the base accent
+     tone — two shades, not four, per the "controlled green accent" direction: a full bright
+     4-step ramp read as more green than intended once it was actually on screen. --btn-primary
+     goes 700(base)->800(hover), so this also makes dark-mode hover brighten (the base/hover
+     pair is reused directly from the brief's own spec), matching how dark UIs usually signal
+     "hovered" — the opposite of light mode's darken-on-hover. */
+  --green-900: #54b67e;
+  --green-800: #54b67e;
+  --green-700: #469b6a;
+  --green-600: #469b6a;
+  --green-100: #183524;
+  --green-50: #142b1e;
+  --amber-100: #3a2a0e;
+  --amber-700: #fbbf24;
+  --red-100: #3a1414;
+  --red-700: #f87171;
+  --blue-100: #142a3d;
+  --blue-700: #60a5fa;
+  --orange-100: #3a2410;
+  --orange-700: #fb923c;
+  --teal-100: #0f2a26;
+  --teal-700: #2dd4bf;
+  --violet-100: #241e33;
+  --violet-700: #b39ddb;
+  --text-secondary: #c2c9c5;
+  --text-strong: #f2f4f2;
+  --text-faint: #4a5d54;
+  --text: #f2f4f2;
+  --muted: #929b96;
+  --line: #343b37;
+  --panel: #1b201d;
+  --panel-subtle: #202622;
+  --surface-elevated: #262d29;
+  --input-bg: #202622;
+  --soft: #141816;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+
+  --lp-accent: #3dbb70;
+  --lp-dark: #f2f4f2;
+  --lp-bg: #141816;
+  --lp-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --lp-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --lp-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --lp-glass-bg: rgba(27, 32, 29, 0.72);
+  --lp-line: rgba(242, 244, 242, 0.12);
 }
 
 * {
@@ -237,7 +312,7 @@ p {
 
 .landing-hero p {
   max-width: 620px;
-  color: #3d5146;
+  color: var(--text-secondary);
   font-size: 1.08rem;
   line-height: 1.6;
 }
@@ -505,7 +580,7 @@ p {
   display: flex;
   align-items: center;
   gap: 26px;
-  color: #40564a;
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
@@ -578,7 +653,7 @@ p {
 .landing-mobile-menu-panel a {
   padding: 10px 12px;
   border-radius: 8px;
-  color: #40564a;
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
@@ -651,7 +726,7 @@ p {
 
 .public-farmer-breadcrumb svg {
   flex-shrink: 0;
-  color: #b9c4bd;
+  color: var(--text-faint);
 }
 
 .public-farmer-breadcrumb [aria-current='page'] {
@@ -1011,7 +1086,7 @@ p {
 
 .lp-about-block p {
   margin-top: 6px;
-  color: #3d5146;
+  color: var(--text-secondary);
   font-size: 0.98rem;
   line-height: 1.6;
 }
@@ -1028,7 +1103,7 @@ p {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: #3d5146;
+  color: var(--text-secondary);
   font-size: 0.92rem;
 }
 
@@ -1376,6 +1451,9 @@ a.lp-contact-card:hover {
   --muted: #718096;
   --line: #d9e2de;
   --panel: #ffffff;
+  --panel-subtle: #f9fafb;
+  --surface-elevated: #ffffff;
+  --input-bg: #ffffff;
   --soft: #f4f7f6;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   --sidebar-bg: #f8faf8;
@@ -1396,6 +1474,43 @@ a.lp-contact-card:hover {
   grid-template-columns: 230px minmax(0, 1fr);
   background: var(--soft);
   transition: grid-template-columns 0.25s ease;
+}
+
+/* Dark Mode for the signed-in dashboard chassis — mirrors :root[data-theme="dark"]'s approach
+   (same names, tuned values, no renames) but scoped to .app-shell so it stays independent from
+   the landing/auth dark palette above, same as this block's light-mode counterpart already is. */
+/* color-scheme: dark (set below on .app-shell) already tells Chromium to theme every native
+   form control dark — except a <select>'s own dropdown POPUP, which in testing kept
+   rendering with light-mode chrome (white list, barely-visible gray option text) regardless.
+   Styling <option> directly is the fix Chromium actually honors for the popup itself. */
+[data-theme="dark"] .app-shell select option {
+  background-color: var(--panel);
+  color: var(--text);
+}
+
+[data-theme="dark"] .app-shell {
+  color-scheme: dark;
+  --green-900: #54b67e;
+  --green-800: #54b67e;
+  --green-700: #469b6a;
+  --green-600: #469b6a;
+  --green-100: #183524;
+  --green-50: #142b1e;
+  --text: #f2f4f2;
+  --muted: #929b96;
+  --line: #343b37;
+  --panel: #1b201d;
+  --panel-subtle: #202622;
+  --surface-elevated: #262d29;
+  --input-bg: #202622;
+  --soft: #141816;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sidebar-bg: #141816;
+  --icon-muted: #929b96;
+  --steel-700: #7fb3ce;
+  --steel-100: #17242b;
+  --violet-700: #b39ddb;
+  --violet-100: #241e33;
 }
 
 /* Collapsed sidebar — icon-only rail. Toggled from the chevron button next to the logo (see
@@ -2199,7 +2314,7 @@ a.user-chip {
 }
 
 a.user-chip:hover {
-  border-color: #bfe4ca;
+  border-color: var(--green-100);
   box-shadow: 0 6px 16px rgba(21, 128, 61, 0.12);
 }
 
@@ -2425,8 +2540,8 @@ a.user-chip:hover {
 }
 
 .tracking-badge.tracking-pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--amber-100);
+  color: var(--amber-700);
 }
 
 .tracking-badge.tracking-confirmed {
@@ -2435,13 +2550,13 @@ a.user-chip:hover {
 }
 
 .tracking-badge.tracking-on-the-way {
-  background: #ffedd5;
-  color: #c2410c;
+  background: var(--orange-100);
+  color: var(--orange-700);
 }
 
 .tracking-badge.tracking-near-destination {
-  background: #f3e8ff;
-  color: #7e22ce;
+  background: var(--violet-100);
+  color: var(--violet-700);
 }
 
 .tracking-badge.tracking-delivered {
@@ -2620,9 +2735,7 @@ a.user-chip:hover {
    FarmerDashboard.jsx (see FarmerReviewsPanel.jsx), not its own page. Compact summary card
    (~30%) beside a scrollable review list (~70%), Stripe/Linear-style. Kept independent from
    the ot-review and review- prefixed classes above (still used as-is by OrderTracking.jsx's
-   own single "your review" card) via an rr- prefix, and uses literal hex rather than the
-   shared --text/--muted/--line tokens so this section's palette can't drift if those tokens
-   change elsewhere. */
+   own single "your review" card) via an rr- prefix. */
 .ratings-reviews {
   padding: 32px;
 }
@@ -2634,7 +2747,7 @@ a.user-chip:hover {
 }
 
 .rr-title {
-  color: #111827;
+  color: var(--text);
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -2651,9 +2764,9 @@ a.user-chip:hover {
   display: grid;
   gap: 20px;
   padding: 24px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--panel);
 }
 
 .rr-summary-top {
@@ -2664,14 +2777,14 @@ a.user-chip:hover {
 }
 
 .rr-score {
-  color: #111827;
+  color: var(--text);
   font-size: 3.25rem;
   font-weight: 700;
   line-height: 1;
 }
 
 .rr-count {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.8125rem;
 }
 
@@ -2691,7 +2804,7 @@ a.user-chip:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -2704,7 +2817,7 @@ a.user-chip:hover {
 .rr-bar-track {
   height: 6px;
   border-radius: 999px;
-  background: #e5e7eb;
+  background: var(--line);
   overflow: hidden;
 }
 
@@ -2727,7 +2840,7 @@ a.user-chip:hover {
 }
 
 .rr-bar-count {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
   text-align: right;
@@ -2742,9 +2855,9 @@ a.user-chip:hover {
   display: grid;
   gap: 10px;
   padding: 24px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--panel);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
@@ -2786,7 +2899,7 @@ a.user-chip:hover {
 }
 
 .rr-card-identity strong {
-  color: #111827;
+  color: var(--text);
   font-size: 1.125rem;
   font-weight: 600;
 }
@@ -2798,7 +2911,7 @@ a.user-chip:hover {
   width: fit-content;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #f0fdf4;
+  background: var(--green-100);
   color: var(--green-800);
   font-size: 0.72rem;
   font-weight: 700;
@@ -2806,12 +2919,12 @@ a.user-chip:hover {
 
 .rr-card-date {
   flex-shrink: 0;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.8125rem;
 }
 
 .rr-card-comment {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.9375rem;
   line-height: 1.6;
 }
@@ -2823,11 +2936,11 @@ a.user-chip:hover {
   gap: 12px;
   margin-top: 4px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--line);
 }
 
 .rr-order-ref {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -2837,13 +2950,13 @@ a.user-chip:hover {
   font-size: 0.8125rem;
   font-weight: 700;
   padding: 6px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 6px;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .rr-view-order:hover {
-  background: #f0fdf4;
+  background: var(--green-100);
   border-color: var(--green-800);
 }
 
@@ -3175,7 +3288,7 @@ a.user-chip:hover {
 .product-meta {
   display: grid;
   gap: 6px;
-  color: #4e6357;
+  color: var(--text-secondary);
   font-size: 0.88rem;
 }
 
@@ -3301,6 +3414,7 @@ a.user-chip:hover {
 }
 
 .price-original {
+  margin-right: 5px;
   color: var(--muted);
   text-decoration: line-through;
 }
@@ -3357,7 +3471,8 @@ a.user-chip:hover {
 .badge-out_for_delivery,
 .badge-ready_for_pickup,
 .badge-waiting_for_pickup,
-.badge-requested {
+.badge-requested,
+.badge-low-stock {
   color: var(--amber-700);
   background: var(--amber-100);
 }
@@ -3391,11 +3506,6 @@ a.user-chip:hover {
 .badge-sale {
   color: var(--amber-700);
   background: var(--amber-100);
-}
-
-.badge-low-stock {
-  color: var(--red-700);
-  background: var(--red-100);
 }
 
 .badge-grade-a {
@@ -3636,9 +3746,9 @@ a.user-chip:hover {
 .product-drawer-body .form-section {
   gap: 16px;
   padding: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--panel);
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
@@ -3665,7 +3775,7 @@ a.user-chip:hover {
 .product-drawer-body .form-field > span:first-child {
   font-size: 13px;
   font-weight: 500;
-  color: #23372b;
+  color: var(--text-strong);
 }
 
 .product-drawer-body .form-field input,
@@ -3701,7 +3811,7 @@ a.user-chip:hover {
 .product-drawer-body .form-field textarea:disabled {
   cursor: not-allowed;
   color: var(--muted);
-  background: #f3f4f6;
+  background: var(--soft);
 }
 
 /* The donation checkbox's own "subtle information container" plus, once checked, the
@@ -3869,13 +3979,21 @@ a.user-chip:hover {
 
 .btn-secondary {
   color: var(--green-800);
-  border-color: #bfe4ca;
+  border-color: var(--green-100);
   background: var(--panel);
 }
 
+/* --green-800 is tuned as a solid button-FILL color behind white text elsewhere (see
+   Button.jsx/.btn-primary) — too dim on its own dark panel background to also work as
+   dark-mode TEXT here, so this one spot needs a brighter green instead of the light-mode
+   default. */
+[data-theme="dark"] .btn-secondary {
+  color: var(--green-600);
+}
+
 .btn-ghost {
-  color: #40564a;
-  background: #eef5f0;
+  color: var(--text-secondary);
+  background: var(--soft);
 }
 
 .btn-danger {
@@ -3941,7 +4059,7 @@ a.user-chip:hover {
 }
 
 .app-shell .btn-danger:hover {
-  background: #fecaca;
+  background: var(--red-100);
 }
 
 .full-width {
@@ -4632,7 +4750,7 @@ a.user-chip:hover {
 .form-field {
   display: grid;
   gap: 7px;
-  color: #23372b;
+  color: var(--text-strong);
   font-weight: 750;
 }
 
@@ -4945,9 +5063,9 @@ a.user-chip:hover {
   align-items: center;
   gap: 12px;
   padding: 10px;
-  border: 1px dashed #b9d9c2;
+  border: 1px dashed var(--green-100);
   border-radius: var(--radius);
-  background: #f8fcf9;
+  background: var(--green-50);
 }
 
 .image-preview img {
@@ -4963,22 +5081,23 @@ a.user-chip:hover {
   gap: 8px;
   padding: 5px;
   border-radius: var(--radius);
-  background: #eef5f0;
+  background: var(--soft);
 }
 
 .segmented-control button {
   border: 0;
   border-radius: var(--radius);
   padding: 10px 12px;
-  color: #40564a;
+  color: var(--text);
   background: transparent;
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .segmented-control button.active {
   color: white;
   background: var(--green-700);
+  font-weight: 700;
 }
 
 .segmented-control.three {
@@ -4991,14 +5110,14 @@ a.user-chip:hover {
   gap: 8px;
   padding: 5px;
   border-radius: var(--radius);
-  background: #eef5f0;
+  background: var(--soft);
 }
 
 .payment-grid button {
   border: 0;
   border-radius: var(--radius);
   padding: 10px 12px;
-  color: #40564a;
+  color: var(--text-secondary);
   background: var(--panel);
   cursor: pointer;
   font-weight: 800;
@@ -5021,7 +5140,7 @@ a.user-chip:hover {
   gap: 16px;
   padding: 14px 12px;
   border-radius: var(--radius);
-  border-bottom: 1px solid #edf3ef;
+  border-bottom: 1px solid var(--line);
 }
 
 .thread-item:hover {
@@ -5219,7 +5338,7 @@ a.user-chip:hover {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #cfded4;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
   color: var(--green-800);
@@ -5230,6 +5349,75 @@ a.user-chip:hover {
 .map-fullscreen-toggle:hover {
   background: var(--soft);
 }
+
+/* Google Maps InfoWindow (the farmer/buyer/stakeholder pin popups — see popupHtml in
+   FarmerMap.jsx/DeliveryMap.jsx/LiveDeliveryMap.jsx) renders into its own DOM outside this
+   app's normal component tree, styled entirely by Google's own stylesheet/inline styles —
+   nothing here ever themed it, in light OR dark, it just happened to read fine as a plain
+   white card against a light map. Left completely alone in light mode; dark mode needs an
+   explicit override or it stays a stark white box no matter what theme the rest of the app is
+   in. Google sets some of these as inline styles, which is the one legitimate reason for
+   !important here — a stylesheet rule needs it to outrank an inline style of equal origin. */
+/* .gm-style-iw-chr is a separate header strip (holds the close button) sitting above
+   .gm-style-iw-c's own content area, with its own default white background — easy to miss
+   since it's thin, but it left a stray light-colored sliver peeking out above an otherwise
+   dark popup. */
+[data-theme="dark"] .gm-style-iw-c,
+[data-theme="dark"] .gm-style-iw-chr {
+  background-color: var(--panel) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .gm-style-iw-d {
+  color: var(--text) !important;
+}
+
+/* Google sets overflow: scroll (not auto) on this content div unconditionally, whether or
+   not the content actually overflows — on Windows Chrome (classic, non-overlay scrollbars)
+   that reserves a permanently-visible track in the browser's default light-gray/white, which
+   cuts a stark bar across the dark popup text. Undoing the color is enough; the scrollbar's
+   own gutter still uses the browser default otherwise. */
+[data-theme="dark"] .gm-style-iw-d,
+[data-theme="dark"] .gm-style-iw-c {
+  scrollbar-color: var(--muted) var(--panel);
+}
+
+[data-theme="dark"] .gm-style-iw-d::-webkit-scrollbar,
+[data-theme="dark"] .gm-style-iw-c::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] .gm-style-iw-d::-webkit-scrollbar-track,
+[data-theme="dark"] .gm-style-iw-c::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+
+[data-theme="dark"] .gm-style-iw-d::-webkit-scrollbar-thumb,
+[data-theme="dark"] .gm-style-iw-c::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .gm-style-iw-d strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .gm-style-iw-d small {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .gm-style-iw-d a {
+  color: var(--green-700);
+}
+
+/* The tail/arrow pointing from the popup to its pin is a separate element, colored via its
+   own background (not inherited from .gm-style-iw-c), and painted after everything else — it
+   stays visibly white-on-dark unless matched here too. */
+[data-theme="dark"] .gm-style-iw-t::after {
+  background: linear-gradient(45deg, var(--panel) 50%, transparent 51%, transparent 100%) !important;
+}
+
 
 .delivery-map {
   width: 100%;
@@ -5695,7 +5883,7 @@ table {
 th,
 td {
   padding: 10px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
 }
@@ -5703,8 +5891,8 @@ td {
 th {
   position: sticky;
   top: 0;
-  background: #fff;
-  color: #6b7280;
+  background: var(--panel);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.2;
@@ -5721,13 +5909,13 @@ td {
      line-height was just adding dead space above/below the text instead of changing anything
      visible about row spacing. */
   line-height: 1.3;
-  color: #111827;
+  color: var(--text);
   white-space: nowrap;
 }
 
 .table-wrap td strong {
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
 .table-wrap tbody tr {
@@ -5736,7 +5924,7 @@ td {
 }
 
 .table-wrap tbody tr:hover {
-  background-color: #f9fafb;
+  background-color: var(--soft);
 }
 
 .table-row-clickable {
@@ -5744,18 +5932,18 @@ td {
 }
 
 .table-row-selected {
-  background-color: #f0fdf4;
+  background-color: var(--green-50);
 }
 
 .table-row-selected:hover {
-  background-color: #dcfce7;
+  background-color: var(--green-100);
 }
 
 .table-wrap .muted,
 .table-wrap .table-substatus {
   font-size: 13px;
   font-weight: 400;
-  color: #6b7280;
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -5972,8 +6160,18 @@ td {
 
 .auth-hero p {
   margin-top: 14px;
-  color: #3d5146;
+  color: var(--text-secondary);
   font-size: 1.04rem;
+}
+
+/* The gradient overlay is a fixed rgba (not a token) so the photo underneath stays legible
+   under either theme's text — this just swaps its tint from a near-opaque light mint to a
+   near-opaque dark green so bright Dark Mode text (h1 uses --green-900, brightened for text
+   legibility — see the dark token block) doesn't end up light-on-light against it. */
+[data-theme="dark"] .auth-page {
+  background:
+    linear-gradient(rgba(20, 24, 22, 0.92), rgba(20, 24, 22, 0.96)),
+    url("https://images.unsplash.com/photo-1499529112087-3cb3b73cec95?auto=format&fit=crop&w=1800&q=80") center / cover;
 }
 
 .auth-card {
@@ -6173,9 +6371,9 @@ td {
   gap: 10px;
   min-height: 50px;
   padding: 11px 14px;
-  border: 1.5px dashed #b9d9c2;
+  border: 1.5px dashed var(--green-100);
   border-radius: var(--radius);
-  background: #f8fcf9;
+  background: var(--green-50);
   color: var(--muted);
   font-size: 0.86rem;
   font-weight: 650;
@@ -6322,6 +6520,12 @@ td {
   box-shadow: 0 24px 64px rgba(20, 65, 38, 0.14), 0 2px 8px rgba(20, 65, 38, 0.06);
 }
 
+[data-theme="dark"] .auth-card-glass {
+  background: rgba(27, 32, 29, 0.7);
+  border-color: rgba(242, 244, 242, 0.14);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 /* Wider card + tighter internal spacing than the plain register-form default — this page
    has 6 sections (vs. farmer/buyer's flat field list), so both matter for keeping it to a
    reasonable scroll length on desktop. Scoped to stakeholder registration only. */
@@ -6388,7 +6592,7 @@ td {
 
 .stakeholder-register .form-field input:hover,
 .stakeholder-register .form-field select:hover {
-  border-color: #b9d9c2;
+  border-color: var(--green-100);
 }
 
 .stakeholder-register .form-field input:focus,
@@ -6404,9 +6608,9 @@ td {
   gap: 4px;
   text-align: center;
   padding: 28px 20px;
-  border: 1.5px dashed #b9d9c2;
+  border: 1.5px dashed var(--green-100);
   border-radius: 14px;
-  background: #f8fcf9;
+  background: var(--green-50);
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
@@ -6468,7 +6672,7 @@ td {
   padding: 12px 14px;
   border: 1.5px solid var(--green-100);
   border-radius: 14px;
-  background: #f8fcf9;
+  background: var(--green-50);
 }
 
 .verification-upload-preview.has-error {
@@ -6532,7 +6736,7 @@ td {
 }
 
 .verification-upload-remove:hover {
-  background: #fecaca;
+  background: color-mix(in srgb, var(--red-700) 25%, var(--red-100));
   transform: scale(1.06);
 }
 
@@ -6544,7 +6748,7 @@ td {
 .verification-accepted-docs {
   padding: 12px 14px;
   border-radius: 12px;
-  background: #f8fcf9;
+  background: var(--green-50);
   border: 1px solid var(--line);
 }
 
@@ -6577,8 +6781,8 @@ td {
   gap: 10px;
   padding: 14px 16px;
   border-radius: 12px;
-  background: #f8fcf9;
-  border: 1px solid #e3f0e6;
+  background: var(--green-50);
+  border: 1px solid var(--green-100);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text);
@@ -6724,7 +6928,7 @@ td {
   right: 0;
   height: 4px;
   border-radius: 999px;
-  background: #e2e8e4;
+  background: var(--line);
 }
 
 .price-range-track-active {
@@ -6815,7 +7019,7 @@ td {
   padding: 3px 6px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: white;
+  background: var(--input-bg);
   color: var(--green-800);
   font-size: 0.78rem;
   font-weight: 800;
@@ -6884,7 +7088,7 @@ td {
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #edf3ef;
+  border-bottom: 1px solid var(--line);
 }
 
 .detail-list span {
@@ -7529,6 +7733,54 @@ td {
   }
 }
 
+/* Dark Mode for GcashPaymentPage — this page restates flat enterprise-look values directly
+   (see the .gcash-payment-page comment above) rather than inheriting them from .app-shell, so
+   its dark-mode values have to be restated the same way instead of coming from either scope's
+   [data-theme="dark"] block above. */
+[data-theme="dark"] .gcash-payment-page {
+  background: #141816;
+}
+
+[data-theme="dark"] .gcash-payment-brand,
+[data-theme="dark"] .gcash-detail-list dt,
+[data-theme="dark"] .gcash-instructions,
+[data-theme="dark"] .gcash-payment-status {
+  color: #929b96;
+}
+
+[data-theme="dark"] .gcash-payment-card,
+[data-theme="dark"] .gcash-payment-page .section-heading,
+[data-theme="dark"] .gcash-detail-list > div,
+[data-theme="dark"] .gcash-instructions,
+[data-theme="dark"] .gcash-payment-qr-col,
+[data-theme="dark"] .gcash-payment-qr-image {
+  border-color: #343b37;
+}
+
+[data-theme="dark"] .gcash-instructions,
+[data-theme="dark"] .gcash-payment-qr-col,
+[data-theme="dark"] .gcash-payment-qr-image {
+  background: #1b201d;
+}
+
+[data-theme="dark"] .gcash-detail-list dd,
+[data-theme="dark"] .gcash-success-title {
+  color: #f2f4f2;
+}
+
+[data-theme="dark"] .gcash-amount,
+[data-theme="dark"] .gcash-instructions svg {
+  color: #3dbb70;
+}
+
+[data-theme="dark"] .gcash-status-icon.error {
+  color: #f87171;
+}
+
+[data-theme="dark"] .gcash-status-icon.success {
+  color: #3dbb70;
+}
+
 /* Payment verification — a rejected state added to the done/active/upcoming vocabulary
    OrderTracker.jsx's .tracker already defines, plus layout for the extra step list used on
    ConfirmGcashPaymentPage's success screen (see PaymentProgressTracker.jsx). */
@@ -7638,6 +7890,431 @@ td {
   }
 }
 
+/* Shared compact segmented filter-tab strip — .filter-tabs/.filter-tab/.filter-tab-count —
+   used by both Purchase Orders (FarmerOrders.jsx) and My Products (FarmerProducts.jsx) so
+   every "workspace with a status filter" in the app reuses one tab language instead of each
+   page inventing its own. Deliberately reuses .panel/.table-wrap/.badge* elsewhere too, rather
+   than introducing a second card/shadow language. */
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.filter-tab:hover {
+  color: var(--text);
+}
+
+.filter-tab.active {
+  background: var(--panel);
+  color: var(--green-800);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.filter-tab-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.filter-tab.active .filter-tab-count {
+  background: var(--green-100);
+  color: var(--green-800);
+}
+
+.order-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 4px;
+}
+
+.order-toolbar-search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+}
+
+.order-toolbar-search input {
+  color: var(--text);
+}
+
+.order-toolbar-search input::placeholder {
+  color: var(--muted);
+}
+
+.order-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.order-toolbar-select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.order-toolbar-reset {
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--green-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.order-toolbar-reset:hover {
+  text-decoration: underline;
+}
+
+/* The two-line pattern used for Order/Payment/Delivery table cells — a primary line (product
+   name, payment method, delivery method) plus a smaller muted line underneath (quantity,
+   payment state, delivery progress). Keeps the table scannable without a Product/Quantity
+   column pair eating extra horizontal width. */
+.order-cell-main {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.order-cell-sub {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.order-row-buyer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile order cards — shown instead of the table below 860px (see the table-hiding media
+   query further down). Same information density as a table row, restacked so nothing needs
+   horizontal scrolling to read. */
+.order-mobile-cards {
+  display: none;
+}
+
+.order-mobile-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.order-mobile-card + .order-mobile-card {
+  margin-top: 10px;
+}
+
+.order-mobile-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.order-mobile-card-buyer {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.order-mobile-card-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.order-mobile-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.order-mobile-card-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.order-mobile-card-value {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.order-mobile-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.order-mobile-card-actions .btn {
+  flex: 1;
+}
+
+@media (max-width: 860px) {
+  .order-table-wrap {
+    display: none;
+  }
+
+  .order-mobile-cards {
+    display: block;
+  }
+}
+
+/* My Products (FarmerProducts.jsx) — compact operational-metric cards replacing the old
+   4-card KPI grid (SummaryCards.jsx used to render via KpiGrid/KpiCard, which is still used
+   elsewhere — this page gets its own lighter-weight summary instead of changing that shared
+   component). Four small bordered cards, not the shared KpiCard's taller shadowed/hover-lift
+   treatment — supporting context for the product list below, not a dashboard in its own right. */
+.product-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.product-stats-item {
+  position: relative;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.product-stats-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--line);
+}
+
+.product-stats-item.accent-success::before { background: var(--green-700); }
+.product-stats-item.accent-warning::before { background: var(--amber-700); }
+
+.product-stats-label-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.product-stats-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.product-stats-label {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.product-stats-info {
+  display: inline-flex;
+  color: var(--text-faint);
+  cursor: help;
+}
+
+.product-stats-value {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.product-stats-value.warning {
+  color: var(--amber-700);
+}
+
+.product-stats-hint {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+@media (max-width: 640px) {
+  .product-stats-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.product-row-thumb {
+  display: flex;
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.product-row-thumb img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+/* Lets a product's thumbnail open the same full-screen ZoomableImage lightbox already used
+   for payment receipts/QR codes elsewhere — a farmer double-checking what they listed
+   shouldn't be stuck squinting at a 40px crop. .profile-file-image-btn (the button
+   ZoomableImage always renders) defaults to width: fit-content, sized to nothing useful at
+   this scale — scoped here to fill the thumbnail box exactly like .product-row-thumb img
+   already does above. The hover-only "Click to view fully" pill is hidden: at 40px it would
+   overflow the thumbnail entirely — cursor: zoom-in (already on .profile-file-image-btn) is
+   signal enough at this size. */
+.product-row-thumb .profile-file-image-btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.product-row-thumb .profile-file-zoom-hint {
+  display: none;
+}
+
+.product-skeleton-row td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.product-skeleton-block {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--line);
+  animation: product-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes product-skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-skeleton-block {
+    animation: none;
+  }
+}
+
+/* Mobile product cards (SellerProductCard.jsx) — same compact-row idea as .order-mobile-card,
+   kept as its own set since this row's shape (thumbnail + price/stock pair) differs enough
+   from the order card's (buyer + payment/delivery pair) that sharing classes would mean
+   overriding half of them anyway. */
+.product-mobile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.product-mobile-card + .product-mobile-card {
+  margin-top: 10px;
+}
+
+.product-mobile-card-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.product-mobile-card-name {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.product-mobile-card-grade {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.product-mobile-card-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.product-mobile-card-price {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.product-mobile-card-stock {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.product-mobile-card-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .verification-checklist {
   list-style: none;
   margin: 0;
@@ -7728,9 +8405,9 @@ td {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border: 1px dashed #b9d9c2;
+  border: 1px dashed var(--green-100);
   border-radius: var(--radius);
-  background: #f8fcf9;
+  background: var(--green-50);
 }
 
 .profile-file-top {
@@ -8311,12 +8988,12 @@ td {
 /* Gray — explicitly NOT an AI recommendation (CostBasedEstimateCard.jsx): a plain cost +
    markup calculation, distinguished on purpose from the green tier above. */
 .price-analysis-card.tone-cost {
-  background: #F6F8FA;
-  border-color: #D0D7DE;
+  background: var(--soft);
+  border-color: var(--line);
 }
 
 .price-analysis-card.tone-cost .price-analysis-card-title {
-  color: #24292F;
+  color: var(--text);
 }
 
 /* Same amber accent as everywhere else a listing needs a second look (DTI price-review
@@ -9308,7 +9985,7 @@ td {
 }
 
 .driver-connection-text strong {
-  color: #1f2937;
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -9336,7 +10013,7 @@ td {
 }
 
 .nav-info-card-header strong {
-  color: #1f2937;
+  color: var(--text);
 }
 
 .nav-info-card-vehicle {
@@ -9374,7 +10051,7 @@ td {
 .nav-info-card-gps {
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #eef1f4;
+  border-top: 1px solid var(--line);
 }
 
 .nav-info-card-grid strong.is-paused {
@@ -9392,7 +10069,7 @@ td {
   height: 42px;
   border: none;
   border-radius: 999px;
-  background: white;
+  background: var(--panel);
   color: #1a73e8;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
   cursor: pointer;
@@ -9559,7 +10236,7 @@ td {
   margin: 1.5rem 0 0.5rem;
   font-size: 1.05rem;
   font-weight: 700;
-  color: rgb(17 24 39);
+  color: var(--text-strong);
 }
 
 .legal-prose h3:first-child {
@@ -9598,22 +10275,22 @@ td {
 
 .legal-prose strong {
   font-weight: 700;
-  color: rgb(17 24 39);
+  color: var(--text-strong);
 }
 
 .legal-prose a {
-  color: rgb(4 120 87);
+  color: var(--green-700);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .legal-prose a:hover {
-  color: rgb(6 95 70);
+  color: var(--green-800);
 }
 
 .legal-prose a:focus-visible {
-  outline: 2px solid rgb(4 120 87);
+  outline: 2px solid var(--green-700);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -9684,7 +10361,7 @@ td {
 
 .address-autocomplete-option:hover,
 .address-autocomplete-option.is-highlighted {
-  background: #f1f4f2;
+  background: var(--soft);
 }
 
 .address-autocomplete-option-icon {
