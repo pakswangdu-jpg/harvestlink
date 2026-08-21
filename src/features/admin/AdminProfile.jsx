@@ -3,6 +3,7 @@ import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
 import { Card, CardHeader } from '../../components/admin/Card';
 import Badge from '../../components/admin/Badge';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import { useAuth } from '../auth/AuthContext';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
@@ -44,6 +45,14 @@ export default function AdminProfile() {
               <p className="text-[13px] font-medium text-[var(--text)]">{formatDate(user.createdAt)}</p>
             </div>
           </div>
+        </div>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader eyebrow="Preferences" title="Appearance" />
+        <p className="mb-3 text-[13px] text-[var(--muted)]">Choose how HarvestLink looks on this device. System matches your OS setting automatically.</p>
+        <div className="max-w-xs">
+          <ThemeToggle />
         </div>
       </Card>
     </AppShell>

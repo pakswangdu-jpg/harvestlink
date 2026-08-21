@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
-import { GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { DARK_MAP_STYLE, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { haversineKm } from '../../utils/geo';
 import { distanceToPolylineKm, nearestIndexOnPath } from '../../services/routingService';
 import { fetchGoogleRoute, fetchNavigationRoute } from '../../services/googleDirectionsService';
@@ -8,6 +8,7 @@ import { getLiveTransitProgress } from '../../services/orderService';
 import { getUserById } from '../../services/authService';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { useOrderConnectionStatus } from '../../hooks/useOrderConnectionStatus';
+import { useTheme } from '../../contexts/ThemeContext';
 import DriverConnectionBadge from './DriverConnectionBadge';
 
 // A Google-Maps-navigation-style live tracking view — position comes from
@@ -215,6 +216,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   const [buyerProfile, setBuyerProfile] = useState(null);
 
   const hasVectorMap = Boolean(GOOGLE_MAPS_MAP_ID);
+  const { effectiveTheme } = useTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -343,6 +345,10 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
         // directly under the floating nav info card once navigation mode is active.
         zoomControlOptions: { position: mapsApi.ControlPosition.RIGHT_TOP },
         gestureHandling: 'greedy',
+        // A `styles` array is ignored (and warned about) whenever a real vector `mapId` is
+        // set — that map's look is controlled from the Cloud Console instead, so this is
+        // only applied on the classic-rendering fallback used when no Map ID is configured.
+        styles: hasVectorMap ? undefined : (effectiveTheme === 'dark' ? DARK_MAP_STYLE : []),
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
@@ -353,6 +359,13 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-styles the already-created map in place when the theme changes (classic-rendering
+  // fallback only — see the styles: comment above for why a vector/Map ID map is skipped).
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || hasVectorMap) return;
+    mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
+  }, [effectiveTheme, mapReady, hasVectorMap]);
 
   // Fetches the real driving route from travelOrigin to travelDestination — for a delivery
   // that's farm -> buyer; for a pickup order it's the reverse, buyer -> farm (see

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Check, Gift, History, Hourglass, Package, PackageCheck, Search, X,
+  Check, Gift, History, Hourglass, Package, PackageCheck, Search, Truck, X,
 } from 'lucide-react';
-import pickupIcon from '../../assets/icons/pickup.png';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import { Card, CardHeader } from '../../components/admin/Card';
@@ -178,7 +177,7 @@ export default function FarmerDonations() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Active donation offers" value={available.length} icon={Gift} tone="green" hint="Listed and unclaimed" />
         <StatCard label="Pending requests" value={requested.length} icon={Hourglass} tone="amber" hint="Awaiting your response" iconClassName="stat-icon-waiting" />
-        <StatCard label="Scheduled pickups" value={scheduled.length} iconSrc={pickupIcon} tone="blue" hint="Confirmed with a pickup date" />
+        <StatCard label="Scheduled pickups" value={scheduled.length} icon={Truck} tone="blue" hint="Confirmed with a pickup date" />
         <StatCard label="Donations this month" value={thisMonthCount} icon={PackageCheck} tone="violet" trend={monthTrend} hint={monthTrend ? undefined : 'Offers created this month'} />
       </div>
 
@@ -268,7 +267,7 @@ export default function FarmerDonations() {
               ))}
             </div>
           ) : (
-            <EmptyState compact iconSrc={pickupIcon} title="No scheduled pickups" message="Accepted donation requests will show their pickup date here." />
+            <EmptyState compact icon={Truck} title="No scheduled pickups" message="Accepted donation requests will show their pickup date here." />
           )}
         </Card>
 

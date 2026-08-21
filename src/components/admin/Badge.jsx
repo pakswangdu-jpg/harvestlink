@@ -8,9 +8,9 @@ const TONE_CLASSES = {
   warning: 'bg-[var(--amber-100)] text-[var(--amber-700)]',
   // Added for Price Monitoring's 6-color status system (Under Review / Overridden /
   // Underpriced) — additive only, every existing tone/caller above is untouched.
-  orange: 'bg-[#FFF1E5] text-[#BC4C00]',
+  orange: 'bg-[var(--orange-100)] text-[var(--orange-700)]',
   info: 'bg-[var(--blue-100)] text-[var(--blue-700)]',
-  teal: 'bg-[#DDF9F4] text-[#0C7566]',
+  teal: 'bg-[var(--teal-100)] text-[var(--teal-700)]',
 };
 
 export default function Badge({ children, tone = 'neutral' }) {

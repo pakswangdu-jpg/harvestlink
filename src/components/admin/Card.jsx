@@ -2,7 +2,7 @@
 // wraps its content in, so spacing/borders stay identical page to page.
 export function Card({ children, className = '', ...props }) {
   return (
-    <section className={`rounded-lg border border-[var(--line)] bg-white p-5 ${className}`.trim()} {...props}>
+    <section className={`rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 ${className}`.trim()} {...props}>
       {children}
     </section>
   );

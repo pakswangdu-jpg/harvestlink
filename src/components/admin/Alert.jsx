@@ -8,7 +8,7 @@ const TONE = {
     bg: 'bg-[var(--red-100)]', text: 'text-[var(--red-700)]', border: 'border-[var(--red-700)]/20', Icon: AlertCircle,
   },
   warning: {
-    bg: 'bg-[#FFF8E6]', text: 'text-[var(--amber-700)]', border: 'border-[var(--amber-700)]/20', Icon: AlertTriangle,
+    bg: 'bg-[var(--amber-100)]', text: 'text-[var(--amber-700)]', border: 'border-[var(--amber-700)]/20', Icon: AlertTriangle,
   },
   info: {
     bg: 'bg-[var(--blue-100)]', text: 'text-[var(--blue-700)]', border: 'border-[var(--blue-700)]/20', Icon: Info,

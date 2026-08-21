@@ -98,7 +98,7 @@ export default function CommodityTable({
                       type="button"
                       onClick={() => onToggleExpand(row.id)}
                       aria-label={expanded ? 'Collapse' : 'Expand'}
-                      className="flex h-6 w-6 items-center justify-center rounded-md border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[#EAEEF2]"
+                      className="flex h-6 w-6 items-center justify-center rounded-md border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[var(--soft)]"
                     >
                       {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>

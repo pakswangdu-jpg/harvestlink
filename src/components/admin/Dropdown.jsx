@@ -21,7 +21,7 @@ export default function Dropdown({ trigger, items }) {
         {trigger}
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-md border border-[var(--line)] bg-white py-1 shadow-md">
+        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] py-1 shadow-md">
           {items.map((item) => (
             <button
               key={item.label}

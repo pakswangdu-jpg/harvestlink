@@ -63,15 +63,15 @@ export default function ProductCard({ product, actions, showStatus = false }) {
   };
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)]">
       {/* Fixed px height per breakpoint (not aspect-ratio) so every card's image band is
           identical regardless of the uploaded photo's own dimensions or the card's own width —
           object-cover then crops any portrait/landscape/panoramic source to fill it. */}
-      <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-green-50 sm:h-[220px] lg:h-[240px]">
+      <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-[var(--green-50)] sm:h-[220px] lg:h-[240px]">
         {product.image ? (
           <>
             {!imageLoaded ? (
-              <div className="absolute inset-0 animate-pulse bg-gray-200" aria-hidden="true" />
+              <div className="absolute inset-0 animate-pulse bg-[var(--soft)]" aria-hidden="true" />
             ) : null}
             <img
               src={product.image}
@@ -83,7 +83,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
             />
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-green-800/70">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[var(--green-800)]/70">
             <Sprout size={36} strokeWidth={1.5} />
             <span className="text-[12px] font-medium">No image available</span>
           </div>
@@ -98,76 +98,76 @@ export default function ProductCard({ product, actions, showStatus = false }) {
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex flex-col gap-3">
           <div>
-            <p className="text-[13px] font-medium text-gray-500">{titleCase(product.category)}</p>
+            <p className="text-[13px] font-medium text-[var(--muted)]">{titleCase(product.category)}</p>
             <Link to={`/products/${product.id}`} className="focus-visible:outline-none">
               <h3
                 title={titleCase(product.name)}
-                className="mt-0.5 line-clamp-2 text-[19px] font-semibold leading-snug text-gray-900 transition-colors duration-150 hover:text-green-800"
+                className="mt-0.5 line-clamp-2 text-[19px] font-semibold leading-snug text-[var(--text)] transition-colors duration-150 hover:text-[var(--green-800)]"
               >
                 {titleCase(product.name)}
               </h3>
             </Link>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-[var(--muted)]">
             <span className="flex min-w-0 items-center gap-1">
-              <MapPin size={13} className="shrink-0 text-gray-400" />
+              <MapPin size={13} className="shrink-0 text-[var(--muted)]" />
               <span className="truncate">{product.location}</span>
             </span>
             {product.farmerName ? (
               <span className="flex min-w-0 items-center gap-1">
-                <User size={13} className="shrink-0 text-gray-400" />
+                <User size={13} className="shrink-0 text-[var(--muted)]" />
                 <span className="truncate">{product.farmerName}</span>
               </span>
             ) : null}
             {product.farmerRating != null ? (
               <span className="flex shrink-0 items-center gap-1">
-                <Star size={13} className="shrink-0 fill-amber-400 text-amber-400" /> {product.farmerRating.toFixed(1)}
+                <Star size={13} className="shrink-0 fill-[var(--amber-700)] text-[var(--amber-700)]" /> {product.farmerRating.toFixed(1)}
               </span>
             ) : null}
           </div>
 
           {/* One clean status line instead of a scatter of separate badges — Fresh is the
               baseline signal for any active listing, Verified/Grade only add on when real. */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-gray-600">
-            <span className="flex items-center gap-1 text-green-700">
+          <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)]">
+            <span className="flex items-center gap-1 text-[var(--green-700)]">
               <Leaf size={13} className="shrink-0" /> Fresh
             </span>
             {product.farmerVerified ? (
               <>
-                <span className="text-gray-300">•</span>
+                <span className="text-[var(--text-faint)]">•</span>
                 <span>Verified Farmer</span>
               </>
             ) : null}
-            <span className="text-gray-300">•</span>
+            <span className="text-[var(--text-faint)]">•</span>
             <span>Grade {product.grade || 'A'}</span>
           </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-3 border-t border-gray-100 pt-4">
+        <div className="mt-auto flex flex-col gap-3 border-t border-[var(--line)] pt-4">
           <div className="flex items-end justify-between gap-3">
             <div className="flex flex-wrap items-baseline gap-x-1.5">
-              <span className="text-2xl font-bold leading-none text-gray-900">{formatCurrency(product.price)}</span>
-              <span className="text-[13px] font-medium text-gray-400">/{product.unit}</span>
+              <span className="text-2xl font-bold leading-none text-[var(--text)]">{formatCurrency(product.price)}</span>
+              <span className="text-[13px] font-medium text-[var(--muted)]">/{product.unit}</span>
               {isDiscounted ? (
                 <>
-                  <span className="text-[13px] font-medium text-gray-400 line-through">{formatCurrency(product.originalPrice)}</span>
-                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800">{product.discountPercent}% OFF</span>
+                  <span className="text-[13px] font-medium text-[var(--muted)] line-through">{formatCurrency(product.originalPrice)}</span>
+                  <span className="rounded-full bg-[var(--green-100)] px-2 py-0.5 text-[11px] font-semibold text-[var(--green-800)]">{product.discountPercent}% OFF</span>
                 </>
               ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-0.5">
-              <span className="flex items-center gap-1 text-[13px] font-semibold text-gray-700">
-                <Package size={13} className="shrink-0 text-gray-400" /> {formatQuantity(product.quantity)} {product.unit}
+              <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--text-secondary)]">
+                <Package size={13} className="shrink-0 text-[var(--muted)]" /> {formatQuantity(product.quantity)} {product.unit}
               </span>
               {isCriticallyLow ? (
-                <span className="text-[13px] font-semibold text-red-600">Only {formatQuantity(product.quantity)} {product.unit} left</span>
+                <span className="text-[13px] font-semibold text-[var(--red-700)]">Only {formatQuantity(product.quantity)} {product.unit} left</span>
               ) : null}
             </div>
           </div>
 
           {product.sellingType === 'wholesale' && product.moq ? (
-            <p className="text-[13px] text-gray-500">Min. order (MOQ): {formatQuantity(product.moq)} {product.unit}</p>
+            <p className="text-[13px] text-[var(--muted)]">Min. order (MOQ): {formatQuantity(product.moq)} {product.unit}</p>
           ) : null}
 
           {actions || (
@@ -177,12 +177,12 @@ export default function ProductCard({ product, actions, showStatus = false }) {
                   type="button"
                   onClick={inCart && !justAdded ? handleRemoveFromCart : handleAddToCart}
                   disabled={isOutOfStock}
-                  className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none] ${
+                  className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] [forced-color-adjust:none] ${
                     isOutOfStock
-                      ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                      ? 'cursor-not-allowed border-[var(--line)] bg-[var(--soft)] text-[var(--muted)]'
                       : justAdded
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                        ? 'border-[var(--green-100)] bg-[var(--green-50)] text-[var(--green-700)]'
+                        : 'border-[var(--line)] text-[var(--text-secondary)] hover:bg-[var(--soft)]'
                   }`}
                 >
                   {isOutOfStock ? (
@@ -198,7 +198,7 @@ export default function ProductCard({ product, actions, showStatus = false }) {
               ) : null}
               <Link
                 to={`/products/${product.id}`}
-                className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 [forced-color-adjust:none]"
+                className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--green-600)] text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--green-700)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] [forced-color-adjust:none]"
               >
                 View Details <ArrowRight size={15} />
               </Link>

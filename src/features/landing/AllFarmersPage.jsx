@@ -105,12 +105,12 @@ export default function AllFarmersPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAFAF8]">
-      <header className="sticky top-0 z-30 h-[72px] border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+    <main className="min-h-screen bg-[var(--soft)]">
+      <header className="sticky top-0 z-30 h-[72px] border-b border-[var(--line)] bg-[var(--panel)]/90 backdrop-blur supports-[backdrop-filter]:bg-[var(--panel)]/75">
         <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8 lg:px-16">
           <Link to="/" className="flex min-w-0 items-center gap-2.5">
             <img src={logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
-            <span className="truncate text-[15px] font-bold text-gray-900">HarvestLink</span>
+            <span className="truncate text-[15px] font-bold text-[var(--text)]">HarvestLink</span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
@@ -118,7 +118,7 @@ export default function AllFarmersPage() {
               <a
                 key={link.label}
                 href={link.to}
-                className="text-[13.5px] font-medium text-gray-600 transition-colors hover:text-green-800"
+                className="text-[13.5px] font-medium text-[var(--muted)] transition-colors hover:text-[var(--green-800)]"
               >
                 {link.label}
               </a>
@@ -126,12 +126,12 @@ export default function AllFarmersPage() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-3">
-            <Link to="/login" className="text-[13.5px] font-semibold text-gray-700 transition-colors hover:text-green-800">
+            <Link to="/login" className="text-[13.5px] font-semibold text-[var(--text)] transition-colors hover:text-[var(--green-800)]">
               Login
             </Link>
             <Link
               to="/register"
-              className="flex h-9 items-center rounded-lg bg-green-800 px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-green-700"
+              className="flex h-9 items-center rounded-lg bg-[var(--green-800)] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[var(--green-700)]"
             >
               Register
             </Link>
@@ -144,7 +144,7 @@ export default function AllFarmersPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="text-[12px] font-semibold uppercase tracking-[0.12em] text-green-700"
+          className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--green-700)]"
         >
           Trusted Farmers
         </motion.p>
@@ -152,7 +152,7 @@ export default function AllFarmersPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
-          className="mx-auto mt-3 text-[2.25rem] font-bold tracking-tight text-gray-900 sm:text-[3rem]"
+          className="mx-auto mt-3 text-[2.25rem] font-bold tracking-tight text-[var(--text)] sm:text-[3rem]"
         >
           Verified Farmers Across Cebu
         </motion.h1>
@@ -160,7 +160,7 @@ export default function AllFarmersPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="mx-auto mt-4 max-w-[650px] text-[15.5px] leading-7 text-gray-500"
+          className="mx-auto mt-4 max-w-[650px] text-[15.5px] leading-7 text-[var(--muted)]"
         >
           Discover trusted local farmers, compare ratings, explore their products, and connect directly without middlemen.
         </motion.p>

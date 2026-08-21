@@ -48,11 +48,11 @@ function SummaryCard({
 }) {
   const { base, accent } = SUMMARY_TONES[tone] || SUMMARY_TONES.green;
   const cardStyle = {
-    background: `color-mix(in srgb, ${base} 40%, white)`,
-    borderColor: `color-mix(in srgb, ${accent} 28%, white)`,
+    background: `color-mix(in srgb, ${base} 40%, var(--panel))`,
+    borderColor: `color-mix(in srgb, ${accent} 28%, var(--panel))`,
   };
   return (
-    <div className="h-full rounded-lg border border-[var(--line)] bg-white p-4" style={cardStyle}>
+    <div className="h-full rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4" style={cardStyle}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
         <Icon size={18} strokeWidth={2} className="shrink-0" style={{ color: accent }} aria-hidden="true" />

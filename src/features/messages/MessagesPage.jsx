@@ -320,7 +320,7 @@ export default function MessagesPage() {
 
   return (
     <AppShell user={currentUser} navItems={navItems} title="Messages" fullBleed>
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-sm">
         <ConversationList
           threads={combinedThreads}
           activeKey={activeKey}
@@ -333,7 +333,7 @@ export default function MessagesPage() {
 
         <div className={`flex min-w-0 flex-1 flex-col ${hasActiveThread ? 'flex' : 'hidden md:flex'}`}>
           {isResolvingOrder ? (
-            <div className="flex flex-1 items-center justify-center text-gray-400">
+            <div className="flex flex-1 items-center justify-center text-[var(--muted)]">
               <Loader2 size={22} className="animate-spin" />
             </div>
           ) : hasActiveThread ? (
@@ -349,7 +349,7 @@ export default function MessagesPage() {
               <OrderContextCard order={pinnedOrder} />
 
               <div ref={messageListRef} onScroll={handleScroll} className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
-                {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-gray-400">Loading earlier messages…</p> : null}
+                {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
                 {!messages.length ? (
                   <StartConversationState name={otherPartyName} />
                 ) : (
@@ -365,7 +365,7 @@ export default function MessagesPage() {
                       <div key={message.id}>
                         {showDateSeparator ? (
                           <div className="my-3 flex items-center justify-center">
-                            <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold text-gray-500">
+                            <span className="rounded-full bg-[var(--soft)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
                               {dateSeparatorLabel(message.createdAt)}
                             </span>
                           </div>
@@ -394,9 +394,9 @@ export default function MessagesPage() {
               </div>
 
               {editingMessage ? (
-                <div className="flex items-center justify-between gap-2 border-t border-gray-100 bg-amber-50 px-4 py-1.5 text-[12px] text-amber-800">
+                <div className="flex items-center justify-between gap-2 border-t border-[var(--line)] bg-[var(--amber-100)] px-4 py-1.5 text-[12px] text-[var(--amber-700)]">
                   <span>Editing message</span>
-                  <button type="button" onClick={() => setEditingMessage(null)} className="border-0 bg-transparent p-0 font-semibold text-amber-800 hover:underline">Cancel</button>
+                  <button type="button" onClick={() => setEditingMessage(null)} className="border-0 bg-transparent p-0 font-semibold text-[var(--amber-700)] hover:underline">Cancel</button>
                 </div>
               ) : null}
 
@@ -442,14 +442,14 @@ function ForwardModal({ threads, onClose, onForwardTo }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 10 }}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl"
+        className="w-full max-w-sm overflow-hidden rounded-2xl bg-[var(--surface-elevated)] shadow-xl"
       >
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <p className="flex items-center gap-2 text-[14px] font-bold text-gray-900"><Forward size={16} /> Forward to</p>
+        <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
+          <p className="flex items-center gap-2 text-[14px] font-bold text-[var(--text)]"><Forward size={16} /> Forward to</p>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="flex h-7 w-7 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
           >
             <X size={18} />
           </button>
@@ -460,14 +460,14 @@ function ForwardModal({ threads, onClose, onForwardTo }) {
               key={thread.key}
               type="button"
               onClick={() => onForwardTo(thread)}
-              className="flex w-full items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2 text-left hover:bg-gray-50"
+              className="flex w-full items-center gap-3 rounded-xl border-0 bg-transparent px-3 py-2 text-left hover:bg-[var(--soft)]"
             >
-              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-[12px] font-semibold text-emerald-800">
+              <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--green-100)] text-[12px] font-semibold text-[var(--green-800)]">
                 {thread.avatarUrl ? <img src={thread.avatarUrl} alt="" className="h-full w-full object-cover" /> : getInitials(thread.name)}
               </span>
-              <span className="text-[13px] font-semibold text-gray-800">{thread.name}</span>
+              <span className="text-[13px] font-semibold text-[var(--text)]">{thread.name}</span>
             </button>
-          )) : <p className="px-3 py-6 text-center text-[13px] text-gray-400">No other conversations yet.</p>}
+          )) : <p className="px-3 py-6 text-center text-[13px] text-[var(--muted)]">No other conversations yet.</p>}
         </div>
       </motion.div>
     </motion.div>

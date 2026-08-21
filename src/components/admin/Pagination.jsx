@@ -19,7 +19,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }) {
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] bg-white text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--panel)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ChevronLeft size={14} />
         </button>
@@ -28,7 +28,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }) {
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] bg-white text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--line)] bg-[var(--panel)] text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <ChevronRight size={14} />
         </button>

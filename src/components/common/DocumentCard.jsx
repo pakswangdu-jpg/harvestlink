@@ -44,16 +44,16 @@ export default function DocumentCard({ label, file, resolveUrl }) {
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
-      className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
+      className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm transition-shadow duration-200 hover:shadow-md"
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3.5">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--soft)] text-[var(--muted)]">
             <FileText size={20} strokeWidth={2} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-gray-900">{label}</p>
-            <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-medium ${file ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            <p className="truncate text-[15px] font-semibold text-[var(--text)]">{label}</p>
+            <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-medium ${file ? 'bg-[var(--green-50)] text-[var(--green-700)]' : 'bg-[var(--soft)] text-[var(--muted)]'}`}>
               {file ? <CheckCircle2 size={12} strokeWidth={2} /> : <AlertCircle size={12} strokeWidth={2} />}
               {file ? 'Uploaded' : 'Not uploaded'}
             </span>

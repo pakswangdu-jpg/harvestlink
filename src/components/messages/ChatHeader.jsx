@@ -41,41 +41,41 @@ export default function ChatHeader({
       : 'Offline';
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+    <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)]/95 px-4 py-3 backdrop-blur-sm">
       <div className="flex min-w-0 items-center gap-3">
         {isMobile ? (
           <button
             type="button"
             onClick={onBack}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-800"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--text)]"
           >
             <ArrowLeft size={20} />
           </button>
         ) : null}
 
         <div className="relative shrink-0">
-          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-[13px] font-semibold text-emerald-800">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--green-100)] text-[13px] font-semibold text-[var(--green-800)]">
             {otherParty?.avatarUrl ? (
               <img src={otherParty.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               getInitials(displayName)
             )}
           </div>
-          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${online ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--panel)] ${online ? 'bg-[var(--green-700)]' : 'bg-[var(--line)]'}`} />
         </div>
 
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="truncate text-[15px] font-bold text-gray-900">{displayName || 'Loading…'}</p>
+            <p className="truncate text-[15px] font-bold text-[var(--text)]">{displayName || 'Loading…'}</p>
             {otherParty?.verificationStatus === 'verified' ? (
-              <BadgeCheck size={15} className="shrink-0 text-emerald-600" aria-label="Verified" />
+              <BadgeCheck size={15} className="shrink-0 text-[var(--green-700)]" aria-label="Verified" />
             ) : null}
           </div>
-          <div className="flex items-center gap-2 text-[12px] text-gray-500">
+          <div className="flex items-center gap-2 text-[12px] text-[var(--muted)]">
             <span>{presenceLabel}</span>
             {rating ? (
-              <span className="flex items-center gap-0.5 text-amber-600">
-                <Star size={11} className="fill-amber-500 text-amber-500" /> {rating.average.toFixed(1)} ({rating.count})
+              <span className="flex items-center gap-0.5 text-[var(--amber-700)]">
+                <Star size={11} className="fill-[var(--amber-700)] text-[var(--amber-700)]" /> {rating.average.toFixed(1)} ({rating.count})
               </span>
             ) : null}
           </div>
@@ -83,8 +83,8 @@ export default function ChatHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <label className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-medium text-gray-600 sm:flex" htmlFor="translate-lang">
-          <Globe size={14} className="shrink-0 text-gray-400" />
+        <label className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)] sm:flex" htmlFor="translate-lang">
+          <Globe size={14} className="shrink-0 text-[var(--muted)]" />
           <select
             id="translate-lang"
             value={targetLang}
@@ -93,13 +93,13 @@ export default function ChatHeader({
           >
             {MESSAGE_TRANSLATION_LANGUAGES.map((lang) => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
           </select>
-          <ChevronDown size={12} className="pointer-events-none -ml-1 shrink-0 text-gray-400" />
+          <ChevronDown size={12} className="pointer-events-none -ml-1 shrink-0 text-[var(--muted)]" />
         </label>
 
         {otherParty?.role === 'farmer' && viewProductsHref ? (
           <Link
             to={viewProductsHref}
-            className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors duration-150 hover:border-emerald-200 hover:text-emerald-700 sm:flex"
+            className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--muted)] transition-colors duration-150 hover:border-[var(--green-100)] hover:text-[var(--green-700)] sm:flex"
           >
             <Store size={13} /> Products
           </Link>
@@ -108,7 +108,7 @@ export default function ChatHeader({
         {otherParty?.role === 'farmer' ? (
           <Link
             to={`/farmers/${otherParty.id}`}
-            className="hidden items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors duration-150 hover:border-emerald-200 hover:text-emerald-700 sm:flex"
+            className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--muted)] transition-colors duration-150 hover:border-[var(--green-100)] hover:text-[var(--green-700)] sm:flex"
           >
             <User size={13} /> Profile
           </Link>

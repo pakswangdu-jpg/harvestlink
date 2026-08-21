@@ -9,9 +9,9 @@ const CHART_HEIGHT = 220;
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-md border border-[#D0D7DE] bg-white px-3 py-2 text-[12px] shadow-sm">
-      <p className="font-medium text-[#24292F]">{label}</p>
-      <p className="text-[#57606A]">{formatCurrency(payload[0].value)}</p>
+    <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-[12px] shadow-sm">
+      <p className="font-medium text-[var(--text)]">{label}</p>
+      <p className="text-[var(--muted)]">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
@@ -28,27 +28,27 @@ export default function RevenueTrendChart({ points }) {
     <div style={{ height: CHART_HEIGHT }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="#EAEEF2" />
+          <CartesianGrid vertical={false} stroke="var(--line)" />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 12, fill: '#57606A' }}
-            axisLine={{ stroke: '#D0D7DE' }}
+            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            axisLine={{ stroke: 'var(--line)' }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: '#57606A' }}
+            tick={{ fontSize: 12, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
             width={64}
             tickFormatter={(value) => formatCurrency(value)}
           />
-          <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#D0D7DE' }} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--line)' }} />
           <Line
             type="monotone"
             dataKey="revenue"
-            stroke="#166534"
+            stroke="var(--green-800)"
             strokeWidth={1.75}
-            dot={{ r: 2.5, fill: '#166534', strokeWidth: 0 }}
+            dot={{ r: 2.5, fill: 'var(--green-800)', strokeWidth: 0 }}
             activeDot={{ r: 4 }}
             isAnimationActive
             animationDuration={300}

@@ -29,18 +29,18 @@ export default function EmojiPicker({ onSelect, onClose }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.97 }}
       transition={{ duration: 0.15 }}
-      className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3 shadow-xl z-20"
+      className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] max-h-80 overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--surface-elevated)] p-3 shadow-xl z-20"
     >
       {EMOJI_GROUPS.map((group) => (
         <div key={group.label} className="mb-2 last:mb-0">
-          <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{group.label}</p>
+          <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{group.label}</p>
           <div className="mt-1 grid grid-cols-8 gap-0.5">
             {group.emoji.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 onClick={() => onSelect(emoji)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent p-0 text-lg transition-colors duration-150 hover:bg-emerald-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent p-0 text-lg transition-colors duration-150 hover:bg-[var(--green-50)]"
               >
                 {emoji}
               </button>

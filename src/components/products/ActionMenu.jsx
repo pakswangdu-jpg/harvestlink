@@ -75,7 +75,7 @@ export default function ActionMenu({ items }) {
         type="button"
         aria-label="Row actions"
         onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-gray-500 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--muted)] transition-colors duration-200 hover:bg-[var(--soft)] hover:text-[var(--text)]"
       >
         <EllipsisVertical size={18} strokeWidth={2} />
       </button>
@@ -84,11 +84,11 @@ export default function ActionMenu({ items }) {
         <div
           ref={menuRef}
           style={{ position: 'fixed', top: position.top, right: position.right, width: MENU_WIDTH }}
-          className="z-50 overflow-hidden rounded-xl border border-gray-100 bg-white py-1.5 shadow-lg"
+          className="z-50 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-elevated)] py-1.5 shadow-lg"
         >
           {visibleItems.map((item, index) => (
             <div key={item.label}>
-              {item.dividerBefore && index > 0 ? <div className="my-1.5 h-px bg-gray-100" /> : null}
+              {item.dividerBefore && index > 0 ? <div className="my-1.5 h-px bg-[var(--line)]" /> : null}
               <button
                 type="button"
                 onClick={() => {
@@ -96,7 +96,7 @@ export default function ActionMenu({ items }) {
                   item.onClick();
                 }}
                 className={`flex w-full items-center gap-2.5 border-0 bg-transparent px-3.5 py-2 text-left text-[14px] font-medium transition-colors duration-200 ${
-                  item.danger ? 'text-red-700 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'
+                  item.danger ? 'text-[var(--red-700)] hover:bg-[var(--red-100)]' : 'text-[var(--text-secondary)] hover:bg-[var(--soft)]'
                 }`}
               >
                 <item.icon size={16} strokeWidth={2} className="shrink-0" />

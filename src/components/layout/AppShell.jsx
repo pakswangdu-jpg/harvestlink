@@ -35,7 +35,7 @@ const NAV_GROUP_ORDER = ['Menu', 'Sales', 'Market', 'Community'];
 const SIDEBAR_COLLAPSED_KEY = 'harvestlink:sidebarCollapsed';
 
 export default function AppShell({
-  user, navItems, title, subtitle, children, fullBleed = false, wide = false, hideHeader = false, headerActions = null,
+  user, navItems, title, subtitle, eyebrow = 'Cebu farm-to-market', children, fullBleed = false, wide = false, hideHeader = false, headerActions = null,
 }) {
   const { logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
@@ -173,7 +173,7 @@ export default function AppShell({
             {menuGroups.map((group) => (
               <div key={group.label}>
                 {!isSidebarCollapsed ? (
-                  <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">{group.label}</p>
+                  <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">{group.label}</p>
                 ) : null}
                 <motion.div className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
                   {group.items.map((item) => (
@@ -193,7 +193,7 @@ export default function AppShell({
 
           <div className="flex flex-col gap-1">
             {!isSidebarCollapsed ? (
-              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)]">General</p>
+              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">General</p>
             ) : null}
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
@@ -206,7 +206,7 @@ export default function AppShell({
           type="button"
           onClick={handleLogout}
           title={isSidebarCollapsed ? 'Logout' : undefined}
-          className={`flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px] font-medium text-[var(--text)] transition-colors duration-150 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
+          className={`flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px] font-medium text-[var(--text)] transition-colors duration-150 hover:bg-[var(--red-100)] hover:text-[var(--red-700)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
         >
           <LogOut size={20} strokeWidth={2} className="shrink-0" aria-hidden="true" />
           {!isSidebarCollapsed ? 'Logout' : null}
@@ -246,7 +246,7 @@ export default function AppShell({
         {!fullBleed && !hideHeader ? (
           <header className="page-header">
             <div>
-              <p className="eyebrow">Cebu farm-to-market</p>
+              <p className="eyebrow">{eyebrow}</p>
               <h1>{title}</h1>
               {subtitle ? <p>{subtitle}</p> : null}
             </div>

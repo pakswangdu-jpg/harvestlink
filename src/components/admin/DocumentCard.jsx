@@ -42,7 +42,7 @@ export default function DocumentCard({ label, file, resolveUrl }) {
   };
 
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-white p-4">
+    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--soft)] text-[var(--muted)]">

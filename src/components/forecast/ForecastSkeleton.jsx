@@ -1,5 +1,9 @@
+// Rendered directly on the bare page background (not inside a .panel), which is itself
+// `var(--soft)` — using that same token here would make the block genuinely invisible
+// instead of just subtle. `--panel` is the page's next tone up, so it reads as a visible
+// pulsing block against the page behind it.
 function Block({ className }) {
-  return <div className={`animate-pulse rounded-lg bg-gray-100 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-[var(--panel)] ${className}`} />;
 }
 
 // Mirrors the real layout's shape (metric grid + chart + summary cards) so the page never

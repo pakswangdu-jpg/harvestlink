@@ -10,8 +10,8 @@ export default function ForecastPeriodSelector({ periods, value, onChange }) {
           onClick={() => onChange(period.value)}
           className={`h-9 shrink-0 rounded-full border px-4 text-[13px] font-semibold transition-colors duration-200 ${
             value === period.value
-              ? 'border-green-700 bg-green-700 text-white'
-              : 'border-gray-200 bg-white text-gray-600 hover:border-green-600 hover:text-green-700'
+              ? 'border-[var(--green-700)] bg-[var(--green-700)] text-white'
+              : 'border-[var(--line)] bg-[var(--panel)] text-[var(--text-secondary)] hover:border-[var(--green-600)] hover:text-[var(--green-700)]'
           }`}
         >
           {period.label}

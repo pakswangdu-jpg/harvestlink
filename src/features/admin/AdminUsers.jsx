@@ -22,7 +22,7 @@ import { adminNavItems } from './adminNav';
 
 function InfoField({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-white p-3">
+    <div className="flex items-start gap-2.5 rounded-md border border-[var(--line)] bg-[var(--panel)] p-3">
       <Icon size={16} className="mt-0.5 shrink-0 text-[var(--muted)]" />
       <div className="min-w-0">
         <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
@@ -161,7 +161,7 @@ export default function AdminUsers() {
                     className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-[13px] font-medium transition-colors duration-150 ${
                       isActive
                         ? 'border-[var(--green-800)] bg-[var(--green-800)] text-white'
-                        : 'border-[var(--line)] bg-white text-[var(--text)] hover:bg-[var(--soft)]'
+                        : 'border-[var(--line)] bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--soft)]'
                     }`}
                   >
                     {tab.label}

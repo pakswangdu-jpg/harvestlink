@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Clock3, MapPin, PackageCheck } from 'lucide-react';
+import { Clock3, MapPin, PackageCheck, PackageSearch } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import noProductsIcon from '../../assets/icons/marketplace-no-products.png';
 import totalSpendIcon from '../../assets/icons/kpi-total-spend.png';
 import activeListingsIcon from '../../assets/icons/kpi-active-listings.png';
 import myOrdersIcon from '../../assets/icons/kpi-my-orders.png';
@@ -143,8 +142,7 @@ export default function BuyerDashboard() {
             </div>
           ) : (
             <EmptyState
-              className="empty-state-transparent-icon"
-              iconSrc={noProductsIcon}
+              icon={PackageSearch}
               title="No products yet"
               message="Farmer listings will appear here once products are added."
             />

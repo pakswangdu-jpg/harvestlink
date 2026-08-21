@@ -25,10 +25,10 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
       // order) rendered on top and clipped the hovered card's shadow/edge instead of the
       // hovered card rising above it, which is what showed up as a stray gray sliver peeking
       // out from behind the hovered card.
-      className="group relative z-0 flex h-full flex-col rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-shadow duration-300 hover:z-10 hover:shadow-[0_20px_40px_rgba(16,24,40,0.14)]"
+      className="group relative z-0 flex h-full flex-col rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-shadow duration-300 hover:z-10 hover:shadow-[0_20px_40px_rgba(16,24,40,0.14)]"
     >
       <div className="flex items-center gap-3">
-        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-green-100 text-base font-bold text-green-800">
+        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-100)] text-base font-bold text-[var(--green-800)]">
           {farmer.avatarUrl ? (
             <img
               src={farmer.avatarUrl}
@@ -45,7 +45,7 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
             {/* line-clamp-2, not truncate — a one-line ellipsis was cutting real (often
                 multi-word Filipino) names down to "John Domi…", which read as broken rather
                 than just compact. Two lines fits virtually every name in full. */}
-            <h3 title={farmer.name} className="line-clamp-2 text-[15px] font-bold leading-snug text-gray-900">
+            <h3 title={farmer.name} className="line-clamp-2 text-[15px] font-bold leading-snug text-[var(--text)]">
               {farmer.name}
             </h3>
             <img
@@ -56,18 +56,18 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
               className="mt-0.5 h-[15px] w-[15px] shrink-0 object-contain transition-transform duration-300 group-hover:scale-110"
             />
           </div>
-          {farmer.farmName ? <p className="truncate text-[13px] font-medium text-green-700">{farmer.farmName}</p> : null}
+          {farmer.farmName ? <p className="truncate text-[13px] font-medium text-[var(--green-700)]">{farmer.farmName}</p> : null}
         </div>
       </div>
 
-      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-gray-500">
-        <MapPin size={14} className="shrink-0 text-gray-400" /> {farmer.municipality}
+      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
+        <MapPin size={14} className="shrink-0 text-[var(--muted)]" /> {farmer.municipality}
       </p>
 
       <div className="relative mt-4 flex items-center gap-2 overflow-hidden">
         <StarRating value={farmer.avgRating} size={15} />
-        <span className="text-[13px] font-semibold text-gray-700">{farmer.avgRating.toFixed(1)}</span>
-        <span className="text-[12px] text-gray-400">({farmer.ratingCount} review{farmer.ratingCount === 1 ? '' : 's'})</span>
+        <span className="text-[13px] font-semibold text-[var(--text-secondary)]">{farmer.avgRating.toFixed(1)}</span>
+        <span className="text-[12px] text-[var(--muted)]">({farmer.ratingCount} review{farmer.ratingCount === 1 ? '' : 's'})</span>
         {shouldReduceMotion ? null : (
           <motion.span
             aria-hidden="true"
@@ -89,10 +89,10 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
             const percent = farmer.ratingCount ? (count / farmer.ratingCount) * 100 : 0;
             return (
               <div key={star} className="flex items-center gap-1.5">
-                <span className="flex w-6 shrink-0 items-center justify-end gap-0.5 text-[10px] font-semibold text-gray-500">
+                <span className="flex w-6 shrink-0 items-center justify-end gap-0.5 text-[10px] font-semibold text-[var(--muted)]">
                   {star} <Star size={9} className="text-amber-400" fill="currentColor" />
                 </span>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--soft)]">
                   {shouldReduceMotion ? (
                     <div className="h-full rounded-full bg-amber-400" style={{ width: `${percent}%` }} />
                   ) : (
@@ -105,21 +105,21 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
                     />
                   )}
                 </div>
-                <span className="w-4 shrink-0 text-[10px] text-gray-400">{count}</span>
+                <span className="w-4 shrink-0 text-[10px] text-[var(--muted)]">{count}</span>
               </div>
             );
           })}
         </div>
       ) : null}
 
-      <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-gray-500">
-        <PackageCheck size={14} className="shrink-0 text-gray-400" />
+      <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
+        <PackageCheck size={14} className="shrink-0 text-[var(--muted)]" />
         {farmer.completedOrders} completed order{farmer.completedOrders === 1 ? '' : 's'}
       </p>
 
       <Link
         to={`/farmers/${farmer.id}`}
-        className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-green-600 px-4 py-2 text-sm font-semibold text-green-700 transition-all duration-300 hover:-translate-y-0.5 hover:bg-green-600 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+        className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-[var(--green-600)] px-4 py-2 text-sm font-semibold text-[var(--green-700)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[var(--green-600)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
       >
         View Profile
       </Link>
@@ -129,22 +129,22 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
 
 export function FarmerDirectoryCardSkeleton() {
   return (
-    <div className="flex h-full animate-pulse flex-col rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)]" aria-hidden="true">
+    <div className="flex h-full animate-pulse flex-col rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)]" aria-hidden="true">
       <div className="flex items-center gap-3">
-        <div className="h-14 w-14 shrink-0 rounded-full bg-gray-100" />
+        <div className="h-14 w-14 shrink-0 rounded-full bg-[var(--soft)]" />
         <div className="flex-1 space-y-2">
-          <div className="h-3.5 w-2/3 rounded bg-gray-100" />
-          <div className="h-3 w-1/2 rounded bg-gray-100" />
+          <div className="h-3.5 w-2/3 rounded bg-[var(--soft)]" />
+          <div className="h-3 w-1/2 rounded bg-[var(--soft)]" />
         </div>
       </div>
-      <div className="mt-4 h-3 w-1/3 rounded bg-gray-100" />
+      <div className="mt-4 h-3 w-1/3 rounded bg-[var(--soft)]" />
       <div className="mt-3 space-y-1.5">
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="h-1.5 w-full rounded-full bg-gray-100" />
+          <div key={index} className="h-1.5 w-full rounded-full bg-[var(--soft)]" />
         ))}
       </div>
-      <div className="mt-2 h-3 w-1/2 rounded bg-gray-100" />
-      <div className="mt-6 h-9 w-full rounded-full bg-gray-100" />
+      <div className="mt-2 h-3 w-1/2 rounded bg-[var(--soft)]" />
+      <div className="mt-6 h-9 w-full rounded-full bg-[var(--soft)]" />
     </div>
   );
 }

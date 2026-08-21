@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Sprout } from 'lucide-react';
-import noMatchIcon from '../../assets/icons/products-no-match.png';
+import { Plus, SearchX } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
@@ -10,9 +9,10 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SellerProductCard from '../../components/cards/SellerProductCard';
 import SummaryCards from '../../components/products/SummaryCards';
 import ProductFilters from '../../components/products/ProductFilters';
-import ProductTable from '../../components/products/ProductTable';
+import ProductTable, { ProductTableSkeleton } from '../../components/products/ProductTable';
 import ProductDrawer from '../../components/products/ProductDrawer';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import {
   applyDiscount,
   createProduct,
@@ -23,25 +23,14 @@ import {
   updateProduct,
 } from '../../services/productService';
 import { createDonation } from '../../services/donationService';
-import { isLowStock } from '../../utils/constants';
-import { useCatalog } from '../../contexts/CatalogContext';
+import { getProductStatusInfo } from '../../utils/constants';
 import { farmerNavItems } from './farmerNav';
 
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All statuses' },
+const STATUS_TABS = [
+  { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Archived' },
-  { value: 'low_stock', label: 'Low stock' },
-  { value: 'out_of_stock', label: 'Out of stock' },
-  { value: 'discounted', label: 'Discounted' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'price_high', label: 'Price: high to low' },
-  { value: 'price_low', label: 'Price: low to high' },
-  { value: 'stock', label: 'Stock: high to low' },
+  { value: 'low-stock', label: 'Low Stock' },
+  { value: 'out-of-stock', label: 'Out of Stock' },
 ];
 
 // Fields a fresh duplicate should start clean with — never carries over another listing's
@@ -72,102 +61,71 @@ function buildDuplicatePayload(product) {
   };
 }
 
-function matchesStatusFilter(product, statusFilter) {
-  switch (statusFilter) {
-    case 'active':
-      return product.status === 'active';
-    case 'inactive':
-      return product.status === 'inactive';
-    case 'low_stock':
-      return isLowStock(product.quantity);
-    case 'out_of_stock':
-      return Number(product.quantity) <= 0;
-    case 'discounted':
-      return Boolean(product.discountPercent);
-    default:
-      return true;
-  }
-}
-
-function sortProducts(list, sortBy) {
-  const sorted = [...list];
-  switch (sortBy) {
-    case 'oldest':
-      return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    case 'price_high':
-      return sorted.sort((a, b) => Number(b.price) - Number(a.price));
-    case 'price_low':
-      return sorted.sort((a, b) => Number(a.price) - Number(b.price));
-    case 'stock':
-      return sorted.sort((a, b) => Number(b.quantity) - Number(a.quantity));
-    case 'newest':
-    default:
-      return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }
-}
-
 export default function FarmerProducts() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const { categoryNames } = useCatalog();
+  const { showToast } = useToast();
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [notice, setNotice] = useState('');
-  const [error, setError] = useState('');
+  const [archiveTarget, setArchiveTarget] = useState(null);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [gradeFilter, setGradeFilter] = useState('all');
-  const [salesTypeFilter, setSalesTypeFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
 
   const isVerified = currentUser.verificationStatus === 'verified';
 
-  const reload = () => getProductsByFarmer(currentUser.id).then(setProducts);
+  const reload = () => getProductsByFarmer(currentUser.id)
+    .then((result) => {
+      setProducts(result);
+      setLoadError(false);
+      setIsLoading(false);
+    })
+    .catch(() => {
+      setLoadError(true);
+      setIsLoading(false);
+    });
 
   useEffect(() => {
     reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id]);
 
-  const summary = useMemo(() => ({
-    total: products.length,
-    active: products.filter((product) => product.status === 'active').length,
-    lowStock: products.filter((product) => isLowStock(product.quantity)).length,
-    totalInventory: products.reduce((sum, product) => sum + Number(product.quantity || 0), 0),
-  }), [products]);
+  const summary = useMemo(() => {
+    const counts = { total: products.length, active: 0, lowStock: 0, totalInventory: 0 };
+    products.forEach((product) => {
+      const status = getProductStatusInfo(product).value;
+      if (status === 'active') counts.active += 1;
+      if (status === 'low-stock') counts.lowStock += 1;
+      counts.totalInventory += Number(product.quantity || 0);
+    });
+    return counts;
+  }, [products]);
 
-  // Includes any category value already on one of this farmer's own listings even if it's
-  // no longer part of the canonical list (e.g. renamed/deactivated since the listing was
-  // created) — otherwise that product would become impossible to find via this filter.
-  const categoryOptions = useMemo(() => {
-    const extra = products
-      .map((product) => product.category)
-      .filter((category) => category && !categoryNames.includes(category));
-    return [...categoryNames, ...new Set(extra)];
-  }, [products, categoryNames]);
+  const statusTabs = useMemo(() => {
+    const counts = { all: products.length, active: 0, 'low-stock': 0, 'out-of-stock': 0 };
+    products.forEach((product) => {
+      const status = getProductStatusInfo(product).value;
+      if (status in counts) counts[status] += 1;
+    });
+    return STATUS_TABS.map((tab) => ({ ...tab, count: counts[tab.value] || 0 }));
+  }, [products]);
 
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const filtered = products
+    return products
       .filter((product) => !query || product.name.toLowerCase().includes(query))
-      .filter((product) => categoryFilter === 'all' || product.category === categoryFilter)
-      .filter((product) => matchesStatusFilter(product, statusFilter))
-      .filter((product) => gradeFilter === 'all' || product.grade === gradeFilter)
-      .filter((product) => salesTypeFilter === 'all' || product.sellingType === salesTypeFilter);
-    return sortProducts(filtered, sortBy);
-  }, [products, search, categoryFilter, statusFilter, gradeFilter, salesTypeFilter, sortBy]);
+      .filter((product) => statusFilter === 'all' || getProductStatusInfo(product).value === statusFilter)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [products, search, statusFilter]);
 
-  const hasFilters = search.trim() || categoryFilter !== 'all' || statusFilter !== 'all' || gradeFilter !== 'all' || salesTypeFilter !== 'all';
+  const hasFilters = Boolean(search.trim()) || statusFilter !== 'all';
 
   const clearFilters = () => {
     setSearch('');
-    setCategoryFilter('all');
     setStatusFilter('all');
-    setGradeFilter('all');
-    setSalesTypeFilter('all');
   };
 
   const openAddDrawer = () => {
@@ -187,10 +145,9 @@ export default function FarmerProducts() {
 
   const handleSubmit = async (values) => {
     try {
-      setError('');
       if (editingProduct) {
         await updateProduct(editingProduct.id, values);
-        setNotice('Product updated.');
+        showToast({ type: 'success', message: 'Product updated successfully.' });
         closeDrawer();
       } else if (values.isDonation) {
         // allowDuplicate: a donation posts price 0 — folding it into an existing listing for
@@ -199,13 +156,16 @@ export default function FarmerProducts() {
           ...values, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
         });
         createDonation(created, currentUser);
-        setNotice(`${created.name} listed as a surplus donation for partner organizations.`);
+        showToast({ type: 'success', message: `${created.name} listed as a surplus donation for partner organizations.` });
         closeDrawer();
       } else {
         const created = await createProduct(values);
-        setNotice(created.merged
-          ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing — now ${created.quantity} ${created.unit}.`
-          : 'Product added to the marketplace.');
+        showToast({
+          type: 'success',
+          message: created.merged
+            ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing.`
+            : 'Product added successfully.',
+        });
         // Keep the drawer open, now switched into edit mode for the product that was just
         // created (ProductForm's Discount section only ever renders once a product exists),
         // so a farmer can apply a discount right away instead of closing the drawer and
@@ -214,76 +174,69 @@ export default function FarmerProducts() {
       }
       reload();
     } catch (submitError) {
-      setNotice('');
-      setError(submitError.message || 'Something went wrong while saving this product. Please try again.');
+      showToast({ type: 'error', message: submitError.message || 'Something went wrong while saving this product. Please try again.' });
     }
   };
 
   const handleDuplicate = async (product) => {
     try {
-      setError('');
       const copy = await createProduct(buildDuplicatePayload(product));
-      setNotice(`${copy.name} duplicated as a new listing.`);
+      showToast({ type: 'success', message: `${copy.name} duplicated as a new listing.` });
       reload();
     } catch (duplicateError) {
-      setNotice('');
-      setError(duplicateError.message);
+      showToast({ type: 'error', message: duplicateError.message });
     }
   };
 
-  const handleArchive = async (product) => {
+  const handleConfirmArchive = async () => {
+    if (!archiveTarget) return;
+    const product = archiveTarget;
     try {
-      setError('');
       await setProductStatus(product.id, product.status === 'active' ? 'inactive' : 'active');
-      setNotice(`${product.name} ${product.status === 'active' ? 'archived' : 'unarchived'}.`);
+      showToast({ type: 'success', message: `${product.name} ${product.status === 'active' ? 'deactivated' : 'reactivated'}.` });
       reload();
     } catch (statusError) {
-      setNotice('');
-      setError(statusError.message);
+      showToast({ type: 'error', message: statusError.message });
     }
+    setArchiveTarget(null);
   };
 
   const handleDonate = async (product) => {
     try {
-      setError('');
       createDonation(product, currentUser);
-      setNotice(`${product.name} listed as a surplus donation for partner organizations.`);
+      showToast({ type: 'success', message: `${product.name} listed as a surplus donation for partner organizations.` });
       reload();
     } catch (donateError) {
-      setNotice('');
-      setError(donateError.message);
+      showToast({ type: 'error', message: donateError.message });
     }
   };
 
   const handleDeleteConfirm = async () => {
     try {
       await deleteProduct(deleteTarget.id);
-      setError('');
-      setNotice('Product deleted.');
+      showToast({ type: 'success', message: 'Product deleted.' });
       setDeleteTarget(null);
       reload();
     } catch (deleteError) {
-      setNotice('');
-      setError(deleteError.message);
+      showToast({ type: 'error', message: deleteError.message });
     }
   };
 
   const handleApplyDiscount = async (percent) => {
     try {
       await applyDiscount(editingProduct.id, percent);
-      setNotice(`${editingProduct.name} discounted by ${percent}%.`);
+      showToast({ type: 'success', message: `${editingProduct.name} discounted by ${percent}%.` });
       const refreshed = await getProductsByFarmer(currentUser.id);
       setProducts(refreshed);
       setEditingProduct(refreshed.find((item) => item.id === editingProduct.id) || null);
     } catch (discountError) {
-      setNotice('');
-      setError(discountError.message);
+      showToast({ type: 'error', message: discountError.message });
     }
   };
 
   const handleRemoveDiscount = async () => {
     await removeDiscount(editingProduct.id);
-    setNotice(`Discount removed from ${editingProduct.name}.`);
+    showToast({ type: 'success', message: `Discount removed from ${editingProduct.name}.` });
     const refreshed = await getProductsByFarmer(currentUser.id);
     setProducts(refreshed);
     setEditingProduct(refreshed.find((item) => item.id === editingProduct.id) || null);
@@ -295,12 +248,20 @@ export default function FarmerProducts() {
     <AppShell
       user={currentUser}
       navItems={farmerNavItems}
+      eyebrow="Product Management"
       title="My Products"
       subtitle="Manage your product listings, inventory, pricing, and availability."
+      headerActions={(
+        <Button
+          onClick={openAddDrawer}
+          disabled={!canAddProducts}
+          title={canAddProducts ? undefined : 'Verify your account before adding products.'}
+          className="gap-1.5"
+        >
+          <Plus size={16} strokeWidth={2.5} /> Add Product
+        </Button>
+      )}
     >
-      {notice ? <div className="form-alert success">{notice}</div> : null}
-      {error ? <div className="form-alert error">{error}</div> : null}
-
       {!isVerified ? (
         <div className={`form-alert ${currentUser.verificationStatus === 'rejected' ? 'error' : 'warning'}`}>
           {currentUser.verificationStatus === 'rejected' ? (
@@ -317,83 +278,76 @@ export default function FarmerProducts() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-end gap-4">
-        <Button
-          onClick={openAddDrawer}
-          disabled={!canAddProducts}
-          title={canAddProducts ? undefined : 'Verify your account before adding products.'}
-          className="h-[42px]! gap-2"
-        >
-          <Plus size={18} strokeWidth={2} /> Add Product
-        </Button>
-      </div>
+      <SummaryCards summary={summary} />
 
-      <div className="mt-6">
-        <SummaryCards summary={summary} />
-      </div>
+      <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-[var(--text)]">Your Products</h2>
+        </div>
 
-      <section className="mt-8 rounded-lg border border-[#D0D7DE] bg-white p-5">
-        {products.length ? (
-          <div className="mb-5">
+        {!isLoading && !loadError && products.length ? (
+          <div className="mb-3">
             <ProductFilters
               search={search}
               onSearchChange={setSearch}
-              categoryFilter={categoryFilter}
-              onCategoryFilterChange={setCategoryFilter}
-              categoryOptions={categoryOptions}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
-              statusOptions={STATUS_FILTERS}
-              gradeFilter={gradeFilter}
-              onGradeFilterChange={setGradeFilter}
-              salesTypeFilter={salesTypeFilter}
-              onSalesTypeFilterChange={setSalesTypeFilter}
-              sortBy={sortBy}
-              onSortByChange={setSortBy}
-              sortOptions={SORT_OPTIONS}
+              statusTabs={statusTabs}
             />
           </div>
         ) : null}
 
-        {visibleProducts.length ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+        {isLoading ? (
+          <>
+            <div className="hidden lg:block"><ProductTableSkeleton /></div>
+            <div className="grid gap-2.5 lg:hidden">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={`product-skeleton-${index}`} className="product-mobile-card">
+                  <div className="product-skeleton-block h-10 w-10 shrink-0 rounded-lg" />
+                  <div className="min-w-0 flex-1">
+                    <div className="product-skeleton-block h-3.5 w-2/5" />
+                    <div className="product-skeleton-block mt-2 h-3 w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : loadError ? (
+          <EmptyState
+            compact
+            title="Products couldn't be loaded"
+            message="Something went wrong while loading your products."
+            actionLabel="Try Again"
+            onAction={reload}
+          />
+        ) : visibleProducts.length ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
             <div className="hidden lg:block">
               <ProductTable
                 products={visibleProducts}
                 onView={(product) => navigate(`/products/${product.id}`)}
                 onEdit={openEditDrawer}
                 onDuplicate={handleDuplicate}
-                onArchive={handleArchive}
+                onArchive={setArchiveTarget}
                 onDonate={handleDonate}
                 onDelete={setDeleteTarget}
               />
             </div>
-            <div className="grid gap-4 lg:hidden">
+            <div className="lg:hidden">
               {visibleProducts.map((product) => (
                 <SellerProductCard
                   key={product.id}
                   product={product}
-                  actions={(
-                    <>
-                      <Button size="sm" variant="secondary" onClick={() => openEditDrawer(product)}>Edit</Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(product)}>Duplicate</Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleArchive(product)}>
-                        {product.status === 'active' ? 'Archive' : 'Unarchive'}
-                      </Button>
-                      {Number(product.quantity) > 0 ? (
-                        <Button size="sm" variant="ghost" onClick={() => handleDonate(product)}>Donate</Button>
-                      ) : null}
-                      <Button size="sm" variant="danger" onClick={() => setDeleteTarget(product)}>Delete</Button>
-                    </>
-                  )}
+                  actions={<Button size="sm" variant="secondary" onClick={() => openEditDrawer(product)}>Edit</Button>}
                 />
               ))}
             </div>
           </motion.div>
         ) : products.length ? (
           <EmptyState
+            compact
             className="empty-state-transparent-icon"
-            iconSrc={noMatchIcon}
+            icon={SearchX}
             title="No matching products"
             message="Try a different search term or filter."
             actionLabel={hasFilters ? 'Clear filters' : undefined}
@@ -401,10 +355,9 @@ export default function FarmerProducts() {
           />
         ) : (
           <EmptyState
-            className="empty-state-transparent-icon"
-            icon={Sprout}
-            title="No products yet"
-            message="You haven't added any products yet. Click Add Product to create your first listing."
+            compact
+            title="No products listed yet"
+            message="Your products will appear here once you create a listing."
             actionLabel={canAddProducts ? 'Add Product' : undefined}
             onAction={openAddDrawer}
           />
@@ -422,10 +375,21 @@ export default function FarmerProducts() {
       />
 
       <ConfirmDialog
+        open={Boolean(archiveTarget)}
+        title={archiveTarget?.status === 'active' ? 'Deactivate product?' : 'Reactivate product?'}
+        message={archiveTarget?.status === 'active'
+          ? 'This product will no longer be visible to buyers.'
+          : 'This product will become visible to buyers again.'}
+        confirmLabel={archiveTarget?.status === 'active' ? 'Deactivate' : 'Reactivate'}
+        onConfirm={handleConfirmArchive}
+        onCancel={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title={deleteTarget?.name}
-        message="This will permanently delete this product listing. This action cannot be undone."
-        confirmLabel="Delete"
+        title="Delete product?"
+        message="This action cannot be undone."
+        confirmLabel="Delete Product"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
       />

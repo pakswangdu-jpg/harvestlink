@@ -19,18 +19,18 @@ export default function ConfirmDialog({
           onClick={onCancel}
         >
           <motion.div
-            className="w-full max-w-sm rounded-lg border border-[#D0D7DE] bg-white p-5 shadow-md"
+            className="w-full max-w-sm rounded-lg border border-[var(--line)] bg-[var(--surface-elevated)] p-5 shadow-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-700">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--red-100)] text-[var(--red-700)]">
               <TriangleAlert size={20} strokeWidth={2} />
             </div>
-            <h3 className="mt-3 text-[15px] font-semibold text-gray-900">{title}</h3>
-            <p className="mt-1.5 text-[14px] leading-relaxed text-gray-500">{message}</p>
+            <h3 className="mt-3 text-[15px] font-semibold text-[var(--text)]">{title}</h3>
+            <p className="mt-1.5 text-[14px] leading-relaxed text-[var(--muted)]">{message}</p>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="secondary" onClick={onCancel}>Cancel</Button>
               <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
