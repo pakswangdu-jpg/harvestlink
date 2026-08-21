@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Gift, ImageIcon, MapPin, UploadCloud, X,
+  Gift, MapPin, UploadCloud,
 } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
@@ -28,15 +28,17 @@ const PRODUCT_IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PRODUCT_IMAGE_ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
-// The modern upload-area replacement for the raw <input type="file"> — same drag-and-drop
-// dropzone/preview/remove pattern as AuthPage.jsx's VerificationDocumentUpload and
-// ConfirmGcashPaymentPage.jsx's ReceiptDropzone (reuses their .verification-upload-* CSS
-// as-is), kept local here since the accepted types/labels/size limit are product-image
-// specific. Client-side type/size checks are just an immediate, friendly first pass — the
-// upload itself (and its own validation) is still whatever uploadProductImage/the storage
-// bucket already enforced before this redesign.
+// A compact <select> — not a big custom picker — that just routes to whichever hidden file
+// input matches the farmer's choice: capture="environment" for the camera one (native camera
+// on mobile, plain file picker where a device has no camera to speak of, e.g. desktop), no
+// capture attribute for the plain "pick an existing file" one. The select is reset back to
+// its placeholder after every pick (it's a one-shot trigger, not a stored selection) so it's
+// ready to route another pick the next time. Client-side type/size checks are just an
+// immediate, friendly first pass — the upload itself (and its own validation) is still
+// whatever uploadProductImage/the storage bucket already enforced.
 function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onValidationError, onRemove }) {
-  const [isDragging, setIsDragging] = useState(false);
+  const cameraInputRef = useRef(null);
+  const uploadInputRef = useRef(null);
 
   const validateAndSelect = (candidate) => {
     if (!candidate) return;
@@ -53,6 +55,33 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
     onFileSelect(candidate);
   };
 
+  const handleSourceSelect = (event) => {
+    const source = event.target.value;
+    event.target.value = '';
+    if (source === 'camera') cameraInputRef.current?.click();
+    else if (source === 'upload') uploadInputRef.current?.click();
+  };
+
+  const hiddenFileInputs = (
+    <>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(event) => validateAndSelect(event.target.files?.[0])}
+        hidden
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
+        onChange={(event) => validateAndSelect(event.target.files?.[0])}
+        hidden
+      />
+    </>
+  );
+
   if (isUploading) {
     return (
       <div className="verification-upload-dropzone">
@@ -64,52 +93,35 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
   if (imageUrl) {
     return (
-      <div className={`verification-upload-preview${error ? ' has-error' : ''}`}>
-        <img src={imageUrl} alt="" className="verification-upload-thumb" />
-        <div className="verification-upload-meta">
-          <strong>Product image</strong>
-          <span>Visible to every buyer browsing the marketplace</span>
+      <div className={`product-image-preview${error ? ' has-error' : ''}`}>
+        <img src={imageUrl} alt="" className="product-image-preview-img" />
+        <div className="product-image-preview-actions">
+          <select
+            className="product-image-source-select"
+            defaultValue=""
+            onChange={handleSourceSelect}
+            aria-label="Change product image"
+          >
+            <option value="" disabled>Change image</option>
+            <option value="camera">Take Photo</option>
+            <option value="upload">Upload Image</option>
+          </select>
+          <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}>Remove</button>
         </div>
-        <label className="product-image-replace" htmlFor="image">
-          Replace
-          <input
-            id="image"
-            type="file"
-            accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
-            onChange={(event) => validateAndSelect(event.target.files?.[0])}
-            hidden
-          />
-        </label>
-        <button type="button" className="verification-upload-remove" onClick={onRemove} aria-label="Remove image">
-          <X size={16} />
-        </button>
+        {hiddenFileInputs}
       </div>
     );
   }
 
   return (
-    <div
-      className={`verification-upload-dropzone${isDragging ? ' dragging' : ''}${error ? ' has-error' : ''}`}
-      onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setIsDragging(false);
-        validateAndSelect(event.dataTransfer.files?.[0]);
-      }}
-    >
-      <input
-        id="image"
-        type="file"
-        accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
-        onChange={(event) => validateAndSelect(event.target.files?.[0])}
-        className="verification-upload-input"
-        aria-label="Upload product image"
-      />
-      <ImageIcon size={24} className="verification-upload-cloud" />
-      <p><strong>Upload Product Image</strong> — drag and drop, or click to browse</p>
-      <span className="verification-upload-hint">Supported formats: JPG, PNG, WEBP · Maximum file size: 5 MB</span>
-    </div>
+    <>
+      <select id="image" defaultValue="" onChange={handleSourceSelect}>
+        <option value="" disabled>Select image source</option>
+        <option value="camera">Take Photo</option>
+        <option value="upload">Upload Image</option>
+      </select>
+      {hiddenFileInputs}
+    </>
   );
 }
 
