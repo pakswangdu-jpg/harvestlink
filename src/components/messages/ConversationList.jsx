@@ -16,7 +16,7 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
   return (
     <Link
       to={thread.to}
-      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 ${
+      className={`messages-conversation-row group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 ${
         isActive ? 'bg-[var(--green-100)]' : 'hover:bg-[var(--soft)]'
       }`}
     >
@@ -69,8 +69,8 @@ export default function ConversationList({
   const rest = filtered.filter((thread) => !pinnedKeys.has(thread.key));
 
   return (
-    <div className={`flex w-full shrink-0 flex-col border-r border-[var(--line)] bg-[var(--panel)] md:w-[360px] ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}`}>
-      <div className="shrink-0 border-b border-[var(--line)] px-4 py-4">
+    <div className={`messages-conversation-list flex w-full shrink-0 flex-col border-r border-[var(--line)] bg-[var(--panel)] md:w-[360px] ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}`}>
+      <div className="messages-list-header shrink-0 border-b border-[var(--line)] px-4 py-4">
         <h1 className="text-[20px] font-bold text-[var(--text)]">Messages</h1>
         <div className="relative mt-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />

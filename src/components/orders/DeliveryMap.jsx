@@ -6,6 +6,7 @@ import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { MAP_COLORS } from '../../lib/mapMarkerColors';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -241,7 +242,7 @@ export default function DeliveryMap({
       const marker = new mapsApi.Marker({
         position: coords,
         map,
-        icon: buildPinIcon(mapsApi, '#b45309', { alert: alertStyle }),
+        icon: buildPinIcon(mapsApi, MAP_COLORS.farmer, { alert: alertStyle }),
         title: displayName,
       });
       const infoWindow = new mapsApi.InfoWindow({
@@ -266,13 +267,13 @@ export default function DeliveryMap({
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-      // Purple, not the route-destination blue (#1d4ed8) — a dashboard showing both an
-      // active "delivery to you" route AND registered-buyer reference pins at the same time
-      // would otherwise render two different things in the same color.
+      // Violet, not the route-destination blue — a dashboard showing both an active
+      // "delivery to you" route AND registered-buyer reference pins at the same time would
+      // otherwise render two different things in the same color.
       const marker = new mapsApi.Marker({
         position: coords,
         map,
-        icon: buildPinIcon(mapsApi, '#7c3aed', { alert: alertStyle }),
+        icon: buildPinIcon(mapsApi, MAP_COLORS.buyer, { alert: alertStyle }),
         title: buyer.name,
       });
       const infoWindow = new mapsApi.InfoWindow({
@@ -301,7 +302,7 @@ export default function DeliveryMap({
       const marker = new mapsApi.Marker({
         position: coords,
         map,
-        icon: buildPinIcon(mapsApi, '#db2777', { alert: alertStyle }),
+        icon: buildPinIcon(mapsApi, MAP_COLORS.stakeholder, { alert: alertStyle }),
         title: displayName,
       });
       const infoWindow = new mapsApi.InfoWindow({
@@ -401,11 +402,11 @@ export default function DeliveryMap({
     routes.forEach((route) => {
       const { origin, destination, isPickup } = resolveRoutePoints(route);
 
-      const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildPinIcon(mapsApi, '#15803d'), title: route.originLabel });
+      const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildPinIcon(mapsApi, MAP_COLORS.origin), title: route.originLabel });
       routeLayerRef.current.push(originMarker);
       allPoints.push(origin);
 
-      const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, '#1d4ed8'), title: route.destinationLabel });
+      const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, MAP_COLORS.destination), title: route.destinationLabel });
       routeLayerRef.current.push(destinationMarker);
       allPoints.push(destination);
       if (route.currentPosition) allPoints.push(route.currentPosition);

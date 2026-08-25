@@ -75,9 +75,9 @@ export default function ActionMenu({ items }) {
         type="button"
         aria-label="Row actions"
         onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--muted)] transition-colors duration-200 hover:bg-[var(--soft)] hover:text-[var(--text)]"
+        className="product-action-menu-trigger flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-transparent text-[var(--muted)] transition-colors duration-200 hover:bg-[var(--soft)] hover:text-[var(--text)]"
       >
-        <EllipsisVertical size={18} strokeWidth={2} />
+        <EllipsisVertical size={21} strokeWidth={2} />
       </button>
 
       {isOpen && position ? createPortal(

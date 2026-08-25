@@ -46,6 +46,9 @@ export default function CheckoutProductCard({ product }) {
         </div>
 
         <p className="checkout-product-listed">Listed {formatDate(product.createdAt)}</p>
+        {product.expirationDate ? (
+          <p className="checkout-product-expiration">Expires {formatDate(product.expirationDate)}</p>
+        ) : null}
       </div>
     </div>
   );

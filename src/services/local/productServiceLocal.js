@@ -1,7 +1,7 @@
 // Frozen, localStorage-backed snapshot of the pre-migration productService.js — kept only
 // so donationService.js and demandForecastService.js (not yet migrated to the backend)
 // still have synchronous product functions to call. Do not add new features here.
-import { STORAGE_KEYS } from '../../utils/constants';
+import { getExpiryStatus, STORAGE_KEYS } from '../../utils/constants';
 import { createId, migrateLegacyProducts, readStorage, writeStorage } from '../storageService';
 
 // A farmer's price more than this far above the PSA regional reference gets
@@ -60,7 +60,9 @@ export function getProductById(id) {
 }
 
 export function getActiveProducts() {
-  return getProducts().filter((product) => product.status === 'active' && Number(product.quantity) > 0);
+  return getProducts().filter((product) => product.status === 'active'
+    && Number(product.quantity) > 0
+    && getExpiryStatus(product.expirationDate) !== 'expired');
 }
 
 export function getProductsByFarmer(farmerId) {

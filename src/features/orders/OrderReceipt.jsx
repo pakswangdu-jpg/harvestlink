@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Printer } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
@@ -76,7 +77,7 @@ export default function OrderReceipt() {
       <section className="panel receipt-panel">
         <div className="receipt-header">
           <div>
-            <strong>HarvestLink</strong>
+            <strong><BrandWordmark /></strong>
             <p className="muted">Cebu Farm-to-Market</p>
           </div>
           <div className="receipt-meta">

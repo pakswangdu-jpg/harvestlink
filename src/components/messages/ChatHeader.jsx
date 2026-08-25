@@ -41,7 +41,7 @@ export default function ChatHeader({
       : 'Offline';
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)]/95 px-4 py-3 backdrop-blur-sm">
+    <div className="messages-chat-header flex items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--panel)]/95 px-4 py-3 backdrop-blur-sm">
       <div className="flex min-w-0 items-center gap-3">
         {isMobile ? (
           <button

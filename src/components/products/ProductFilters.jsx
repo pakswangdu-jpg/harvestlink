@@ -8,7 +8,7 @@ export default function ProductFilters({
   search, onSearchChange, statusFilter, onStatusFilterChange, statusTabs,
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
+    <div className="product-filters flex flex-wrap items-center gap-2.5">
       <label className="search-field flex h-10 w-full max-w-[280px] items-center rounded-lg border border-[var(--line)] bg-[var(--input-bg)] px-3" htmlFor="product-search">
         <Search size={15} className="shrink-0 text-[var(--muted)]" aria-hidden="true" />
         <input

@@ -195,6 +195,12 @@ async function fetchVerifiedFarmersWithStats() {
     .select('farmer_id, category')
     .eq('status', 'active')
     .gt('quantity', 0)
+    .or(`expiration_date.is.null,expiration_date.gte.${new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date())}`)
     .in('farmer_id', farmerIds);
   if (productsError) throw new ApiError(productsError.message, 400);
 

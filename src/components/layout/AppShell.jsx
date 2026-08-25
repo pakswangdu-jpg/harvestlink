@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, LogOut, Settings } from 'lucide-react';
+import BrandWordmark from '../common/BrandWordmark';
 import Button from '../common/Button';
 import NotificationBell from '../notifications/NotificationBell';
 import CartButton from '../cart/CartButton';
-import SidebarNavItem from './SidebarNavItem';
+import SidebarNavItem, { SIDEBAR_ICON_STROKE } from './SidebarNavItem';
 import SidebarUserCard from './SidebarUserCard';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -35,7 +36,7 @@ const NAV_GROUP_ORDER = ['Menu', 'Sales', 'Market', 'Community'];
 const SIDEBAR_COLLAPSED_KEY = 'harvestlink:sidebarCollapsed';
 
 export default function AppShell({
-  user, navItems, title, subtitle, eyebrow = 'Cebu farm-to-market', children, fullBleed = false, wide = false, hideHeader = false, headerActions = null,
+  user, navItems, title, subtitle, eyebrow = 'Cebu farm-to-market', children, fullBleed = false, wide = false, hideHeader = false, headerActions = null, pageClassName = '',
 }) {
   const { logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
@@ -152,7 +153,7 @@ export default function AppShell({
             </span>
             {!isSidebarCollapsed ? (
               <span>
-                <strong>HarvestLink</strong>
+                <strong><BrandWordmark /></strong>
                 <small>{user.role} workspace</small>
               </span>
             ) : null}
@@ -168,12 +169,12 @@ export default function AppShell({
           </button>
         </div>
 
-        <div className="sidebar-scroll flex flex-col gap-4">
-          <nav aria-label="Primary" className="flex flex-col gap-4">
+        <div className="sidebar-scroll flex flex-col gap-3.5">
+          <nav aria-label="Primary" className="flex flex-col gap-3.5">
             {menuGroups.map((group) => (
               <div key={group.label}>
                 {!isSidebarCollapsed ? (
-                  <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">{group.label}</p>
+                  <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{group.label}</p>
                 ) : null}
                 <motion.div className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
                   {group.items.map((item) => (
@@ -193,7 +194,7 @@ export default function AppShell({
 
           <div className="flex flex-col gap-1">
             {!isSidebarCollapsed ? (
-              <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">General</p>
+              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
             ) : null}
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
@@ -206,9 +207,18 @@ export default function AppShell({
           type="button"
           onClick={handleLogout}
           title={isSidebarCollapsed ? 'Logout' : undefined}
-          className={`flex h-10 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px] font-medium text-[var(--text)] transition-colors duration-150 hover:bg-[var(--red-100)] hover:text-[var(--red-700)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-3'}`}
+          // Signing out is a normal navigation action, not a destructive one — the old red
+          // hover fill made it read as "delete my account" and pulled the eye straight to the
+          // bottom of the sidebar. Matches the inactive nav rows instead.
+          // text/font utilities need `!` here: the global `button { font: inherit }` reset is
+          // unlayered CSS, which always beats Tailwind's layered utilities no matter their
+          // specificity — without it this row silently renders at the inherited 16px/400
+          // instead of matching the 14px/600 nav rows above it.
+          className={`sidebar-logout flex h-9 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px]! font-medium! text-[var(--text)] transition-colors duration-150 hover:bg-[var(--green-50)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
         >
-          <LogOut size={20} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+          <span className="sidebar-nav-icon" aria-hidden="true">
+            <LogOut size={20} strokeWidth={SIDEBAR_ICON_STROKE} className="shrink-0" />
+          </span>
           {!isSidebarCollapsed ? 'Logout' : null}
         </button>
       </motion.aside>
@@ -226,7 +236,7 @@ export default function AppShell({
             <img src={logo} alt="" />
           </span>
           <span>
-            <strong>HarvestLink</strong>
+            <strong><BrandWordmark /></strong>
             <small>{user.role} workspace</small>
           </span>
         </Link>
@@ -240,7 +250,7 @@ export default function AppShell({
           height lock, which broke natural mobile scrolling on those pages since their stacked
           content is almost always taller than one viewport. */}
       <main
-        className={`main-content ${fullBleed ? 'main-content-full-bleed' : ''} ${!fullBleed && hideHeader ? 'main-content-flush' : ''} ${wide ? 'main-content-wide' : ''}`
+        className={`main-content ${pageClassName} ${fullBleed ? 'main-content-full-bleed' : ''} ${!fullBleed && hideHeader ? 'main-content-flush' : ''} ${wide ? 'main-content-wide' : ''}`
           .trim().replace(/\s+/g, ' ')}
       >
         {!fullBleed && !hideHeader ? (
@@ -266,14 +276,14 @@ export default function AppShell({
         <div className="mobile-bottom-nav-scroll" ref={mobileNavScrollRef}>
           {navItemsWithBadges.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <item.icon size={20} strokeWidth={2} />
+              <item.icon size={20} strokeWidth={SIDEBAR_ICON_STROKE} />
               <span>{item.label}</span>
               {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
             </NavLink>
           ))}
         </div>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut size={20} strokeWidth={2} />
+          <LogOut size={20} strokeWidth={SIDEBAR_ICON_STROKE} />
         </Button>
       </nav>
     </div>

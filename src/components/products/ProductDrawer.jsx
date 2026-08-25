@@ -27,7 +27,7 @@ export default function ProductDrawer({
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 bg-black/40"
+          className="product-drawer-overlay fixed inset-0 z-50 bg-black/40"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -35,14 +35,14 @@ export default function ProductDrawer({
           onClick={onClose}
         >
           <motion.div
-            className="absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-[var(--surface-elevated)] shadow-2xl"
+            className="product-drawer-panel absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-[var(--surface-elevated)] shadow-2xl"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.3, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-[var(--line)] px-8 py-6">
+            <div className="product-drawer-header flex items-start justify-between gap-4 border-b border-[var(--line)] px-8 py-6">
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-widest text-[var(--green-700)]">
                   {product ? 'Edit listing' : 'New listing'}
@@ -78,7 +78,7 @@ export default function ProductDrawer({
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 border-t border-[var(--line)] px-8 py-5">
+            <div className="product-drawer-footer flex items-center justify-end gap-2.5 border-t border-[var(--line)] px-8 py-5">
               <Button variant="secondary" onClick={onClose}>Cancel</Button>
               <Button type="submit" form={FORM_ID} disabled={isSubmitting}>
                 {isSubmitting ? 'Saving…' : 'Save Product'}

@@ -319,8 +319,8 @@ export default function MessagesPage() {
   const viewProductsHref = otherParty ? `/marketplace?farmerId=${otherParty.id}&farmerName=${encodeURIComponent(otherPartyName)}` : null;
 
   return (
-    <AppShell user={currentUser} navItems={navItems} title="Messages" fullBleed>
-      <div className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-sm">
+    <AppShell user={currentUser} navItems={navItems} title="Messages" fullBleed pageClassName="messages-page">
+      <div className="messages-workspace flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-sm">
         <ConversationList
           threads={combinedThreads}
           activeKey={activeKey}
@@ -331,7 +331,7 @@ export default function MessagesPage() {
           isHiddenOnMobile={hasActiveThread}
         />
 
-        <div className={`flex min-w-0 flex-1 flex-col ${hasActiveThread ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`messages-chat-panel flex min-w-0 flex-1 flex-col ${hasActiveThread ? 'flex' : 'hidden md:flex'}`}>
           {isResolvingOrder ? (
             <div className="flex flex-1 items-center justify-center text-[var(--muted)]">
               <Loader2 size={22} className="animate-spin" />
@@ -348,7 +348,7 @@ export default function MessagesPage() {
               />
               <OrderContextCard order={pinnedOrder} />
 
-              <div ref={messageListRef} onScroll={handleScroll} className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+              <div ref={messageListRef} onScroll={handleScroll} className="messages-message-list flex-1 space-y-2 overflow-y-auto px-4 py-4">
                 {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
                 {!messages.length ? (
                   <StartConversationState name={otherPartyName} />
@@ -364,7 +364,7 @@ export default function MessagesPage() {
                     return (
                       <div key={message.id}>
                         {showDateSeparator ? (
-                          <div className="my-3 flex items-center justify-center">
+                          <div className="messages-date-divider my-3 flex items-center justify-center">
                             <span className="rounded-full bg-[var(--soft)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
                               {dateSeparatorLabel(message.createdAt)}
                             </span>

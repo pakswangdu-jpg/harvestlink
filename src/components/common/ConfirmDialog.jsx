@@ -5,7 +5,7 @@ import Button from './Button';
 // Generic yes/no confirmation dialog — used wherever an action needs a "are you sure"
 // checkpoint before something irreversible happens (e.g. deleting a product).
 export default function ConfirmDialog({
-  open, title, message, confirmLabel = 'Confirm', onConfirm, onCancel,
+  open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel,
 }) {
   return (
     <AnimatePresence>
@@ -32,7 +32,7 @@ export default function ConfirmDialog({
             <h3 className="mt-3 text-[15px] font-semibold text-[var(--text)]">{title}</h3>
             <p className="mt-1.5 text-[14px] leading-relaxed text-[var(--muted)]">{message}</p>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+              <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
               <Button variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
             </div>
           </motion.div>

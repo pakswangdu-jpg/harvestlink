@@ -156,6 +156,7 @@ export default function FarmerDonations() {
       navItems={farmerNavItems}
       title="Surplus donations"
       subtitle="Manage donation offers, respond to partner organization requests, and track pickups."
+      pageClassName="farmer-donations-page"
       headerActions={(
         <div className="flex items-center gap-2">
           <span className="hidden sm:inline-flex">

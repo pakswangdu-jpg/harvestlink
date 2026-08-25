@@ -142,6 +142,7 @@ export default function StakeholderDashboard() {
       navItems={stakeholderNavItems}
       title="Partner dashboard"
       subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests."
+      pageClassName="stakeholder-dashboard-page"
     >
       {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
         <div className="form-alert success">
@@ -162,10 +163,10 @@ export default function StakeholderDashboard() {
       ) : null}
 
       <KpiGrid>
-        <KpiCard label="Available donations" value={available.length} iconSrc={availableDonationsIcon} />
-        <KpiCard label="My requests" value={myRequests.length} iconSrc={myRequestsIcon} />
-        <KpiCard label="Scheduled pickups" value={scheduled.length} iconSrc={scheduledPickupsIcon} />
-        <KpiCard label="Completed" value={completed.length} iconSrc={completedDonationsIcon} variant="success" />
+        <KpiCard label="Available donations" value={available.length} iconSrc={availableDonationsIcon} tone="financial" />
+        <KpiCard label="My requests" value={myRequests.length} iconSrc={myRequestsIcon} tone="info" />
+        <KpiCard label="Scheduled pickups" value={scheduled.length} iconSrc={scheduledPickupsIcon} tone="warning" />
+        <KpiCard label="Completed" value={completed.length} iconSrc={completedDonationsIcon} variant="success" tone="success" />
       </KpiGrid>
 
       <section className="content-grid two">

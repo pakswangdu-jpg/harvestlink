@@ -75,6 +75,16 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
       byDate.set(point.date, existing);
     });
 
+    // Bridge the two lines at "today" — see ForecastChart.jsx's identical fix for why
+    // connectNulls alone can't span the historicalVolume -> forecastVolume handoff.
+    const bridgeDateIso = forecastCurve?.[0]?.date;
+    if (bridgeDateIso) {
+      const bridgeRow = byDate.get(bridgeDateIso);
+      if (bridgeRow && bridgeRow.historicalVolume == null && bridgeRow.forecastVolume != null) {
+        bridgeRow.historicalVolume = bridgeRow.forecastVolume;
+      }
+    }
+
     return [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [historicalChart, forecastCurve]);
 

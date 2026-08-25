@@ -134,9 +134,17 @@ export default function Profile() {
     }
     setIsSavingGcash(true);
     try {
-      await updateUserProfile(currentUser.id, gcashDraft);
+      const updatedProfile = await updateUserProfile(currentUser.id, gcashDraft);
+      // The API returns the persisted profile (including the backend's trimmed values). Keep
+      // the form in sync immediately, then refresh the shared auth profile so every header,
+      // checkout, and payment surface sees the update without a reload.
+      setGcashDraft({
+        gcashAccountName: updatedProfile?.gcashAccountName ?? gcashDraft.gcashAccountName.trim(),
+        gcashNumber: updatedProfile?.gcashNumber ?? gcashDraft.gcashNumber.trim(),
+      });
+      setGcashErrors({});
       await refreshUser();
-      setGcashNotice('Payment information saved.');
+      setGcashNotice('Payment information updated.');
     } catch (error) {
       setGcashErrors({ gcashAccountName: error.message });
     } finally {
@@ -186,7 +194,10 @@ export default function Profile() {
       return;
     }
     try {
-      await updateUserProfile(currentUser.id, profileDraft);
+      const updatedProfile = await updateUserProfile(currentUser.id, profileDraft);
+      // Use the persisted response (the backend trims/normalizes values) so the form and the
+      // rest of the page immediately show exactly what was saved, without a manual reload.
+      setProfileDraft(buildProfileDraft(updatedProfile || profileDraft));
       await refreshUser();
       setIsEditing(false);
       setProfileNotice('Profile updated.');
@@ -230,6 +241,7 @@ export default function Profile() {
       navItems={navItems}
       title="My profile"
       subtitle="Your account details on HarvestLink."
+      pageClassName="profile-page"
     >
       <section className="panel profile-header">
         <div className="profile-banner" />

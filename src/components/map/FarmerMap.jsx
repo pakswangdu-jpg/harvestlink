@@ -4,6 +4,7 @@ import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { isRecentlyActive } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
+import { MAP_COLORS } from '../../lib/mapMarkerColors';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -202,7 +203,7 @@ export default function FarmerMap({
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         productsLine +
         contactLine;
-      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#15803d'), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.farmer), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
     buyers.forEach((buyer) => {
@@ -218,7 +219,7 @@ export default function FarmerMap({
         `<br/>${presenceHtml(buyer)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         contactLine;
-      upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, '#1d4ed8'), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
+      upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.buyer), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
     });
 
     stakeholders.forEach((stakeholder) => {
@@ -236,7 +237,7 @@ export default function FarmerMap({
         `<br/>${presenceHtml(stakeholder)}` +
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         contactLine;
-      upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, '#db2777'), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
+      upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.stakeholder), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
     donationFarmers.forEach((farmer) => {
@@ -255,7 +256,7 @@ export default function FarmerMap({
         `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
         `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>` +
         `<br/><br/><strong>Available donations</strong><br/>${donationList}`;
-      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, '#db2777', { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.stakeholder, { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
     // Drop markers for accounts no longer present (e.g. an account that goes offline the

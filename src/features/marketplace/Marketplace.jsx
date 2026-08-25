@@ -8,7 +8,7 @@ import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { getActiveProducts } from '../../services/productService';
-import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, getExpiryStatus, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 // The classic dual-range-slider-from-two-native-inputs trick: both <input type="range">
@@ -236,7 +236,8 @@ export default function Marketplace() {
   // marketplace would never see a farmer's newly-added product until they left and came
   // back, since the original one-shot fetch on mount never ran again.
   useEffect(() => {
-    const reload = () => getActiveProducts().then(setProducts);
+    const reload = () => getActiveProducts()
+      .then((items) => setProducts(items.filter((product) => getExpiryStatus(product.expirationDate) !== 'expired')));
     reload();
     const interval = setInterval(reload, 4000);
     return () => clearInterval(interval);
@@ -281,6 +282,7 @@ export default function Marketplace() {
       navItems={navItems}
       title="Marketplace"
       subtitle="Find active produce listings from Cebu farmers."
+      pageClassName="marketplace-page"
     >
       {farmerIdFilter ? (
         <div className="form-alert info farmer-filter-banner">
@@ -344,7 +346,7 @@ export default function Marketplace() {
 
       {filteredProducts.length ? (
         <section className="product-grid">
-          {filteredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+          {filteredProducts.map((product) => <ProductCard key={product.id} product={product} className="marketplace-product-card" />)}
         </section>
       ) : (
         <EmptyState

@@ -89,6 +89,22 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
       byDate.set(point.date, existing);
     });
 
+    // Bridge the two lines at "today" — historicalPrice and forecastPrice are different
+    // dataKeys, so connectNulls (which only skips gaps within one series) can't span the
+    // handoff between them on its own. Without a shared point, the green line stops at
+    // whatever date the last real order happened to land on and the blue line only picks up
+    // several ticks later at the Today marker, leaving a visible gap on the (common) days
+    // with no order dated today. Seeding today's row with the forecast's own day-0 value
+    // (already real, never a same-day coincidence — see the comment below) as the
+    // historical point too makes both lines pass through the same coordinate.
+    const bridgeDateIso = forecastCurve?.[0]?.date;
+    if (bridgeDateIso) {
+      const bridgeRow = byDate.get(bridgeDateIso);
+      if (bridgeRow && bridgeRow.historicalPrice == null && bridgeRow.forecastPrice != null) {
+        bridgeRow.historicalPrice = bridgeRow.forecastPrice;
+      }
+    }
+
     return [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [historicalChart, forecastCurve]);
 

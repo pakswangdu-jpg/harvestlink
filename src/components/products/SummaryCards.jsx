@@ -18,7 +18,7 @@ const CARDS = [
     tooltip: 'Active products at or below their low-stock threshold.',
   },
   {
-    key: 'totalInventory', label: 'Inventory', hint: 'units in stock', icon: Boxes, accent: 'neutral',
+    key: 'totalInventory', label: 'Inventory', hint: 'units in stock', icon: Boxes, accent: 'inventory',
     tooltip: 'Combined stock quantity across all your active products.',
   },
 ];
@@ -32,7 +32,9 @@ export default function SummaryCards({ summary }) {
         return (
           <div key={key} className={`product-stats-item accent-${accent}`}>
             <div className="product-stats-label-row">
-              <Icon size={13} className="product-stats-icon" aria-hidden="true" />
+              <span className="product-stats-icon-wrap" aria-hidden="true">
+                <Icon size={15} strokeWidth={2.25} className="product-stats-icon" />
+              </span>
               <p className="product-stats-label">{label}</p>
               <span className="product-stats-info" title={tooltip}>
                 <Info size={12} aria-hidden="true" />

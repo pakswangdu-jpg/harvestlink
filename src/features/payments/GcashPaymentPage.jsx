@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Loader2, ShieldCheck, XCircle } from 'lucide-react';
+import {
+  CheckCircle2, Copy, Loader2, ShieldCheck, XCircle,
+} from 'lucide-react';
 import ZoomableImage from '../../components/common/ZoomableImage';
+import BrandWordmark from '../../components/common/BrandWordmark';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { useToast } from '../../contexts/ToastContext';
 import { getGcashCheckout } from '../../services/paymentService';
 import { formatCurrency, shortOrderId } from '../../utils/formatters';
 import logo from '../../assets/logo.png';
+import gcashLogo from '../../assets/icons/gcash-logo.png';
+
+const PAYMENT_STEPS = [
+  'Open your GCash app.',
+  'Scan the QR code.',
+  'Confirm the payment amount.',
+  'Complete the transaction.',
+  'Upload your payment receipt.',
+];
 
 // Reached from checkout (src/components/forms/CheckoutForm.jsx -> ProductDetails.jsx) once
 // an order already exists in Supabase with paymentMethod: 'gcash' and paymentStatus:
@@ -19,11 +33,13 @@ import logo from '../../assets/logo.png';
 export default function GcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // 'loading' | 'ready' | 'error'
   const [stage, setStage] = useState('loading');
   const [checkout, setCheckout] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,13 +66,22 @@ export default function GcashPaymentPage() {
     };
   }, [id, navigate]);
 
+  const copyGcashNumber = () => {
+    navigator.clipboard?.writeText(checkout.gcash.number).then(() => {
+      showToast({ type: 'success', message: 'GCash number copied.' });
+    }).catch(() => {});
+  };
+
   return (
     <main className="gcash-payment-page">
       <div className="gcash-payment-wrap">
-        <Link to="/" className="gcash-payment-brand">
-          <img src={logo} alt="" />
-          <span>HarvestLink</span>
-        </Link>
+        <div className="gcash-payment-header-bar">
+          <Link to="/" className="gcash-payment-brand">
+            <img src={logo} alt="" />
+            <span><BrandWordmark /></span>
+          </Link>
+          <span className="gcash-secure-indicator"><ShieldCheck size={13} /> <span>Secure Payment</span></span>
+        </div>
 
         <div className="panel gcash-payment-card">
           {stage === 'loading' ? (
@@ -97,7 +122,12 @@ export default function GcashPaymentPage() {
                     </div>
                     <div>
                       <dt>GCash number</dt>
-                      <dd>{checkout.gcash.number}</dd>
+                      <dd className="gcash-copyable-row">
+                        {checkout.gcash.number}
+                        <button type="button" className="gcash-copy-btn" onClick={copyGcashNumber} aria-label="Copy GCash number">
+                          <Copy size={13} />
+                        </button>
+                      </dd>
                     </div>
                     <div>
                       <dt>Total amount</dt>
@@ -105,34 +135,64 @@ export default function GcashPaymentPage() {
                     </div>
                   </dl>
 
-                  <div className="gcash-instructions">
-                    <ShieldCheck size={16} />
-                    <p>Open your GCash app and scan the QR code. Once you&apos;ve completed the payment there, tap below to upload your receipt for verification.</p>
+                  <ol className="gcash-steps">
+                    {PAYMENT_STEPS.map((step, index) => (
+                      <li key={step}>
+                        <span className="gcash-step-index">{index + 1}</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+
+                  <div className="gcash-payment-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-md full-width"
+                      onClick={() => navigate(`/orders/${id}/pay/gcash/confirm`)}
+                    >
+                      <CheckCircle2 size={16} /> Payment Completed — Upload Receipt
+                    </button>
+                    <button type="button" className="gcash-back-link" onClick={() => setIsLeaveDialogOpen(true)}>
+                      Back to Order
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-md full-width"
-                    onClick={() => navigate(`/orders/${id}/pay/gcash/confirm`)}
-                  >
-                    ✅ I&apos;ve Completed My Payment <ArrowRight size={15} />
-                  </button>
+                  <div className="gcash-status-row">
+                    <span className="gcash-status-dot pending" />
+                    <div>
+                      <strong>Payment Pending</strong>
+                      <p>Waiting for payment confirmation.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="gcash-payment-qr-col">
+                  <img src={gcashLogo} alt="GCash" className="gcash-payment-qr-logo" />
+                  <p className="gcash-scan-label">Scan to Pay</p>
                   <ZoomableImage
                     src={checkout.gcash.qrUrl}
                     alt="GCash QR code"
                     fallbackMessage="Unable to load the GCash QR code. Please contact the seller."
                     className="gcash-payment-qr-image"
                   />
-                  <p className="muted">Scan with your GCash app, or click it to view full size</p>
+                  <p className="gcash-qr-instruction">Open your GCash app and scan the QR code to pay.</p>
+                  <p className="muted gcash-qr-subinstruction">After completing the payment, upload your receipt for verification.</p>
                 </div>
               </div>
             </>
           ) : null}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={isLeaveDialogOpen}
+        title="Leave this payment page?"
+        message="Your order is still waiting for payment. You can come back to this page anytime from your order details."
+        confirmLabel="Leave Page"
+        cancelLabel="Stay"
+        onConfirm={() => navigate(`/orders/${id}`)}
+        onCancel={() => setIsLeaveDialogOpen(false)}
+      />
     </main>
   );
 }
