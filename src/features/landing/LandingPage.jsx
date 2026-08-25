@@ -27,14 +27,82 @@ import {
   X,
 } from 'lucide-react';
 import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCarousel';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import logo from '../../assets/logo.png';
 import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import directTradingIcon from '../../assets/icons/feature-direct-trading.png';
 import secureCheckoutIcon from '../../assets/icons/feature-secure-checkout.png';
 import deliveryTrackingIcon from '../../assets/icons/feature-delivery-tracking.png';
 import surplusDonationIcon from '../../assets/icons/feature-surplus-donation.png';
-import roleDashboardsIcon from '../../assets/icons/feature-role-dashboards.png';
 import adminOversightIcon from '../../assets/icons/feature-admin-oversight.png';
+
+// Custom illustration for "Role-based dashboards" — three role avatars (farmer/buyer/admin)
+// feeding into one dashboard panel, matching the reference the client supplied rather than
+// the plain LayoutDashboard glyph or the old feature-role-dashboards.png artwork.
+function RoleDashboardsIcon({ size = 44 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="role-dash-bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#d3f3dd" />
+          <stop offset="100%" stopColor="#f4fdf6" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="3" width="58" height="58" rx="18" fill="url(#role-dash-bg)" />
+
+      {/* Settings gear, top-right */}
+      <g fill="#22c55e">
+        <circle cx="50" cy="13" r="5" />
+        <circle cx="50" cy="13" r="2" fill="#f4fdf6" />
+        {[0, 60, 120, 180, 240, 300].map((angle) => (
+          <rect key={angle} x="49" y="6.5" width="2" height="3" rx="1" transform={`rotate(${angle} 50 13)`} />
+        ))}
+      </g>
+
+      {/* Dashboard panel, a 2x2 widget grid */}
+      <rect x="25" y="10" width="34" height="45" rx="7" fill="#ffffff" stroke="#bfe7cc" strokeWidth="1.5" />
+
+      {/* Cart widget */}
+      <rect x="29" y="14" width="12.5" height="14" rx="3" fill="#e8faec" />
+      <g transform="translate(31.5, 17.5)" stroke="#16a34a" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none">
+        <path d="M0 0h1.4l1.2 6.4h5.6l1.1-4.6H1.9" />
+        <circle cx="3" cy="8.2" r="0.9" fill="#16a34a" stroke="none" />
+        <circle cx="7.2" cy="8.2" r="0.9" fill="#16a34a" stroke="none" />
+      </g>
+
+      {/* Trend widget */}
+      <rect x="43" y="14" width="12.5" height="14" rx="3" fill="#fef3e2" />
+      <path d="M45.5 25 L48.5 20.5 L51 22.5 L54.5 16.5" fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="54.5" cy="16.5" r="1.5" fill="#f59e0b" />
+
+      {/* Stat-grid widget */}
+      <rect x="29" y="30" width="12.5" height="14" rx="3" fill="#eaf2ff" />
+      <rect x="31.5" y="32.5" width="3.4" height="3.4" rx="1" fill="#2563eb" />
+      <rect x="36.2" y="32.5" width="3.4" height="3.4" rx="1" fill="#93c5fd" />
+      <rect x="31.5" y="37.2" width="3.4" height="3.4" rx="1" fill="#93c5fd" />
+      <rect x="36.2" y="37.2" width="3.4" height="3.4" rx="1" fill="#2563eb" />
+
+      {/* Donut widget */}
+      <rect x="43" y="30" width="12.5" height="14" rx="3" fill="#e8faec" />
+      <circle cx="49.3" cy="37" r="4.3" fill="none" stroke="#bbf0cc" strokeWidth="2.4" />
+      <path d="M49.3 32.7a4.3 4.3 0 0 1 3.7 6.5" fill="none" stroke="#16a34a" strokeWidth="2.4" strokeLinecap="round" />
+
+      {/* Role avatars, stacked on the left edge, each linked to the panel by a small dot */}
+      {[
+        { y: 15, fill: '#16a34a' },
+        { y: 31, fill: '#f59e0b' },
+        { y: 47, fill: '#2563eb' },
+      ].map(({ y, fill }) => (
+        <g key={y}>
+          <circle cx="13" cy={y} r="8" fill="white" stroke={fill} strokeWidth="1.5" />
+          <circle cx="13" cy={y - 2.2} r="2.7" fill={fill} />
+          <path d={`M7 ${y + 7}a6 6 0 0 1 12 0Z`} fill={fill} />
+          <circle cx="23" cy={y} r="1.6" fill={fill} />
+        </g>
+      ))}
+    </svg>
+  );
+}
 
 const NAV_LINKS = [
   { id: 'features', label: 'Features' },
@@ -57,7 +125,7 @@ const FEATURES = [
   { icon: CreditCard, iconSrc: secureCheckoutIcon, title: 'Secure multi-payment checkout', text: 'Buyers check out with cash on delivery or GCash, with every transaction verified before it settles.' },
   { icon: Truck, iconSrc: deliveryTrackingIcon, title: 'Delivery & real-time order tracking', text: 'Every order moves through a visible pipeline — confirmed, preparing, packed, out for delivery or pickup, delivered.' },
   { icon: Gift, iconSrc: surplusDonationIcon, title: 'Surplus discount & donation program', text: 'Farmers discount aging stock or donate it to partner orphanages, elder-care homes, NGOs, and food banks instead of wasting it.' },
-  { icon: LayoutDashboard, iconSrc: roleDashboardsIcon, title: 'Role-based dashboards', text: 'Purpose-built workspaces for farmers, buyers, partner organizations, and admins.' },
+  { icon: LayoutDashboard, iconComponent: RoleDashboardsIcon, title: 'Role-based dashboards', text: 'Purpose-built workspaces for farmers, buyers, partner organizations, and admins.' },
   { icon: ShieldCheck, iconSrc: adminOversightIcon, title: 'Admin oversight', text: 'Admins monitor users, listings, orders, price monitoring, payments, deliveries, and donation activity in one place.' },
 ];
 
@@ -129,7 +197,7 @@ export default function LandingPage() {
         <Link className="brand" to="/">
           <span className="brand-mark"><img src={logo} alt="" /></span>
           <span>
-            <strong>HarvestLink</strong>
+            <strong><BrandWordmark /></strong>
             <small>Cebu farm-to-market</small>
           </span>
         </Link>
@@ -248,8 +316,8 @@ export default function LandingPage() {
       <section id="features" className="landing-feature-grid">
         {FEATURES.map((item) => (
           <article key={item.title} className="lp-feature-card">
-            <span className={`lp-feature-icon${item.iconSrc ? ' lp-feature-icon-image' : ''}`}>
-              {item.iconSrc ? <img src={item.iconSrc} alt="" /> : <item.icon size={22} />}
+            <span className={`lp-feature-icon${item.iconSrc || item.iconComponent ? ' lp-feature-icon-image' : ''}`}>
+              {item.iconComponent ? <item.iconComponent /> : item.iconSrc ? <img src={item.iconSrc} alt="" /> : <item.icon size={22} />}
             </span>
             <h3>{item.title}</h3>
             <p>{item.text}</p>
@@ -381,7 +449,7 @@ export default function LandingPage() {
           <div className="lp-footer-brand">
             <span className="brand-mark"><img src={logo} alt="" /></span>
             <div>
-              <strong>HarvestLink</strong>
+              <strong><BrandWordmark /></strong>
               <p>Connecting Cebu farmers and buyers through smart agricultural commerce.</p>
             </div>
           </div>

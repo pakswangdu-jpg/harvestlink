@@ -93,13 +93,14 @@ export default function BuyerDashboard() {
       navItems={buyerNavItems}
       title={`Welcome, ${getFirstName(currentUser.name)}!`}
       subtitle="Browse Cebu harvests, check out, and track delivery from local farmers."
+      pageClassName="buyer-dashboard-page"
     >
       <KpiGrid columns={5}>
-        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} iconSrc={totalSpendIcon} />
-        <KpiCard label="Active listings" value={products.length} iconSrc={activeListingsIcon} />
-        <KpiCard label="My orders" value={orders.length} iconSrc={myOrdersIcon} />
-        <KpiCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={Clock3} variant="warning" iconClassName="stat-icon-waiting" />
-        <KpiCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={PackageCheck} variant="success" />
+        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} iconSrc={totalSpendIcon} tone="financial" />
+        <KpiCard label="Active listings" value={products.length} iconSrc={activeListingsIcon} tone="neutral" />
+        <KpiCard label="My orders" value={orders.length} iconSrc={myOrdersIcon} tone="info" />
+        <KpiCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={Clock3} variant="warning" tone="warning" iconClassName="stat-icon-waiting" />
+        <KpiCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={PackageCheck} variant="success" tone="success" />
       </KpiGrid>
 
       <section className="content-grid two">

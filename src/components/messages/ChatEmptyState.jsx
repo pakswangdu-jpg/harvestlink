@@ -5,7 +5,7 @@ import { MessageCircle, MessagesSquare } from 'lucide-react';
 // distinct from ConversationList's own "no conversations at all" empty state.
 export function StartConversationState({ name }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+    <div className="messages-empty-state flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
       <motion.span
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -25,7 +25,7 @@ export function StartConversationState({ name }) {
 // Desktop-only: shown in the chat pane when no conversation is selected yet.
 export function NoConversationSelectedState() {
   return (
-    <div className="hidden flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:flex">
+    <div className="messages-empty-state hidden flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:flex">
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--muted)]">
         <MessagesSquare size={28} strokeWidth={1.5} />
       </span>

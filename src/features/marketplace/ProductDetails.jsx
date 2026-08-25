@@ -71,6 +71,7 @@ export default function ProductDetails() {
       navItems={navItems}
       title="Checkout"
       subtitle="Review your order before placing it."
+      pageClassName="checkout-page"
     >
       {canRequest ? <CheckoutProgress currentStep="checkout" /> : null}
       {canRequest ? (

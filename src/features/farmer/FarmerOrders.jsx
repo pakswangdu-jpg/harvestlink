@@ -165,7 +165,7 @@ function OrderActions({ order, onAction }) {
 
   if (action.kind === 'confirm') {
     return (
-      <div className="table-actions">
+      <div className="table-actions order-table-actions">
         <Button size="sm" onClick={() => onAction('confirm', order)}>
           <Check size={14} /> Confirm Order
         </Button>
@@ -178,7 +178,7 @@ function OrderActions({ order, onAction }) {
 
   if (action.kind === 'book-courier') {
     return (
-      <Link className="btn btn-primary btn-sm" to={`/orders/${order.id}`}>
+      <Link className="btn btn-primary btn-sm order-action-single" to={`/orders/${order.id}`}>
         <Truck size={14} /> Book with Lalamove
       </Link>
     );
@@ -186,7 +186,7 @@ function OrderActions({ order, onAction }) {
 
   if (action.kind === 'advance') {
     return (
-      <div className="table-actions">
+      <div className="table-actions order-table-actions">
         <Button
           size="sm"
           onClick={() => onAction('advance', order, action)}
@@ -202,7 +202,7 @@ function OrderActions({ order, onAction }) {
     );
   }
 
-  return <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>View Details</Link>;
+  return <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>;
 }
 
 export default function FarmerOrders() {
@@ -327,6 +327,7 @@ export default function FarmerOrders() {
       navItems={farmerNavItems}
       title="Purchase Orders"
       subtitle="Review incoming orders, prepare purchases, and manage deliveries."
+      pageClassName="farmer-orders-page"
     >
       {error ? <div className="form-alert error">{error}</div> : null}
 
@@ -471,6 +472,15 @@ export default function FarmerOrders() {
               <>
                 <div className="order-table-wrap table-wrap">
                   <table>
+                    <colgroup>
+                      <col className="order-col-buyer" />
+                      <col className="order-col-order" />
+                      <col className="order-col-payment" />
+                      <col className="order-col-delivery" />
+                      <col className="order-col-status" />
+                      <col className="order-col-date" />
+                      <col className="order-col-action" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th>Buyer</th>

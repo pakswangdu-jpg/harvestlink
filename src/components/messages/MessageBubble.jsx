@@ -57,12 +57,12 @@ export default function MessageBubble({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      className={`group flex items-end gap-1.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}
+      className={`messages-bubble-row group flex items-end gap-1.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}
     >
       {!isMine ? <div className="w-6 shrink-0" /> : null}
 
       <div className="relative max-w-[75%] sm:max-w-[65%]">
-        <div className={`rounded-3xl px-4 py-2.5 shadow-sm ${
+        <div className={`messages-bubble relative rounded-3xl px-4 py-2.5 shadow-sm ${
           isMine
             ? 'rounded-br-lg bg-[var(--green-800)] text-white'
             : 'rounded-bl-lg border border-[var(--line)] bg-[var(--soft)] text-[var(--text)]'

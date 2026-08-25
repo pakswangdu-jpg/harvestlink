@@ -6,6 +6,8 @@ import {
   acknowledgeVerification as acknowledgeVerificationRecord,
   loginUser,
   registerUser,
+  resendRegistrationOtp,
+  verifyRegistrationOtp,
 } from '../../services/authService';
 
 const AuthContext = createContext(null);
@@ -65,8 +67,20 @@ export function AuthProvider({ children }) {
     },
     async register(values) {
       const result = await registerUser(values);
+      // A pending-verification result isn't a logged-in user yet (see registerUser's own
+      // comment) — AuthPage.jsx reads pendingVerification and switches to the OTP screen
+      // instead of navigating away, so there's nothing to hydrate into currentUser here.
+      if (result.pendingVerification) return result;
       setCurrentUserState(result);
       return result;
+    },
+    async verifyOtp(email, token, password, pendingFiles) {
+      const user = await verifyRegistrationOtp(email, token, password, pendingFiles);
+      setCurrentUserState(user);
+      return user;
+    },
+    async resendOtp(email) {
+      await resendRegistrationOtp(email);
     },
     async logout() {
       await supabase.auth.signOut();

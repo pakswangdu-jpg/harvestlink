@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { haversineKm, resolveRoutePoints } from '../../utils/geo';
 import { distanceToPolylineKm } from '../../services/routingService';
 import { fetchGoogleRoute } from '../../services/googleDirectionsService';
@@ -245,8 +246,8 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
 
-    const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildPinIcon(mapsApi, '#15803d'), title: order.farmerName });
-    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, '#1d4ed8'), title: order.buyerName });
+    const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildPinIcon(mapsApi, MAP_COLORS.origin), title: order.farmerName });
+    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, MAP_COLORS.destination), title: order.buyerName });
     layerRef.current.push(originMarker, destinationMarker);
 
     const pathPoints = googleRoute?.points?.length > 1

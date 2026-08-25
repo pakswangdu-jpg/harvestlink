@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Plus, SearchX } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
+import EditSquareIcon from '../../components/icons/EditSquareIcon';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SellerProductCard from '../../components/cards/SellerProductCard';
@@ -251,6 +252,7 @@ export default function FarmerProducts() {
       eyebrow="Product Management"
       title="My Products"
       subtitle="Manage your product listings, inventory, pricing, and availability."
+      pageClassName="farmer-products-page"
       headerActions={(
         <Button
           onClick={openAddDrawer}
@@ -338,7 +340,11 @@ export default function FarmerProducts() {
                 <SellerProductCard
                   key={product.id}
                   product={product}
-                  actions={<Button size="sm" variant="secondary" onClick={() => openEditDrawer(product)}>Edit</Button>}
+                  actions={(
+                    <Button size="sm" variant="secondary" className="btn-icon-only" onClick={() => openEditDrawer(product)} aria-label="Edit product" title="Edit product">
+                      <EditSquareIcon size={20} />
+                    </Button>
+                  )}
                 />
               ))}
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Gift, MapPin, UploadCloud,
+  Gift, Image as ImageIcon, MapPin, UploadCloud,
 } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
@@ -39,6 +39,10 @@ const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onValidationError, onRemove }) {
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState('');
 
   const validateAndSelect = (candidate) => {
     if (!candidate) return;
@@ -55,10 +59,85 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
     onFileSelect(candidate);
   };
 
+  const closeCamera = () => {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCameraOpen(false);
+  };
+
+  useEffect(() => {
+    if (!isCameraOpen) return undefined;
+
+    let cancelled = false;
+    const startCamera = async () => {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        setCameraError('Live camera capture is not supported here. Choose Upload Image instead.');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        cameraStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+      } catch {
+        if (!cancelled) setCameraError('Camera access was blocked. You can upload an image instead.');
+      }
+    };
+
+    startCamera();
+    return () => {
+      cancelled = true;
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    };
+  }, [isCameraOpen]);
+
+  const openCamera = () => {
+    setCameraError('');
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      setIsCameraOpen(true);
+    } else {
+      // Native capture remains the fallback for older browsers and desktop devices.
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video.videoHeight) {
+      setCameraError('The camera is still starting. Try again in a moment.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setCameraError('The photo could not be captured. Try again.');
+        return;
+      }
+      validateAndSelect(new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      closeCamera();
+    }, 'image/jpeg', 0.92);
+  };
+
   const handleSourceSelect = (event) => {
     const source = event.target.value;
     event.target.value = '';
-    if (source === 'camera') cameraInputRef.current?.click();
+    if (source === 'camera') openCamera();
     else if (source === 'upload') uploadInputRef.current?.click();
   };
 
@@ -79,6 +158,35 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         onChange={(event) => validateAndSelect(event.target.files?.[0])}
         hidden
       />
+      {isCameraOpen ? (
+        <div
+          className="product-camera-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="product-camera-title"
+          onClick={(event) => { if (event.target === event.currentTarget) closeCamera(); }}
+        >
+          <div className="product-camera-card">
+            <div className="product-camera-header">
+              <div>
+                <p className="eyebrow">Product image</p>
+                <h3 id="product-camera-title">Take a photo</h3>
+              </div>
+              <button type="button" className="product-camera-close" onClick={closeCamera} aria-label="Close camera">×</button>
+            </div>
+            {cameraError ? <p className="product-camera-error" role="alert">{cameraError}</p> : null}
+            <div className="product-camera-viewfinder">
+              <video ref={videoRef} autoPlay muted playsInline aria-label="Camera preview" />
+            </div>
+            <div className="product-camera-actions">
+              <button type="button" className="btn btn-secondary btn-md" onClick={closeCamera}>Cancel</button>
+              <button type="button" className="btn btn-primary btn-md" onClick={capturePhoto} disabled={Boolean(cameraError)}>
+                Capture photo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 
@@ -115,11 +223,27 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
   return (
     <>
-      <select id="image" defaultValue="" onChange={handleSourceSelect}>
-        <option value="" disabled>Select image source</option>
-        <option value="camera">Take Photo</option>
-        <option value="upload">Upload Image</option>
-      </select>
+      <div
+        className="product-image-empty-state"
+        role="button"
+        tabIndex="0"
+        onClick={(event) => { if (!event.target.closest('select')) openCamera(); }}
+        onKeyDown={(event) => {
+          if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('select')) {
+            event.preventDefault();
+            openCamera();
+          }
+        }}
+      >
+        <ImageIcon size={24} strokeWidth={1.8} aria-hidden="true" />
+        <span>Add a clear product photo</span>
+        <small>JPG, PNG, or WEBP · up to 5 MB</small>
+        <select id="image" className="product-image-empty-select" defaultValue="" onChange={handleSourceSelect}>
+          <option value="" disabled>Select image source</option>
+          <option value="camera">Take Photo</option>
+          <option value="upload">Upload Image</option>
+        </select>
+      </div>
       {hiddenFileInputs}
     </>
   );
@@ -375,7 +499,7 @@ export default function ProductForm({
   };
 
   return (
-    <form id={formId} className="form-stack" onSubmit={handleSubmit}>
+    <form id={formId} className="form-stack product-form" onSubmit={handleSubmit}>
       {hasErrors(errors) ? (
         <div className="form-alert error">
           <strong>{Object.keys(errors).filter((key) => errors[key]).length > 1 ? 'Fix these before adding:' : 'Fix this before adding:'}</strong>
@@ -387,6 +511,8 @@ export default function ProductForm({
         </div>
       ) : null}
 
+      <div className="product-form-layout">
+        <div className="product-form-column product-form-primary">
       <div className="form-section">
         <p className="form-section-heading">Basic information</p>
         <div className="form-grid">
@@ -514,37 +640,39 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
-        <FormField
-          label="Expiration date (optional)"
-          name="expirationDate"
-          error={errors.expirationDate}
-          helper={values.isDonation ? 'Helps partner organizations prioritize pickup before it spoils.' : 'Shows an expiring-soon warning on your listing as the date approaches.'}
-        >
-          <input
-            id="expirationDate"
-            type="date"
-            value={values.expirationDate}
-            onChange={(event) => updateField('expirationDate', event.target.value)}
-          />
-        </FormField>
+        <div className="form-grid">
+          <FormField
+            label="Expiration date (optional)"
+            name="expirationDate"
+            error={errors.expirationDate}
+            helper={values.isDonation ? 'Helps partner organizations prioritize pickup before it spoils.' : 'Shown to buyers; this listing disappears from the marketplace after the date.'}
+          >
+            <input
+              id="expirationDate"
+              type="date"
+              value={values.expirationDate}
+              onChange={(event) => updateField('expirationDate', event.target.value)}
+            />
+          </FormField>
 
-        <FormField
-          label="Cost per unit"
-          name="costPrice"
-          error={errors.costPrice}
-          helper={`Your own cost to grow/prepare 1 ${values.unit} (harvesting, inputs, labor) — never shown to buyers. Powers the profit figure on your dashboard.`}
-        >
-          <input
-            id="costPrice"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.costPrice}
-            onChange={(event) => updateField('costPrice', event.target.value)}
-            placeholder="e.g. 30.00"
-            disabled={values.isDonation}
-          />
-        </FormField>
+          <FormField
+            label="Cost per unit"
+            name="costPrice"
+            error={errors.costPrice}
+            helper={`Your cost to grow/prepare 1 ${values.unit || 'unit'} — never shown to buyers, powers your profit figure.`}
+          >
+            <input
+              id="costPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              value={values.costPrice}
+              onChange={(event) => updateField('costPrice', event.target.value)}
+              placeholder="e.g. 30.00"
+              disabled={values.isDonation}
+            />
+          </FormField>
+        </div>
 
         {!values.isDonation && needsManualConversion ? (
           <FormField
@@ -664,6 +792,10 @@ export default function ProductForm({
         ) : null}
       </div>
 
+        </div>
+
+        <div className="product-form-column product-form-secondary">
+
       <div className="form-section">
         <p className="form-section-heading">Location &amp; description</p>
         <FormField
@@ -701,6 +833,9 @@ export default function ProductForm({
             onRemove={() => updateField('image', '')}
           />
         </FormField>
+      </div>
+
+        </div>
       </div>
 
       {!hideActions ? (

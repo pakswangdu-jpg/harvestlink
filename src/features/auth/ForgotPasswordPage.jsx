@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import { supabase } from '../../lib/supabaseClient';
@@ -43,7 +44,7 @@ export default function ForgotPasswordPage() {
             <img src={logo} alt="" />
           </span>
           <span>
-            <strong>HarvestLink</strong>
+            <strong><BrandWordmark /></strong>
             <small>Cebu farm-to-market</small>
           </span>
         </Link>

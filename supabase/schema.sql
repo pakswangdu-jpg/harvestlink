@@ -87,10 +87,29 @@
   alter table public.profiles drop column if exists notif_email;
   alter table public.profiles drop column if exists notif_prompted;
 
-  -- Registration no longer defers account creation behind an emailed verification code
-  -- (see backend/src/controllers/auth.controller.js) — drops the table on any install that
-  -- already ran the older migration; a no-op on one that never did.
-  drop table if exists public.pending_registrations;
+  -- ============================================================================
+  -- pending_registrations — stores temporary pre-confirmation signup data until
+  -- the user verifies their email with a 6-digit code (see
+  -- backend/src/controllers/auth.controller.js).
+  -- ============================================================================
+  create table if not exists public.pending_registrations (
+    email text primary key,
+    password_encrypted text not null,
+    data jsonb not null,
+    code_hash text not null,
+    expires_at timestamptz not null,
+    attempt_count integer not null default 0,
+    resend_count integer not null default 0,
+    last_sent_at timestamptz not null default now(),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  );
+
+  create index if not exists pending_registrations_email_idx on public.pending_registrations (email);
+
+  -- Backwards-compatible migration for an install that only ever had the pre-attempt_count
+  -- version of this table.
+  alter table public.pending_registrations add column if not exists attempt_count integer not null default 0;
 
   -- One-time backfill: stakeholder registrations never set verification_status at all until
   -- now (see buildRoleFields in profiles.controller.js), so every stakeholder that signed up

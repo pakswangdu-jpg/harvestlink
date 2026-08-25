@@ -1,6 +1,9 @@
-import { Archive, ArchiveRestore, Copy, Eye, Gift, Package, Trash2 } from 'lucide-react';
+import {
+  Archive, ArchiveRestore, Copy, Eye, Gift, Package, Trash2,
+} from 'lucide-react';
 import DataTable from '../dashboard/DataTable';
 import Button from '../common/Button';
+import EditSquareIcon from '../icons/EditSquareIcon';
 import ActionMenu from './ActionMenu';
 import ZoomableImage from '../common/ZoomableImage';
 import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
@@ -11,6 +14,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'name',
       label: 'Product',
+      width: '31%',
       render: (product) => (
         <div className="flex items-center gap-3">
           <div className="product-row-thumb">
@@ -30,6 +34,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'price',
       label: 'Price',
+      width: '16%',
       render: (product) => (
         <span>
           {product.discountPercent ? <span className="muted price-original">{formatCurrency(product.originalPrice)}</span> : null}
@@ -40,23 +45,28 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'quantity',
       label: 'Stock',
+      width: '14%',
       render: (product) => <span>{product.quantity} {product.unit}</span>,
     },
     {
       key: 'status',
       label: 'Status',
+      width: '15%',
       render: (product) => {
         const { value, label } = getProductStatusInfo(product);
         return <span className={`badge badge-${value}`}>{label}</span>;
       },
     },
-    { key: 'updatedAt', label: 'Updated', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
+    { key: 'updatedAt', label: 'Updated', width: '14%', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
     {
       key: 'actions',
       label: 'Action',
+      width: '10%',
       render: (product) => (
-        <div className="table-actions">
-          <Button size="sm" variant="secondary" onClick={() => onEdit(product)}>Edit</Button>
+        <div className="table-actions product-table-actions">
+          <Button size="sm" variant="secondary" className="btn-icon-only" onClick={() => onEdit(product)} aria-label="Edit product" title="Edit product">
+            <EditSquareIcon size={24} />
+          </Button>
           <ActionMenu
             items={[
               { label: 'View', icon: Eye, onClick: () => onView(product) },

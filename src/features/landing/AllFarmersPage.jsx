@@ -5,6 +5,7 @@ import FarmersStatsRow from '../../components/farmers/FarmersStatsRow';
 import FarmersSearchBar from '../../components/farmers/FarmersSearchBar';
 import FarmersGrid from '../../components/farmers/FarmersGrid';
 import FarmersPagination from '../../components/farmers/FarmersPagination';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import { getAllVerifiedFarmers } from '../../services/authService';
 import logo from '../../assets/logo.png';
 
@@ -110,7 +111,7 @@ export default function AllFarmersPage() {
         <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-8 lg:px-16">
           <Link to="/" className="flex min-w-0 items-center gap-2.5">
             <img src={logo} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
-            <span className="truncate text-[15px] font-bold text-[var(--text)]">HarvestLink</span>
+            <span className="truncate text-[15px] font-bold text-[var(--text)]"><BrandWordmark /></span>
           </Link>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">

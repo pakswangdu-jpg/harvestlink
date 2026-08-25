@@ -1,6 +1,7 @@
-import { Clock3, Loader2, MapPinned, ShieldCheck } from 'lucide-react';
+import { Clock3, Loader2, MapPinned } from 'lucide-react';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
 import Button from '../common/Button';
+import SecureShieldIcon from '../icons/SecureShieldIcon';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
 
 // The sticky right-column summary — the one place a buyer should be able to look to answer
@@ -101,7 +102,7 @@ export default function OrderSummaryPanel({
           )}
         </Button>
         <p className="checkout-summary-security">
-          <ShieldCheck size={13} aria-hidden="true" /> Secure checkout
+          <SecureShieldIcon size={15} /> Secure checkout
         </p>
       </div>
     </aside>

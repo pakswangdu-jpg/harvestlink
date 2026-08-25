@@ -5,6 +5,7 @@ import {
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
 import DeliveryTruckIcon from '../../components/icons/DeliveryTruckIcon';
@@ -78,6 +79,7 @@ export default function OrderTracking() {
   const [ratingComment, setRatingComment] = useState('');
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -417,7 +419,7 @@ export default function OrderTracking() {
               ) : null}
 
               {isBuyer && isCancellable(order) ? (
-                <Button variant="danger" onClick={() => run(() => cancelOrder(order.id), 'Order cancelled.')}>Cancel order</Button>
+                <Button variant="danger" onClick={() => setIsCancelDialogOpen(true)}>Cancel order</Button>
               ) : null}
             </div>
           </div>
@@ -553,6 +555,16 @@ export default function OrderTracking() {
 
         <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
       </div>
+
+      <ConfirmDialog
+        open={isCancelDialogOpen}
+        title="Cancel Order?"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmLabel="Yes, Cancel Order"
+        cancelLabel="Keep Order"
+        onConfirm={() => { setIsCancelDialogOpen(false); run(() => cancelOrder(order.id), 'Order cancelled.'); }}
+        onCancel={() => setIsCancelDialogOpen(false)}
+      />
     </AppShell>
   );
 }

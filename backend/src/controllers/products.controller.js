@@ -12,6 +12,23 @@ function titleCaseName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function todayInCebu() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function isExpiredDate(value) {
+  if (!value) return false;
+  const expirationDate = String(value).slice(0, 10);
+  return !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) || expirationDate < todayInCebu();
+}
+
 // Validates category/unit against the live categories/units tables (see
 // supabase/schema.sql) — the source of truth that replaced the old hardcoded
 // PRODUCT_CATEGORIES array. The product NAME itself is free text (see ProductForm.jsx),
@@ -92,6 +109,7 @@ export async function listProducts(req, res) {
     // still see/manage the listing while it's under review — but it must stay invisible to
     // buyers until DTI/admin actually approves it, not just because the record is "active".
     query = query.or('price_review.is.null,price_review->>status.eq.approved');
+    query = query.or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`);
   }
 
   const { data, error } = await query;
@@ -116,6 +134,7 @@ export async function listPublicProducts(req, res) {
     .eq('status', 'active')
     .gt('quantity', 0)
     .or('price_review.is.null,price_review->>status.eq.approved')
+    .or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`)
     .order('created_at', { ascending: false });
   if (error) throw new ApiError(error.message, 400);
 
@@ -145,12 +164,16 @@ export async function listPublicProducts(req, res) {
     originalPrice: product.originalPrice,
     discountPercent: product.discountPercent,
     createdAt: product.createdAt,
+    expirationDate: product.expirationDate,
     updatedAt: product.updatedAt,
   })));
 }
 
 export async function getProduct(req, res) {
   const product = await fetchProductOr404(req.params.id);
+  if (['buyer', 'stakeholder'].includes(req.profile.role) && isExpiredDate(product.expiration_date)) {
+    throw new ApiError('This product is no longer available because it has expired.', 404);
+  }
   const [serialized] = await withFarmerNames([product]);
   res.json(serialized);
 }

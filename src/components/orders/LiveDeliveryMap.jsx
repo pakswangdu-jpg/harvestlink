@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
 import { DARK_MAP_STYLE, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { haversineKm } from '../../utils/geo';
 import { distanceToPolylineKm, nearestIndexOnPath } from '../../services/routingService';
 import { fetchGoogleRoute, fetchNavigationRoute } from '../../services/googleDirectionsService';
@@ -419,8 +420,8 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
 
-    const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildDotIcon(mapsApi, '#15803d'), title: order.farmerName });
-    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDotIcon(mapsApi, '#1d4ed8'), title: order.buyerName });
+    const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildDotIcon(mapsApi, MAP_COLORS.origin), title: order.farmerName });
+    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDotIcon(mapsApi, MAP_COLORS.destination), title: order.buyerName });
     layerRef.current.push(originMarker, destinationMarker);
 
     const pathPoints = googleRoute?.points?.length > 1 ? googleRoute.points : [origin, destination];

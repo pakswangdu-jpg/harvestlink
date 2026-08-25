@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Image as ImageIcon, Loader2, Mic, Paperclip, Send, Smile, X,
+  Loader2, Paperclip, Send, Smile, X,
 } from 'lucide-react';
 import EmojiPicker from './EmojiPicker';
 
@@ -18,7 +18,6 @@ export default function MessageInput({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
-  const imageInputRef = useRef(null);
   const textareaRef = useRef(null);
 
   const pickFile = (file) => {
@@ -80,7 +79,7 @@ export default function MessageInput({
 
   return (
     <div
-      className="relative border-t border-[var(--line)] bg-[var(--panel)] px-4 py-3"
+      className="messages-composer relative border-t border-[var(--line)] bg-[var(--panel)] px-4 py-3"
       onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
@@ -164,15 +163,6 @@ export default function MessageInput({
 
         <button
           type="button"
-          onClick={() => imageInputRef.current?.click()}
-          className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)]"
-        >
-          <ImageIcon size={19} />
-        </button>
-        <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={(event) => pickFile(event.target.files?.[0])} />
-
-        <button
-          type="button"
           onClick={() => fileInputRef.current?.click()}
           className="flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)]"
         >
@@ -193,15 +183,6 @@ export default function MessageInput({
             style={{ minHeight: '22px' }}
           />
         </div>
-
-        <button
-          type="button"
-          disabled
-          title="Voice messages are coming soon"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)]"
-        >
-          <Mic size={19} />
-        </button>
 
         <button
           type="button"

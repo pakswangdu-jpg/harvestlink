@@ -1,23 +1,30 @@
 import {
-  Gift, Inbox, LayoutGrid, Mail, Package, Store, TrendingUp, UserRound,
+  Inbox, LayoutGrid, TrendingUp, UserRound,
 } from 'lucide-react';
-import { createImageNavIcon } from '../../utils/createImageNavIcon';
-import mapNavIcon from '../../assets/icons/nav-map.png';
+import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
+import donationsNavIcon from '../../assets/icons/nav-donations-handshake.png';
+import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
+import messagesNavIcon from '../../assets/icons/nav-messages.png';
+import nearbyNavIcon from '../../assets/icons/nav-nearby-pin.png';
+import ordersNavIcon from '../../assets/icons/nav-orders.png';
 
-const MapNavIcon = createImageNavIcon(mapNavIcon);
+const DonationsNavIcon = createMaskNavIcon(donationsNavIcon);
+const NearbyNavIcon = createMaskNavIcon(nearbyNavIcon);
+const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
+const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
+const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 
-// Lucide components (not the old nav-*.png raster assets) so every icon can follow
-// currentColor — SidebarNavItem colors icons via the --icon-muted/--green-700 CSS tokens
-// (light AND dark), which a baked-in-black PNG can never respond to. Nearby keeps its PNG on
-// purpose (see nav-map.png) since that pin is a deliberately colored brand accent.
+// Every icon here follows currentColor, so SidebarNavItem can color them via the
+// --icon-muted/--green-700 tokens (light AND dark) — the lucide ones natively, and the
+// supplied PNG artwork through createMaskNavIcon, which masks rather than paints.
 export const stakeholderNavItems = [
   { to: '/stakeholder-dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { to: '/marketplace', label: 'Marketplace', icon: Store },
-  { to: '/stakeholder-orders', label: 'My orders', icon: Package },
-  { to: '/stakeholder-donations', label: 'Browse donations', icon: Gift },
+  { to: '/marketplace', label: 'Marketplace', icon: MarketplaceNavIcon },
+  { to: '/stakeholder-orders', label: 'My orders', icon: OrdersNavIcon },
+  { to: '/stakeholder-donations', label: 'Browse donations', icon: DonationsNavIcon },
   { to: '/stakeholder-requests', label: 'My requests', icon: Inbox },
-  { to: '/messages', label: 'Messages', icon: Mail },
-  { to: '/farmer-map', label: 'Nearby', icon: MapNavIcon },
+  { to: '/messages', label: 'Messages', icon: MessagesNavIcon },
+  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

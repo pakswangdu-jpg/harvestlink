@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowRight, ChevronRight, MapPin } from 'lucide-react';
 import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import ProductCard from '../../components/cards/ProductCard';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import { getPublicFarmerProfile } from '../../services/authService';
@@ -50,7 +51,7 @@ export default function PublicFarmerProfile() {
         <Link className="brand" to="/">
           <span className="brand-mark"><img src={logo} alt="" /></span>
           <span>
-            <strong>HarvestLink</strong>
+            <strong><BrandWordmark /></strong>
             <small>Cebu farm-to-market</small>
           </span>
         </Link>

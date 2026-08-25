@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import BrandWordmark from '../common/BrandWordmark';
 import logo from '../../assets/logo.png';
 
 // Shared chrome for the Privacy Policy and Terms of Service pages — sticky branded header,
@@ -76,7 +77,7 @@ export default function LegalPageLayout({ title, lastUpdated, intro, sections })
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 sm:px-8">
           <Link to="/" className="flex min-w-0 items-center gap-2.5 text-[var(--text)]">
             <img src={logo} alt="" className="h-7 w-7 shrink-0" />
-            <span className="truncate text-[15px] font-bold tracking-tight">HarvestLink</span>
+            <span className="truncate text-[15px] font-bold tracking-tight"><BrandWordmark /></span>
           </Link>
           <p className="hidden truncate text-sm font-medium text-[var(--muted)] sm:block">{title}</p>
           <button

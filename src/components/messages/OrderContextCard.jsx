@@ -17,7 +17,7 @@ export default function OrderContextCard({ order }) {
   const tone = TONE_CLASSES[statusTone(order.status)] || TONE_CLASSES.neutral;
 
   return (
-    <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--soft)] px-4 py-4">
+    <div className="messages-order-context mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--soft)] px-4 py-4">
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--panel)] text-[var(--green-700)] shadow-sm">
           <Package size={18} />

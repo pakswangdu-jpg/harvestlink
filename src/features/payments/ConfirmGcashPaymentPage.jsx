@@ -4,6 +4,7 @@ import {
   CheckCircle2, FileText, Loader2, UploadCloud, X, XCircle,
 } from 'lucide-react';
 import PaymentProgressTracker from '../../components/orders/PaymentProgressTracker';
+import BrandWordmark from '../../components/common/BrandWordmark';
 import StatusBadge from '../../components/common/StatusBadge';
 import { getGcashCheckout, submitPaymentProof } from '../../services/paymentService';
 import { uploadPaymentReceipt } from '../../services/uploadService';
@@ -179,7 +180,7 @@ export default function ConfirmGcashPaymentPage() {
       <div className="gcash-payment-wrap">
         <Link to="/" className="gcash-payment-brand">
           <img src={logo} alt="" />
-          <span>HarvestLink</span>
+          <span><BrandWordmark /></span>
         </Link>
 
         <div className="panel gcash-payment-card">
