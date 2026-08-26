@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, History, Hourglass } from 'lucide-react';
+import { Calendar, CheckCircle2, History, Hourglass } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
-import pickupScheduledIcon from '../../assets/icons/pickup-scheduled.png';
 import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
 import { confirmReceipt, getDonationsForStakeholder, markDonationRated } from '../../services/donationService';
@@ -133,7 +132,7 @@ export default function StakeholderRequests() {
               ))}
             </div>
           ) : (
-            <EmptyState className="empty-state-transparent-icon" iconSrc={pickupScheduledIcon} title="Nothing scheduled" message="Accepted requests with a pickup date will appear here." />
+            <EmptyState className="empty-state-transparent-icon" icon={Calendar} title="Nothing scheduled" message="Accepted requests with a pickup date will appear here." />
           )}
         </div>
       </section>

@@ -9,7 +9,6 @@ import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
-import donationsEmptyIcon from '../../assets/icons/donations-empty.png';
 import FarmerMap from '../../components/map/FarmerMap';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
@@ -181,8 +180,7 @@ export default function StakeholderDashboard() {
             </div>
           ) : (
             <EmptyState
-              className="empty-state-transparent-icon"
-              iconSrc={donationsEmptyIcon}
+              icon={Gift}
               title="No donations yet"
               message="Available surplus produce will appear here."
             />

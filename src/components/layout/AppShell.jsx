@@ -192,7 +192,7 @@ export default function AppShell({
             ))}
           </nav>
 
-          <div className="flex flex-col gap-1">
+          <div className="mt-auto flex flex-col gap-1">
             {!isSidebarCollapsed ? (
               <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
             ) : null}
