@@ -6762,6 +6762,114 @@ td {
   font-weight: 750;
 }
 
+/* Email verification (AuthPage.jsx's OTP stage, both roles) — never had any CSS of its own,
+   so the 6 digit boxes were plain unstyled <input>s, each defaulting to the browser's normal
+   text-input width and wrapping onto a second row inside the narrow auth card instead of
+   sitting in one line. */
+.otp-stage {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.otp-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--green-50);
+  border: 1px solid var(--green-100);
+  color: var(--green-700);
+}
+
+/* --green-100 flips to a near-black tint in dark mode (see the dark token block), which would
+   otherwise leave this badge's border invisible against the dark auth card — same fix already
+   applied to .form-section-icon/.submitted-icon for the same reason. */
+[data-theme="dark"] .otp-icon {
+  background: rgba(84, 182, 126, 0.16);
+  border-color: rgba(84, 182, 126, 0.4);
+}
+
+.otp-instructions {
+  max-width: 34ch;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.otp-instructions strong {
+  color: var(--text-strong);
+}
+
+.otp-input-group {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.otp-digit {
+  width: 44px;
+  height: 52px;
+  border: 1px solid #cfded4;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.otp-digit:focus {
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+}
+
+.otp-digit:disabled {
+  color: var(--muted);
+  background: var(--soft);
+}
+
+@media (max-width: 400px) {
+  .otp-input-group {
+    gap: 6px;
+  }
+
+  .otp-digit {
+    width: 38px;
+    height: 46px;
+    font-size: 1.1rem;
+  }
+}
+
+.otp-footer {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.otp-footer button {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.otp-footer button:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.otp-footer button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 /* Registration's Contact number field (AuthPage.jsx's PhoneNumberInput) — reuses the base
    .form-field input styling (border/radius/padding/focus ring) as-is, this only adds the
    green/red validity border and the live ✓/⚠ message + static note beneath it. */
@@ -7239,6 +7347,12 @@ td {
   background: var(--green-50);
   border: 1px solid var(--green-100);
   color: var(--green-700);
+}
+
+/* Same --green-100-goes-near-black-in-dark-mode fix as .otp-icon above. */
+[data-theme="dark"] .submitted-icon {
+  background: rgba(84, 182, 126, 0.16);
+  border-color: rgba(84, 182, 126, 0.4);
 }
 
 .submitted-status-badge {
