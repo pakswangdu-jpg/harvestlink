@@ -1,7 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Building2, CheckCircle, ClipboardCheck, Clock3, FileText, Handshake, KeyRound,
-  LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, X, XCircle,
+  AlertTriangle, Building2, CheckCircle, ClipboardCheck, Clock3, FileText, Handshake,
+  LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
@@ -10,9 +10,7 @@ import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
-import {
-  CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, PARTNERSHIP_TYPES, REGISTRATION_TYPES, ROLE_DASHBOARDS,
-} from '../../utils/constants';
+import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
 import { checkContactNumberAvailability } from '../../services/authService';
@@ -38,8 +36,8 @@ const REGISTER_DRAFT_KEY = 'harvestlink:registerDraft';
 // sit in Web Storage a moment longer than necessary — a deliberate choice, not an oversight)
 // and govIdFile/accreditationFile, which are handled separately below (as base64, under their
 // own `files` key) since a live File object can't survive JSON.stringify at all.
-const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile', 'supportingDocumentFile'];
-const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile', 'supportingDocumentFile'];
+const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile'];
+const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile'];
 // sessionStorage's per-origin quota (roughly 5-10MB depending on browser) has to fit the
 // file's base64 form (~33% larger than its raw bytes) alongside everything else in the draft —
 // a file above this just doesn't get persisted. The live selection still works fine for the
@@ -58,17 +56,17 @@ function readRegisterDraft() {
   }
 }
 
-function writeRegisterDraft(form, agreedToTerms, orgInfoConfirmed, files) {
+function writeRegisterDraft(form, agreedToTerms, files) {
   const draftForm = { ...form };
   REGISTER_DRAFT_EXCLUDED_FIELDS.forEach((field) => delete draftForm[field]);
   try {
-    sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, orgInfoConfirmed, files }));
+    sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files }));
   } catch {
     // Most likely a large file's base64 payload pushed this over sessionStorage's quota —
     // retry without the file data so the far more important lightweight fields (name, email,
     // address, ...) still survive the round trip instead of losing everything.
     try {
-      sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, orgInfoConfirmed, files: null }));
+      sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files: null }));
     } catch {
       // Storage unavailable entirely (private browsing, disabled) — best-effort only, never
       // something registration itself depends on.
@@ -341,8 +339,8 @@ function formatFileSize(bytes) {
 // instead of only finding out a file was rejected after trying to submit.
 function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidationError, onRemove }) {
   const [isDragging, setIsDragging] = useState(false);
+  const replaceInputRef = useRef(null);
   const isImage = file instanceof File && file.type.startsWith('image/');
-  const isPdf = file instanceof File && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
 
   // Computed synchronously during render (not via setState-in-effect) — the effect below
   // only handles revoking it again, a legitimate external-resource cleanup.
@@ -373,12 +371,26 @@ function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidatio
           <span className="verification-upload-icon"><FileText size={22} /></span>
         )}
         <div className="verification-upload-meta">
-          <strong>{file.name}</strong>
-          <span>{isPdf ? 'PDF document' : 'Image'} · {formatFileSize(file.size)}</span>
+          <strong>Document uploaded successfully</strong>
+          <span>{file.name} · {formatFileSize(file.size)}</span>
         </div>
-        <button type="button" className="verification-upload-remove" onClick={onRemove} aria-label="Remove file">
-          <X size={16} />
-        </button>
+        <div className="verification-upload-actions">
+          <input
+            ref={replaceInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            onChange={(event) => validateAndSelect(event.target.files?.[0])}
+            className="verification-upload-input-hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+          <button type="button" className="verification-upload-replace" onClick={() => replaceInputRef.current?.click()}>
+            Replace
+          </button>
+          <button type="button" className="verification-upload-remove" onClick={onRemove}>
+            Remove
+          </button>
+        </div>
       </div>
     );
   }
@@ -421,30 +433,18 @@ function StakeholderRegisterFields({
   errors,
   updateField,
   handleBlur,
-  isLocating,
-  locationNotice,
-  handleUseMyLocation,
   setFieldError,
   handleContactNumberBlur,
   isCheckingPhone,
 }) {
-  // Expected Partnership Role is the multi-select counterpart to Partnership Type below — one
-  // organization can legitimately be both e.g. a Farmer Supply Partner and a Community Partner,
-  // which is exactly why this toggles membership in an array instead of picking one value.
-  const togglePartnershipRole = (role) => {
-    const current = form.partnershipRole || [];
-    const next = current.includes(role) ? current.filter((item) => item !== role) : [...current, role];
-    updateField('partnershipRole', next);
-  };
-
   return (
     <div className="stakeholder-register">
       <div className="form-section">
         <div className="form-section-header">
           <span className="form-section-icon"><Building2 size={18} /></span>
           <div>
-            <h3>Organization Information</h3>
-            <p>Tell us about the organization you&apos;re registering.</p>
+            <h3>Organization</h3>
+            <p>Tell us who you&apos;re registering.</p>
           </div>
         </div>
         <div className="form-grid">
@@ -478,54 +478,14 @@ function StakeholderRegisterFields({
               />
             </FormField>
           ) : null}
-          <FormField label="Registration Type" name="registrationType" error={errors.registrationType}>
-            <select
-              id="registrationType"
-              value={form.registrationType}
-              onChange={(event) => updateField('registrationType', event.target.value)}
-              onBlur={() => handleBlur('registrationType')}
-            >
-              {REGISTRATION_TYPES.map((type) => <option key={type}>{type}</option>)}
-            </select>
-          </FormField>
-          {form.registrationType === 'Other' ? (
-            <FormField label="Specify registration type" name="registrationTypeOther" error={errors.registrationType}>
-              <input
-                id="registrationTypeOther"
-                value={form.registrationTypeOther}
-                onChange={(event) => updateField('registrationTypeOther', event.target.value)}
-                onBlur={() => handleBlur('registrationType')}
-                placeholder="e.g. Provincial Agriculture Office"
-              />
-            </FormField>
-          ) : null}
-          <FormField label="Registration number (optional)" name="registrationNumber" helper="Your CDA/SEC/DTI certificate or accreditation number, if you have one.">
-            <input
-              id="registrationNumber"
-              value={form.registrationNumber}
-              onChange={(event) => updateField('registrationNumber', event.target.value)}
-              placeholder="e.g. CDA-2019-004512"
-            />
-          </FormField>
-          <FormField label="Year established (optional)" name="yearEstablished" error={errors.yearEstablished}>
-            <input
-              id="yearEstablished"
-              value={form.yearEstablished}
-              onChange={(event) => updateField('yearEstablished', event.target.value.replace(/\D/g, '').slice(0, 4))}
-              onBlur={() => handleBlur('yearEstablished')}
-              placeholder="e.g. 2005"
-              inputMode="numeric"
-              maxLength={4}
-            />
-          </FormField>
         </div>
-        <FormField label="Organization description" name="organizationDescription" error={errors.organizationDescription} helper="A short summary of your organization and the farmer members or agricultural community it serves.">
+        <FormField label="Organization description" name="organizationDescription" error={errors.organizationDescription}>
           <textarea
             id="organizationDescription"
             value={form.organizationDescription}
             onChange={(event) => updateField('organizationDescription', event.target.value)}
             onBlur={() => handleBlur('organizationDescription')}
-            placeholder="e.g. A 40-member rice and corn farming cooperative in Barili supporting smallholder crop production and market access since 2005."
+            placeholder="e.g. A rice and corn farming cooperative in Barili supporting smallholder crop production."
             rows={3}
           />
         </FormField>
@@ -538,7 +498,7 @@ function StakeholderRegisterFields({
           <span className="form-section-icon"><Users size={18} /></span>
           <div>
             <h3>Authorized Representative</h3>
-            <p>Who we&apos;ll coordinate donations and outreach with.</p>
+            <p>Who we&apos;ll reach out to.</p>
           </div>
         </div>
         <div className="form-grid three">
@@ -590,84 +550,6 @@ function StakeholderRegisterFields({
             />
           </FormField>
         </div>
-      </div>
-
-      <hr className="form-section-divider" />
-
-      <div className="form-section">
-        <div className="form-section-header">
-          <span className="form-section-icon"><MapPin size={18} /></span>
-          <div>
-            <h3>Organization Address</h3>
-            <p>Where farmers and riders can reach you.</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <FormField label="Province" name="province" helper="HarvestLink currently operates in Cebu province only.">
-            <input id="province" value="Cebu" disabled />
-          </FormField>
-          <FormField label="Municipality / City" name="municipality" error={errors.municipality}>
-            <select
-              id="municipality"
-              value={form.municipality}
-              onChange={(event) => updateField('municipality', event.target.value)}
-              onBlur={() => handleBlur('municipality')}
-            >
-              {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-            </select>
-          </FormField>
-        </div>
-        <div className="form-grid">
-          <FormField label="Barangay" name="barangay" error={errors.barangay}>
-            <input
-              id="barangay"
-              value={form.barangay}
-              onChange={(event) => updateField('barangay', event.target.value)}
-              onBlur={() => handleBlur('barangay')}
-              placeholder="e.g. Poblacion"
-            />
-          </FormField>
-          <FormField label="Zip code" name="zipCode" error={errors.zipCode}>
-            <input
-              id="zipCode"
-              value={form.zipCode}
-              onChange={(event) => updateField('zipCode', event.target.value)}
-              onBlur={() => handleBlur('zipCode')}
-              placeholder="6000"
-              inputMode="numeric"
-              maxLength={4}
-            />
-          </FormField>
-        </div>
-        <FormField label="Street / Address" name="address" error={errors.address}>
-          <AddressAutocomplete
-            id="address"
-            value={form.address}
-            onChange={(next) => updateField('address', next)}
-            onSelect={(details) => { if (details.zipCode) updateField('zipCode', details.zipCode); }}
-            onBlur={() => handleBlur('address')}
-            error={errors.address}
-            placeholder="House/Unit No., Street"
-          />
-        </FormField>
-        <div>
-          <Button type="button" variant="secondary" size="sm" onClick={handleUseMyLocation} disabled={isLocating}>
-            <LocateFixed size={15} /> {isLocating ? 'Locating…' : 'Use my current location'}
-          </Button>
-          {locationNotice ? <p className="muted">{locationNotice}</p> : null}
-        </div>
-      </div>
-
-      <hr className="form-section-divider" />
-
-      <div className="form-section">
-        <div className="form-section-header">
-          <span className="form-section-icon"><KeyRound size={18} /></span>
-          <div>
-            <h3>Account Information</h3>
-            <p>How you&apos;ll sign in from now on.</p>
-          </div>
-        </div>
         <FormField label="Email Address" name="email" error={errors.email}>
           <div className="input-icon-wrap">
             <Mail size={16} className="input-icon" />
@@ -706,62 +588,44 @@ function StakeholderRegisterFields({
 
       <div className="form-section">
         <div className="form-section-header">
-          <span className="form-section-icon"><Handshake size={18} /></span>
+          <span className="form-section-icon"><MapPin size={18} /></span>
           <div>
-            <h3>Partnership Details</h3>
-            <p>Tell us how you&apos;d like to work with HarvestLink&apos;s farmers.</p>
+            <h3>Location</h3>
+            <p>Where your organization operates.</p>
           </div>
         </div>
         <div className="form-grid">
-          <FormField label="Partnership type" name="partnershipType" error={errors.partnershipType}>
+          <FormField label="Province" name="province">
+            <input id="province" value="Cebu" disabled />
+          </FormField>
+          <FormField label="Municipality / City" name="municipality" error={errors.municipality}>
             <select
-              id="partnershipType"
-              value={form.partnershipType}
-              onChange={(event) => updateField('partnershipType', event.target.value)}
-              onBlur={() => handleBlur('partnershipType')}
+              id="municipality"
+              value={form.municipality}
+              onChange={(event) => updateField('municipality', event.target.value)}
+              onBlur={() => handleBlur('municipality')}
             >
-              {PARTNERSHIP_TYPES.map((type) => <option key={type}>{type}</option>)}
+              {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
             </select>
           </FormField>
-          <FormField label="Agricultural products / commodities (optional)" name="agriculturalProducts" helper="e.g. Rice, corn, vegetables">
-            <input
-              id="agriculturalProducts"
-              value={form.agriculturalProducts}
-              onChange={(event) => updateField('agriculturalProducts', event.target.value)}
-              placeholder="e.g. Rice, corn, vegetables"
-            />
-          </FormField>
         </div>
-        <FormField label="Target farmers / members (optional)" name="targetFarmers" helper="Roughly who or how many farmers this partnership would reach.">
+        <FormField label="Barangay" name="barangay" error={errors.barangay}>
           <input
-            id="targetFarmers"
-            value={form.targetFarmers}
-            onChange={(event) => updateField('targetFarmers', event.target.value)}
-            placeholder="e.g. 50 smallholder rice farmers in Barili"
+            id="barangay"
+            value={form.barangay}
+            onChange={(event) => updateField('barangay', event.target.value)}
+            onBlur={() => handleBlur('barangay')}
+            placeholder="e.g. Poblacion"
           />
         </FormField>
-        <FormField label="Expected partnership role" name="partnershipRole" error={errors.partnershipRole} helper="Select every role that applies — an organization can take on more than one.">
-          <div className="form-checkbox-grid">
-            {PARTNERSHIP_TYPES.map((role) => (
-              <label key={role} className="form-checkbox-grid-item">
-                <input
-                  type="checkbox"
-                  checked={(form.partnershipRole || []).includes(role)}
-                  onChange={() => togglePartnershipRole(role)}
-                />
-                <span>{role}</span>
-              </label>
-            ))}
-          </div>
-        </FormField>
-        <FormField label="Partnership description" name="partnershipDescription" error={errors.partnershipDescription} helper="Why does your organization want to partner with HarvestLink?">
-          <textarea
-            id="partnershipDescription"
-            value={form.partnershipDescription}
-            onChange={(event) => updateField('partnershipDescription', event.target.value)}
-            onBlur={() => handleBlur('partnershipDescription')}
-            placeholder="e.g. We want direct buyer connections to our member farmers' crop production, and a reliable channel for surplus donations during harvest season."
-            rows={3}
+        <FormField label="Street / Address (optional)" name="address" error={errors.address}>
+          <AddressAutocomplete
+            id="address"
+            value={form.address}
+            onChange={(next) => updateField('address', next)}
+            onBlur={() => handleBlur('address')}
+            error={errors.address}
+            placeholder="House/Unit No., Street"
           />
         </FormField>
       </div>
@@ -772,11 +636,11 @@ function StakeholderRegisterFields({
         <div className="form-section-header">
           <span className="form-section-icon"><ShieldCheck size={18} /></span>
           <div>
-            <h3>Organization Verification</h3>
-            <p>To maintain a trusted agricultural marketplace, HarvestLink may verify your organization&apos;s registration and partnership information.</p>
+            <h3>Verification</h3>
+            <p>One official document is enough to begin verification.</p>
           </div>
         </div>
-        <FormField label="Registration / accreditation document" name="accreditationFile" error={errors.accreditationFile} helper="This document also serves as proof of your organization's identity.">
+        <FormField label="Verification document" name="accreditationFile" error={errors.accreditationFile}>
           <VerificationDocumentUpload
             id="accreditationFile"
             file={form.accreditationFile}
@@ -786,29 +650,34 @@ function StakeholderRegisterFields({
             onRemove={() => updateField('accreditationFile', '')}
           />
         </FormField>
-        <FormField label="Supporting document (optional)" name="supportingDocumentFile" helper="Any additional document that helps us verify your agricultural partnership — a farmer-member list, MOA, or similar.">
-          <VerificationDocumentUpload
-            id="supportingDocumentFile"
-            file={form.supportingDocumentFile}
-            onFileSelect={(file) => updateField('supportingDocumentFile', file)}
-            onValidationError={(message) => setFieldError('supportingDocumentFile', message)}
-            onRemove={() => updateField('supportingDocumentFile', '')}
-          />
-        </FormField>
         <div className="verification-accepted-docs">
-          <strong>Accepted Verification Documents</strong>
+          <strong>Accepted documents</strong>
           <ul>
             {ACCEPTED_VERIFICATION_DOCUMENTS.map((doc) => <li key={doc}>{doc}</li>)}
           </ul>
         </div>
-        <div className="form-alert info has-icon verification-notice">
-          <ShieldCheck size={16} />
-          <span>
-            Your documents will only be reviewed by the HarvestLink administrator to verify the legitimacy of your
-            agricultural organization and partnership. Everything you submit is kept confidential and securely
-            stored.
-          </span>
+      </div>
+
+      <hr className="form-section-divider" />
+
+      <div className="form-section">
+        <div className="form-section-header">
+          <span className="form-section-icon"><Handshake size={18} /></span>
+          <div>
+            <h3>Partnership</h3>
+          </div>
         </div>
+        <FormField label="Why would your organization like to partner with HarvestLink?" name="partnershipDescription" error={errors.partnershipDescription}>
+          <textarea
+            id="partnershipDescription"
+            value={form.partnershipDescription}
+            onChange={(event) => updateField('partnershipDescription', event.target.value.slice(0, 500))}
+            onBlur={() => handleBlur('partnershipDescription')}
+            placeholder="e.g. We want direct buyer connections for our member farmers' harvests."
+            rows={3}
+            maxLength={500}
+          />
+        </FormField>
       </div>
     </div>
   );
@@ -826,23 +695,14 @@ function buildEmptyForm(preselectedRole) {
     organizationName: '',
     organizationType: ORGANIZATION_TYPES[0],
     organizationTypeOther: '',
-    registrationType: REGISTRATION_TYPES[0],
-    registrationTypeOther: '',
-    registrationNumber: '',
-    yearEstablished: '',
     organizationDescription: '',
     contactPerson: '',
     municipality: CEBU_MUNICIPALITIES[0],
     barangay: '',
     address: '',
     zipCode: '',
-    partnershipType: PARTNERSHIP_TYPES[0],
-    agriculturalProducts: '',
-    targetFarmers: '',
-    partnershipRole: [],
     partnershipDescription: '',
     accreditationFile: '',
-    supportingDocumentFile: '',
     birthday: '',
     farmName: '',
     contactNumber: '',
@@ -893,9 +753,6 @@ export default function AuthPage({ mode }) {
   // Partner-organization registration only (see StakeholderRegisterFields) — a client-side
   // gate on the submit button, not sent anywhere; farmer/buyer registration is unaffected.
   const [agreedToTerms, setAgreedToTerms] = useState(() => isRegister && Boolean(readRegisterDraft()?.agreedToTerms));
-  // Second, stakeholder-only consent checkbox — "I confirm that the information provided
-  // represents our organization accurately." Also a client-side gate only.
-  const [orgInfoConfirmed, setOrgInfoConfirmed] = useState(() => isRegister && Boolean(readRegisterDraft()?.orgInfoConfirmed));
   const isStakeholderRegister = isRegister && form.role === 'stakeholder';
   // In-flight state for the async "is this number already registered?" check fired from
   // PhoneNumberInput's onBlur — see handleContactNumberBlur below.
@@ -957,18 +814,18 @@ export default function AuthPage({ mode }) {
         }
       }));
 
-      const snapshot = JSON.stringify({ form, agreedToTerms, orgInfoConfirmed, files });
+      const snapshot = JSON.stringify({ form, agreedToTerms, files });
       if (snapshot === lastSavedSnapshotRef.current) return;
       lastSavedSnapshotRef.current = snapshot;
 
-      writeRegisterDraft(form, agreedToTerms, orgInfoConfirmed, files);
+      writeRegisterDraft(form, agreedToTerms, files);
       setShowSavedNotice(true);
       window.clearTimeout(savedNoticeTimeoutRef.current);
       savedNoticeTimeoutRef.current = window.setTimeout(() => setShowSavedNotice(false), SAVED_NOTICE_VISIBLE_MS);
     }, DRAFT_SAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isRegister, form, agreedToTerms, orgInfoConfirmed]);
+  }, [isRegister, form, agreedToTerms]);
 
   // Cleans up the "saved" notice's own timer on unmount only — a plain teardown, not tied to
   // any particular value changing.
@@ -1094,20 +951,13 @@ export default function AuthPage({ mode }) {
           ...form,
           contactNumber: toE164PhilippineMobile(form.contactNumber),
           organizationType: form.organizationType === 'Other' ? form.organizationTypeOther.trim() : form.organizationType,
-          registrationType: form.registrationType === 'Other' ? form.registrationTypeOther.trim() : form.registrationType,
-          partnershipRole: (form.partnershipRole || []).join(', '),
         }
       : form;
     try {
       const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
       if (isRegister && result.pendingVerification) {
         setOtpEmail(form.email.trim().toLowerCase());
-        setPendingFiles({
-          govIdFile: form.govIdFile,
-          accreditationFile: form.accreditationFile,
-          supportingDocumentFile: form.supportingDocumentFile,
-          role: form.role,
-        });
+        setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
         setOtpValue('');
         setOtpError('');
         setOtpNotice('We sent a verification code to your email. Enter the 6-digit code to complete registration.');
@@ -1205,7 +1055,6 @@ export default function AuthPage({ mode }) {
     && isValidEmail(form.email)
     && PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(form.password))
     && agreedToTerms
-    && (!isStakeholderRegister || orgInfoConfirmed)
   );
 
   // Drives both the in-button spinner and aria-busy — the submit button is shared by the
@@ -1318,9 +1167,6 @@ export default function AuthPage({ mode }) {
                   errors={errors}
                   updateField={updateField}
                   handleBlur={handleBlur}
-                  isLocating={isLocating}
-                  locationNotice={locationNotice}
-                  handleUseMyLocation={handleUseMyLocation}
                   setFieldError={setFieldError}
                   handleContactNumberBlur={handleContactNumberBlur}
                   isCheckingPhone={isCheckingPhone}
@@ -1547,18 +1393,6 @@ export default function AuthPage({ mode }) {
             </>
           )}
 
-          {isRegister && authStage === 'form' && isStakeholderRegister ? (
-            <label className="auth-terms-row">
-              <input
-                type="checkbox"
-                checked={orgInfoConfirmed}
-                onChange={(event) => setOrgInfoConfirmed(event.target.checked)}
-                aria-required="true"
-              />
-              <span>I confirm that the information provided represents our organization accurately.</span>
-            </label>
-          ) : null}
-
           {isRegister && authStage === 'form' ? (
             <label className="auth-terms-row">
               <input
@@ -1568,7 +1402,7 @@ export default function AuthPage({ mode }) {
                 aria-required="true"
               />
               <span>
-                {isStakeholderRegister ? "I agree to HarvestLink's partnership verification and data processing policies: " : 'I agree to the '}
+                I agree to the{' '}
                 {/* Same-tab, not target="_blank" — a new tab doesn't inherit this tab's
                     sessionStorage (browsers only copy it over when an opener relationship
                     exists, which rel="noreferrer" deliberately severs for tabnabbing safety),

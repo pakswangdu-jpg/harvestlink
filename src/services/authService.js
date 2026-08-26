@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { apiClient } from './apiClient';
-import { uploadAccreditationFile, uploadGovIdFile, uploadSupportingDocument } from './uploadService';
+import { uploadAccreditationFile, uploadGovIdFile } from './uploadService';
 
 // Every function here now talks to the real backend (Express on Render, backed by
 // Supabase Postgres) instead of localStorage — see backend/src/routes/profiles.routes.js
@@ -48,16 +48,13 @@ export async function verifyRegistrationOtp(email, token, password, pendingFiles
   }
 
   const { data: { user } } = await supabase.auth.getUser();
-  const { govIdFile, accreditationFile, supportingDocumentFile, role } = pendingFiles;
+  const { govIdFile, accreditationFile, role } = pendingFiles;
   const filePatch = {};
   if (role === 'farmer' && govIdFile instanceof File) {
     filePatch.govIdFile = await uploadGovIdFile(govIdFile, user.id);
   }
   if (role === 'stakeholder' && accreditationFile instanceof File) {
     filePatch.accreditationFile = await uploadAccreditationFile(accreditationFile, user.id);
-  }
-  if (role === 'stakeholder' && supportingDocumentFile instanceof File) {
-    filePatch.supportingDocumentFile = await uploadSupportingDocument(supportingDocumentFile, user.id);
   }
 
   return Object.keys(filePatch).length ? apiClient.patch('/profiles/me', filePatch) : apiClient.get('/profiles/me');
