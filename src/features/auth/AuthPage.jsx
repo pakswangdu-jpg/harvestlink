@@ -1,7 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle, Building2, CheckCircle, FileText, KeyRound, LocateFixed, Mail, MapPin,
-  ShieldCheck, UploadCloud, Users, X, XCircle,
+  AlertTriangle, Building2, CheckCircle, ClipboardCheck, Clock3, FileText, Handshake, KeyRound,
+  LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, X, XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
@@ -10,7 +10,9 @@ import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
-import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
+import {
+  CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, PARTNERSHIP_TYPES, REGISTRATION_TYPES, ROLE_DASHBOARDS,
+} from '../../utils/constants';
 import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
 import { checkContactNumberAvailability } from '../../services/authService';
@@ -36,8 +38,8 @@ const REGISTER_DRAFT_KEY = 'harvestlink:registerDraft';
 // sit in Web Storage a moment longer than necessary — a deliberate choice, not an oversight)
 // and govIdFile/accreditationFile, which are handled separately below (as base64, under their
 // own `files` key) since a live File object can't survive JSON.stringify at all.
-const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile'];
-const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile'];
+const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile', 'supportingDocumentFile'];
+const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile', 'supportingDocumentFile'];
 // sessionStorage's per-origin quota (roughly 5-10MB depending on browser) has to fit the
 // file's base64 form (~33% larger than its raw bytes) alongside everything else in the draft —
 // a file above this just doesn't get persisted. The live selection still works fine for the
@@ -56,17 +58,17 @@ function readRegisterDraft() {
   }
 }
 
-function writeRegisterDraft(form, agreedToTerms, files) {
+function writeRegisterDraft(form, agreedToTerms, orgInfoConfirmed, files) {
   const draftForm = { ...form };
   REGISTER_DRAFT_EXCLUDED_FIELDS.forEach((field) => delete draftForm[field]);
   try {
-    sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files }));
+    sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, orgInfoConfirmed, files }));
   } catch {
     // Most likely a large file's base64 payload pushed this over sessionStorage's quota —
     // retry without the file data so the far more important lightweight fields (name, email,
     // address, ...) still survive the round trip instead of losing everything.
     try {
-      sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files: null }));
+      sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, orgInfoConfirmed, files: null }));
     } catch {
       // Storage unavailable entirely (private browsing, disabled) — best-effort only, never
       // something registration itself depends on.
@@ -337,7 +339,7 @@ function formatFileSize(bytes) {
 // authService.registerUser / buildRoleFields), just a richer picker: real drag-and-drop,
 // an image thumbnail or PDF icon once a file is chosen, and inline type/size validation
 // instead of only finding out a file was rejected after trying to submit.
-function VerificationDocumentUpload({ file, error, onFileSelect, onValidationError, onRemove }) {
+function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidationError, onRemove }) {
   const [isDragging, setIsDragging] = useState(false);
   const isImage = file instanceof File && file.type.startsWith('image/');
   const isPdf = file instanceof File && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'));
@@ -393,7 +395,7 @@ function VerificationDocumentUpload({ file, error, onFileSelect, onValidationErr
       }}
     >
       <input
-        id="accreditationFile"
+        id={id}
         type="file"
         accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
         onChange={(event) => validateAndSelect(event.target.files?.[0])}
@@ -426,6 +428,15 @@ function StakeholderRegisterFields({
   handleContactNumberBlur,
   isCheckingPhone,
 }) {
+  // Expected Partnership Role is the multi-select counterpart to Partnership Type below — one
+  // organization can legitimately be both e.g. a Farmer Supply Partner and a Community Partner,
+  // which is exactly why this toggles membership in an array instead of picking one value.
+  const togglePartnershipRole = (role) => {
+    const current = form.partnershipRole || [];
+    const next = current.includes(role) ? current.filter((item) => item !== role) : [...current, role];
+    updateField('partnershipRole', next);
+  };
+
   return (
     <div className="stakeholder-register">
       <div className="form-section">
@@ -443,7 +454,7 @@ function StakeholderRegisterFields({
               value={form.organizationName}
               onChange={(event) => updateField('organizationName', event.target.value)}
               onBlur={() => handleBlur('organizationName')}
-              placeholder="Cebu Children's Home"
+              placeholder="e.g. Barili Farmers Cooperative"
             />
           </FormField>
           <FormField label="Organization Type" name="organizationType" error={errors.organizationType}>
@@ -463,11 +474,61 @@ function StakeholderRegisterFields({
                 value={form.organizationTypeOther}
                 onChange={(event) => updateField('organizationTypeOther', event.target.value)}
                 onBlur={() => handleBlur('organizationType')}
-                placeholder="e.g. Community Kitchen"
+                placeholder="e.g. Seed Bank Initiative"
               />
             </FormField>
           ) : null}
+          <FormField label="Registration Type" name="registrationType" error={errors.registrationType}>
+            <select
+              id="registrationType"
+              value={form.registrationType}
+              onChange={(event) => updateField('registrationType', event.target.value)}
+              onBlur={() => handleBlur('registrationType')}
+            >
+              {REGISTRATION_TYPES.map((type) => <option key={type}>{type}</option>)}
+            </select>
+          </FormField>
+          {form.registrationType === 'Other' ? (
+            <FormField label="Specify registration type" name="registrationTypeOther" error={errors.registrationType}>
+              <input
+                id="registrationTypeOther"
+                value={form.registrationTypeOther}
+                onChange={(event) => updateField('registrationTypeOther', event.target.value)}
+                onBlur={() => handleBlur('registrationType')}
+                placeholder="e.g. Provincial Agriculture Office"
+              />
+            </FormField>
+          ) : null}
+          <FormField label="Registration number (optional)" name="registrationNumber" helper="Your CDA/SEC/DTI certificate or accreditation number, if you have one.">
+            <input
+              id="registrationNumber"
+              value={form.registrationNumber}
+              onChange={(event) => updateField('registrationNumber', event.target.value)}
+              placeholder="e.g. CDA-2019-004512"
+            />
+          </FormField>
+          <FormField label="Year established (optional)" name="yearEstablished" error={errors.yearEstablished}>
+            <input
+              id="yearEstablished"
+              value={form.yearEstablished}
+              onChange={(event) => updateField('yearEstablished', event.target.value.replace(/\D/g, '').slice(0, 4))}
+              onBlur={() => handleBlur('yearEstablished')}
+              placeholder="e.g. 2005"
+              inputMode="numeric"
+              maxLength={4}
+            />
+          </FormField>
         </div>
+        <FormField label="Organization description" name="organizationDescription" error={errors.organizationDescription} helper="A short summary of your organization and the farmer members or agricultural community it serves.">
+          <textarea
+            id="organizationDescription"
+            value={form.organizationDescription}
+            onChange={(event) => updateField('organizationDescription', event.target.value)}
+            onBlur={() => handleBlur('organizationDescription')}
+            placeholder="e.g. A 40-member rice and corn farming cooperative in Barili supporting smallholder crop production and market access since 2005."
+            rows={3}
+          />
+        </FormField>
       </div>
 
       <hr className="form-section-divider" />
@@ -542,6 +603,9 @@ function StakeholderRegisterFields({
           </div>
         </div>
         <div className="form-grid">
+          <FormField label="Province" name="province" helper="HarvestLink currently operates in Cebu province only.">
+            <input id="province" value="Cebu" disabled />
+          </FormField>
           <FormField label="Municipality / City" name="municipality" error={errors.municipality}>
             <select
               id="municipality"
@@ -551,6 +615,17 @@ function StakeholderRegisterFields({
             >
               {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
             </select>
+          </FormField>
+        </div>
+        <div className="form-grid">
+          <FormField label="Barangay" name="barangay" error={errors.barangay}>
+            <input
+              id="barangay"
+              value={form.barangay}
+              onChange={(event) => updateField('barangay', event.target.value)}
+              onBlur={() => handleBlur('barangay')}
+              placeholder="e.g. Poblacion"
+            />
           </FormField>
           <FormField label="Zip code" name="zipCode" error={errors.zipCode}>
             <input
@@ -564,7 +639,7 @@ function StakeholderRegisterFields({
             />
           </FormField>
         </div>
-        <FormField label="Complete address" name="address" error={errors.address}>
+        <FormField label="Street / Address" name="address" error={errors.address}>
           <AddressAutocomplete
             id="address"
             value={form.address}
@@ -572,7 +647,7 @@ function StakeholderRegisterFields({
             onSelect={(details) => { if (details.zipCode) updateField('zipCode', details.zipCode); }}
             onBlur={() => handleBlur('address')}
             error={errors.address}
-            placeholder="House/Unit No., Street, Barangay"
+            placeholder="House/Unit No., Street"
           />
         </FormField>
         <div>
@@ -631,19 +706,93 @@ function StakeholderRegisterFields({
 
       <div className="form-section">
         <div className="form-section-header">
-          <span className="form-section-icon"><ShieldCheck size={18} /></span>
+          <span className="form-section-icon"><Handshake size={18} /></span>
           <div>
-            <h3>Agricultural Organization Verification</h3>
-            <p>One official document to help us confirm your organization is legitimate.</p>
+            <h3>Partnership Details</h3>
+            <p>Tell us how you&apos;d like to work with HarvestLink&apos;s farmers.</p>
           </div>
         </div>
-        <FormField label="Verification Document" name="accreditationFile" error={errors.accreditationFile}>
+        <div className="form-grid">
+          <FormField label="Partnership type" name="partnershipType" error={errors.partnershipType}>
+            <select
+              id="partnershipType"
+              value={form.partnershipType}
+              onChange={(event) => updateField('partnershipType', event.target.value)}
+              onBlur={() => handleBlur('partnershipType')}
+            >
+              {PARTNERSHIP_TYPES.map((type) => <option key={type}>{type}</option>)}
+            </select>
+          </FormField>
+          <FormField label="Agricultural products / commodities (optional)" name="agriculturalProducts" helper="e.g. Rice, corn, vegetables">
+            <input
+              id="agriculturalProducts"
+              value={form.agriculturalProducts}
+              onChange={(event) => updateField('agriculturalProducts', event.target.value)}
+              placeholder="e.g. Rice, corn, vegetables"
+            />
+          </FormField>
+        </div>
+        <FormField label="Target farmers / members (optional)" name="targetFarmers" helper="Roughly who or how many farmers this partnership would reach.">
+          <input
+            id="targetFarmers"
+            value={form.targetFarmers}
+            onChange={(event) => updateField('targetFarmers', event.target.value)}
+            placeholder="e.g. 50 smallholder rice farmers in Barili"
+          />
+        </FormField>
+        <FormField label="Expected partnership role" name="partnershipRole" error={errors.partnershipRole} helper="Select every role that applies — an organization can take on more than one.">
+          <div className="form-checkbox-grid">
+            {PARTNERSHIP_TYPES.map((role) => (
+              <label key={role} className="form-checkbox-grid-item">
+                <input
+                  type="checkbox"
+                  checked={(form.partnershipRole || []).includes(role)}
+                  onChange={() => togglePartnershipRole(role)}
+                />
+                <span>{role}</span>
+              </label>
+            ))}
+          </div>
+        </FormField>
+        <FormField label="Partnership description" name="partnershipDescription" error={errors.partnershipDescription} helper="Why does your organization want to partner with HarvestLink?">
+          <textarea
+            id="partnershipDescription"
+            value={form.partnershipDescription}
+            onChange={(event) => updateField('partnershipDescription', event.target.value)}
+            onBlur={() => handleBlur('partnershipDescription')}
+            placeholder="e.g. We want direct buyer connections to our member farmers' crop production, and a reliable channel for surplus donations during harvest season."
+            rows={3}
+          />
+        </FormField>
+      </div>
+
+      <hr className="form-section-divider" />
+
+      <div className="form-section">
+        <div className="form-section-header">
+          <span className="form-section-icon"><ShieldCheck size={18} /></span>
+          <div>
+            <h3>Organization Verification</h3>
+            <p>To maintain a trusted agricultural marketplace, HarvestLink may verify your organization&apos;s registration and partnership information.</p>
+          </div>
+        </div>
+        <FormField label="Registration / accreditation document" name="accreditationFile" error={errors.accreditationFile} helper="This document also serves as proof of your organization's identity.">
           <VerificationDocumentUpload
+            id="accreditationFile"
             file={form.accreditationFile}
             error={errors.accreditationFile}
             onFileSelect={(file) => updateField('accreditationFile', file)}
             onValidationError={(message) => setFieldError('accreditationFile', message)}
             onRemove={() => updateField('accreditationFile', '')}
+          />
+        </FormField>
+        <FormField label="Supporting document (optional)" name="supportingDocumentFile" helper="Any additional document that helps us verify your agricultural partnership — a farmer-member list, MOA, or similar.">
+          <VerificationDocumentUpload
+            id="supportingDocumentFile"
+            file={form.supportingDocumentFile}
+            onFileSelect={(file) => updateField('supportingDocumentFile', file)}
+            onValidationError={(message) => setFieldError('supportingDocumentFile', message)}
+            onRemove={() => updateField('supportingDocumentFile', '')}
           />
         </FormField>
         <div className="verification-accepted-docs">
@@ -655,9 +804,9 @@ function StakeholderRegisterFields({
         <div className="form-alert info has-icon verification-notice">
           <ShieldCheck size={16} />
           <span>
-            Your verification document will only be reviewed by the HarvestLink administrator to verify the
-            legitimacy of your agricultural organization. All submitted documents are kept confidential and
-            securely stored.
+            Your documents will only be reviewed by the HarvestLink administrator to verify the legitimacy of your
+            agricultural organization and partnership. Everything you submit is kept confidential and securely
+            stored.
           </span>
         </div>
       </div>
@@ -677,11 +826,23 @@ function buildEmptyForm(preselectedRole) {
     organizationName: '',
     organizationType: ORGANIZATION_TYPES[0],
     organizationTypeOther: '',
+    registrationType: REGISTRATION_TYPES[0],
+    registrationTypeOther: '',
+    registrationNumber: '',
+    yearEstablished: '',
+    organizationDescription: '',
     contactPerson: '',
     municipality: CEBU_MUNICIPALITIES[0],
+    barangay: '',
     address: '',
     zipCode: '',
+    partnershipType: PARTNERSHIP_TYPES[0],
+    agriculturalProducts: '',
+    targetFarmers: '',
+    partnershipRole: [],
+    partnershipDescription: '',
     accreditationFile: '',
+    supportingDocumentFile: '',
     birthday: '',
     farmName: '',
     contactNumber: '',
@@ -732,6 +893,9 @@ export default function AuthPage({ mode }) {
   // Partner-organization registration only (see StakeholderRegisterFields) — a client-side
   // gate on the submit button, not sent anywhere; farmer/buyer registration is unaffected.
   const [agreedToTerms, setAgreedToTerms] = useState(() => isRegister && Boolean(readRegisterDraft()?.agreedToTerms));
+  // Second, stakeholder-only consent checkbox — "I confirm that the information provided
+  // represents our organization accurately." Also a client-side gate only.
+  const [orgInfoConfirmed, setOrgInfoConfirmed] = useState(() => isRegister && Boolean(readRegisterDraft()?.orgInfoConfirmed));
   const isStakeholderRegister = isRegister && form.role === 'stakeholder';
   // In-flight state for the async "is this number already registered?" check fired from
   // PhoneNumberInput's onBlur — see handleContactNumberBlur below.
@@ -793,24 +957,30 @@ export default function AuthPage({ mode }) {
         }
       }));
 
-      const snapshot = JSON.stringify({ form, agreedToTerms, files });
+      const snapshot = JSON.stringify({ form, agreedToTerms, orgInfoConfirmed, files });
       if (snapshot === lastSavedSnapshotRef.current) return;
       lastSavedSnapshotRef.current = snapshot;
 
-      writeRegisterDraft(form, agreedToTerms, files);
+      writeRegisterDraft(form, agreedToTerms, orgInfoConfirmed, files);
       setShowSavedNotice(true);
       window.clearTimeout(savedNoticeTimeoutRef.current);
       savedNoticeTimeoutRef.current = window.setTimeout(() => setShowSavedNotice(false), SAVED_NOTICE_VISIBLE_MS);
     }, DRAFT_SAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isRegister, form, agreedToTerms]);
+  }, [isRegister, form, agreedToTerms, orgInfoConfirmed]);
 
   // Cleans up the "saved" notice's own timer on unmount only — a plain teardown, not tied to
   // any particular value changing.
   useEffect(() => () => window.clearTimeout(savedNoticeTimeoutRef.current), []);
 
-  if (!authLoading && currentUser) return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
+  // authStage 'submitted' is the Partner Organization Registration confirmation screen shown
+  // right after a stakeholder finishes OTP verification (see handleVerifyOtp below) — the
+  // account is real and currentUser is already set at that point, so without this guard the
+  // redirect below would fire immediately and the confirmation screen would never render.
+  if (!authLoading && currentUser && authStage !== 'submitted') {
+    return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
+  }
 
   const updateField = (field, value) => {
     setForm((previous) => ({ ...previous, [field]: value }));
@@ -924,13 +1094,20 @@ export default function AuthPage({ mode }) {
           ...form,
           contactNumber: toE164PhilippineMobile(form.contactNumber),
           organizationType: form.organizationType === 'Other' ? form.organizationTypeOther.trim() : form.organizationType,
+          registrationType: form.registrationType === 'Other' ? form.registrationTypeOther.trim() : form.registrationType,
+          partnershipRole: (form.partnershipRole || []).join(', '),
         }
       : form;
     try {
       const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
       if (isRegister && result.pendingVerification) {
         setOtpEmail(form.email.trim().toLowerCase());
-        setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
+        setPendingFiles({
+          govIdFile: form.govIdFile,
+          accreditationFile: form.accreditationFile,
+          supportingDocumentFile: form.supportingDocumentFile,
+          role: form.role,
+        });
         setOtpValue('');
         setOtpError('');
         setOtpNotice('We sent a verification code to your email. Enter the 6-digit code to complete registration.');
@@ -980,6 +1157,15 @@ export default function AuthPage({ mode }) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, otpEmail);
         else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
       }
+      // A partner organization's account now exists, but a real person still needs to review
+      // its Partnership Details before it can act on the marketplace — land on a dedicated
+      // confirmation screen instead of dropping straight into the dashboard (see the top-level
+      // currentUser guard above, which lets this render instead of auto-redirecting).
+      if (isStakeholderRegister) {
+        setAuthStage('submitted');
+        setIsVerifyingOtp(false);
+        return;
+      }
       const fallback = ROLE_DASHBOARDS[user.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
@@ -1019,6 +1205,7 @@ export default function AuthPage({ mode }) {
     && isValidEmail(form.email)
     && PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(form.password))
     && agreedToTerms
+    && (!isStakeholderRegister || orgInfoConfirmed)
   );
 
   // Drives both the in-button spinner and aria-busy — the submit button is shared by the
@@ -1064,14 +1251,18 @@ export default function AuthPage({ mode }) {
 
         <div className="auth-card-header">
           <h2>
-            {authStage === 'otp'
-              ? 'Verify your email'
-              : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
+            {authStage === 'submitted'
+              ? 'Partnership Application Submitted'
+              : authStage === 'otp'
+                ? 'Verify your email'
+                : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
           </h2>
           <p>
-            {authStage === 'otp'
-              ? 'Enter the 6-digit code we emailed you to finish this.'
-              : isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Sign in to your HarvestLink account'}
+            {authStage === 'submitted'
+              ? "Thank you for your interest in partnering with HarvestLink. Our team will review your organization's information and contact your authorized representative once verification is complete."
+              : authStage === 'otp'
+                ? 'Enter the 6-digit code we emailed you to finish this.'
+                : isStakeholderRegister ? "Fill in your organization's details to get started." : isRegister ? 'Choose your role and start trading locally.' : 'Sign in to your HarvestLink account'}
           </p>
         </div>
 
@@ -1088,7 +1279,12 @@ export default function AuthPage({ mode }) {
           ) : null}
           {message ? <FormAlert type="success" message={message} /> : null}
 
-          {authStage === 'otp' ? (
+          {authStage === 'submitted' ? (
+            <div className="submitted-stage">
+              <span className="submitted-icon"><ClipboardCheck size={28} /></span>
+              <span className="submitted-status-badge"><Clock3 size={13} /> Pending Verification</span>
+            </div>
+          ) : authStage === 'otp' ? (
             <div className="otp-stage">
               <span className="otp-icon"><Mail size={22} /></span>
               <p className="otp-instructions">
@@ -1351,7 +1547,19 @@ export default function AuthPage({ mode }) {
             </>
           )}
 
-          {isRegister && authStage !== 'otp' ? (
+          {isRegister && authStage === 'form' && isStakeholderRegister ? (
+            <label className="auth-terms-row">
+              <input
+                type="checkbox"
+                checked={orgInfoConfirmed}
+                onChange={(event) => setOrgInfoConfirmed(event.target.checked)}
+                aria-required="true"
+              />
+              <span>I confirm that the information provided represents our organization accurately.</span>
+            </label>
+          ) : null}
+
+          {isRegister && authStage === 'form' ? (
             <label className="auth-terms-row">
               <input
                 type="checkbox"
@@ -1360,7 +1568,7 @@ export default function AuthPage({ mode }) {
                 aria-required="true"
               />
               <span>
-                I agree to the{' '}
+                {isStakeholderRegister ? "I agree to HarvestLink's partnership verification and data processing policies: " : 'I agree to the '}
                 {/* Same-tab, not target="_blank" — a new tab doesn't inherit this tab's
                     sessionStorage (browsers only copy it over when an opener relationship
                     exists, which rel="noreferrer" deliberately severs for tabnabbing safety),
@@ -1374,32 +1582,42 @@ export default function AuthPage({ mode }) {
             </label>
           ) : null}
 
-          {isRegister && authStage !== 'otp' ? (
+          {isRegister && authStage === 'form' ? (
             <p className={`autosave-notice${showSavedNotice ? ' visible' : ''}`} role="status" aria-live="polite">
               <CheckCircle size={14} /> Your progress is automatically saved.
             </p>
           ) : null}
 
-          <Button
-            type="submit"
-            className="full-width auth-submit"
-            aria-busy={isBusy}
-            disabled={
-              authStage === 'otp'
-                ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
-                : isSubmitting || !isRegisterFormReady
-            }
-          >
-            {isBusy ? <span className="btn-spinner" aria-hidden="true" /> : null}
-            {authStage === 'otp'
-              ? (isVerifyingOtp ? 'Verifying…' : 'Verify email')
-              : isSubmitting
-                ? (isStakeholderRegister ? 'Creating Account...' : isRegister ? 'Creating account…' : 'Signing in…')
-                : (isStakeholderRegister ? 'Create Organization Account' : isRegister ? 'Create account' : 'Sign in')}
-          </Button>
+          {authStage === 'submitted' ? (
+            <Button
+              type="button"
+              className="full-width auth-submit"
+              onClick={() => navigate(location.state?.from || ROLE_DASHBOARDS.stakeholder, { replace: true })}
+            >
+              Go to my dashboard
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              className="full-width auth-submit"
+              aria-busy={isBusy}
+              disabled={
+                authStage === 'otp'
+                  ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
+                  : isSubmitting || !isRegisterFormReady
+              }
+            >
+              {isBusy ? <span className="btn-spinner" aria-hidden="true" /> : null}
+              {authStage === 'otp'
+                ? (isVerifyingOtp ? 'Verifying…' : 'Verify email')
+                : isSubmitting
+                  ? (isStakeholderRegister ? 'Submitting…' : isRegister ? 'Creating account…' : 'Signing in…')
+                  : (isStakeholderRegister ? 'Submit Partnership Application' : isRegister ? 'Create account' : 'Sign in')}
+            </Button>
+          )}
         </form>
 
-        {authStage !== 'otp' ? (
+        {authStage === 'form' ? (
           <p className="auth-switch">
             {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
             <Link to={isRegister ? '/login' : '/register'}>
