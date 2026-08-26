@@ -89,7 +89,7 @@ export default function StakeholderDonations() {
           ))}
         </section>
       ) : (
-        <EmptyState title="No donations available" message="Check back when farmers list surplus produce for donation." />
+        <EmptyState className="empty-state-transparent-icon" title="No donations available" message="Check back when farmers list surplus produce for donation." />
       )}
     </AppShell>
   );

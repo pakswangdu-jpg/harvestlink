@@ -180,6 +180,7 @@ export default function StakeholderDashboard() {
             </div>
           ) : (
             <EmptyState
+              className="empty-state-transparent-icon"
               icon={Gift}
               title="No donations yet"
               message="Available surplus produce will appear here."
