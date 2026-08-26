@@ -6917,6 +6917,16 @@ td {
   color: var(--green-700);
 }
 
+/* The light-mode gradient above hardcodes #ffffff as its lit corner, which reads fine against
+   a white card there — but --green-100 itself flips to a near-black tint in dark mode (see the
+   dark token block), so the whole badge collapsed into a corner-of-white-on-black patch that
+   barely registered against the dark auth card behind it. Dark mode gets its own tinted-glass
+   treatment instead of trying to reuse the light gradient's hardcoded white stop. */
+[data-theme="dark"] .form-section-icon {
+  background: linear-gradient(135deg, rgba(84, 182, 126, 0.24), rgba(84, 182, 126, 0.08));
+  border-color: rgba(84, 182, 126, 0.4);
+}
+
 .form-section-header h3 {
   color: var(--green-900);
   font-size: 1rem;
