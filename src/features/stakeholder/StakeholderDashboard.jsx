@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Calendar, ClipboardList, Gift, PackageCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import KpiGrid from '../../components/common/KpiGrid';
 import KpiCard from '../../components/common/KpiCard';
-import availableDonationsIcon from '../../assets/icons/kpi-available-donations.png';
-import completedDonationsIcon from '../../assets/icons/kpi-completed-donations.png';
-import myRequestsIcon from '../../assets/icons/kpi-my-requests.png';
-import scheduledPickupsIcon from '../../assets/icons/kpi-scheduled-pickups.png';
 import DonationCard from '../../components/cards/DonationCard';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -163,10 +160,10 @@ export default function StakeholderDashboard() {
       ) : null}
 
       <KpiGrid>
-        <KpiCard label="Available donations" value={available.length} iconSrc={availableDonationsIcon} tone="financial" />
-        <KpiCard label="My requests" value={myRequests.length} iconSrc={myRequestsIcon} tone="info" />
-        <KpiCard label="Scheduled pickups" value={scheduled.length} iconSrc={scheduledPickupsIcon} tone="warning" />
-        <KpiCard label="Completed" value={completed.length} iconSrc={completedDonationsIcon} variant="success" tone="success" />
+        <KpiCard label="Available donations" value={available.length} icon={Gift} tone="financial" />
+        <KpiCard label="My requests" value={myRequests.length} icon={ClipboardList} tone="info" />
+        <KpiCard label="Scheduled pickups" value={scheduled.length} icon={Calendar} variant="warning" tone="warning" />
+        <KpiCard label="Completed" value={completed.length} icon={PackageCheck} variant="success" tone="success" />
       </KpiGrid>
 
       <section className="content-grid two">

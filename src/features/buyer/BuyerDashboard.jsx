@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Clock3, MapPin, PackageCheck, PackageSearch } from 'lucide-react';
+import { ClipboardList, Clock3, MapPin, Package, PackageCheck, PackageSearch, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import totalSpendIcon from '../../assets/icons/kpi-total-spend.png';
-import activeListingsIcon from '../../assets/icons/kpi-active-listings.png';
-import myOrdersIcon from '../../assets/icons/kpi-my-orders.png';
 import AppShell from '../../components/layout/AppShell';
 import KpiGrid from '../../components/common/KpiGrid';
 import KpiCard from '../../components/common/KpiCard';
@@ -96,9 +93,9 @@ export default function BuyerDashboard() {
       pageClassName="buyer-dashboard-page"
     >
       <KpiGrid columns={5}>
-        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} iconSrc={totalSpendIcon} tone="financial" />
-        <KpiCard label="Active listings" value={products.length} iconSrc={activeListingsIcon} tone="neutral" />
-        <KpiCard label="My orders" value={orders.length} iconSrc={myOrdersIcon} tone="info" />
+        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} icon={Wallet} tone="financial" />
+        <KpiCard label="Active listings" value={products.length} icon={Package} tone="neutral" />
+        <KpiCard label="My orders" value={orders.length} icon={ClipboardList} tone="info" />
         <KpiCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={Clock3} variant="warning" tone="warning" iconClassName="stat-icon-waiting" />
         <KpiCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={PackageCheck} variant="success" tone="success" />
       </KpiGrid>
