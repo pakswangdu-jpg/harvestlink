@@ -126,7 +126,18 @@ export async function reverseGeocode({ lat, lng }) {
     const addressLine = [streetLine, barangay].filter(Boolean).join(', ');
     const cityText = addressComponent(components, 'locality') || addressComponent(components, 'administrative_area_level_2');
 
-    const result = { address: addressLine, zipCode: addressComponent(components, 'postal_code'), cityText };
+    // `address` keeps its existing street+barangay combined shape for farmer/buyer, whose
+    // registration form has a single free-text address field with no separate barangay input.
+    // `street`/`barangay` are exposed individually too for the Partner Organization
+    // Registration form, which has barangay broken out as its own required field — see
+    // handleUseMyLocation in AuthPage.jsx.
+    const result = {
+      address: addressLine,
+      street: streetLine,
+      barangay,
+      zipCode: addressComponent(components, 'postal_code'),
+      cityText,
+    };
     writeCache(cacheKey, result);
     return result;
   } catch {
