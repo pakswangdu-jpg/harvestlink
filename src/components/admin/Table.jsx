@@ -35,7 +35,13 @@ export default function Table({
               className={`h-11 border-b border-[var(--line)] transition-colors duration-150 hover:bg-[var(--soft)] ${onRowClick ? 'cursor-pointer' : ''}`}
             >
               {columns.map((column) => (
-                <td key={column.key} className="whitespace-nowrap px-3 text-[13px] leading-tight text-[var(--text)] first:pl-5 last:pr-5">
+                // truncate (nowrap + overflow-hidden + ellipsis), not just nowrap — a table
+                // sized to 100% width with table-layout: auto shrinks columns below their
+                // natural content width once the row's total exceeds the container, and
+                // nowrap alone then lets long values (a full farmer name, here) render past
+                // their own cell's boundary and visually collide with the next column instead
+                // of clipping to it.
+                <td key={column.key} className="max-w-0 truncate px-3 text-[13px] leading-tight text-[var(--text)] first:pl-5 last:pr-5" title={column.render ? undefined : String(row[column.key] ?? '')}>
                   {column.render ? column.render(row) : (row[column.key] ?? '—')}
                 </td>
               ))}

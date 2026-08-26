@@ -15,8 +15,12 @@ export function CardHeader({ eyebrow, title, action, className = '' }) {
   return (
     <div className={`mb-4 flex items-center justify-between gap-3 ${className}`.trim()}>
       <div>
-        {eyebrow ? <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">{eyebrow}</p> : null}
-        <h2 className="text-[20px] font-semibold leading-tight text-[var(--text)]">{title}</h2>
+        {/* Matches the weight/color/tracking of the app's other .eyebrow/.section-heading h2
+            (Farmer's dashboard, etc.) — this used to be noticeably lighter (font-medium gray,
+            tracking-wide) instead of the same bold, green-accented, wide-tracked treatment
+            every other dashboard already uses. */}
+        {eyebrow ? <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--green-700)]">{eyebrow}</p> : null}
+        <h2 className="text-[20px] font-bold leading-tight tracking-[-0.015em] text-[var(--text)]">{title}</h2>
       </div>
       {action}
     </div>

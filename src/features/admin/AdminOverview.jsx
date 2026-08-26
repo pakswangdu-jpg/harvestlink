@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BadgeAlert, Gift, PackageCheck, Tag, UserPlus,
+  BadgeAlert, ClipboardList, Gift, PackageCheck, Tag, TrendingUp, UserPlus, Users,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
@@ -19,10 +19,6 @@ import { MARKET_COMMODITIES, getAllPriceOverrides, matchCommodity } from '../../
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
-import salesIcon from '../../assets/icons/stat-sales.png';
-import ordersIcon from '../../assets/icons/stat-orders.png';
-import usersIcon from '../../assets/icons/stat-users.png';
-import donationsIcon from '../../assets/icons/stat-donations.png';
 
 function ReviewQueueBanner({ count, label, to }) {
   if (!count) return null;
@@ -154,10 +150,10 @@ export default function AdminOverview() {
           <ReviewQueueBanner count={pendingPriceReviews.length} label="price review" to="/admin-price-monitoring" />
 
           <div className="mb-4 grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
-            <StatCard label="Total sales" value={formatCurrency(totalRevenue)} iconSrc={salesIcon} tone="green" />
-            <StatCard label="Total orders" value={orders.length} iconSrc={ordersIcon} tone="blue" />
-            <StatCard label="Registered users" value={users.length} iconSrc={usersIcon} tone="slate" />
-            <StatCard label="Donations completed" value={completedDonations} iconSrc={donationsIcon} tone="amber" />
+            <StatCard label="Total sales" value={formatCurrency(totalRevenue)} icon={TrendingUp} tone="green" />
+            <StatCard label="Total orders" value={orders.length} icon={ClipboardList} tone="blue" />
+            <StatCard label="Registered users" value={users.length} icon={Users} tone="slate" />
+            <StatCard label="Donations completed" value={completedDonations} icon={Gift} tone="amber" />
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
