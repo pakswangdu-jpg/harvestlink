@@ -194,7 +194,10 @@ export default function Profile() {
       return;
     }
     try {
-      const updatedProfile = await updateUserProfile(currentUser.id, profileDraft);
+      const payload = profileDraft.organizationType === 'Other'
+        ? { ...profileDraft, organizationType: profileDraft.organizationTypeOther.trim() }
+        : profileDraft;
+      const updatedProfile = await updateUserProfile(currentUser.id, payload);
       // Use the persisted response (the backend trims/normalizes values) so the form and the
       // rest of the page immediately show exactly what was saved, without a manual reload.
       setProfileDraft(buildProfileDraft(updatedProfile || profileDraft));
@@ -378,6 +381,16 @@ export default function Profile() {
                       <input id="contactPerson" value={profileDraft.contactPerson} onChange={(event) => updateProfileField('contactPerson', event.target.value)} />
                     </FormField>
                   </div>
+                  {profileDraft.organizationType === 'Other' ? (
+                    <FormField label="Specify organization type" name="organizationTypeOther" error={profileErrors.organizationType}>
+                      <input
+                        id="organizationTypeOther"
+                        value={profileDraft.organizationTypeOther}
+                        onChange={(event) => updateProfileField('organizationTypeOther', event.target.value)}
+                        placeholder="e.g. Community Kitchen"
+                      />
+                    </FormField>
+                  ) : null}
                   <FormField label="Contact number" name="contactNumber" error={profileErrors.contactNumber}>
                     <input id="contactNumber" value={profileDraft.contactNumber} onChange={(event) => updateProfileField('contactNumber', event.target.value)} />
                   </FormField>
