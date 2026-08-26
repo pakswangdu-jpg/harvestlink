@@ -3405,6 +3405,18 @@ a.user-chip:hover {
   margin-bottom: 16px;
 }
 
+/* Base <h2> has no font-size/weight of its own (see the plain h1/h2/h3/p reset near the top of
+   this file — it only zeroes margin), so every .section-heading h2 that never got a
+   page-specific override fell through to the browser's bare default (~24px) instead of the
+   app's own type scale. Farmer's dashboard already had its own explicit size; this just gives
+   every OTHER page (order/donation history panels, marketplace, etc.) that same deliberate,
+   consistent treatment by default instead of patching it one page at a time. */
+.section-heading h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
 .product-grid {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
@@ -14750,18 +14762,6 @@ td {
     width: 46px;
     height: 46px;
   }
-}
-
-/* Farmer's own dashboard gives every panel heading a deliberate, controlled size (see
-   .farmer-dashboard-page .section-heading h2 elsewhere in this file) — Buyer/Stakeholder never
-   got the same treatment, so their h2s fell through to the browser's bare default <h2> size
-   (24px) instead. Both are already bold either way (700, browser default) — the actual gap was
-   size and letter-spacing reading as "unstyled" rather than a real difference in weight. */
-.buyer-dashboard-page .section-heading h2,
-.stakeholder-dashboard-page .section-heading h2 {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
 }
 
 /* Buyer and stakeholder dashboards share the same metric language. The cards stay solid and
