@@ -81,15 +81,35 @@ export function validateAuthForm(values, mode) {
     else if (values.organizationType === 'Other' && !required(values.organizationTypeOther)) {
       errors.organizationType = 'Enter your organization type.';
     }
+    if (!required(values.registrationType)) errors.registrationType = 'Choose a registration type.';
+    else if (values.registrationType === 'Other' && !required(values.registrationTypeOther)) {
+      errors.registrationType = 'Enter your registration type.';
+    }
+    if (required(values.yearEstablished)) {
+      const year = Number(values.yearEstablished);
+      const currentYear = new Date().getFullYear();
+      if (!/^\d{4}$/.test(String(values.yearEstablished).trim()) || year < 1900 || year > currentYear) {
+        errors.yearEstablished = `Enter a valid year between 1900 and ${currentYear}.`;
+      }
+    }
+    if (!required(values.organizationDescription)) errors.organizationDescription = 'Briefly describe your organization.';
     // contactPerson is labeled "Position / Role" on the registration form (see
     // StakeholderRegisterFields in AuthPage.jsx) — same field/column, just describing the
     // representative's title instead of duplicating their name (already firstName/lastName).
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter your position or role in the organization.';
     validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose a municipality.';
+    if (!required(values.barangay)) errors.barangay = 'Enter your barangay.';
+    if (!required(values.partnershipType)) errors.partnershipType = 'Choose a partnership type.';
+    if (!Array.isArray(values.partnershipRole) || values.partnershipRole.length === 0) {
+      errors.partnershipRole = 'Choose at least one partnership role.';
+    }
+    if (!required(values.partnershipDescription)) {
+      errors.partnershipDescription = 'Tell us why your organization wants to partner with HarvestLink.';
+    }
     // Type/size are validated inline as soon as a file is picked (see
     // VerificationDocumentUpload in AuthPage.jsx) — this only catches never having picked
-    // one at all.
+    // one at all. The supporting document is optional, so it has no such check here.
     if (!(values.accreditationFile instanceof File)) {
       errors.accreditationFile = 'Upload a verification document to continue.';
     }

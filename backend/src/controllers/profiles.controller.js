@@ -63,6 +63,20 @@ export function buildRoleFields(role, values, { isCreate }) {
     if (values.contactPerson !== undefined) fields.contact_person = values.contactPerson?.trim();
     if (values.contactNumber !== undefined) fields.contact_number = values.contactNumber?.trim() || '';
     if (values.accreditationFile !== undefined) fields.accreditation_file_url = values.accreditationFile || null;
+    // Partner Organization Registration's Partnership Details/expanded Organization
+    // Information fields (see StakeholderRegisterFields in AuthPage.jsx) — same
+    // "only set when the key is present" guard as everything else in this function.
+    if (values.registrationType !== undefined) fields.registration_type = values.registrationType;
+    if (values.registrationNumber !== undefined) fields.registration_number = values.registrationNumber?.trim() || null;
+    if (values.yearEstablished !== undefined) fields.year_established = values.yearEstablished?.trim() || null;
+    if (values.organizationDescription !== undefined) fields.organization_description = values.organizationDescription?.trim();
+    if (values.barangay !== undefined) fields.barangay = values.barangay?.trim();
+    if (values.partnershipType !== undefined) fields.partnership_type = values.partnershipType;
+    if (values.agriculturalProducts !== undefined) fields.agricultural_products = values.agriculturalProducts?.trim() || null;
+    if (values.targetFarmers !== undefined) fields.target_farmers = values.targetFarmers?.trim() || null;
+    if (values.partnershipRole !== undefined) fields.partnership_role = values.partnershipRole;
+    if (values.partnershipDescription !== undefined) fields.partnership_description = values.partnershipDescription?.trim();
+    if (values.supportingDocumentFile !== undefined) fields.supporting_document_url = values.supportingDocumentFile || null;
     // Same admin review gate as farmer below — AdminUsers.jsx already has a full
     // isFarmer-or-isStakeholder verify/reject flow for the accreditation document, and the
     // registration form itself promises "will only be reviewed by the HarvestLink
@@ -424,7 +438,11 @@ export async function getVerificationDocuments(req, res) {
   // verification-documents is a private bucket with no directly-fetchable public URL, so
   // uploadService.js on the frontend stores the raw path and this is the one place
   // (admin-only, service-role-mediated) that turns it into a short-lived signed URL.
-  const paths = { govIdFile: profile.gov_id_file_url, accreditationFile: profile.accreditation_file_url };
+  const paths = {
+    govIdFile: profile.gov_id_file_url,
+    accreditationFile: profile.accreditation_file_url,
+    supportingDocumentFile: profile.supporting_document_url,
+  };
   const signedUrls = {};
   for (const [key, path] of Object.entries(paths)) {
     if (!path) continue;

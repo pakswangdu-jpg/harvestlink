@@ -49,6 +49,16 @@ function buildPendingRegistrationData(values) {
     organizationName: values.organizationName || '',
     organizationType: values.organizationType || null,
     contactPerson: values.contactPerson || '',
+    registrationType: values.registrationType || null,
+    registrationNumber: values.registrationNumber || '',
+    yearEstablished: values.yearEstablished || '',
+    organizationDescription: values.organizationDescription || '',
+    barangay: values.barangay || '',
+    partnershipType: values.partnershipType || null,
+    agriculturalProducts: values.agriculturalProducts || '',
+    targetFarmers: values.targetFarmers || '',
+    partnershipRole: values.partnershipRole || '',
+    partnershipDescription: values.partnershipDescription || '',
   };
 }
 

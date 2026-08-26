@@ -66,19 +66,39 @@ export function getExpiryStatus(expirationDate) {
 }
 
 export const ORGANIZATION_TYPES = [
-  'Orphanage',
-  'Home for the Aged',
-  'Community Feeding Program',
-  'School Feeding Program',
-  'NGO / Nonprofit Organization',
-  'Local Government Unit (LGU)',
-  'Barangay Food Assistance Program',
-  'Food Bank',
-  'Charitable Institution',
-  'Community Organization',
-  'Agricultural Cooperative',
-  'Religious / Faith-Based Organization',
+  'Farmer Cooperative',
+  "Farmers' Association",
+  'Agricultural Organization',
+  'Agricultural NGO',
+  'Producer Organization',
+  'Agricultural Supplier',
+  'Community-Based Organization',
   'Other',
+];
+
+export const REGISTRATION_TYPES = [
+  'CDA Registered',
+  'SEC Registered',
+  'DTI Registered',
+  'Government-Recognized',
+  'Barangay/Community Organization',
+  'Other',
+];
+
+// Shared by both Partnership Type (single-select — the org's primary classification) and
+// Expected Partnership Role (multi-select — every relationship that actually applies) on the
+// Partner Organization Registration form (see StakeholderRegisterFields in AuthPage.jsx) — one
+// org can legitimately be both e.g. a Farmer Supply Partner and a Community Partner at once,
+// which is exactly why Role needs its own multi-select over the same list rather than reusing
+// whatever single value was chosen for Type.
+export const PARTNERSHIP_TYPES = [
+  'Farmer Supply Partner',
+  'Institutional Buyer Partner',
+  'Agricultural Support Partner',
+  'Community Partner',
+  'Donation Partner',
+  'Logistics Partner',
+  'Market Development Partner',
 ];
 
 export const CEBU_MUNICIPALITIES = [
