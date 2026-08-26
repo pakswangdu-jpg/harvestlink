@@ -433,6 +433,9 @@ function StakeholderRegisterFields({
   errors,
   updateField,
   handleBlur,
+  isLocating,
+  locationNotice,
+  handleUseMyLocation,
   setFieldError,
   handleContactNumberBlur,
   isCheckingPhone,
@@ -593,6 +596,12 @@ function StakeholderRegisterFields({
             <h3>Location</h3>
             <p>Where your organization operates.</p>
           </div>
+        </div>
+        <div>
+          <Button type="button" variant="secondary" size="sm" onClick={handleUseMyLocation} disabled={isLocating}>
+            <LocateFixed size={15} /> {isLocating ? 'Locating…' : 'Use my current location'}
+          </Button>
+          {locationNotice ? <p className="muted">{locationNotice}</p> : null}
         </div>
         <div className="form-grid">
           <FormField label="Province" name="province">
@@ -901,6 +910,10 @@ export default function AuthPage({ mode }) {
   // code — nice-to-have for a mobile-first registration flow where typing a full address is
   // tedious. Municipality is matched by real distance (findNearestMunicipality), not by
   // trusting OSM's admin-boundary text, so it always resolves to one of our known list.
+  // Shared by farmer/buyer and Partner Organization Registration alike — same underlying
+  // geocodeService.reverseGeocode() call either way, just filling in different fields
+  // afterward since stakeholder's Location section breaks barangay out on its own instead of
+  // folding it into one free-text address line.
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLocationNotice('Location access is not supported on this device.');
@@ -915,9 +928,24 @@ export default function AuthPage({ mode }) {
         const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
         setIsLocating(false);
         if (reverse?.address) {
-          updateField('address', reverse.address);
-          if (reverse.zipCode) updateField('zipCode', reverse.zipCode);
-          setLocationNotice('Location detected — please double-check the details below.');
+          if (isStakeholderRegister) {
+            updateField('address', reverse.street);
+            // Google's reverse geocoder genuinely has no barangay-level data for a large share
+            // of Cebu addresses (confirmed against its raw API response — plenty of real
+            // points resolve straight from street to city, with nothing in between) — this
+            // is a real gap in the source data, not something to retry or guess around, so
+            // the notice below says so plainly instead of implying every field got filled in.
+            if (reverse.barangay) updateField('barangay', reverse.barangay);
+            setLocationNotice(
+              reverse.barangay
+                ? 'Location detected — please double-check the details below.'
+                : "Location detected, but we couldn't determine your barangay automatically — please fill that in."
+            );
+          } else {
+            updateField('address', reverse.address);
+            if (reverse.zipCode) updateField('zipCode', reverse.zipCode);
+            setLocationNotice('Location detected — please double-check the details below.');
+          }
         } else {
           setLocationNotice('Location detected, but we could not fill in your street address automatically — please enter it manually.');
         }
@@ -1167,6 +1195,9 @@ export default function AuthPage({ mode }) {
                   errors={errors}
                   updateField={updateField}
                   handleBlur={handleBlur}
+                  isLocating={isLocating}
+                  locationNotice={locationNotice}
+                  handleUseMyLocation={handleUseMyLocation}
                   setFieldError={setFieldError}
                   handleContactNumberBlur={handleContactNumberBlur}
                   isCheckingPhone={isCheckingPhone}

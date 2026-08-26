@@ -70,16 +70,16 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <InfoField icon={MapPin} label="Barangay" value={user.barangay} />
           </div>
-          {user.organizationDescription ? (
-            <div className="mt-2">
-              <InfoField icon={Building2} label="Organization description" value={user.organizationDescription} />
-            </div>
-          ) : null}
-          {user.partnershipDescription ? (
-            <div className="mt-2">
-              <InfoField icon={Handshake} label="Why they want to partner" value={user.partnershipDescription} />
-            </div>
-          ) : null}
+          {/* Always rendered, even when blank — every other field on this page falls back to
+              "Not provided" via InfoField itself, so an admin can tell "this organization
+              genuinely left it blank" apart from "this page forgot to show it." These two
+              used to disappear entirely when empty instead. */}
+          <div className="mt-2">
+            <InfoField icon={Building2} label="Organization description" value={user.organizationDescription} />
+          </div>
+          <div className="mt-2">
+            <InfoField icon={Handshake} label="Why they want to partner" value={user.partnershipDescription} />
+          </div>
         </div>
       ) : null}
 
