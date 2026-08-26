@@ -14301,8 +14301,8 @@ td {
 /* Final KPI polish: the cards keep their existing layout, but their type, icon, and supporting
    details now follow one deliberate reading order. */
 .farmer-dashboard-page .metrics-overview-card {
-  min-height: 158px;
-  padding: 22px 20px 18px;
+  min-height: 108px;
+  padding: 14px 14px 12px;
   border: 1px solid var(--line);
   border-top-width: 2px;
   border-radius: 10px;
@@ -14374,8 +14374,8 @@ td {
 .farmer-dashboard-page .metrics-overview-value {
   align-items: baseline;
   gap: 5px;
-  margin-top: 12px;
-  font-size: 34px;
+  margin-top: 6px;
+  font-size: 25px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.035em;
@@ -14404,15 +14404,15 @@ td {
 }
 
 .farmer-dashboard-page .metrics-overview-label {
-  margin-top: 7px;
+  margin-top: 5px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .farmer-dashboard-page .metrics-overview-secondary {
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 12px;
@@ -14425,11 +14425,11 @@ td {
 }
 
 .farmer-dashboard-page .metrics-overview-icon {
-  width: 42px;
-  height: 42px;
-  flex-basis: 42px;
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
   border: 1px solid color-mix(in srgb, var(--green-700) 28%, var(--line));
-  border-radius: 10px;
+  border-radius: 9px;
 }
 
 .farmer-dashboard-page .metrics-overview-card.tone-products .metrics-overview-icon {
@@ -14454,7 +14454,7 @@ td {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 12px;
+  margin-top: 5px;
   color: var(--green-700);
   font-size: 12px;
   font-weight: 650;
@@ -14469,12 +14469,12 @@ td {
 
 @media (max-width: 640px) {
   .farmer-dashboard-page .metrics-overview-card {
-    min-height: 142px;
-    padding: 18px;
+    min-height: 96px;
+    padding: 12px;
   }
 
   .farmer-dashboard-page .metrics-overview-value {
-    font-size: 31px;
+    font-size: 22px;
   }
 
   .farmer-dashboard-page .metrics-overview-info::after {
