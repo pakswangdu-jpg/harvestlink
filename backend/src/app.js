@@ -13,17 +13,28 @@ const app = express();
 // so an exact-match-only list means previews are permanently broken until someone hand-adds
 // each URL. "https://harvestlink-cebu*.vercel.app" covers the production domain and all of
 // this project's previews, without opening the API to every unrelated site on vercel.app.
+// A browser's Origin header is always scheme+host+port with no trailing slash, but a
+// dashboard-pasted env var is an easy place to pick up one anyway ("...vercel.app/") — an
+// exact-string comparison would then silently reject an origin that looks identical at a
+// glance. Stripping a trailing slash and lowercasing (origins are case-insensitive) on BOTH
+// sides before comparing closes off that whole class of "looks right, doesn't match" bug
+// without weakening the check itself.
+function normalizeOrigin(value) {
+  return value.trim().replace(/\/+$/, '').toLowerCase();
+}
+
 const allowedOriginPatterns = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173')
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
 
 function isOriginAllowed(origin) {
+  const normalizedOrigin = normalizeOrigin(origin);
   return allowedOriginPatterns.some((pattern) => {
-    if (!pattern.includes('*')) return pattern === origin;
+    if (!pattern.includes('*')) return pattern === normalizedOrigin;
     // Escape every regex metacharacter EXCEPT `*`, then let `*` mean "any run of characters".
     const source = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-    return new RegExp(`^${source}$`).test(origin);
+    return new RegExp(`^${source}$`).test(normalizedOrigin);
   });
 }
 
