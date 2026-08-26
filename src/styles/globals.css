@@ -1674,8 +1674,21 @@ a.lp-contact-card:hover {
   --muted: #ffffff;
 }
 
+/* Nothing previously pushed the General group (profile card + Settings) or the Logout button
+   toward the bottom of the sidebar — with no flex-grow anywhere in .sidebar's column, every
+   child just stacked at the top of the full 100vh rail, leaving a large dead gap below Logout
+   instead of anchoring account controls to the bottom the way a sidebar normally does.
+   flex:1 here claims the remaining space after the brand row; min-height:0 is required for a
+   flex child to actually be allowed to scroll instead of just growing to fit its content;
+   overflow-y:auto keeps a long nav list scrollable within its own region instead of pushing
+   Logout off-screen. The General group itself gets margin-top:auto in AppShell.jsx so it (and
+   Logout, its sibling outside this scroll region) settle at the bottom instead of directly
+   under the primary nav list. */
 .sidebar-scroll {
   margin-top: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-logout {
@@ -14737,6 +14750,18 @@ td {
     width: 46px;
     height: 46px;
   }
+}
+
+/* Farmer's own dashboard gives every panel heading a deliberate, controlled size (see
+   .farmer-dashboard-page .section-heading h2 elsewhere in this file) — Buyer/Stakeholder never
+   got the same treatment, so their h2s fell through to the browser's bare default <h2> size
+   (24px) instead. Both are already bold either way (700, browser default) — the actual gap was
+   size and letter-spacing reading as "unstyled" rather than a real difference in weight. */
+.buyer-dashboard-page .section-heading h2,
+.stakeholder-dashboard-page .section-heading h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 /* Buyer and stakeholder dashboards share the same metric language. The cards stay solid and
