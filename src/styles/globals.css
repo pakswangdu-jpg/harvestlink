@@ -7048,7 +7048,7 @@ td {
   gap: 12px;
   padding: 12px 14px;
   border: 1.5px solid var(--green-100);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--green-50);
 }
 
@@ -7098,28 +7098,52 @@ td {
   font-weight: 600;
 }
 
-.verification-upload-remove {
+.verification-upload-actions {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: 999px;
-  background: var(--red-100);
-  color: var(--red-700);
+  display: flex;
+  gap: 6px;
+}
+
+.verification-upload-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  /* Never clicked directly by the user (the visible "Replace" button proxies to it via
+     ref.click()) — without this, its 1x1 box still sat in normal flow next to that button
+     and silently intercepted the click meant for it. */
+  pointer-events: none;
+}
+
+.verification-upload-replace,
+.verification-upload-remove {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 650;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.verification-upload-replace {
+  color: var(--text);
+}
+
+.verification-upload-replace:hover {
+  border-color: var(--green-600);
+  background: var(--green-50);
+}
+
+.verification-upload-remove {
+  color: var(--red-700);
 }
 
 .verification-upload-remove:hover {
-  background: color-mix(in srgb, var(--red-700) 25%, var(--red-100));
-  transform: scale(1.06);
-}
-
-.verification-upload-remove:focus-visible {
-  outline: 2px solid var(--red-700);
-  outline-offset: 2px;
+  border-color: var(--red-700);
+  background: var(--red-100);
 }
 
 .verification-accepted-docs {
@@ -7184,55 +7208,6 @@ td {
 .auth-terms-row a {
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-/* Expected Partnership Role — Partner Organization Registration's one multi-select (see
-   StakeholderRegisterFields in AuthPage.jsx). Same plain label+checkbox language as
-   .auth-terms-row above, laid out as a compact grid instead of one long stacked list. */
-.form-checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.form-checkbox-grid-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.4;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.form-checkbox-grid-item:hover {
-  border-color: var(--green-100);
-}
-
-.form-checkbox-grid-item:has(input:checked) {
-  border-color: var(--green-600);
-  background: var(--green-50);
-}
-
-.form-checkbox-grid-item input {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  margin-top: 1px;
-  accent-color: var(--green-600);
-  cursor: pointer;
-}
-
-@media (max-width: 640px) {
-  .form-checkbox-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Base .form-field input/select styling already covers textarea's border/radius/color/padding

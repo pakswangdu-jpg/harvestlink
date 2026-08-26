@@ -61,13 +61,6 @@ export async function uploadAccreditationFile(file, userId) {
   return uploadToBucket('verification-documents', path, file);
 }
 
-// Partner Organization Registration's optional second document (see StakeholderRegisterFields
-// in AuthPage.jsx) — same private bucket/path convention as uploadAccreditationFile above.
-export async function uploadSupportingDocument(file, userId) {
-  const path = `${userId}/supporting-${crypto.randomUUID()}.${extensionFor(file)}`;
-  return uploadToBucket('verification-documents', path, file);
-}
-
 // payment-qr is a PUBLIC bucket, same owner-folder convention as avatars/product-images —
 // a farmer's own GCash QR code, shown to any buyer checking out with them (see
 // GcashPaymentPage.jsx). Returns a directly-usable URL, PATCHed onto the profile as

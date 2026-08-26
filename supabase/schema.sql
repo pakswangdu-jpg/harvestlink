@@ -87,26 +87,13 @@
   alter table public.profiles drop column if exists notif_email;
   alter table public.profiles drop column if exists notif_prompted;
 
-  -- Partner Organization Registration — added when the stakeholder onboarding form grew from
-  -- a plain donation-recipient signup into a full agricultural partnership application (see
-  -- StakeholderRegisterFields in AuthPage.jsx). All stakeholder-only, all nullable — a
+  -- Partner Organization Registration — the minimal extra fields beyond a plain donation-
+  -- recipient signup (see StakeholderRegisterFields in AuthPage.jsx): what the organization
+  -- is, where it is, and why it wants to partner. All stakeholder-only, all nullable — a
   -- pre-existing stakeholder account simply has these blank until it re-verifies.
-  alter table public.profiles add column if not exists registration_type text;
-  alter table public.profiles add column if not exists registration_number text;
-  alter table public.profiles add column if not exists year_established text;
   alter table public.profiles add column if not exists organization_description text;
   alter table public.profiles add column if not exists barangay text;
-  alter table public.profiles add column if not exists partnership_type text;
-  alter table public.profiles add column if not exists agricultural_products text;
-  alter table public.profiles add column if not exists target_farmers text;
-  -- Comma-joined list of selected roles (e.g. "Farmer Supply Partner, Community Partner") —
-  -- matches how this schema avoids Postgres array columns elsewhere rather than introducing
-  -- one just for this multi-select.
-  alter table public.profiles add column if not exists partnership_role text;
   alter table public.profiles add column if not exists partnership_description text;
-  -- Optional second verification file, alongside the existing accreditation_file_url — same
-  -- private verification-documents bucket, same bucket-relative-path storage convention.
-  alter table public.profiles add column if not exists supporting_document_url text;
 
   -- ============================================================================
   -- pending_registrations — stores temporary pre-confirmation signup data until

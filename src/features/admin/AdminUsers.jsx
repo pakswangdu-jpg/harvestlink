@@ -66,16 +66,9 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
 
       {isStakeholder ? (
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Registration &amp; partnership details</p>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Organization &amp; partnership</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <InfoField icon={ShieldCheck} label="Registration type" value={user.registrationType} />
-            <InfoField icon={ShieldCheck} label="Registration number" value={user.registrationNumber} />
-            <InfoField icon={Calendar} label="Year established" value={user.yearEstablished} />
             <InfoField icon={MapPin} label="Barangay" value={user.barangay} />
-            <InfoField icon={Handshake} label="Partnership type" value={user.partnershipType} />
-            <InfoField icon={Handshake} label="Partnership role" value={user.partnershipRole} />
-            <InfoField icon={Store} label="Agricultural products" value={user.agriculturalProducts} />
-            <InfoField icon={UserSquare} label="Target farmers / members" value={user.targetFarmers} />
           </div>
           {user.organizationDescription ? (
             <div className="mt-2">
@@ -92,24 +85,15 @@ function UserDetail({ user, onVerify, onToggleAccountStatus }) {
 
       {isFarmer || isStakeholder ? (
         <div>
-          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Verification document{isStakeholder ? 's' : ''}</p>
-          <div className="flex flex-col gap-2">
-            <DocumentCard
-              label={idLabel}
-              file={idFile}
-              resolveUrl={async () => {
-                const urls = await getVerificationDocuments(user.id);
-                return isFarmer ? urls.govIdFile : urls.accreditationFile;
-              }}
-            />
-            {isStakeholder ? (
-              <DocumentCard
-                label="Supporting document"
-                file={user.supportingDocumentFile}
-                resolveUrl={async () => (await getVerificationDocuments(user.id)).supportingDocumentFile}
-              />
-            ) : null}
-          </div>
+          <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">Verification document</p>
+          <DocumentCard
+            label={idLabel}
+            file={idFile}
+            resolveUrl={async () => {
+              const urls = await getVerificationDocuments(user.id);
+              return isFarmer ? urls.govIdFile : urls.accreditationFile;
+            }}
+          />
         </div>
       ) : null}
 
