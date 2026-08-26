@@ -14744,8 +14744,8 @@ td {
    a person scans first. */
 .buyer-dashboard-page .kpi-card,
 .stakeholder-dashboard-page .kpi-card {
-  min-height: 142px;
-  padding: 20px;
+  min-height: 118px;
+  padding: 16px;
   border-radius: 10px;
   border-top: 2px solid var(--kpi-accent, var(--line));
   background: var(--panel);
@@ -14770,13 +14770,13 @@ td {
 
 .buyer-dashboard-page .kpi-card > div:last-child,
 .stakeholder-dashboard-page .kpi-card > div:last-child {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .buyer-dashboard-page .kpi-card p,
 .stakeholder-dashboard-page .kpi-card p {
   color: var(--kpi-value, var(--text));
-  font-size: 1.85rem;
+  font-size: 1.5rem;
   font-weight: 750;
   letter-spacing: -0.035em;
 }
@@ -14791,12 +14791,23 @@ td {
 
 .buyer-dashboard-page .kpi-card-icon,
 .stakeholder-dashboard-page .kpi-card-icon {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: 1px solid color-mix(in srgb, var(--kpi-accent, var(--line)) 24%, var(--line));
-  border-radius: 11px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--kpi-accent, var(--soft)) 12%, var(--panel));
   color: var(--kpi-accent, var(--muted)) !important;
+}
+
+/* --line and --panel sit close together in the dark palette (see the dark token block), so
+   the same 24%/12% mix ratios that read as a clear, subtle accent in light mode wash out into
+   almost no visible badge/border at all in dark mode — the same class of bug already fixed on
+   .form-section-icon/.otp-icon/.submitted-icon elsewhere in this file. Dark mode gets richer
+   mix ratios instead of trying to reuse the light-mode numbers. */
+[data-theme="dark"] .buyer-dashboard-page .kpi-card-icon,
+[data-theme="dark"] .stakeholder-dashboard-page .kpi-card-icon {
+  border-color: color-mix(in srgb, var(--kpi-accent, var(--muted)) 45%, var(--line));
+  background: color-mix(in srgb, var(--kpi-accent, var(--soft)) 20%, var(--panel));
 }
 
 .buyer-dashboard-page .kpi-card-icon-image img,
@@ -14825,7 +14836,7 @@ td {
 
 .buyer-dashboard-page .kpi-card-tone-warning,
 .stakeholder-dashboard-page .kpi-card-tone-warning {
-  --kpi-accent: var(--amber-600);
+  --kpi-accent: var(--amber-700);
   --kpi-value: var(--amber-700);
 }
 
@@ -14838,13 +14849,18 @@ td {
 @media (max-width: 640px) {
   .buyer-dashboard-page .kpi-card,
   .stakeholder-dashboard-page .kpi-card {
-    min-height: 126px;
-    padding: 16px;
+    min-height: 104px;
+    padding: 14px;
   }
 
   .buyer-dashboard-page .kpi-card > div:last-child,
   .stakeholder-dashboard-page .kpi-card > div:last-child {
-    margin-top: 14px;
+    margin-top: 10px;
+  }
+
+  .buyer-dashboard-page .kpi-card p,
+  .stakeholder-dashboard-page .kpi-card p {
+    font-size: 1.35rem;
   }
 }
 
