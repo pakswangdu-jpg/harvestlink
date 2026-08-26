@@ -39,7 +39,11 @@ async function tryListen(startPort, attempts = 5) {
         };
         httpServer.once('error', onError);
         httpServer.once('listening', onListen);
-        httpServer.listen(p);
+        // Explicit '0.0.0.0', not just an implicit default — Node's default (no host arg)
+        // already listens on all interfaces, so this doesn't change behavior, but it makes
+        // the intent unambiguous for a platform like Render that proxies in from outside the
+        // container rather than connecting from localhost.
+        httpServer.listen(p, '0.0.0.0');
       });
       console.log(`HarvestLink API listening on port ${p}`);
       return p;
