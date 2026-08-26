@@ -156,6 +156,7 @@ export default function StakeholderRequests() {
           </div>
         ) : (
           <EmptyState
+            className="empty-state-transparent-icon"
             icon={History}
             title="No history yet"
             message="Completed and cancelled donation requests will be listed here."
