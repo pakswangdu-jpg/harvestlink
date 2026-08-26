@@ -28,7 +28,11 @@ export default function KpiCard({
           </span>
         ) : (
           <span className={`kpi-card-icon flex h-9 w-9 shrink-0 items-center justify-center ${iconClassName}`.trim()} style={{ color: iconColor }} aria-hidden="true">
-            <Icon size={20} strokeWidth={2} />
+            {/* Lucide's default stroke (2) reads noticeably thin next to the card's own bold
+                (700) label — same fix, same reasoning, as SIDEBAR_ICON_STROKE in
+                SidebarNavItem.jsx: a heavier stroke so the icon doesn't look like the
+                lightest-weight thing on the card. */}
+            <Icon size={20} strokeWidth={2.5} />
           </span>
         )}
         <h3 className="truncate text-[13px] font-medium text-[var(--muted)]">{label}</h3>
