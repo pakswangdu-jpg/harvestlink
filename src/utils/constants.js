@@ -69,9 +69,16 @@ export const ORGANIZATION_TYPES = [
   'Orphanage',
   'Home for the Aged',
   'Community Feeding Program',
-  'NGO',
-  'Local Government Food Bank',
+  'School Feeding Program',
+  'NGO / Nonprofit Organization',
+  'Local Government Unit (LGU)',
+  'Barangay Food Assistance Program',
+  'Food Bank',
   'Charitable Institution',
+  'Community Organization',
+  'Agricultural Cooperative',
+  'Religious / Faith-Based Organization',
+  'Other',
 ];
 
 export const CEBU_MUNICIPALITIES = [

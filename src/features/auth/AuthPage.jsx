@@ -456,6 +456,17 @@ function StakeholderRegisterFields({
               {ORGANIZATION_TYPES.map((type) => <option key={type}>{type}</option>)}
             </select>
           </FormField>
+          {form.organizationType === 'Other' ? (
+            <FormField label="Specify organization type" name="organizationTypeOther" error={errors.organizationType}>
+              <input
+                id="organizationTypeOther"
+                value={form.organizationTypeOther}
+                onChange={(event) => updateField('organizationTypeOther', event.target.value)}
+                onBlur={() => handleBlur('organizationType')}
+                placeholder="e.g. Community Kitchen"
+              />
+            </FormField>
+          ) : null}
         </div>
       </div>
 
@@ -665,6 +676,7 @@ function buildEmptyForm(preselectedRole) {
     role: VALID_ROLES.includes(preselectedRole) ? preselectedRole : 'farmer',
     organizationName: '',
     organizationType: ORGANIZATION_TYPES[0],
+    organizationTypeOther: '',
     contactPerson: '',
     municipality: CEBU_MUNICIPALITIES[0],
     address: '',
@@ -907,7 +919,13 @@ export default function AuthPage({ mode }) {
     // Whatever shape the farmer/buyer/stakeholder actually typed (09.../+639.../639...) is
     // normalized to the one canonical storage form right before it's sent — validateAuthForm
     // above already confirmed it's a valid Philippine mobile number, so this can't return null.
-    const submitForm = isRegister ? { ...form, contactNumber: toE164PhilippineMobile(form.contactNumber) } : form;
+    const submitForm = isRegister
+      ? {
+          ...form,
+          contactNumber: toE164PhilippineMobile(form.contactNumber),
+          organizationType: form.organizationType === 'Other' ? form.organizationTypeOther.trim() : form.organizationType,
+        }
+      : form;
     try {
       const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
       if (isRegister && result.pendingVerification) {

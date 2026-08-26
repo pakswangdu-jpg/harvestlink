@@ -78,6 +78,9 @@ export function validateAuthForm(values, mode) {
   if (mode === 'register' && values.role === 'stakeholder') {
     if (!required(values.organizationName)) errors.organizationName = 'Enter your organization name.';
     if (!required(values.organizationType)) errors.organizationType = 'Choose an organization type.';
+    else if (values.organizationType === 'Other' && !required(values.organizationTypeOther)) {
+      errors.organizationType = 'Enter your organization type.';
+    }
     // contactPerson is labeled "Position / Role" on the registration form (see
     // StakeholderRegisterFields in AuthPage.jsx) — same field/column, just describing the
     // representative's title instead of duplicating their name (already firstName/lastName).
@@ -203,6 +206,9 @@ export function validateProfileForm(values, role) {
   if (role === 'stakeholder') {
     if (!required(values.organizationName)) errors.organizationName = 'Enter your organization name.';
     if (!required(values.organizationType)) errors.organizationType = 'Choose an organization type.';
+    else if (values.organizationType === 'Other' && !required(values.organizationTypeOther)) {
+      errors.organizationType = 'Enter your organization type.';
+    }
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter a contact person.';
   }
   return errors;
