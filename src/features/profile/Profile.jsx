@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { BadgeCheck, Bell, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
@@ -19,6 +19,12 @@ import { hasErrors, validateGcashForm, validatePasswordForm, validateProfileForm
 import { farmerNavItems } from '../farmer/farmerNav';
 import { buyerNavItems } from '../buyer/buyerNav';
 import { stakeholderNavItems } from '../stakeholder/stakeholderNav';
+import {
+  areBrowserNotificationsEnabled,
+  canUseBrowserNotifications,
+  requestBrowserNotificationPermission,
+  setBrowserNotificationsEnabled,
+} from '../../utils/browserNotifications';
 
 const NAV_ITEMS_BY_ROLE = {
   farmer: farmerNavItems,
@@ -52,6 +58,33 @@ export default function Profile() {
   const [avatarError, setAvatarError] = useState('');
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const avatarMenuRef = useRef(null);
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabledState] = useState(
+    () => areBrowserNotificationsEnabled(currentUser.id)
+  );
+  const [notificationNotice, setNotificationNotice] = useState('');
+
+  const handleBrowserNotificationsChange = async (event) => {
+    const enabled = event.target.checked;
+    setNotificationNotice('');
+    if (!enabled) {
+      setBrowserNotificationsEnabled(currentUser.id, false);
+      setBrowserNotificationsEnabledState(false);
+      setNotificationNotice('Desktop notifications are disabled.');
+      return;
+    }
+    const permission = await requestBrowserNotificationPermission();
+    if (permission === 'granted') {
+      setBrowserNotificationsEnabled(currentUser.id, true);
+      setBrowserNotificationsEnabledState(true);
+      setNotificationNotice('Desktop notifications are enabled.');
+    } else if (permission === 'denied') {
+      setBrowserNotificationsEnabledState(false);
+      setNotificationNotice('Notifications are blocked in your browser settings.');
+    } else {
+      setBrowserNotificationsEnabledState(false);
+      setNotificationNotice('Desktop notifications are not supported by this browser.');
+    }
+  };
 
   // Same click-outside-to-close pattern as NotificationBell.
   useEffect(() => {
@@ -118,6 +151,16 @@ export default function Profile() {
   const [isSavingGcash, setIsSavingGcash] = useState(false);
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrError, setQrError] = useState('');
+
+  // The account-name/number form and the QR upload save independently (see handleQrChange —
+  // it persists itself the moment a file is picked, same as the avatar photo) — a farmer can
+  // easily upload just the QR and think they're done, since nothing else on this page says
+  // otherwise. The backend requires BOTH before a buyer can pay this farmer via GCash (see
+  // getGcashCheckout in payments.controller.js) — this banner is what actually tells the
+  // farmer which half is still missing, instead of only surfacing as a buyer-side error later.
+  const hasGcashAccountName = Boolean(currentUser.gcashAccountName);
+  const hasGcashQr = Boolean(currentUser.gcashQrUrl);
+  const isGcashSetupComplete = hasGcashAccountName && hasGcashQr;
 
   const updateGcashField = (field, value) => {
     setGcashDraft((previous) => ({ ...previous, [field]: value }));
@@ -541,6 +584,21 @@ export default function Profile() {
           </div>
           <p className="muted gcash-intro">Configure how buyers can send GCash payments directly to your account.</p>
 
+          {isGcashSetupComplete ? (
+            <div className="form-alert success has-icon">
+              <CheckCircle2 size={16} />
+              <span>GCash payments are active — buyers can pay you directly.</span>
+            </div>
+          ) : (
+            <div className="form-alert warning has-icon">
+              <CircleAlert size={16} />
+              <span>
+                GCash payments aren&apos;t active for buyers yet — you still need
+                {!hasGcashAccountName && !hasGcashQr ? ' your account name and QR code' : !hasGcashAccountName ? ' your account name (below)' : ' your QR code (below)'}.
+              </span>
+            </div>
+          )}
+
           {gcashNotice ? <div className="form-alert success">{gcashNotice}</div> : null}
 
           <div className="content-grid two gcash-grid">
@@ -651,6 +709,26 @@ export default function Profile() {
         <div style={{ maxWidth: 320 }}>
           <ThemeToggle />
         </div>
+        <div className="profile-notification-preference">
+          <div className="profile-notification-preference-copy">
+            <Bell size={17} aria-hidden="true" />
+            <div>
+              <strong>Desktop notifications</strong>
+              <p className="muted">Get alerts for new orders, messages, and account updates.</p>
+            </div>
+          </div>
+          <label className="profile-notification-switch">
+            <input
+              type="checkbox"
+              checked={browserNotificationsEnabled && canUseBrowserNotifications()}
+              onChange={handleBrowserNotificationsChange}
+              disabled={!canUseBrowserNotifications()}
+              aria-label="Enable desktop notifications"
+            />
+            <span aria-hidden="true" />
+          </label>
+        </div>
+        {notificationNotice ? <p className="profile-notification-notice" role="status">{notificationNotice}</p> : null}
       </section>
     </AppShell>
   );

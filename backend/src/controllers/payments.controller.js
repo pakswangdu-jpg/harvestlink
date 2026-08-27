@@ -43,8 +43,8 @@ function assertFarmer(req, order) {
 
 // GET /api/payments/gcash/:orderId — the order plus the farmer's own real GCash account
 // details (account name, number, QR code image) for the checkout page to display. 404s
-// with the same "not configured" message whether the farmer never filled in any GCash
-// field or only some of them — a half-filled setup isn't payable either way.
+// A QR code plus the account name is sufficient for a buyer to pay. The phone number is
+// helpful for manual payment, but it is optional when the farmer has provided a scannable QR.
 export async function getGcashCheckout(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertBuyer(req, order);
@@ -57,7 +57,7 @@ export async function getGcashCheckout(req, res) {
     .eq('id', order.farmer_id)
     .single();
   if (farmerError || !farmer) throw new ApiError('Farmer account was not found.', 404);
-  if (!farmer.gcash_account_name || !farmer.gcash_number || !farmer.gcash_qr_url) {
+  if (!farmer.gcash_account_name || !farmer.gcash_qr_url) {
     throw new ApiError('This farmer has not set up GCash payments yet.', 400);
   }
 
@@ -153,6 +153,14 @@ export async function approvePaymentVerification(req, res) {
     .select()
     .single();
   if (error) throw new ApiError(error.message, 400);
+
+  await supabaseAdmin.from('order_delivery_events').insert({
+    order_id: updated.id,
+    status: 'payment_confirmed',
+    title: 'Payment confirmed',
+    description: 'Payment has been confirmed.',
+    source: 'farmer',
+  });
 
   await createNotification({
     userId: updated.buyer_id,

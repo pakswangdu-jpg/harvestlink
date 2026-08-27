@@ -203,7 +203,7 @@ export function getMunicipalityCoords(municipality) {
 }
 
 export const PAYMENT_METHODS = [
-  { value: 'cod', label: 'Cash on delivery' },
+  { value: 'cod', label: 'COD' },
   { value: 'gcash', label: 'GCash' },
 ];
 
@@ -212,7 +212,7 @@ export const ONLINE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method.
 export const DELIVERY_METHODS = [
   { value: 'farmer_delivery', label: 'Farmer delivery' },
   { value: 'buyer_pickup', label: 'Buyer pickup' },
-  { value: 'courier', label: 'Third-party courier' },
+  { value: 'courier', label: 'Lalamove' },
 ];
 
 export const DELIVERY_STEP_LABELS = {

@@ -19,7 +19,7 @@ const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 // supplied PNG artwork through createMaskNavIcon, which masks rather than paints.
 export const stakeholderNavItems = [
   { to: '/stakeholder-dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { to: '/marketplace', label: 'Marketplace', icon: MarketplaceNavIcon },
+  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon },
   { to: '/stakeholder-orders', label: 'My orders', icon: OrdersNavIcon },
   { to: '/stakeholder-donations', label: 'Browse donations', icon: DonationsNavIcon },
   { to: '/stakeholder-requests', label: 'My requests', icon: Inbox },

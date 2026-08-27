@@ -10,8 +10,9 @@ import Modal from '../../components/admin/Modal';
 import LoadingState from '../../components/admin/LoadingState';
 import Pagination from '../../components/admin/Pagination';
 import { usePagination } from '../../components/admin/usePagination';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import {
-  orderStatusTone, paymentStatusTone, deliveryStatusTone, paymentStatusLabel, deliveryStepLabel, paymentLabel,
+  orderStatusTone, deliveryStatusTone, deliveryStepLabel,
 } from '../../components/admin/statusTone';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import { useAuth } from '../auth/AuthContext';
@@ -109,8 +110,7 @@ export default function AdminOrders() {
                 { key: 'buyerName', label: 'Buyer' },
                 { key: 'productName', label: 'Product' },
                 { key: 'quantity', label: 'Qty' },
-                { key: 'paymentMethod', label: 'Payment', render: (row) => paymentLabel(row.paymentMethod) },
-                { key: 'paymentStatus', label: 'Payment status', render: (row) => <Badge tone={paymentStatusTone(row.paymentStatus)}>{paymentStatusLabel(row.paymentStatus)}</Badge> },
+                { key: 'paymentMethod', label: 'Payment', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
                 { key: 'deliveryStatus', label: 'Delivery', render: (row) => <Badge tone={deliveryStatusTone(row.deliveryStatus)}>{deliveryStepLabel(row.deliveryStatus)}</Badge> },
                 { key: 'status', label: 'Status', render: (row) => <Badge tone={orderStatusTone(row.status)}>{row.status}</Badge> },
                 { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },

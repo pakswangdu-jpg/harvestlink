@@ -96,3 +96,16 @@ export const DELIVERY_SEQUENCES = {
   courier: ['pending', 'preparing', 'packed', 'out_for_delivery', 'delivered'],
   buyer_pickup: ['pending', 'preparing', 'ready_for_pickup', 'picked_up'],
 };
+
+// Ported verbatim from src/utils/constants.js — used server-side for order_delivery_events
+// row titles (see advanceDelivery in orders.controller.js).
+export const DELIVERY_STEP_LABELS = {
+  pending: 'Order confirmed',
+  preparing: 'Preparing',
+  packed: 'Packed',
+  ready_for_pickup: 'Ready for pickup',
+  out_for_delivery: 'Out for delivery',
+  picked_up: 'Picked up',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};

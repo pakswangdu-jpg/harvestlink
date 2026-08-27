@@ -6,6 +6,7 @@ import StatusBadge from '../common/StatusBadge';
 import Button from '../common/Button';
 import DeliveryTruckIcon from '../icons/DeliveryTruckIcon';
 import LinkLalamoveDeliveryDialog from './LinkLalamoveDeliveryDialog';
+import { formatCurrency } from '../../utils/formatters';
 
 const LALAMOVE_URL = 'https://www.lalamove.com/philippines';
 
@@ -76,6 +77,12 @@ export default function DeliveryInfoCard({ order, delivery, isFarmer, canBook, o
               <div className="delivery-info-item">
                 <span className="delivery-info-icon"><Hash size={16} /></span>
                 <div><dt>Booking Reference</dt><dd>{delivery.bookingReference}</dd></div>
+              </div>
+            ) : null}
+            {order.deliveryFee > 0 ? (
+              <div className="delivery-info-item">
+                <span className="delivery-info-icon"><Clock size={16} /></span>
+                <div><dt>Delivery fee paid by</dt><dd>Farmer · {formatCurrency(order.deliveryFee)}</dd></div>
               </div>
             ) : null}
           </dl>

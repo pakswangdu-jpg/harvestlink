@@ -7,6 +7,7 @@ import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
+import { buildMapPopup, buildPresenceMarkup } from '../map/mapPopupMarkup';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -126,6 +127,7 @@ export default function DeliveryMap({
   const farmerMarkersRef = useRef([]);
   const buyerMarkersRef = useRef([]);
   const stakeholderMarkersRef = useRef([]);
+  const markerSignaturesRef = useRef({ farmers: null, buyers: null, stakeholders: null });
   const fittedSignatureRef = useRef(null);
   const requestedRouteKeysRef = useRef(new Set());
   // Truck markers are persisted (not recreated every render, unlike every other marker here)
@@ -233,6 +235,13 @@ export default function DeliveryMap({
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
 
+    const signature = farmers.map((farmer) => {
+      const coords = farmerCoordsById[farmer.id];
+      return `${farmer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
+    }).join('|') + `:${alertStyle}`;
+    if (signature === markerSignaturesRef.current.farmers) return;
+    markerSignaturesRef.current.farmers = signature;
+
     farmerMarkersRef.current.forEach((marker) => marker.setMap(null));
     farmerMarkersRef.current = [];
     farmers.forEach((farmer) => {
@@ -246,11 +255,17 @@ export default function DeliveryMap({
         title: displayName,
       });
       const infoWindow = new mapsApi.InfoWindow({
-        content:
-          `<strong>${displayName}</strong><br/>${farmer.name}<br/>${farmer.municipality}` +
-          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-          `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}">View products</a>` +
-          `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`,
+        content: buildMapPopup({
+          name: displayName,
+          person: farmer.name,
+          municipality: farmer.municipality,
+          presence: buildPresenceMarkup(farmer),
+          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+          links: [
+            { href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}`, label: 'View products' },
+            { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' },
+          ],
+        }),
       });
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       farmerMarkersRef.current.push(marker);
@@ -261,6 +276,13 @@ export default function DeliveryMap({
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
+
+    const signature = buyers.map((buyer) => {
+      const coords = buyerCoordsById[buyer.id];
+      return `${buyer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
+    }).join('|');
+    if (signature === markerSignaturesRef.current.buyers) return;
+    markerSignaturesRef.current.buyers = signature;
 
     buyerMarkersRef.current.forEach((marker) => marker.setMap(null));
     buyerMarkersRef.current = [];
@@ -277,11 +299,14 @@ export default function DeliveryMap({
         title: buyer.name,
       });
       const infoWindow = new mapsApi.InfoWindow({
-        content:
-          `<strong>${buyer.name}</strong><br/>${buyer.municipality}` +
-          (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-          `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`,
+        content: buildMapPopup({
+          name: buyer.name,
+          municipality: buyer.municipality,
+          contactNumber: buyer.contactNumber,
+          presence: buildPresenceMarkup(buyer),
+          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+          links: [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer' }],
+        }),
       });
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       buyerMarkersRef.current.push(marker);
@@ -292,6 +317,13 @@ export default function DeliveryMap({
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
+
+    const signature = stakeholders.map((stakeholder) => {
+      const coords = stakeholderCoordsById[stakeholder.id];
+      return `${stakeholder.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
+    }).join('|');
+    if (signature === markerSignaturesRef.current.stakeholders) return;
+    markerSignaturesRef.current.stakeholders = signature;
 
     stakeholderMarkersRef.current.forEach((marker) => marker.setMap(null));
     stakeholderMarkersRef.current = [];
@@ -306,13 +338,15 @@ export default function DeliveryMap({
         title: displayName,
       });
       const infoWindow = new mapsApi.InfoWindow({
-        content:
-          `<strong>${displayName}</strong><br/>` +
-          (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
-          `${stakeholder.municipality}` +
-          (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
-          `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-          `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`,
+        content: buildMapPopup({
+          name: displayName,
+          person: stakeholder.contactPerson,
+          municipality: stakeholder.municipality,
+          contactNumber: stakeholder.contactNumber,
+          presence: buildPresenceMarkup(stakeholder),
+          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+          links: [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder' }],
+        }),
       });
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       stakeholderMarkersRef.current.push(marker);
@@ -536,6 +570,7 @@ export default function DeliveryMap({
         onClick={toggleFullscreen}
         aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
         title={isFullscreen ? 'Exit full view' : 'View map fully'}
+        aria-pressed={isFullscreen}
       >
         {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
       </button>

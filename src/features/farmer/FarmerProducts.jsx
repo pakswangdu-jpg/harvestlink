@@ -258,9 +258,9 @@ export default function FarmerProducts() {
           onClick={openAddDrawer}
           disabled={!canAddProducts}
           title={canAddProducts ? undefined : 'Verify your account before adding products.'}
-          className="gap-1.5"
+          className="add-product-button"
         >
-          <Plus size={16} strokeWidth={2.5} /> Add Product
+          <Plus size={16} strokeWidth={2} aria-hidden="true" /> Add Product
         </Button>
       )}
     >

@@ -1,10 +1,13 @@
-import { ArrowRight, ClipboardList, Info, Package, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowRight, ClipboardList, Package, TrendingUp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// Financial gets its own wide, visually dominant block (value-first, larger type, subtle green
-// tint) since income/profit is the metric a farmer cares about most. Products and Orders are
-// identical in shape — a labeled panel of stacked value/label pairs — so they share
-// SecondaryPanel instead of duplicating that markup twice.
+// Same flat .product-stats-bar/.product-stats-item pattern BuyerOrders.jsx and
+// FarmerOrders.jsx already use for their own summary bars — one shared visual language for
+// "row of stat cards" across the app instead of this page keeping its own heavier,
+// boxed-icon/top-border/tooltip treatment. Products and Orders keep their extra secondary
+// stat line, and Orders keeps its "View orders" link, since those carry real information the
+// simpler cards don't need — everything else (the tooltip, the colored icon badge, the
+// all-caps tracked label) was decoration, not data, so it's gone.
 export default function MetricsSummary({ financialMetrics, productMetrics, orderMetrics }) {
   const cards = [
     { title: 'Total income', metric: financialMetrics[0], icon: TrendingUp, tone: 'income' },
@@ -20,46 +23,52 @@ export default function MetricsSummary({ financialMetrics, productMetrics, order
   ];
 
   return (
-    <section className="metrics-summary metrics-overview">
-      <div className="metrics-overview-grid">
+    <section className="panel metrics-overview-panel">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Business overview</p>
+          <h2>Business overview</h2>
+          <p className="dashboard-chart-helper">Track your sales, earnings, active listings, and incoming orders.</p>
+        </div>
+      </div>
+      <div className="product-stats-bar metrics-overview">
         {cards.map((card) => <OverviewCard key={card.title} {...card} />)}
       </div>
     </section>
   );
 }
 
-function OverviewCard({ title, metric, secondary, icon: Icon, tone, href }) {
-  if (!metric) return null;
+// Profit is the only card with genuine good/bad framing (a positive figure vs. a loss);
+// Orders is pending work waiting on the farmer. Total income and Products are plain counts —
+// no accent, same as "Total Orders" gets no accent on BuyerOrders.jsx's own stats bar.
+const ACCENT_BY_TONE = {
+  profit: 'success',
+  orders: 'warning',
+};
 
-  const tooltip = {
-    'Total income': 'Total value of paid orders recorded during the selected period.',
-    Profit: 'Profit is calculated from recorded income minus recorded costs.',
-    Products: 'Number of products currently listed in your inventory.',
-    Orders: 'Orders currently awaiting processing or confirmation.',
-  }[title];
+function OverviewCard({
+  title, metric, secondary, icon: Icon, tone, href,
+}) {
+  if (!metric) return null;
+  const accent = ACCENT_BY_TONE[tone];
 
   return (
-    <article className={`metrics-overview-card tone-${tone}`}>
-      <div className="metrics-overview-card-copy">
-        <div className="metrics-overview-card-heading">
-          <span>{title}</span>
-          <span className="metrics-overview-info" tabIndex="0" role="img" aria-label={tooltip} data-tooltip={tooltip}>
-            <Info size={14} strokeWidth={2} aria-hidden="true" />
-          </span>
-        </div>
-        <strong className="metrics-overview-value">
-          {metric.value}
-          {metric.trend ? <TrendingUp size={17} strokeWidth={2.5} aria-hidden="true" /> : null}
-        </strong>
-        <span className="metrics-overview-label">{metric.hint || metric.label}</span>
-        {secondary ? (
-          <span className="metrics-overview-secondary"><strong>{secondary.value}</strong> {secondary.label}</span>
-        ) : null}
-        {href ? (
-          <Link className="metrics-overview-cta" to={href}>View orders <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" /></Link>
-        ) : null}
+    <div className={`product-stats-item${accent ? ` accent-${accent}` : ''}`}>
+      <div className="product-stats-label-row">
+        <Icon size={16} className="product-stats-icon" aria-hidden="true" />
+        <p className="product-stats-label">{title}</p>
       </div>
-      <span className="metrics-overview-icon"><Icon size={21} strokeWidth={2} aria-hidden="true" /></span>
-    </article>
+      <p className="product-stats-value">
+        {metric.value}
+        {metric.trend ? <TrendingUp size={15} className="metrics-overview-trend" aria-hidden="true" /> : null}
+      </p>
+      <p className="product-stats-hint">{metric.hint || metric.label}</p>
+      {secondary ? (
+        <p className="metrics-overview-secondary"><strong>{secondary.value}</strong> {secondary.label}</p>
+      ) : null}
+      {href ? (
+        <Link className="metrics-overview-cta" to={href}>View orders <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" /></Link>
+      ) : null}
+    </div>
   );
 }

@@ -15,7 +15,7 @@ export default function CheckoutTrustRow() {
       {TRUST_ITEMS.map(({ icon: Icon, title, text }) => (
         <div className="checkout-trust-item" key={title}>
           <span className="checkout-trust-icon" aria-hidden="true">
-            <Icon size={16} strokeWidth={2} />
+            <Icon size={17} strokeWidth={2.5} />
           </span>
           <div>
             <p className="checkout-trust-title">{title}</p>

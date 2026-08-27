@@ -127,7 +127,7 @@ export function formatQuantity(value) {
 
 
 const PAYMENT_METHOD_LABELS = {
-  cod: 'Cash on delivery',
+  cod: 'COD',
   gcash: 'GCash',
   maya: 'Maya',
   card: 'Card',
@@ -207,6 +207,8 @@ export function paymentVerificationStatusLabel(value) {
 
 const COURIER_DELIVERY_STATUS_LABELS = {
   booked: 'Booked',
+  assigning_driver: 'Finding a Driver',
+  driver_assigned: 'Driver Assigned',
   waiting_for_pickup: 'Waiting for Pickup',
   picked_up: 'Picked Up',
   out_for_delivery: 'Out for Delivery',
@@ -218,8 +220,8 @@ export function courierDeliveryStatusLabel(value) {
   return COURIER_DELIVERY_STATUS_LABELS[value] || value;
 }
 
-const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified'];
-const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked'];
+const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified', 'driver_assigned'];
+const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked', 'assigning_driver'];
 const STATUS_TONE_CRITICAL = ['rejected', 'inactive', 'failed', 'cancelled', 'refunded', 'declined', 'suspended'];
 
 // Mirrors the .badge-* color groups in globals.css, so a report chart's bar color

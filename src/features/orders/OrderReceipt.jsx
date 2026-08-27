@@ -4,13 +4,13 @@ import { Printer } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import {
   deliveryMethodLabel,
   formatCurrency,
   formatDate,
-  paymentLabel,
   paymentStatusLabel,
   shortOrderId,
 } from '../../utils/formatters';
@@ -122,7 +122,7 @@ export default function OrderReceipt() {
         </div>
 
         <div className="receipt-parties">
-          <div><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
+          <div><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
           <div><span>Payment status</span><strong>{paymentStatusLabel(order.paymentStatus)}</strong></div>
           <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
           {order.deliveryDistanceKm ? (

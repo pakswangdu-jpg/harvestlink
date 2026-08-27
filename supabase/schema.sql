@@ -207,6 +207,7 @@
     -- deleting a product once a single order has been placed against it.
     product_id uuid references public.products(id) on delete set null,
     product_name text not null,
+    product_image_url text,
     unit text not null,
     unit_price numeric(12,2) not null,
     -- Snapshot of products.cost_price at checkout — null if the farmer never recorded a cost
@@ -216,8 +217,17 @@
     unit_cost_price numeric(12,2),
     farmer_id uuid not null references public.profiles(id),
     farmer_name text not null,
+    -- Snapshotted alongside farmer_name/buyer_name at order creation (see createOrder) rather
+    -- than joined live — orders are broadcast over Supabase Realtime as raw table rows (see
+    -- OrderTracking.jsx's subscription and orderService.mapOrderRealtimeRow), which can't
+    -- carry a joined profiles column, so this has to already be a real column on this row.
+    -- Null for any order placed before this column existed; only new orders get a photo.
+    farmer_avatar_url text,
+    farmer_farm_name text,
+    farmer_verification_status text,
     buyer_id uuid not null references public.profiles(id),
     buyer_name text not null,
+    buyer_avatar_url text,
     quantity numeric(12,2) not null,
     -- Computed server-side via the Smart Distance-Based Delivery Fee System — real road
     -- distance (OSRM) priced against configurable tiers (see backend/src/lib/deliveryFee.js
@@ -279,6 +289,11 @@
   alter table public.orders add column if not exists location_updated_at timestamptz;
   alter table public.orders add column if not exists transit_started_at timestamptz;
   alter table public.orders add column if not exists unit_cost_price numeric(12,2);
+  alter table public.orders add column if not exists farmer_avatar_url text;
+  alter table public.orders add column if not exists product_image_url text;
+  alter table public.orders add column if not exists farmer_farm_name text;
+  alter table public.orders add column if not exists farmer_verification_status text;
+  alter table public.orders add column if not exists buyer_avatar_url text;
 
   -- GCash payment module — set only by backend/src/controllers/payments.controller.js
   -- once the buyer submits payment, never by the client directly.
@@ -368,6 +383,56 @@
   alter table public.deliveries drop constraint if exists deliveries_delivery_status_check;
   alter table public.deliveries add constraint deliveries_delivery_status_check
     check (delivery_status in ('booked','waiting_for_pickup','picked_up','out_for_delivery','delivered','cancelled'));
+
+  -- Real Lalamove API integration (backend/src/lib/lalamoveClient.js) — populated once
+  -- createLalamoveDeliveryForOrder (orders.controller.js) successfully books through
+  -- Lalamove's actual /v3/orders endpoint, then kept in sync by the signed webhook
+  -- (backend/src/controllers/webhooks/lalamoveWebhook.controller.js). All three are null for
+  -- an order still on the older manual-entry path (driver_name/tracking_url typed in by the
+  -- farmer, see deliveries.controller.js's bookDelivery) — that path stays as a fallback for
+  -- when the live API call fails, so these columns are optional, not a replacement for the
+  -- existing ones above.
+  alter table public.deliveries add column if not exists lalamove_order_id text;
+  alter table public.deliveries add column if not exists lalamove_quotation_id text;
+  alter table public.deliveries add column if not exists lalamove_status text;
+
+  create unique index if not exists deliveries_lalamove_order_id_idx
+    on public.deliveries (lalamove_order_id) where lalamove_order_id is not null;
+
+  -- assigning_driver/driver_assigned are new — Lalamove's own ASSIGNING_DRIVER/ON_GOING
+  -- events (see lalamoveStatusMap.js) land here now that there's a real webhook driving
+  -- this column forward, not just the farmer's manual "Mark as X" button.
+  alter table public.deliveries drop constraint if exists deliveries_delivery_status_check;
+  alter table public.deliveries add constraint deliveries_delivery_status_check
+    check (delivery_status in
+      ('booked','assigning_driver','driver_assigned','waiting_for_pickup','picked_up','out_for_delivery','delivered','cancelled'));
+
+  -- ============================================================================
+  -- order_delivery_events — the buyer-facing delivery/pickup history a status timeline reads
+  -- from (see src/components/orders/CourierDeliveryTimeline.jsx), instead of only ever
+  -- showing the single current status. One row per real transition — order placed, payment
+  -- confirmed, preparing, each Lalamove webhook event, buyer pickup confirmation, etc. Append
+  -- only (no update/delete path): a history is a record of what happened, not current state.
+  -- Written exclusively by the backend's service_role client, same as every other write in
+  -- this schema — RLS is enabled with no policies, matching the `deliveries` table right
+  -- above rather than `orders`' Realtime-only exception, since this is read through the
+  -- existing GET /api/deliveries/:orderId poll (see deliveries.controller.js), not a direct
+  -- client-side Supabase read.
+  -- ============================================================================
+  create table if not exists public.order_delivery_events (
+    id uuid primary key default gen_random_uuid(),
+    order_id uuid not null references public.orders(id) on delete cascade,
+    status text not null,
+    title text not null,
+    description text not null,
+    occurred_at timestamptz not null default now(),
+    source text not null check (source in ('system','lalamove','farmer','buyer')),
+    created_at timestamptz not null default now()
+  );
+
+  create index if not exists order_delivery_events_order_id_idx on public.order_delivery_events (order_id);
+
+  alter table public.order_delivery_events enable row level security;
 
   -- ============================================================================
   -- notifications

@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ClipboardList, Clock3, MapPin, Package, PackageCheck, PackageSearch, Wallet } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { CheckCircle2, ClipboardList, Clock3, Eye, MapPin, Package, PackageSearch, Wallet } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
-import KpiGrid from '../../components/common/KpiGrid';
-import KpiCard from '../../components/common/KpiCard';
 import ProductCard from '../../components/cards/ProductCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/dashboard/DataTable';
@@ -11,6 +9,7 @@ import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import DeliveryMap from '../../components/orders/DeliveryMap';
 import MarketPricePanel from '../../components/market/MarketPricePanel';
+import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
@@ -18,7 +17,7 @@ import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials } from '../../utils/formatters';
-import { nearestByMunicipality } from '../../utils/geo';
+import { haversineKm, nearestByMunicipality } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 
 const EMPTY_STATE = {
@@ -27,7 +26,10 @@ const EMPTY_STATE = {
 
 export default function BuyerDashboard() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const [state, setState] = useState(EMPTY_STATE);
+  const farmerCoordsById = useMapCoordinates(state.verifiedFarmers);
+  const buyerCoordsById = useMapCoordinates([currentUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,8 @@ export default function BuyerDashboard() {
   }, [currentUser.id, currentUser.municipality]);
 
   const { products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders } = state;
+  const pendingOrders = orders.filter((order) => order.status === 'pending');
+  const completedOrders = orders.filter((order) => order.status === 'completed');
   // Fresh listings only spotlights Grade A produce — Grade B is still buyable from the full
   // Marketplace, just not featured in this at-a-glance dashboard preview.
   const freshListings = products.filter((product) => product.grade === 'A');
@@ -81,6 +85,20 @@ export default function BuyerDashboard() {
   // first and capped, unlike verifiedFarmers above (kept platform-wide for the ratings-based
   // recommendation list).
   const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
+  const buyerCoords = buyerCoordsById[currentUser.id];
+  const nearbyFarmersWithDistance = nearbyFarmers
+    .slice(0, 4)
+    .map((farmer) => ({
+      farmer,
+      distanceKm: buyerCoords && farmerCoordsById[farmer.id]
+        ? haversineKm(buyerCoords, farmerCoordsById[farmer.id])
+        : null,
+    }))
+    .sort((a, b) => {
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
   const nearbyBuyers = nearestByMunicipality(currentUser.municipality, registeredBuyers);
   const nearbyStakeholders = nearestByMunicipality(currentUser.municipality, registeredStakeholders);
 
@@ -92,20 +110,47 @@ export default function BuyerDashboard() {
       subtitle="Browse Cebu harvests, check out, and track delivery from local farmers."
       pageClassName="buyer-dashboard-page"
     >
-      <KpiGrid columns={5}>
-        <KpiCard label="Total spend" value={formatCurrency(totalSpend)} icon={Wallet} tone="financial" />
-        <KpiCard label="Active listings" value={products.length} icon={Package} tone="neutral" />
-        <KpiCard label="My orders" value={orders.length} icon={ClipboardList} tone="info" />
-        <KpiCard label="Pending" value={orders.filter((order) => order.status === 'pending').length} icon={Clock3} variant="warning" tone="warning" iconClassName="stat-icon-waiting" />
-        <KpiCard label="Completed" value={orders.filter((order) => order.status === 'completed').length} icon={PackageCheck} variant="success" tone="success" />
-      </KpiGrid>
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Overview</p>
+          <h2>Account overview</h2>
+        </div>
+      </div>
+      <div className="product-stats-bar">
+        <div className="product-stats-item">
+          <div className="product-stats-label-row"><Wallet size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">Total spend</p></div>
+          <p className="product-stats-value">{formatCurrency(totalSpend)}</p>
+          <p className="product-stats-hint">Lifetime paid orders</p>
+        </div>
+        <div className="product-stats-item">
+          <div className="product-stats-label-row"><Package size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">Active listings</p></div>
+          <p className="product-stats-value">{products.length}</p>
+          <p className="product-stats-hint">Across the marketplace</p>
+        </div>
+        <div className="product-stats-item">
+          <div className="product-stats-label-row"><ClipboardList size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">My orders</p></div>
+          <p className="product-stats-value">{orders.length}</p>
+          <p className="product-stats-hint">All-time</p>
+        </div>
+        <div className="product-stats-item accent-warning">
+          <div className="product-stats-label-row"><Clock3 size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">Pending</p></div>
+          <p className="product-stats-value">{pendingOrders.length}</p>
+          <p className="product-stats-hint">Awaiting confirmation</p>
+        </div>
+        <div className="product-stats-item accent-success">
+          <div className="product-stats-label-row"><CheckCircle2 size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">Completed</p></div>
+          <p className="product-stats-value">{completedOrders.length}</p>
+          <p className="product-stats-hint">Received orders</p>
+        </div>
+      </div>
 
-      <section className="content-grid two">
+      <section className="content-grid two buyer-dashboard-primary">
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Map</p>
-              <h2>Active Users</h2>
+              <p className="eyebrow">Nearby farmers</p>
+              <h2>Nearby farmers</h2>
+              <p className="section-supporting-text">Browse active farms and available produce nearby.</p>
               <p className="map-legend">
                 <span className="legend-dot farmer" /> Registered farmer
                 <span className="legend-dot buyer" /> Registered buyer
@@ -120,17 +165,43 @@ export default function BuyerDashboard() {
             stakeholders={nearbyStakeholders}
             viewerMunicipality={currentUser.municipality}
           />
+          {nearbyFarmers.length ? (
+            <ul className="nearby-farmers-list">
+              {nearbyFarmersWithDistance.map(({ farmer, distanceKm }) => (
+                <li key={farmer.id}>
+                  <Link to={`/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(farmer.farmName || farmer.name)}`}>
+                    <span className="farmer-list-avatar">
+                      {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
+                    </span>
+                    <span className="farmer-list-text">
+                      <strong>{farmer.farmName || farmer.name}</strong>
+                      <span className="muted nearby-farmer-location">
+                        <MapPin size={12} /> {farmer.municipality}
+                        <span aria-hidden="true">·</span>
+                        {distanceKm == null
+                          ? 'Distance unavailable'
+                          : distanceKm < 1
+                            ? `${Math.round(distanceKm * 1000)} m away`
+                            : `${distanceKm.toFixed(1)} km away`}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <MarketPricePanel commodityId={marketCommodityId} perspective="buyer" />
       </section>
 
-      <section className="content-grid two">
+      <section className="content-grid two buyer-dashboard-secondary">
         <div className="panel">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Marketplace</p>
               <h2>Fresh listings</h2>
+              <p className="section-supporting-text">Recently listed produce from nearby farms.</p>
             </div>
             <Link className="btn btn-secondary btn-md" to="/marketplace">Browse all</Link>
           </div>
@@ -143,6 +214,9 @@ export default function BuyerDashboard() {
               icon={PackageSearch}
               title="No products yet"
               message="Farmer listings will appear here once products are added."
+              actionLabel="Browse all"
+              onAction={() => navigate('/marketplace')}
+              compact
             />
           )}
         </div>
@@ -152,17 +226,28 @@ export default function BuyerDashboard() {
             <div>
               <p className="eyebrow">History</p>
               <h2>Recent orders</h2>
+              <p className="section-supporting-text">Your latest purchases and delivery status.</p>
             </div>
             <Link className="btn btn-secondary btn-md" to="/buyer-orders">View history</Link>
           </div>
           <DataTable
             columns={[
-              { key: 'productName', label: 'Product' },
-              { key: 'quantity', label: 'Qty' },
-              { key: 'paymentStatus', label: 'Payment', render: (row) => <StatusBadge value={row.paymentStatus} type="paymentStatus" /> },
-              { key: 'deliveryStatus', label: 'Delivery', render: (row) => <StatusBadge value={row.deliveryStatus} type="deliveryStatus" /> },
-              { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
-              { key: 'createdAt', label: 'Date', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
+              { key: 'productName', label: 'Product', truncate: true },
+              { key: 'farmerName', label: 'Farmer', truncate: true },
+              { key: 'totalAmount', label: 'Total', width: '90px', render: (row) => formatCurrency(row.totalAmount) },
+              { key: 'status', label: 'Status', width: '96px', render: (row) => <StatusBadge value={row.status} /> },
+              { key: 'createdAt', label: 'Date', width: '108px', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
+              {
+                key: 'action',
+                label: '',
+                width: '48px',
+                align: 'right',
+                render: (row) => (
+                  <Link className="dashboard-row-action" to={`/orders/${row.id}`} aria-label={`View order ${row.id}`}>
+                    <Eye size={15} aria-hidden="true" />
+                  </Link>
+                ),
+              },
             ]}
             rows={orders.slice(0, 5)}
             emptyMessage="No orders yet."

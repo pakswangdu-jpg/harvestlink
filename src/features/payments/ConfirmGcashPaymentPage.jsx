@@ -6,9 +6,12 @@ import {
 import PaymentProgressTracker from '../../components/orders/PaymentProgressTracker';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import StatusBadge from '../../components/common/StatusBadge';
+import MobileBottomNav from '../../components/layout/MobileBottomNav';
+import { useAuth } from '../auth/AuthContext';
 import { getGcashCheckout, submitPaymentProof } from '../../services/paymentService';
 import { uploadPaymentReceipt } from '../../services/uploadService';
 import { formatCurrency, formatDate, shortOrderId } from '../../utils/formatters';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import logo from '../../assets/logo.png';
 
 const RECEIPT_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -103,9 +106,14 @@ function ReceiptDropzone({ file, error, onFileSelect, onValidationError, onRemov
 // app. Collects proof of payment and hands it to submitPaymentProof, which puts the order
 // into paymentVerificationStatus: 'pending' for the farmer to approve/reject (see
 // FarmerOrders.jsx's Payment Verification panel).
+//
+// No AppShell here either (see GcashPaymentPage's own comment) — same reasoning, same
+// MobileBottomNav mount so mobile buyers aren't stranded mid-flow.
 export default function ConfirmGcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const navItems = getNavItemsForRole(currentUser.role);
 
   // 'loading' | 'form' | 'submitting' | 'success' | 'error'
   const [stage, setStage] = useState('loading');
@@ -303,13 +311,15 @@ export default function ConfirmGcashPaymentPage() {
                 </div>
               </dl>
 
-              <button type="button" className="btn btn-primary btn-md" onClick={() => navigate(`/orders/${id}`)}>
-                View Order Status
+              <button type="button" className="btn btn-primary btn-md" onClick={() => navigate(`/orders/${id}/confirmation`, { replace: true })}>
+                Continue to Confirmation
               </button>
             </div>
           ) : null}
         </div>
       </div>
+
+      <MobileBottomNav user={currentUser} navItems={navItems} />
     </main>
   );
 }
