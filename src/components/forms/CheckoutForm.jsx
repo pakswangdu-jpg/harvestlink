@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  Banknote, Bike, Check, MapPin, Store, Truck,
+  Banknote, Check, MapPin, Truck,
 } from 'lucide-react';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
+import lalamoveLogo from '../../assets/icons/lalamove-logo.png';
+import buyerPickupIcon from '../../assets/icons/buyer-pickup-icon.png';
 import FormField from '../common/FormField';
 import CheckoutProductCard from '../checkout/CheckoutProductCard';
 import QuantityStepper from '../checkout/QuantityStepper';
@@ -11,15 +13,18 @@ import CheckoutTrustRow from '../checkout/CheckoutTrustRow';
 import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
 import { estimateDeliveryFee, haversineKm } from '../../utils/geo';
 import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
+import { getLalamoveQuote } from '../../services/lalamoveService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
 import { formatQuantity } from '../../utils/formatters';
 
 const MESSAGE_MAX_LENGTH = 200;
 
+// Farmer delivery keeps a plain lucide icon; buyer pickup and courier both get their own
+// image assets (buyer-pickup-icon.png / lalamove-logo.png) instead of a lucide stand-in —
+// rendered separately below since one's a component and the other's an <img src>, same
+// split as the payment method icons.
 const DELIVERY_METHOD_ICONS = {
   farmer_delivery: Truck,
-  buyer_pickup: Store,
-  courier: Bike,
 };
 
 // COD gets a plain lucide icon; GCash gets its real logo image (gcash-com-logo.png) instead
@@ -27,6 +32,21 @@ const DELIVERY_METHOD_ICONS = {
 // an <img src>.
 const PAYMENT_METHOD_ICONS = {
   cod: Banknote,
+};
+
+// One-line explanation shown under each option's label — the DELIVERY_METHODS/PAYMENT_METHODS
+// labels themselves ("Farmer delivery", "COD") stay short since they're reused elsewhere
+// (order tables, receipts), so the fuller "what does this actually mean" copy lives here,
+// local to this one selector.
+const DELIVERY_METHOD_DESCRIPTIONS = {
+  farmer_delivery: 'The farmer delivers to your address',
+  buyer_pickup: "Pick up directly from the farmer's location",
+  courier: 'Delivered by a Lalamove rider',
+};
+
+const PAYMENT_METHOD_DESCRIPTIONS = {
+  cod: 'Pay in cash when your order arrives',
+  gcash: 'Pay the farmer directly with GCash',
 };
 
 // Used only if the live backend estimate (Smart Distance-Based Delivery Fee System — see
@@ -71,7 +91,7 @@ function defaultQuantity(product, initialQuantity) {
 }
 
 export default function CheckoutForm({
-  product, currentUser, onSubmit, initialQuantity = '',
+  product, currentUser, onSubmit, initialQuantity = '', orderPlaced = false,
 }) {
   const [values, setValues] = useState(() => ({
     quantity: defaultQuantity(product, initialQuantity),
@@ -85,6 +105,7 @@ export default function CheckoutForm({
 
   const originMunicipality = matchMunicipality(product.location);
   const isPickup = values.deliveryMethod === 'buyer_pickup';
+  const isCourier = values.deliveryMethod === 'courier';
   const stock = Number(product.quantity) || 0;
 
   const [feeEstimate, setFeeEstimate] = useState(null);
@@ -166,6 +187,38 @@ export default function CheckoutForm({
     let cancelled = false;
     setIsEstimating(true);
     setEstimateError('');
+
+    // Courier gets a real Lalamove quotation instead of the generic road-distance fee
+    // formula farmer_delivery/buyer_pickup use — see lalamoveService.js. No fallback estimate
+    // on failure here (unlike the other two methods below): a made-up number next to the
+    // Lalamove logo would misrepresent it as a real quote from Lalamove specifically.
+    if (isCourier) {
+      getLalamoveQuote(product.id, values.deliveryMunicipality)
+        .then((result) => {
+          if (cancelled) return;
+          setFeeEstimate({
+            fee: result.fee,
+            distanceKm: result.distanceKm,
+            durationMinutes: result.durationMinutes,
+            tierLabel: 'Lalamove',
+            source: 'lalamove',
+            quotationId: result.quotationId,
+          });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setEstimateError('Delivery quotation unavailable. Please try again.');
+          setFeeEstimate(null);
+        })
+        .finally(() => {
+          if (!cancelled) setIsEstimating(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
     getDeliveryFeeEstimate({
       originMunicipality,
       deliveryMunicipality: isPickup ? undefined : values.deliveryMunicipality,
@@ -197,7 +250,7 @@ export default function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [originMunicipality, values.deliveryMunicipality, values.deliveryMethod, isPickup, buyerCoords]);
+  }, [originMunicipality, values.deliveryMunicipality, values.deliveryMethod, isPickup, isCourier, buyerCoords, product.id]);
 
   const updateField = (field, value) => {
     setValues((previous) => ({ ...previous, [field]: value }));
@@ -228,8 +281,7 @@ export default function CheckoutForm({
     setIsSubmitting(true);
     try {
       await onSubmit(values);
-      // No setIsSubmitting(false) on success — the caller navigates away on success, so
-      // resetting here would just re-enable the button for the instant before that happens.
+      setIsSubmitting(false);
     } catch (error) {
       setErrors((previous) => ({ ...previous, form: error.message }));
       setIsSubmitting(false);
@@ -276,13 +328,20 @@ export default function CheckoutForm({
                     <button
                       key={method.value}
                       type="button"
-                      className={`method-card${isSelected ? ' is-selected' : ''}`}
+                      className={`method-card method-card-${method.value}${isSelected ? ' is-selected' : ''}`}
                       aria-pressed={isSelected}
                       onClick={() => updateField('deliveryMethod', method.value)}
                     >
                       {isSelected ? <span className="method-card-check"><Check size={11} strokeWidth={3} /></span> : null}
-                      <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
+                      {method.value === 'courier' ? (
+                        <img src={lalamoveLogo} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
+                      ) : method.value === 'buyer_pickup' ? (
+                        <img src={buyerPickupIcon} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
+                      ) : (
+                        <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
+                      )}
                       <span className="method-card-label">{method.label}</span>
+                      <span className="method-card-description">{DELIVERY_METHOD_DESCRIPTIONS[method.value]}</span>
                     </button>
                   );
                 })}
@@ -324,6 +383,7 @@ export default function CheckoutForm({
                         <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
                       )}
                       <span className="method-card-label">{method.label}</span>
+                      <span className="method-card-description">{PAYMENT_METHOD_DESCRIPTIONS[method.value]}</span>
                     </button>
                   );
                 })}
@@ -368,6 +428,7 @@ export default function CheckoutForm({
         locationNotice={locationNotice}
         onRetryLocation={requestBuyerLocation}
         isSubmitting={isSubmitting}
+        orderPlaced={orderPlaced}
         isGcash={isGcash}
       />
 

@@ -18,7 +18,7 @@ import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatter
 export default function OrderSummaryPanel({
   product, quantity, subtotal, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
-  isSubmitting, isGcash,
+  isSubmitting, orderPlaced, isGcash,
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
   const total = subtotal + fee;
@@ -69,7 +69,10 @@ export default function OrderSummaryPanel({
           ) : estimate && estimate.distanceKm > 0 ? (
             <div className="checkout-summary-line muted">
               <span><MapPinned size={13} aria-hidden="true" /> {estimate.distanceKm.toFixed(1)} km</span>
-              {estimate.durationMinutes != null ? (
+              {/* Pickup is on the buyer's own schedule — a travel-time estimate isn't
+                  actionable the way it is for a delivery they're waiting on, so only
+                  distance shows here. Farmer delivery/Lalamove both keep it. */}
+              {!isPickup && estimate.durationMinutes != null ? (
                 <span><Clock3 size={13} aria-hidden="true" /> ~{Math.round(estimate.durationMinutes)} min</span>
               ) : null}
             </div>
@@ -86,19 +89,21 @@ export default function OrderSummaryPanel({
           <strong>{formatCurrency(total)}</strong>
         </div>
 
-        <Button type="submit" className="full-width checkout-submit-btn" disabled={isSubmitting}>
+        <Button type="submit" className="full-width checkout-submit-btn" disabled={isSubmitting || orderPlaced}>
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin" aria-hidden="true" />
               Placing order…
             </>
+          ) : orderPlaced ? (
+            'Order placed'
           ) : isGcash ? (
             <>
               <img src={gcashLogo} alt="" width={16} height={16} className="checkout-submit-btn-logo" />
-              Place order — Pay with GCash
+              Continue to Payment
             </>
           ) : (
-            'Place order — Pay on delivery'
+            'Continue to Payment'
           )}
         </Button>
         <p className="checkout-summary-security">

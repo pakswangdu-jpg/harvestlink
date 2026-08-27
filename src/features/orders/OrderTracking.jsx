@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  BadgeCheck, Check, CheckCircle2, Clock3, FileText, MapPin, MessageCircle, Navigation, Package, Truck, X,
+  BadgeCheck, Check, CheckCircle2, Clock3, Copy, FileText, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, X,
 } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -8,6 +8,7 @@ import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import DeliveryTruckIcon from '../../components/icons/DeliveryTruckIcon';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
@@ -37,7 +38,6 @@ import {
   formatDate,
   formatDurationMinutes,
   getInitials,
-  paymentLabel,
   shortOrderId,
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
@@ -80,6 +80,7 @@ export default function OrderTracking() {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [orderIdCopied, setOrderIdCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +220,17 @@ export default function OrderTracking() {
 
   const navItems = getNavItemsForRole(currentUser.role);
 
+  const copyOrderId = async () => {
+    try {
+      await navigator.clipboard.writeText(`#${shortOrderId(order.id)}`);
+      setOrderIdCopied(true);
+      window.setTimeout(() => setOrderIdCopied(false), 1800);
+    } catch {
+      // Clipboard access can be denied (permissions/insecure context) — the ID is already
+      // visible on screen either way, so there's nothing further to recover here.
+    }
+  };
+
   const run = async (action, successMessage) => {
     try {
       const updated = await action();
@@ -283,7 +295,18 @@ export default function OrderTracking() {
 
         <div className="ot-header-bar">
           <div className="ot-header-badges">
-            <span className="ot-chip"><FileText size={13} /> #{shortOrderId(order.id)}</span>
+            <span className="ot-chip">
+              <FileText size={13} /> #{shortOrderId(order.id)}
+              <button
+                type="button"
+                className="ot-chip-copy"
+                onClick={copyOrderId}
+                aria-label="Copy order ID"
+                title={orderIdCopied ? 'Copied' : 'Copy order ID'}
+              >
+                {orderIdCopied ? <Check size={12} /> : <Copy size={12} />}
+              </button>
+            </span>
             <span className="ot-chip"><Package size={13} /> {order.quantity} {order.unit}</span>
             <span className="ot-chip">{formatCurrency(order.totalAmount)}</span>
             <span className="ot-chip">{formatDate(order.createdAt)}</span>
@@ -305,7 +328,7 @@ export default function OrderTracking() {
             </div>
             {isCourier ? (
               <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={isFarmer} onDeliveryUpdate={setDelivery} />
-            ) : <OrderTracker order={order} />}
+            ) : <OrderTracker order={order} isFarmer={isFarmer} />}
           </div>
 
           <div className="panel ot-details-panel">
@@ -320,13 +343,40 @@ export default function OrderTracking() {
               <div className="ot-detail-group">
                 <h4>General Information</h4>
                 <div className="ot-detail-row"><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
+                <div className="ot-detail-row ot-detail-row-product">
+                  <span>Product</span>
+                  <div className="ot-product-summary">
+                    <span className="ot-product-thumb">
+                      {order.productImageUrl ? <img src={order.productImageUrl} alt="" /> : <Package size={16} />}
+                    </span>
+                    <strong>{order.productName}</strong>
+                  </div>
+                </div>
+                <div className="ot-detail-row"><span>Quantity</span><strong>{order.quantity} {order.unit}</strong></div>
+                <div className="ot-detail-row"><span>Product amount</span><strong>{formatCurrency(order.unitPrice * order.quantity)}</strong></div>
                 <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
-                <div className="ot-detail-row"><span>Farmer</span><strong>{order.farmerName}</strong></div>
+                <div className="ot-detail-row ot-detail-row-farmer">
+                  <span>Farmer</span>
+                  <Link to={`/farmers/${order.farmerId}`} className="ot-farmer-profile">
+                    <span className="farmer-list-avatar">
+                      {order.farmerAvatarUrl ? <img src={order.farmerAvatarUrl} alt="" /> : getInitials(order.farmerName)}
+                    </span>
+                    <span className="ot-farmer-profile-text">
+                      <span className="ot-farmer-name">
+                        {order.farmerName}
+                        {order.farmerVerificationStatus === 'verified' ? <BadgeCheck size={13} className="ot-farmer-verified-icon" /> : null}
+                      </span>
+                      {order.farmerFarmName ? <span className="ot-farmer-farm">{order.farmerFarmName}</span> : null}
+                      {order.originMunicipality ? <span className="ot-farmer-location"><MapPin size={11} /> {order.originMunicipality}</span> : null}
+                    </span>
+                  </Link>
+                </div>
               </div>
 
               <div className="ot-detail-group">
                 <h4>Payment</h4>
-                <div className="ot-detail-row"><span>Payment method</span><strong>{paymentLabel(order.paymentMethod)}</strong></div>
+                <div className="ot-detail-row"><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
+                <div className="ot-detail-row"><span>{order.paymentMethod === 'cod' ? 'Amount to collect' : 'Amount'}</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
                 <div className="ot-detail-row"><span>Payment status</span><StatusBadge value={order.paymentStatus} type="paymentStatus" /></div>
                 {order.paymentMethod === 'gcash' && order.paymentVerificationStatus ? (
                   <>
@@ -413,6 +463,12 @@ export default function OrderTracking() {
                 </Button>
               ) : null}
 
+              {isBuyer && order.status === 'completed' ? (
+                <Link className="btn btn-secondary btn-md" to={`/products/${order.productId}`}>
+                  <RotateCcw size={15} /> Buy Again
+                </Link>
+              ) : null}
+
               {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod)
               && !order.paymentVerificationStatus ? (
                 <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
@@ -470,14 +526,18 @@ export default function OrderTracking() {
             </div>
             <div className="ot-summary-cards">
               <div className="ot-summary-card">
-                <span className="farmer-list-avatar">{getInitials(order.farmerName)}</span>
+                <span className="farmer-list-avatar">
+                  {order.farmerAvatarUrl ? <img src={order.farmerAvatarUrl} alt="" /> : getInitials(order.farmerName)}
+                </span>
                 <div>
                   <p>Farmer</p>
                   <strong>{order.farmerName}</strong>
                 </div>
               </div>
               <div className="ot-summary-card">
-                <span className="farmer-list-avatar buyer">{getInitials(order.buyerName)}</span>
+                <span className="farmer-list-avatar buyer">
+                  {order.buyerAvatarUrl ? <img src={order.buyerAvatarUrl} alt="" /> : getInitials(order.buyerName)}
+                </span>
                 <div>
                   <p>Buyer</p>
                   <strong>{order.buyerName}</strong>

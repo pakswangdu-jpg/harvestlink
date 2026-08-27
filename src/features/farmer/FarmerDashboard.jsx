@@ -5,6 +5,7 @@ import AppShell from '../../components/layout/AppShell';
 import MetricsSummary from '../../components/dashboard/MetricsSummary';
 import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
@@ -112,7 +113,7 @@ export default function FarmerDashboard() {
   const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
   const paymentGroups = [
     { key: 'gcash', label: 'GCash / online payments', tone: 'blue' },
-    { key: 'cod', label: 'Cash on delivery', tone: 'orange' },
+    { key: 'cod', label: 'COD', tone: 'orange' },
   ].map((group) => ({
     ...group,
     orders: paidOrders.filter((order) => order.paymentMethod === group.key),
@@ -330,7 +331,7 @@ export default function FarmerDashboard() {
             columns={[
               { key: 'buyerName', label: 'Buyer', truncate: true },
               { key: 'productName', label: 'Product', width: '95px', truncate: true },
-              { key: 'paymentMethod', label: 'Payment', width: '112px', render: (row) => <StatusBadge value={row.paymentMethod} type="payment" /> },
+              { key: 'paymentMethod', label: 'Payment', width: '112px', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
               { key: 'status', label: 'Status', width: '84px', render: (row) => <StatusBadge value={row.status} /> },
               {
                 key: 'createdAt',

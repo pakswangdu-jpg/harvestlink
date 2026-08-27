@@ -7,9 +7,9 @@ import {
 function BubbleTimestamp({ message, isMine, showStatus }) {
   const time = new Date(message.createdAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
   return (
-    <div className={`mt-1 flex items-center gap-1 text-[11px] ${isMine ? 'justify-end text-emerald-100' : 'text-[var(--muted)]'}`}>
+    <div className={`messages-bubble-timestamp mt-1 flex items-center justify-end gap-1 text-[11px] ${isMine ? 'text-emerald-100' : 'text-[var(--muted)]'}`}>
       {message.edited ? <span className="italic">Edited</span> : null}
-      <span>{time}</span>
+      <span className="whitespace-nowrap">{time}</span>
       {/* Seen/Sent are real states derived from the same `read` flag the inbox unread badge
           already uses — "Delivered" would need a live socket layer to mean anything real,
           so it's deliberately not shown here yet (see the fast-follow plan). */}

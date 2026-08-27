@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Check, ClipboardList, MapPin, Navigation, Package, Search, Truck, X,
+  Check, CheckCircle2, Clipboard, ClipboardList, MapPin, Navigation, Package, Search, Truck, X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import StatusBadge from '../../components/common/StatusBadge';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
 import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
-import { formatCurrency, formatDate, paymentLabel, deliveryMethodLabel, shortOrderId } from '../../utils/formatters';
+import { formatCurrency, formatDate, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
 
 // Collapses the order's real status/deliveryStatus columns into the 7 lifecycle stages a
@@ -108,17 +108,13 @@ function getPrimaryAction(order) {
     if (order.deliveryMethod === 'courier') return { kind: 'book-courier' };
     return { kind: 'advance', next: nextStep, label: 'Start Delivery' };
   }
-  if (nextStep === 'picked_up') {
-    return {
-      kind: 'advance', next: nextStep, label: 'Mark Picked Up', requiresConfirm: true,
-      confirmMessage: 'Confirm the buyer has picked up this order. This can\'t be undone.',
-    };
-  }
-  if (nextStep === 'delivered') {
-    return {
-      kind: 'advance', next: nextStep, label: 'Mark Delivered', requiresConfirm: true,
-      confirmMessage: 'Confirm this order has been delivered. This can\'t be undone.',
-    };
+  // The final delivery step (picked up / delivered) can only be confirmed by the BUYER — the
+  // backend 403s if the farmer calls advanceDelivery here (see the isFinalStep check in
+  // orders.controller.js). The order finishes on its own (status -> 'completed') the moment
+  // the buyer confirms; this page's own 4s poll picks that change up automatically, so there's
+  // nothing for the farmer to click at this stage.
+  if (nextStep === 'picked_up' || nextStep === 'delivered') {
+    return { kind: 'awaiting-buyer' };
   }
   return { kind: 'view' };
 }
@@ -128,23 +124,57 @@ function OrderStageBadge({ order }) {
   return <span className={`badge badge-status badge-${stage}`}>{STAGE_LABELS[stage]}</span>;
 }
 
-function OrderCell({ order }) {
+function BuyerCell({ order }) {
   return (
-    <div>
-      <div className="order-cell-main">{order.productName}</div>
-      <div className="order-cell-sub">{order.quantity} {order.unit}</div>
+    <div className="order-cell-with-thumb order-farmer-cell">
+      <span className="farmer-list-avatar order-cell-avatar">
+        {order.buyerAvatarUrl ? <img src={order.buyerAvatarUrl} alt="" /> : getInitials(order.buyerName)}
+      </span>
+      <div>
+        <strong>{order.buyerName}</strong>
+      </div>
+    </div>
+  );
+}
+
+function ProductCell({ order }) {
+  return (
+    <div className="order-cell-with-thumb">
+      {order.productImageUrl ? (
+        <img src={order.productImageUrl} alt="" className="order-cell-thumb" />
+      ) : (
+        <span className="order-cell-thumb order-cell-thumb-fallback"><Package size={16} /></span>
+      )}
+      <div>
+        <div className="order-cell-main">{order.productName}</div>
+        <div className="order-cell-sub">{order.quantity} {order.unit}</div>
+      </div>
+    </div>
+  );
+}
+
+function OrderIdCell({ order, copiedOrderId, onCopy }) {
+  const label = `#HL-${shortOrderId(order.id)}`;
+  return (
+    <div className="order-id-cell">
+      <span className="order-id">{label}</span>
+      <button
+        type="button"
+        className="order-copy-button"
+        onClick={() => onCopy(order.id)}
+        aria-label={`Copy order ID ${label}`}
+        title={copiedOrderId === order.id ? 'Copied' : 'Copy order ID'}
+      >
+        {copiedOrderId === order.id ? <CheckCircle2 size={15} /> : <Clipboard size={15} />}
+      </button>
+      {copiedOrderId === order.id ? <span className="order-copy-confirmation">Copied</span> : null}
     </div>
   );
 }
 
 function PaymentCell({ order }) {
   return (
-    <div>
-      <div className="order-cell-main">{paymentLabel(order.paymentMethod)}</div>
-      <div className="order-cell-sub">
-        <StatusBadge value={order.paymentStatus} type="paymentStatus" />
-      </div>
-    </div>
+    <div className="order-cell-main"><PaymentMethodLabel method={order.paymentMethod} /></div>
   );
 }
 
@@ -202,6 +232,21 @@ function OrderActions({ order, onAction }) {
     );
   }
 
+  if (action.kind === 'awaiting-buyer') {
+    return (
+      <div className="table-actions order-table-actions">
+        <span className="order-cell-sub">Awaiting buyer confirmation</span>
+        {getOrderStage(order) === 'out_for_delivery' ? (
+          <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>
+            <MapPin size={14} /> Track Delivery
+          </Link>
+        ) : (
+          <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>
+        )}
+      </div>
+    );
+  }
+
   return <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>;
 }
 
@@ -214,6 +259,7 @@ export default function FarmerOrders() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [paymentRejectingId, setPaymentRejectingId] = useState(null);
   const [paymentRejectReason, setPaymentRejectReason] = useState('');
+  const [copiedOrderId, setCopiedOrderId] = useState(null);
 
   const [activeStage, setActiveStage] = useState('all');
   const [search, setSearch] = useState('');
@@ -296,6 +342,16 @@ export default function FarmerOrders() {
     return counts;
   }, [orders]);
 
+  const copyOrderId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(`#HL-${shortOrderId(id)}`);
+      setCopiedOrderId(id);
+      window.setTimeout(() => setCopiedOrderId((current) => (current === id ? null : current)), 1800);
+    } catch {
+      showToast({ type: 'error', message: 'Unable to copy the order ID.' });
+    }
+  };
+
   const hasActiveFilters = activeStage !== 'all' || search.trim() || paymentFilter !== 'all' || deliveryFilter !== 'all' || dateFilter !== 'all';
 
   const clearFilters = () => {
@@ -330,6 +386,36 @@ export default function FarmerOrders() {
       pageClassName="farmer-orders-page"
     >
       {error ? <div className="form-alert error">{error}</div> : null}
+
+      {orders.length ? (
+        <div className="product-stats-bar">
+          <div className="product-stats-item accent-warning">
+            <div className="product-stats-label-row"><ClipboardList size={16} /><p className="product-stats-label">New Orders</p></div>
+            <p className="product-stats-value">{stageCounts.pending}</p>
+            <p className="product-stats-hint">Awaiting your response</p>
+          </div>
+          <div className="product-stats-item accent-info">
+            <div className="product-stats-label-row"><Package size={16} /><p className="product-stats-label">To Prepare</p></div>
+            <p className="product-stats-value">{stageCounts.confirmed + stageCounts.preparing}</p>
+            <p className="product-stats-hint">Confirmed, not yet ready</p>
+          </div>
+          <div className="product-stats-item accent-info">
+            <div className="product-stats-label-row"><MapPin size={16} /><p className="product-stats-label">Ready for Pickup</p></div>
+            <p className="product-stats-value">{stageCounts.ready_for_pickup}</p>
+            <p className="product-stats-hint">Waiting on the buyer</p>
+          </div>
+          <div className="product-stats-item accent-info">
+            <div className="product-stats-label-row"><Truck size={16} /><p className="product-stats-label">Out for Delivery</p></div>
+            <p className="product-stats-value">{stageCounts.out_for_delivery}</p>
+            <p className="product-stats-hint">In transit</p>
+          </div>
+          <div className="product-stats-item accent-success">
+            <div className="product-stats-label-row"><Check size={16} /><p className="product-stats-label">Completed</p></div>
+            <p className="product-stats-value">{stageCounts.completed}</p>
+            <p className="product-stats-hint">Fulfilled orders</p>
+          </div>
+        </div>
+      ) : null}
 
       {pendingVerifications.length ? (
         <section className="panel payment-verification-panel">
@@ -472,21 +558,13 @@ export default function FarmerOrders() {
               <>
                 <div className="order-table-wrap table-wrap">
                   <table>
-                    <colgroup>
-                      <col className="order-col-buyer" />
-                      <col className="order-col-order" />
-                      <col className="order-col-payment" />
-                      <col className="order-col-delivery" />
-                      <col className="order-col-status" />
-                      <col className="order-col-date" />
-                      <col className="order-col-action" />
-                    </colgroup>
                     <thead>
                       <tr>
                         <th>Buyer</th>
-                        <th>Order</th>
+                        <th>Product</th>
+                        <th>Order ID</th>
                         <th>Payment</th>
-                        <th>Delivery</th>
+                        <th>Fulfillment</th>
                         <th>Order Status</th>
                         <th>Date</th>
                         <th>Action</th>
@@ -495,8 +573,9 @@ export default function FarmerOrders() {
                     <tbody>
                       {filteredOrders.map((order) => (
                         <tr key={order.id}>
-                          <td><strong>{order.buyerName}</strong></td>
-                          <td><OrderCell order={order} /></td>
+                          <td><BuyerCell order={order} /></td>
+                          <td><ProductCell order={order} /></td>
+                          <td><OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} /></td>
                           <td><PaymentCell order={order} /></td>
                           <td><DeliveryCell order={order} /></td>
                           <td><OrderStageBadge order={order} /></td>
@@ -512,23 +591,20 @@ export default function FarmerOrders() {
                   {filteredOrders.map((order) => (
                     <div key={order.id} className="order-mobile-card">
                       <div className="order-mobile-card-top">
-                        <span className="order-mobile-card-buyer">{order.buyerName}</span>
+                        <BuyerCell order={order} />
                         <span className="order-mobile-card-date">{formatDate(order.createdAt)}</span>
                       </div>
 
-                      <div>
-                        <div className="order-cell-main">{order.productName}</div>
-                        <div className="order-cell-sub">{order.quantity} {order.unit}</div>
-                      </div>
+                      <ProductCell order={order} />
+                      <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
 
                       <div className="order-mobile-card-grid">
                         <div>
                           <p className="order-mobile-card-label">Payment</p>
-                          <p className="order-mobile-card-value">{paymentLabel(order.paymentMethod)}</p>
-                          <StatusBadge value={order.paymentStatus} type="paymentStatus" />
+                          <p className="order-mobile-card-value"><PaymentMethodLabel method={order.paymentMethod} /></p>
                         </div>
                         <div>
-                          <p className="order-mobile-card-label">Delivery</p>
+                          <p className="order-mobile-card-label">Fulfillment</p>
                           <p className="order-mobile-card-value">{deliveryMethodLabel(order.deliveryMethod)}</p>
                           {getOrderStage(order) === 'out_for_delivery' ? <span className="order-cell-sub">In transit</span> : null}
                         </div>
@@ -553,11 +629,17 @@ export default function FarmerOrders() {
                 message="Try a different search term or clear your filters."
                 actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
                 onAction={clearFilters}
+                compact
               />
             )}
           </>
         ) : (
-          <EmptyState icon={ClipboardList} title="No purchase orders yet" message="When buyers place orders for your products, they'll appear here." />
+          <EmptyState
+            icon={ClipboardList}
+            title="No purchase orders yet"
+            message="When buyers place orders for your products, they'll appear here."
+            compact
+          />
         )}
       </section>
 

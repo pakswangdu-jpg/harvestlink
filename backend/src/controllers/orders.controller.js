@@ -1,17 +1,54 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
-import { serializeOrder } from '../lib/serialize.js';
+import { serializeOrder, serializeDeliveryEvent } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
 import { reduceProductQuantity, restoreProductQuantity } from './products.controller.js';
 import { getDeliverySequence, getNextDeliveryStatus, isCancellable } from '../lib/deliverySequence.js';
 import { matchMunicipality } from '../lib/geo.js';
 import { calculateDeliveryFee } from '../lib/deliveryFee.js';
-import { PAYMENT_METHODS } from '../utils/constants.js';
+import { createLalamoveDeliveryForOrder } from './lalamove.controller.js';
+import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
+
+async function hydrateFarmerProfiles(orders) {
+  const farmerIds = [...new Set(orders.map((order) => order.farmer_id).filter(Boolean))];
+  const productIds = [...new Set(orders.map((order) => order.product_id).filter(Boolean))];
+
+  const [{ data: farmers, error: farmersError }, { data: products, error: productsError }] = await Promise.all([
+    farmerIds.length
+      ? supabaseAdmin.from('profiles').select('id, name, avatar_url, farm_name, verification_status').in('id', farmerIds)
+      : Promise.resolve({ data: [], error: null }),
+    productIds.length
+      ? supabaseAdmin.from('products').select('id, image_url').in('id', productIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (farmersError) throw new ApiError(farmersError.message, 400);
+  if (productsError) throw new ApiError(productsError.message, 400);
+
+  const farmerById = new Map((farmers || []).map((farmer) => [farmer.id, farmer]));
+  const productById = new Map((products || []).map((product) => [product.id, product]));
+  return orders.map((order) => {
+    const farmer = farmerById.get(order.farmer_id);
+    const product = productById.get(order.product_id);
+    return {
+      ...order,
+      product_image_url: order.product_image_url || product?.image_url || null,
+      ...(farmer ? {
+        farmer_name: farmer.name || order.farmer_name,
+        farmer_avatar_url: farmer.avatar_url || order.farmer_avatar_url || null,
+        farmer_farm_name: farmer.farm_name || order.farmer_farm_name || null,
+        farmer_verification_status: farmer.verification_status || order.farmer_verification_status || null,
+      } : {}),
+    };
+  });
+}
 
 async function fetchOrderOr404(id) {
   const { data, error } = await supabaseAdmin.from('orders').select('*').eq('id', id).single();
   if (error || !data) throw new ApiError('Order was not found.', 404);
-  return data;
+  // Keep older orders usable when their snapshot image is empty by resolving the current
+  // product image, just like the orders list endpoint does.
+  const [hydratedOrder] = await hydrateFarmerProfiles([data]);
+  return hydratedOrder;
 }
 
 function assertParty(req, order) {
@@ -36,13 +73,23 @@ export async function listOrders(req, res) {
 
   const { data, error } = await query;
   if (error) throw new ApiError(error.message, 400);
-  res.json(data.map(serializeOrder));
+  res.json((await hydrateFarmerProfiles(data)).map(serializeOrder));
 }
 
 export async function getOrder(req, res) {
   const order = await fetchOrderOr404(req.params.id);
   assertParty(req, order);
-  res.json(serializeOrder(order));
+
+  // Powers the status timeline (see CourierDeliveryTimeline.jsx and the equivalent for
+  // farmer_delivery/buyer_pickup) — applies to every delivery method, not just courier, so it
+  // lives on the single-order fetch rather than the courier-only GET /api/deliveries/:orderId.
+  const { data: events } = await supabaseAdmin
+    .from('order_delivery_events')
+    .select('*')
+    .eq('order_id', order.id)
+    .order('occurred_at', { ascending: true });
+
+  res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
 }
 
 // POST /api/orders — mirrors createOrder(): resolves the product, snapshots
@@ -72,7 +119,11 @@ export async function createOrder(req, res) {
   if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
   if (!PAYMENT_METHODS.includes(values.paymentMethod)) throw new ApiError('Choose a valid payment method.', 400);
 
-  const { data: farmer } = await supabaseAdmin.from('profiles').select('name').eq('id', product.farmer_id).single();
+  const { data: farmer } = await supabaseAdmin
+    .from('profiles')
+    .select('name, avatar_url, farm_name, verification_status')
+    .eq('id', product.farmer_id)
+    .single();
 
   const originMunicipality = matchMunicipality(product.location);
   const deliveryMunicipality = values.deliveryMethod === 'buyer_pickup' ? originMunicipality : values.deliveryMunicipality;
@@ -90,6 +141,7 @@ export async function createOrder(req, res) {
   const row = {
     product_id: product.id,
     product_name: product.name,
+    product_image_url: product.image_url || null,
     unit: product.unit,
     unit_price: Number(product.price),
     // Snapshotted so profit stays accurate for this order even if the farmer later edits
@@ -97,8 +149,12 @@ export async function createOrder(req, res) {
     unit_cost_price: product.cost_price == null ? null : Number(product.cost_price),
     farmer_id: product.farmer_id,
     farmer_name: farmer?.name || 'Local farmer',
+    farmer_avatar_url: farmer?.avatar_url || null,
+    farmer_farm_name: farmer?.farm_name || null,
+    farmer_verification_status: farmer?.verification_status || null,
     buyer_id: req.profile.id,
     buyer_name: req.profile.name,
+    buyer_avatar_url: req.profile.avatar_url || null,
     quantity,
     delivery_fee: deliveryFee,
     // Snapshotted alongside the fee itself — see the Smart Distance-Based Delivery Fee
@@ -125,6 +181,14 @@ export async function createOrder(req, res) {
 
   const { data: order, error } = await supabaseAdmin.from('orders').insert(row).select().single();
   if (error) throw new ApiError(error.message, 400);
+
+  await supabaseAdmin.from('order_delivery_events').insert({
+    order_id: order.id,
+    status: 'pending',
+    title: 'Order placed',
+    description: 'Your order has been placed.',
+    source: 'system',
+  });
 
   await createNotification({
     userId: order.farmer_id,
@@ -168,16 +232,20 @@ export async function updateOrderStatus(req, res) {
     link: `/orders/${order.id}`,
   });
 
-  // "Courier Assigned" — this app has no separate courier-assignment step (courier follows
-  // the exact same preparing -> packed -> out_for_delivery -> delivered sequence as
-  // farmer_delivery — see DELIVERY_SEQUENCES), so confirming a courier-method order IS the
-  // moment a courier becomes the plan for this delivery; that's the honest trigger for it.
+  // Confirming a courier-method order is the moment a courier becomes the actual plan for
+  // this delivery — the same trigger point used before the real Lalamove integration existed
+  // (it just sent a notification). Now it also books the real Lalamove order. A failed
+  // booking never undoes the order confirmation above — it leaves the farmer's existing
+  // manual "Book with Lalamove" flow (LinkLalamoveDeliveryDialog.jsx) as the fallback.
   if (status === 'confirmed' && order.delivery_method === 'courier') {
+    const bookingResult = await createLalamoveDeliveryForOrder(order);
     await createNotification({
       userId: order.farmer_id,
       type: 'order',
-      title: 'Courier assigned',
-      message: `This order will be handled by a courier for delivery to ${order.buyer_name}.`,
+      title: bookingResult.booked ? 'Courier booked' : 'Courier booking needed',
+      message: bookingResult.booked
+        ? `A Lalamove driver is being assigned for delivery to ${order.buyer_name}.`
+        : `This order needs a courier for delivery to ${order.buyer_name} — automatic booking didn't go through, book it manually with Lalamove.`,
       link: `/orders/${order.id}`,
     });
   }
@@ -240,6 +308,27 @@ export async function advanceDelivery(req, res) {
 
   const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id).select().single();
   if (error) throw new ApiError(error.message, 400);
+
+  // One delivery_events row per real transition — same DELIVERY_SEQUENCES step this endpoint
+  // already advances, just also recorded as buyer-facing history (see
+  // CourierDeliveryTimeline.jsx and the order-details timeline for farmer_delivery/buyer_pickup).
+  await supabaseAdmin.from('order_delivery_events').insert({
+    order_id: order.id,
+    status: nextStatus,
+    title: DELIVERY_STEP_LABELS[nextStatus] || nextStatus,
+    description: nextStatus === 'preparing'
+      ? `${order.farmer_name} is preparing your order.`
+      : nextStatus === 'ready_for_pickup'
+        ? `Your order from ${order.farmer_name} is ready for pickup.`
+        : isTransitStep
+          ? `${order.farmer_name} started delivering your order.`
+          : isFinalStep
+            ? (order.delivery_method === 'buyer_pickup'
+              ? `You confirmed picking up your order from ${order.farmer_name}.`
+              : `Your order from ${order.farmer_name} has been delivered.`)
+            : DELIVERY_STEP_LABELS[nextStatus] || nextStatus,
+    source: isFinalStep ? 'buyer' : 'farmer',
+  });
 
   if (nextStatus === 'preparing') {
     await createNotification({

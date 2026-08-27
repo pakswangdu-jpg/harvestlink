@@ -55,14 +55,11 @@ export default function ProductDetails() {
     // The order now exists independently of the cart — leaving a checked-out item sitting in
     // the cart would let a buyer "re-order" it by mistake straight from the cart page.
     removeItem(product.id);
-    // GCash orders are created pending, same as COD — the demo GCash payment module
-    // (src/features/payments/GcashPaymentPage.jsx) is what actually collects "payment" and
-    // marks this same order paid, so route there instead of straight to tracking.
-    if (order.paymentMethod === 'gcash') {
-      navigate(`/orders/${order.id}/pay/gcash`);
-      return;
-    }
-    navigate(`/orders/${order.id}`, { state: { notice: 'Order placed. Track its progress below.' } });
+    navigate(order.paymentMethod === 'gcash'
+      ? `/orders/${order.id}/pay/gcash`
+      : `/orders/${order.id}/pay/cod`, {
+        state: { checkoutPath: `/products/${product.id}` },
+      });
   };
 
   return (

@@ -22,6 +22,8 @@ import OrderTracking from '../features/orders/OrderTracking';
 import OrderReceipt from '../features/orders/OrderReceipt';
 import GcashPaymentPage from '../features/payments/GcashPaymentPage';
 import ConfirmGcashPaymentPage from '../features/payments/ConfirmGcashPaymentPage';
+import CodPaymentPage from '../features/payments/CodPaymentPage';
+import OrderConfirmationPage from '../features/payments/OrderConfirmationPage';
 import MessagesPage from '../features/messages/MessagesPage';
 import Profile from '../features/profile/Profile';
 import MarketInsights from '../features/market/MarketInsights';
@@ -71,6 +73,8 @@ export default function AppRoutes() {
         <Route path="/orders/:id/receipt" element={<OrderReceipt />} />
         <Route path="/orders/:id/pay/gcash" element={<GcashPaymentPage />} />
         <Route path="/orders/:id/pay/gcash/confirm" element={<ConfirmGcashPaymentPage />} />
+        <Route path="/orders/:id/pay/cod" element={<CodPaymentPage />} />
+        <Route path="/orders/:id/confirmation" element={<OrderConfirmationPage />} />
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/messages/direct/:userId" element={<MessagesPage />} />
         <Route path="/messages/:orderId" element={<MessagesPage />} />

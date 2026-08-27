@@ -302,7 +302,16 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   const isArrived = !isDelivered && remainingKm != null && remainingKm <= ARRIVED_KM_THRESHOLD;
 
   const etaCardValue = isDelivered ? 'Delivered' : isArrived ? 'Arrived' : (etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—');
-  const distanceCardValue = isDelivered ? '0.0 km' : (remainingKm != null ? `${remainingKm.toFixed(1)} km` : '—');
+  // remainingKm only exists once there's a live position to measure from (see above) — before
+  // that (courier's static preview, which never gets one at all, or farmer_delivery/
+  // buyer_pickup's own pre-transit preview), the real route distance Google already returned
+  // is exactly as accurate a number to show and shouldn't sit blank just because nothing's
+  // moving yet.
+  const distanceCardValue = isDelivered
+    ? '0.0 km'
+    : remainingKm != null
+      ? `${remainingKm.toFixed(1)} km`
+      : googleRoute?.distanceKm != null ? `${googleRoute.distanceKm.toFixed(1)} km` : '—';
   const speedCardValue = isDelivered
     ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h avg` : '—')
     : (currentSpeedKmh != null ? `${currentSpeedKmh.toFixed(0)} km/h` : '—');

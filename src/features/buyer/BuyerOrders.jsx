@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2, ClipboardList, CreditCard, Eye, MapPin, Package, RotateCcw, Search, X,
+  BadgeCheck, CalendarDays, CheckCircle2, Clipboard, ClipboardList, CreditCard, Eye, MapPin,
+  Package, RotateCcw, Search, ShoppingBag, X,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import StatusBadge from '../../components/common/StatusBadge';
+import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, cancelOrder, getOrdersByBuyer, isCancellable } from '../../services/orderService';
 import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
-import { formatCurrency, formatDate, getInitials, paymentLabel, shortOrderId } from '../../utils/formatters';
+import { formatCurrency, formatDate, getInitials, shortOrderId } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 // A buyer's own read of the order lifecycle — distinct from the farmer's version
@@ -63,6 +64,8 @@ const PAYMENT_FILTER_OPTIONS = [
   { value: 'pending', label: 'Payment pending' },
 ];
 
+const ORDERS_PER_PAGE = 10;
+
 // A GCash order already awaiting the farmer's verification of a submitted receipt has no
 // "pay again" step — showing Pay Now here would let the buyer try to submit a second,
 // conflicting payment for the same order. Mirrors OrderTracking.jsx's own gate exactly.
@@ -100,21 +103,43 @@ function ProductCell({ order }) {
 
 function FarmerCell({ order }) {
   return (
-    <div className="order-cell-with-thumb">
-      <span className="farmer-list-avatar order-cell-avatar">{getInitials(order.farmerName)}</span>
-      <strong>{order.farmerName}</strong>
+    <div className="order-cell-with-thumb order-farmer-cell">
+      <span className="farmer-list-avatar order-cell-avatar">
+        {order.farmerAvatarUrl ? <img src={order.farmerAvatarUrl} alt="" /> : getInitials(order.farmerName)}
+      </span>
+      <div>
+        <strong>{order.farmerName}</strong>
+        {order.farmerFarmName ? <div className="order-cell-sub">{order.farmerFarmName}</div> : null}
+        {order.farmerVerificationStatus === 'verified' ? (
+          <span className="order-verified"><BadgeCheck size={13} /> Verified</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function OrderIdCell({ order, copiedOrderId, onCopy }) {
+  const label = `#HL-${shortOrderId(order.id)}`;
+  return (
+    <div className="order-id-cell">
+      <span className="order-id">{label}</span>
+      <button
+        type="button"
+        className="order-copy-button"
+        onClick={() => onCopy(order.id)}
+        aria-label={`Copy order ID ${label}`}
+        title={copiedOrderId === order.id ? 'Copied' : 'Copy order ID'}
+      >
+        {copiedOrderId === order.id ? <CheckCircle2 size={15} /> : <Clipboard size={15} />}
+      </button>
+      {copiedOrderId === order.id ? <span className="order-copy-confirmation">Copied</span> : null}
     </div>
   );
 }
 
 function PaymentCell({ order }) {
   return (
-    <div>
-      <div className="order-cell-main">{paymentLabel(order.paymentMethod)}</div>
-      <div className="order-cell-sub">
-        <StatusBadge value={order.paymentStatus} type="paymentStatus" />
-      </div>
-    </div>
+    <div className="order-cell-main"><PaymentMethodLabel method={order.paymentMethod} /></div>
   );
 }
 
@@ -170,12 +195,14 @@ export default function BuyerOrders() {
   const navItems = getNavItemsForRole(currentUser.role);
   const [orders, setOrders] = useState([]);
   const [cancelTarget, setCancelTarget] = useState(null);
+  const [copiedOrderId, setCopiedOrderId] = useState(null);
 
   const [activeStage, setActiveStage] = useState('all');
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const reload = () => getOrdersByBuyer(currentUser.id).then(setOrders);
 
@@ -233,6 +260,17 @@ export default function BuyerOrders() {
     setPaymentFilter('all');
     setFromDate('');
     setToDate('');
+    setCurrentPage(1);
+  };
+
+  const copyOrderId = async (id) => {
+    try {
+      await navigator.clipboard.writeText(`#HL-${shortOrderId(id)}`);
+      setCopiedOrderId(id);
+      window.setTimeout(() => setCopiedOrderId((current) => (current === id ? null : current)), 1800);
+    } catch {
+      showToast({ type: 'error', message: 'Unable to copy the order ID.' });
+    }
   };
 
   const filteredOrders = useMemo(() => {
@@ -249,34 +287,51 @@ export default function BuyerOrders() {
     });
   }, [orders, activeStage, search, paymentFilter, fromDate, toDate]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+  const visiblePage = Math.min(currentPage, pageCount);
+  const paginatedOrders = filteredOrders.slice(
+    (visiblePage - 1) * ORDERS_PER_PAGE,
+    visiblePage * ORDERS_PER_PAGE,
+  );
+
   return (
     <AppShell
       user={currentUser}
       navItems={navItems}
       title="My Orders"
       subtitle="Track payment and delivery status for every order you've placed."
+      pageClassName="buyer-orders-page"
     >
       {orders.length ? (
-        <div className="order-stats-bar">
+        <div className="product-stats-bar buyer-order-overview">
+          <div className="buyer-order-overview-heading">
+            <p className="eyebrow">Order overview</p>
+            <p>Your current order activity</p>
+          </div>
           <div className="product-stats-item">
-            <div className="product-stats-label-row"><p className="product-stats-label">Total Orders</p></div>
+        <div className="product-stats-label-row"><ShoppingBag size={18} /><p className="product-stats-label">Total Orders</p></div>
             <p className="product-stats-value">{summary.total}</p>
+            <p className="product-stats-hint">All purchases</p>
           </div>
           <div className="product-stats-item accent-warning">
-            <div className="product-stats-label-row"><p className="product-stats-label">Pending</p></div>
+            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><ClipboardList size={18} /><p className="product-stats-label">Pending</p></div>
             <p className="product-stats-value">{summary.pending}</p>
+            <p className="product-stats-hint">Awaiting confirmation</p>
           </div>
           <div className="product-stats-item accent-info">
-            <div className="product-stats-label-row"><p className="product-stats-label">To Receive</p></div>
+            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><Package size={18} /><p className="product-stats-label">To Receive</p></div>
             <p className="product-stats-value">{summary.toReceive}</p>
+            <p className="product-stats-hint">On the way</p>
           </div>
           <div className="product-stats-item accent-success">
-            <div className="product-stats-label-row"><p className="product-stats-label">Completed</p></div>
+            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><CheckCircle2 size={18} /><p className="product-stats-label">Completed</p></div>
             <p className="product-stats-value">{summary.completed}</p>
+            <p className="product-stats-hint">Received orders</p>
           </div>
           <div className="product-stats-item accent-danger">
-            <div className="product-stats-label-row"><p className="product-stats-label">Cancelled</p></div>
+            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><X size={18} /><p className="product-stats-label">Cancelled</p></div>
             <p className="product-stats-value">{summary.cancelled}</p>
+            <p className="product-stats-hint">Not proceeding</p>
           </div>
         </div>
       ) : null}
@@ -330,11 +385,11 @@ export default function BuyerOrders() {
                   ))}
                 </select>
                 <label className="order-toolbar-date">
-                  From
+                  <span>From</span>
                   <input type="date" value={fromDate} max={toDate || undefined} onChange={(event) => setFromDate(event.target.value)} aria-label="From date" />
                 </label>
                 <label className="order-toolbar-date">
-                  To
+                  <span>To</span>
                   <input type="date" value={toDate} min={fromDate || undefined} onChange={(event) => setToDate(event.target.value)} aria-label="To date" />
                 </label>
                 {hasActiveFilters ? (
@@ -351,20 +406,24 @@ export default function BuyerOrders() {
                       <tr>
                         <th>Product</th>
                         <th>Farmer</th>
+                        <th>Order ID</th>
                         <th>Payment</th>
                         <th>Order Status</th>
-                        <th>Updated</th>
+                        <th>Date</th>
+                        <th>Total</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredOrders.map((order) => (
+                      {paginatedOrders.map((order) => (
                         <tr key={order.id}>
                           <td><ProductCell order={order} /></td>
                           <td><FarmerCell order={order} /></td>
+                          <td><OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} /></td>
                           <td><PaymentCell order={order} /></td>
                           <td><OrderStageBadge order={order} /></td>
-                          <td><span className="muted">{formatDate(order.updatedAt)}</span></td>
+                          <td><span className="order-date"><CalendarDays size={14} />{formatDate(order.createdAt)}</span></td>
+                          <td><strong className="order-total">{formatCurrency(order.totalAmount)}</strong></td>
                           <td>
                             <OrderActions
                               order={order}
@@ -379,20 +438,20 @@ export default function BuyerOrders() {
                 </div>
 
                 <div className="order-mobile-cards">
-                  {filteredOrders.map((order) => (
+                  {paginatedOrders.map((order) => (
                     <div key={order.id} className="order-mobile-card">
                       <div className="order-mobile-card-top">
-                        <span className="order-mobile-card-buyer">{order.farmerName}</span>
-                        <span className="order-mobile-card-date">{formatDate(order.updatedAt)}</span>
+                        <FarmerCell order={order} />
+                        <span className="order-mobile-card-date">{formatDate(order.createdAt)}</span>
                       </div>
 
                       <ProductCell order={order} />
+                      <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
 
                       <div className="order-mobile-card-grid">
                         <div>
                           <p className="order-mobile-card-label">Payment</p>
-                          <p className="order-mobile-card-value">{paymentLabel(order.paymentMethod)}</p>
-                          <StatusBadge value={order.paymentStatus} type="paymentStatus" />
+                          <p className="order-mobile-card-value"><PaymentMethodLabel method={order.paymentMethod} /></p>
                         </div>
                         <div>
                           <p className="order-mobile-card-label">Total</p>
@@ -415,6 +474,29 @@ export default function BuyerOrders() {
                     </div>
                   ))}
                 </div>
+                {pageCount > 1 ? (
+                  <nav className="orders-pagination" aria-label="Order history pages">
+                    <button
+                      type="button"
+                      className="orders-pagination-button"
+                      disabled={visiblePage === 1}
+                      onClick={() => setCurrentPage((page) => Math.max(1, Math.min(page, pageCount) - 1))}
+                    >
+                      Previous
+                    </button>
+                    <span className="orders-pagination-status">
+                      Page {visiblePage} of {pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      className="orders-pagination-button"
+                      disabled={visiblePage === pageCount}
+                      onClick={() => setCurrentPage((page) => Math.min(pageCount, Math.min(page, pageCount) + 1))}
+                    >
+                      Next
+                    </button>
+                  </nav>
+                ) : null}
               </>
             ) : (
               <EmptyState

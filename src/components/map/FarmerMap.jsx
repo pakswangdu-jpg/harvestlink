@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
-import { isRecentlyActive } from '../../utils/formatters';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
+import { buildMapPopup, buildPresenceMarkup } from './mapPopupMarkup';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -13,13 +13,6 @@ const PRECISION_LABELS = {
   municipality: 'Approximate — municipality center',
   fallback: 'Approximate — municipality area',
 };
-
-// A dot + label rather than just a color, since the pin's own fixed color already means
-// "farmer" / "buyer" / "donation" — presence needs its own independent visual.
-function presenceHtml(person) {
-  const online = isRecentlyActive(person.lastActiveAt);
-  return `<span class="presence-dot ${online ? 'online' : 'offline'}"></span> ${online ? 'Online' : 'Offline'}`;
-}
 
 // Classic teardrop map-pin shape (rounded head + pointed tail) with a white hole punched
 // through the head, rather than a plain colored dot — the tail's tip is the actual pinned
@@ -166,8 +159,16 @@ export default function FarmerMap({
       allPoints.push(coords);
       const existing = markersRef.current[id];
       if (existing) {
-        existing.marker.setPosition(coords);
-        existing.infoWindow.setContent(popupHtml);
+        const positionChanged =
+          existing.position.lat !== coords.lat || existing.position.lng !== coords.lng;
+        if (positionChanged) {
+          existing.marker.setPosition(coords);
+          existing.position = coords;
+        }
+        if (existing.popupHtml !== popupHtml) {
+          existing.infoWindow.setContent(popupHtml);
+          existing.popupHtml = popupHtml;
+        }
         return;
       }
       const marker = new mapsApi.Marker({ position: coords, map, icon: buildIcon() });
@@ -176,7 +177,7 @@ export default function FarmerMap({
         openInfoWindow(marker, infoWindow);
         if (onClick) onClick();
       });
-      markersRef.current[id] = { marker, infoWindow };
+      markersRef.current[id] = { marker, infoWindow, position: coords, popupHtml };
     }
 
     farmers.forEach((farmer) => {
@@ -193,16 +194,16 @@ export default function FarmerMap({
       // Always offer "Contact" — it opens a direct-message thread whether or not one already
       // exists (sending the first message creates it), so browsing the map is itself a valid
       // way to start a new conversation, not just continue one.
-      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>`;
-      const popupHtml =
-        `<strong>${displayName}</strong><br/>` +
-        `${farmer.name}<br/>` +
-        `${farmer.municipality}` +
-        (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
-        `<br/>${presenceHtml(farmer)}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        productsLine +
-        contactLine;
+      const popupHtml = buildMapPopup({
+        name: displayName,
+        person: farmer.name,
+        municipality: farmer.municipality,
+        contactNumber: farmer.contactNumber,
+        presence: buildPresenceMarkup(farmer),
+        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+        products: productsLine.replace('<br/>', ''),
+        links: isYou ? [] : [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
+      });
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.farmer), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
@@ -211,14 +212,14 @@ export default function FarmerMap({
       if (!coords) return;
 
       const isYou = buyer.id === currentUserId;
-      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${buyer.id}">Contact buyer</a>`;
-      const popupHtml =
-        `<strong>${isYou ? 'You' : buyer.name}</strong><br/>` +
-        `${buyer.municipality}` +
-        (buyer.contactNumber ? `<br/>${buyer.contactNumber}` : '') +
-        `<br/>${presenceHtml(buyer)}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        contactLine;
+      const popupHtml = buildMapPopup({
+        name: isYou ? 'You' : buyer.name,
+        municipality: buyer.municipality,
+        contactNumber: buyer.contactNumber,
+        presence: buildPresenceMarkup(buyer),
+        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+        links: isYou ? [] : [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer' }],
+      });
       upsertMarker(buyer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.buyer), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)));
     });
 
@@ -228,15 +229,15 @@ export default function FarmerMap({
 
       const isYou = stakeholder.id === currentUserId;
       const displayName = isYou ? 'You' : (stakeholder.organizationName || stakeholder.name);
-      const contactLine = isYou ? '' : `<br/><a href="/messages/direct/${stakeholder.id}">Contact stakeholder</a>`;
-      const popupHtml =
-        `<strong>${displayName}</strong><br/>` +
-        (stakeholder.contactPerson ? `${stakeholder.contactPerson}<br/>` : '') +
-        `${stakeholder.municipality}` +
-        (stakeholder.contactNumber ? `<br/>${stakeholder.contactNumber}` : '') +
-        `<br/>${presenceHtml(stakeholder)}` +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        contactLine;
+      const popupHtml = buildMapPopup({
+        name: displayName,
+        person: stakeholder.contactPerson,
+        municipality: stakeholder.municipality,
+        contactNumber: stakeholder.contactNumber,
+        presence: buildPresenceMarkup(stakeholder),
+        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+        links: isYou ? [] : [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder' }],
+      });
       upsertMarker(stakeholder.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.stakeholder), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)));
     });
 
@@ -248,14 +249,16 @@ export default function FarmerMap({
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
-      const popupHtml =
-        `<strong>${displayName}</strong><br/>` +
-        `${farmer.name}<br/>` +
-        `${farmer.municipality}` +
-        (farmer.contactNumber ? `<br/>${farmer.contactNumber}` : '') +
-        `<br/><small>${PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback}</small>` +
-        `<br/><a href="/messages/direct/${farmer.id}">Contact farmer</a>` +
-        `<br/><br/><strong>Available donations</strong><br/>${donationList}`;
+      const popupHtml = buildMapPopup({
+        name: displayName,
+        person: farmer.name,
+        municipality: farmer.municipality,
+        contactNumber: farmer.contactNumber,
+        presence: buildPresenceMarkup(farmer),
+        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+        products: `<strong>Available donations</strong><br/>${donationList}`,
+        links: [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
+      });
       upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.stakeholder, { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
     });
 
@@ -324,6 +327,7 @@ export default function FarmerMap({
         onClick={toggleFullscreen}
         aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
         title={isFullscreen ? 'Exit full view' : 'View map fully'}
+        aria-pressed={isFullscreen}
       >
         {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
       </button>

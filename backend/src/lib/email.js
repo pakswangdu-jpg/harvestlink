@@ -2,11 +2,10 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 
-// Embedded as a base64 data URI rather than linked by URL — this project has no stable public
-// hostname yet (no custom domain; a Vercel preview URL can change), and a data URI works in
-// every recipient's inbox (Gmail included, which is all this project targets) without
-// depending on any external host staying up. Pre-resized to 96x96 (source logo.png is
-// 1024x1024/475KB — far too large to embed) so the email stays a reasonable size.
+// Kept as base64 content for Resend's inline CID attachment — this project has no stable public
+// hostname yet (no custom domain; a Vercel preview URL can change). Pre-resized to 96x96 (source
+// logo.png is 1024x1024/475KB) so the email stays a reasonable size while the logo remains
+// available to inboxes that block data URIs.
 const LOGO_BASE64 = readFileSync(fileURLToPath(new URL('../assets/email-logo.png', import.meta.url))).toString('base64');
 
 // Verification emails only — sent via Resend, from the backend exclusively. RESEND_API_KEY is
@@ -40,6 +39,8 @@ const TEXT_FAINT = '#9ca3af';
 const LINE = '#e5e7eb';
 const CODE_BG = '#fafaf9';
 const PAGE_BG = '#f3f4f6';
+// Arial is the closest dependable match for the Inter wordmark in inboxes where web fonts
+// are unavailable; keeping this stack explicit prevents clients from substituting a serif font.
 const FONT_STACK = "Arial, Helvetica, 'Segoe UI', sans-serif";
 
 // Purely a DISPLAY transform for the emailed HTML/text — "482913" -> "4 8 2 9 1 3". The `code`
@@ -76,11 +77,11 @@ function verificationEmailHtml(code) {
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
                     <td width="30" valign="middle" style="width:30px;">
-                      <img src="data:image/png;base64,${LOGO_BASE64}" width="30" height="30" alt="" style="display:block; width:30px; height:30px; border:0;" />
+                      <img src="cid:harvestlink-logo" width="30" height="30" alt="HarvestLink" style="display:block; width:30px; height:30px; border:0;" />
                     </td>
                     <td width="8" style="width:8px;"></td>
                     <td valign="middle">
-                      <span style="font-family:${FONT_STACK}; font-size:16px; font-weight:700;">
+                      <span style="display:block; font-family:${FONT_STACK}; font-size:16px; font-weight:650; letter-spacing:-0.16px; line-height:1.2;">
                         <span style="color:${BRAND_HARVEST};">Harvest</span><span style="color:${BRAND_LINK};">Link</span>
                       </span>
                     </td>
@@ -180,6 +181,14 @@ export async function sendVerificationCodeEmail(email, code) {
     subject: 'Verify your HarvestLink account',
     html: verificationEmailHtml(code),
     text: verificationEmailText(code),
+    attachments: [
+      {
+        filename: 'harvestlink-logo.png',
+        content: LOGO_BASE64,
+        // Resend's Node SDK maps this camelCase field to the MIME content-id header.
+        contentId: 'harvestlink-logo',
+      },
+    ],
   });
 
   if (error) {

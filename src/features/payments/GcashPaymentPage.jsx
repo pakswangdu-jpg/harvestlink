@@ -6,9 +6,13 @@ import {
 import ZoomableImage from '../../components/common/ZoomableImage';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import CheckoutProgress from '../../components/checkout/CheckoutProgress';
+import MobileBottomNav from '../../components/layout/MobileBottomNav';
+import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { getGcashCheckout } from '../../services/paymentService';
 import { formatCurrency, shortOrderId } from '../../utils/formatters';
+import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import logo from '../../assets/logo.png';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
 
@@ -29,17 +33,27 @@ const PAYMENT_STEPS = [
 // see backend/src/controllers/payments.controller.js.
 //
 // Deliberately doesn't use AppShell — a payment step leaves the merchant's own app chrome
-// behind, so this renders as its own full-page, sidebar-free experience instead.
+// (sidebar, breadcrumb, page header) behind, rendering as its own full-page experience
+// instead. It still mounts MobileBottomNav directly, though: without it, a mobile buyer who
+// backgrounds the GCash app mid-payment and comes back had no way to navigate anywhere
+// except the explicit "Back to Order"/"Back to marketplace" links.
 export default function GcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { currentUser } = useAuth();
+  const navItems = getNavItemsForRole(currentUser.role);
 
   // 'loading' | 'ready' | 'error'
   const [stage, setStage] = useState('loading');
   const [checkout, setCheckout] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  // Bumped by "Try Again" to force the effect below to refetch — the farmer setting up
+  // GCash (Profile.jsx) doesn't push anything to an already-open checkout tab, so without
+  // this a buyer who hit the "not set up yet" error has no way back except abandoning the
+  // order via "Back to marketplace" and restarting checkout from scratch.
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,9 +78,10 @@ export default function GcashPaymentPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, navigate]);
+  }, [id, navigate, retryToken]);
 
   const copyGcashNumber = () => {
+    if (!checkout?.gcash?.number) return;
     navigator.clipboard?.writeText(checkout.gcash.number).then(() => {
       showToast({ type: 'success', message: 'GCash number copied.' });
     }).catch(() => {});
@@ -84,6 +99,7 @@ export default function GcashPaymentPage() {
         </div>
 
         <div className="panel gcash-payment-card">
+          <CheckoutProgress currentStep="payment" />
           {stage === 'loading' ? (
             <div className="gcash-payment-status">
               <Loader2 className="animate-spin" size={24} />
@@ -95,7 +111,19 @@ export default function GcashPaymentPage() {
             <div className="gcash-payment-status">
               <XCircle size={28} className="gcash-status-icon error" />
               <p>{loadError}</p>
-              <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
+              <div className="gcash-payment-status-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-md"
+                  onClick={() => {
+                    setStage('loading');
+                    setRetryToken((token) => token + 1);
+                  }}
+                >
+                  Try Again
+                </button>
+                <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
+              </div>
             </div>
           ) : null}
 
@@ -120,15 +148,17 @@ export default function GcashPaymentPage() {
                       <dt>GCash account name</dt>
                       <dd>{checkout.gcash.accountName}</dd>
                     </div>
-                    <div>
-                      <dt>GCash number</dt>
-                      <dd className="gcash-copyable-row">
-                        {checkout.gcash.number}
-                        <button type="button" className="gcash-copy-btn" onClick={copyGcashNumber} aria-label="Copy GCash number">
-                          <Copy size={13} />
-                        </button>
-                      </dd>
-                    </div>
+                    {checkout.gcash.number ? (
+                      <div>
+                        <dt>GCash number</dt>
+                        <dd className="gcash-copyable-row">
+                          {checkout.gcash.number}
+                          <button type="button" className="gcash-copy-btn" onClick={copyGcashNumber} aria-label="Copy GCash number">
+                            <Copy size={13} />
+                          </button>
+                        </dd>
+                      </div>
+                    ) : null}
                     <div>
                       <dt>Total amount</dt>
                       <dd className="gcash-amount">{formatCurrency(checkout.order.totalAmount)}</dd>
@@ -183,6 +213,8 @@ export default function GcashPaymentPage() {
           ) : null}
         </div>
       </div>
+
+      <MobileBottomNav user={currentUser} navItems={navItems} />
 
       <ConfirmDialog
         open={isLeaveDialogOpen}

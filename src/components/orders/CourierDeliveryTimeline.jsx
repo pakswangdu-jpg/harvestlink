@@ -5,11 +5,18 @@ import { updateDeliveryStatus } from '../../services/deliveryService';
 import { courierDeliveryStatusLabel } from '../../utils/formatters';
 import Button from '../common/Button';
 
-// The delivery's own farmer-narrated timeline, once booked — separate from order.deliveryStatus
-// (which only ever advances via the buyer's own "Got it" confirmation, see orderService.js).
-// HarvestLink has no live Lalamove API to learn "picked up"/"delivered" from automatically, so
-// the farmer reports it by hand — see deliveries.controller.js's updateDeliveryStatus.
-const NARRATION_SEQUENCE = ['booked', 'waiting_for_pickup', 'picked_up', 'delivered'];
+// The delivery's own timeline, once booked — separate from order.deliveryStatus (which only
+// ever advances via the buyer's own "Got it" confirmation, see orderService.js). Two paths
+// populate this now: the real Lalamove webhook (delivery.lalamoveOrderId set — see
+// backend/src/controllers/webhooks/lalamoveWebhook.controller.js) reports
+// assigning_driver/driver_assigned/picked_up/delivered automatically; an order still on the
+// older manual-entry fallback (no lalamoveOrderId — the farmer booked outside HarvestLink and
+// typed the details in, see deliveries.controller.js's updateDeliveryStatus) has the farmer
+// report waiting_for_pickup/picked_up/delivered by hand instead. Each order only ever takes
+// one path, so only that path's steps are shown — never a merged list with steps that path
+// can't actually reach.
+const LALAMOVE_NARRATION_SEQUENCE = ['booked', 'assigning_driver', 'driver_assigned', 'picked_up', 'delivered'];
+const MANUAL_NARRATION_SEQUENCE = ['booked', 'waiting_for_pickup', 'picked_up', 'delivered'];
 
 // The courier (Lalamove) order's own timeline — a different step SET than the generic
 // OrderTracker (which just walks DELIVERY_SEQUENCES literally: Preparing/Packed/Out for
@@ -36,10 +43,24 @@ export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onD
   const isBooked = Boolean(delivery);
   const isCompleted = order.status === 'completed';
 
-  const narrationIndex = delivery ? NARRATION_SEQUENCE.indexOf(delivery.deliveryStatus) : -1;
-  const isWaitingForPickupOrLater = narrationIndex >= 1;
-  const isPickedUpOrLater = narrationIndex >= 2;
-  const isDelivered = narrationIndex >= 3 || isCompleted;
+  // Real Lalamove booking (delivery.lalamoveOrderId set by createLalamoveDeliveryForOrder /
+  // kept current by the webhook) shows the automatic 5-step path; a delivery still on the
+  // manual-entry fallback shows the original 4-step farmer-narrated one instead.
+  const isLalamoveBooked = Boolean(delivery?.lalamoveOrderId);
+  const narrationSequence = isLalamoveBooked ? LALAMOVE_NARRATION_SEQUENCE : MANUAL_NARRATION_SEQUENCE;
+  const narrationIndex = delivery ? narrationSequence.indexOf(delivery.deliveryStatus) : -1;
+
+  const narrationSteps = isLalamoveBooked
+    ? [
+      { key: 'assigning_driver', label: 'Finding a Driver', done: narrationIndex >= 1 },
+      { key: 'driver_assigned', label: 'Driver Assigned', done: narrationIndex >= 2 },
+      { key: 'picked_up', label: 'Picked Up', done: narrationIndex >= 3 },
+    ]
+    : [
+      { key: 'waiting_for_pickup', label: 'Waiting for Pickup', done: narrationIndex >= 1 },
+      { key: 'picked_up', label: 'Picked Up', done: narrationIndex >= 2 },
+    ];
+  const isDelivered = narrationIndex >= narrationSequence.length - 1 || isCompleted;
 
   const steps = [
     { key: 'placed', label: 'Order Placed', done: true },
@@ -47,8 +68,7 @@ export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onD
     { key: 'payment', label: 'Payment Verified', done: isPaymentVerified },
     { key: 'preparing', label: 'Preparing Products', done: isPreparingOrLater },
     { key: 'booked', label: 'Booked with Lalamove', done: isBooked },
-    { key: 'waiting_for_pickup', label: 'Waiting for Pickup', done: isWaitingForPickupOrLater },
-    { key: 'picked_up', label: 'Picked Up', done: isPickedUpOrLater },
+    ...narrationSteps,
     { key: 'delivered', label: 'Delivered', done: isDelivered },
   ];
   // The first not-yet-done step is the "current" one — everything before it is done,
@@ -56,7 +76,12 @@ export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onD
   // 'active' too.
   const activeIndex = steps.findIndex((step) => !step.done);
 
-  const nextNarrationStatus = isBooked && narrationIndex !== -1 ? NARRATION_SEQUENCE[narrationIndex + 1] : null;
+  // Only offered on the manual-entry fallback path — once a real Lalamove order exists, the
+  // webhook is the sole source of truth for these steps (see handleLalamoveWebhook), and the
+  // buyer frontend/farmer button must not be able to fabricate a status change for it.
+  const nextNarrationStatus = !isLalamoveBooked && isBooked && narrationIndex !== -1
+    ? narrationSequence[narrationIndex + 1]
+    : null;
 
   const handleAdvance = async () => {
     if (!nextNarrationStatus) return;

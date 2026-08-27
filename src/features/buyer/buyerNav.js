@@ -12,15 +12,16 @@ const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
 const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
 const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 
-// Every icon here follows currentColor, so SidebarNavItem can color them via the
-// --icon-muted/--green-700 tokens (light AND dark) — the lucide ones natively, and the
-// supplied PNG artwork through createMaskNavIcon, which masks rather than paints.
+// `group` drives the sidebar's section headings (see AppShell.jsx's grouping logic and
+// NAV_GROUP_ORDER) — mirrors farmerNav.js's own grouping, adapted for what a buyer actually
+// does here: they don't sell anything, so "Sales" doesn't fit — "Orders" covers their own
+// purchases and the messages tied to them instead.
 export const buyerNavItems = [
-  { to: '/buyer-dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { to: '/marketplace', label: 'Marketplace', icon: MarketplaceNavIcon },
-  { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon },
-  { to: '/messages', label: 'Messages', icon: MessagesNavIcon },
-  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon },
-  { to: '/market-insights', label: 'Market Insights', icon: TrendingUp },
+  { to: '/buyer-dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
+  { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon, group: 'Orders' },
+  { to: '/messages', label: 'Messages', icon: MessagesNavIcon, group: 'Orders' },
+  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, group: 'Market' },
+  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, group: 'Market' },
+  { to: '/market-insights', label: 'Market Insights', icon: TrendingUp, group: 'Market' },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

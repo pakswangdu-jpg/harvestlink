@@ -58,7 +58,16 @@ app.use(cors({
     callback(null, false);
   },
 }));
-app.use(express.json());
+// `verify` stashes the exact raw bytes of the request body onto req.rawBody, alongside the
+// normal parsed req.body — needed by verifyLalamoveWebhook.js, which has to check Lalamove's
+// signature against the exact bytes Lalamove signed, not Express's re-serialized JSON (which
+// can differ in key order/whitespace and would make every signature check fail). No effect on
+// any other route — they simply never read req.rawBody.
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api', apiRoutes);

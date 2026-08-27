@@ -52,6 +52,7 @@ export default function SidebarNavItem({ to, label, icon: Icon, badge, isCollaps
                 </span>
               )
             ) : null}
+            {!isCollapsed ? <span className="sidebar-hover-arrow" aria-hidden="true">&gt;</span> : null}
           </>
         )}
       </NavLink>

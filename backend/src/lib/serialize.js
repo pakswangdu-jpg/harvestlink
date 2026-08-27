@@ -84,13 +84,18 @@ export function serializeOrder(row) {
     id: row.id,
     productId: row.product_id,
     productName: row.product_name,
+    productImageUrl: row.product_image_url || null,
     unit: row.unit,
     unitPrice: Number(row.unit_price),
     unitCostPrice: row.unit_cost_price == null ? null : Number(row.unit_cost_price),
     farmerId: row.farmer_id,
     farmerName: row.farmer_name,
+    farmerAvatarUrl: row.farmer_avatar_url || null,
+    farmerFarmName: row.farmer_farm_name || null,
+    farmerVerificationStatus: row.farmer_verification_status || null,
     buyerId: row.buyer_id,
     buyerName: row.buyer_name,
+    buyerAvatarUrl: row.buyer_avatar_url || null,
     quantity: Number(row.quantity),
     deliveryFee: Number(row.delivery_fee || 0),
     // Snapshotted by the Smart Distance-Based Delivery Fee System at order creation (see
@@ -148,8 +153,26 @@ export function serializeDelivery(row) {
     trackingUrl: row.tracking_url,
     estimatedArrival: row.estimated_arrival,
     deliveryStatus: row.delivery_status,
+    // Populated once createLalamoveDeliveryForOrder (orders.controller.js) books through the
+    // real Lalamove API — null for an order still on the manual-entry fallback path.
+    lalamoveOrderId: row.lalamove_order_id || null,
+    lalamoveQuotationId: row.lalamove_quotation_id || null,
+    lalamoveStatus: row.lalamove_status || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+export function serializeDeliveryEvent(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    status: row.status,
+    title: row.title,
+    description: row.description,
+    occurredAt: row.occurred_at,
+    source: row.source,
   };
 }
 

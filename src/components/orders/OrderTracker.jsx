@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, CircleX } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { getDeliverySequence } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS } from '../../utils/constants';
@@ -14,7 +14,12 @@ function timestampForStep(step, order) {
   return null;
 }
 
-export default function OrderTracker({ order }) {
+const TERMINAL_STEP_LABEL = {
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+};
+
+export default function OrderTracker({ order, isFarmer = false }) {
   const isActive = order.status === 'confirmed' || order.status === 'completed';
   const sequence = getDeliverySequence(order.deliveryMethod);
   const currentIndex = sequence.indexOf(order.deliveryStatus);
@@ -58,11 +63,39 @@ export default function OrderTracker({ order }) {
             );
           })}
         </ol>
+      ) : order.status === 'rejected' || order.status === 'cancelled' ? (
+        <>
+          <div className="form-alert error has-icon">
+            <CircleX size={16} />
+            <div>
+              <strong>This order was {order.status}.</strong>
+              <p>If you have any questions, you can message the {isFarmer ? 'buyer' : 'farmer'}.</p>
+            </div>
+          </div>
+          <ol className="tracker">
+            <li className="tracker-step done">
+              <span className="tracker-icon"><Check size={14} /></span>
+              <span className="tracker-step-body">
+                <span className="tracker-label">Order placed</span>
+                <time className="tracker-timestamp" dateTime={order.createdAt} title={formatDate(order.createdAt)}>
+                  {formatRelativeTime(order.createdAt)}
+                </time>
+              </span>
+            </li>
+            <li className="tracker-step error">
+              <span className="tracker-icon"><CircleX size={14} /></span>
+              <span className="tracker-step-body">
+                <span className="tracker-label">{TERMINAL_STEP_LABEL[order.status]}</span>
+                <time className="tracker-timestamp" dateTime={order.updatedAt} title={formatDate(order.updatedAt)}>
+                  {formatRelativeTime(order.updatedAt)}
+                </time>
+              </span>
+            </li>
+          </ol>
+        </>
       ) : (
         <p className="muted tracker-inactive">
-          {order.status === 'pending' && 'Waiting for the farmer to confirm this order before delivery tracking starts.'}
-          {order.status === 'rejected' && 'This order was rejected by the farmer.'}
-          {order.status === 'cancelled' && 'This order was cancelled.'}
+          Waiting for the farmer to confirm this order before delivery tracking starts.
         </p>
       )}
     </div>

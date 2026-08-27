@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowRight, ChevronRight, MapPin } from 'lucide-react';
+import {
+  ArrowRight, ChevronRight, MapPin, Sprout,
+} from 'lucide-react';
 import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import ProductCard from '../../components/cards/ProductCard';
 import BrandWordmark from '../../components/common/BrandWordmark';
@@ -80,7 +82,7 @@ export default function PublicFarmerProfile() {
         ) : (
           <>
             <section className="public-farmer-header">
-              <span className="top-farmer-avatar public-farmer-avatar-lg">
+              <span className="public-farmer-avatar-lg">
                 {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
               </span>
               <div className="public-farmer-info">
@@ -131,6 +133,7 @@ export default function PublicFarmerProfile() {
                 </div>
               ) : (
                 <EmptyState
+                  icon={Sprout}
                   title="No produce available"
                   message="No produce is currently available from this farmer right now — check back soon."
                 />

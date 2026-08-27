@@ -10,6 +10,7 @@ import {
 import { useNotificationsRealtime } from '../../hooks/useNotificationsRealtime';
 import { formatRelativeTime } from '../../utils/formatters';
 import { playNotificationSound } from '../../utils/notificationSound';
+import { areBrowserNotificationsEnabled, showBrowserNotification } from '../../utils/browserNotifications';
 
 const TYPE_ICONS = {
   order: Package,
@@ -44,6 +45,7 @@ export default function NotificationBell({ userId }) {
       previous.some((existing) => existing.id === notification.id) ? previous : [notification, ...previous]
     ));
     playNotificationSound();
+    if (areBrowserNotificationsEnabled(userId)) showBrowserNotification(notification);
   });
 
   useEffect(() => {
