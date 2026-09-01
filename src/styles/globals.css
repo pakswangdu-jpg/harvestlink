@@ -28,6 +28,7 @@
   --amber-700: #b45309;
   --red-100: #fee2e2;
   --red-700: #b91c1c;
+  --notification-badge: #b4232c;
   --blue-100: #dbeafe;
   --blue-700: #1d4ed8;
   --orange-100: #fff1e5;
@@ -101,6 +102,7 @@
   --amber-700: #fbbf24;
   --red-100: #3a1414;
   --red-700: #f87171;
+  --notification-badge: #b4232c;
   --blue-100: #142a3d;
   --blue-700: #60a5fa;
   --orange-100: #3a2410;
@@ -149,6 +151,113 @@ body {
   min-width: 320px;
   background: var(--soft);
 }
+
+/* Stakeholder operations dashboard ------------------------------------------------------- */
+.stakeholder-operations-dashboard {
+  --stakeholder-surface: var(--panel);
+  --stakeholder-subtle: var(--panel-subtle);
+}
+
+.stakeholder-operations-dashboard > * + * { margin-top: 20px; }
+
+.stakeholder-verification-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--amber-700) 42%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amber-100) 40%, var(--panel));
+  color: var(--text);
+}
+
+.stakeholder-verification-banner > svg { width: 20px; color: var(--amber-700); }
+.stakeholder-verification-banner strong { display: block; font-size: 14px; }
+.stakeholder-verification-banner p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.stakeholder-verification-banner a,
+.stakeholder-verification-banner button {
+  padding: 0; border: 0; background: none; color: var(--green-700); font-size: 13px; font-weight: 650; white-space: nowrap; cursor: pointer;
+}
+.stakeholder-verification-banner.is-approved { border-color: color-mix(in srgb, var(--green-700) 40%, var(--line)); background: color-mix(in srgb, var(--green-50) 55%, var(--panel)); }
+.stakeholder-verification-banner.is-approved > svg { color: var(--green-700); }
+.stakeholder-verification-banner.is-rejected { border-color: color-mix(in srgb, var(--red-700) 45%, var(--line)); }
+.stakeholder-verification-banner.is-rejected > svg { color: var(--red-700); }
+
+.stakeholder-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.stakeholder-quick-actions a {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--stakeholder-surface); color: var(--text); font-size: 13px; font-weight: 600; transition: background .15s, border-color .15s, color .15s;
+}
+.stakeholder-quick-actions a:hover { border-color: var(--green-700); background: var(--green-50); color: var(--green-700); }
+.stakeholder-quick-actions svg { width: 16px; height: 16px; color: var(--green-700); stroke-width: 2; }
+
+.stakeholder-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 12px; background: var(--stakeholder-surface); }
+.stakeholder-summary-stat { display: flex; gap: 12px; min-width: 0; padding: 16px; border-right: 1px solid var(--line); }
+.stakeholder-summary-stat:last-child { border-right: 0; }
+.stakeholder-summary-stat > svg { flex: 0 0 auto; width: 19px; height: 19px; margin-top: 2px; color: var(--green-700); stroke-width: 2; }
+.stakeholder-summary-stat.tone-blue > svg { color: var(--blue-700); }
+.stakeholder-summary-stat.tone-amber > svg { color: var(--amber-700); }
+.stakeholder-summary-stat p,
+.stakeholder-summary-stat span { display: block; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.35; }
+.stakeholder-summary-stat strong { display: block; margin: 3px 0 2px; color: var(--text); font-size: 24px; line-height: 1; letter-spacing: -.03em; }
+
+.stakeholder-primary-grid,
+.stakeholder-lower-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 20px; }
+.stakeholder-section { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--stakeholder-surface); }
+.stakeholder-section-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 17px 18px 14px; border-bottom: 1px solid var(--line); }
+.stakeholder-section-header h2 { margin: 0; color: var(--text); font-size: 18px; font-weight: 680; line-height: 1.25; }
+.stakeholder-section-header p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+.stakeholder-section-header > a,
+.stakeholder-compact-empty a { display: inline-flex; align-items: center; gap: 5px; color: var(--green-700); font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+
+.stakeholder-donation-list { padding: 0 18px; }
+.stakeholder-donation-row { display: grid; grid-template-columns: 42px minmax(130px, 1fr) minmax(110px, .8fr) auto; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.stakeholder-donation-row:last-child { border-bottom: 0; }
+.stakeholder-donation-image { display: grid; width: 42px; height: 42px; place-items: center; overflow: hidden; border-radius: 8px; background: var(--soft); color: var(--green-700); }
+.stakeholder-donation-image img { width: 100%; height: 100%; object-fit: cover; }
+.stakeholder-donation-image svg { width: 20px; }
+.stakeholder-donation-copy strong,
+.stakeholder-donation-copy span,
+.stakeholder-donation-copy small,
+.stakeholder-donation-freshness span,
+.stakeholder-donation-freshness small { display: block; }
+.stakeholder-donation-copy strong { color: var(--text); font-size: 14px; }
+.stakeholder-donation-copy span,
+.stakeholder-donation-freshness span { margin-top: 2px; color: var(--muted); font-size: 12px; }
+.stakeholder-donation-copy small,
+.stakeholder-donation-freshness small { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--muted); font-size: 11.5px; }
+.stakeholder-donation-freshness { min-width: 0; }
+.stakeholder-row-action { padding: 6px 9px; border: 1px solid var(--green-700); border-radius: 7px; color: var(--green-700); font-size: 12px; font-weight: 650; transition: background .15s, color .15s; }
+.stakeholder-row-action:hover { background: var(--green-700); color: #fff; }
+
+.stakeholder-request-list { overflow-x: auto; }
+.stakeholder-request-head,
+.stakeholder-request-row { display: grid; grid-template-columns: minmax(120px, 1.25fr) minmax(90px, 1fr) minmax(105px, 1fr) auto; align-items: center; column-gap: 12px; min-width: 520px; padding-inline: 18px; }
+.stakeholder-request-head { height: 35px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 650; }
+.stakeholder-request-row { min-height: 58px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 12.5px; }
+.stakeholder-request-row:last-child { border-bottom: 0; }
+.stakeholder-request-row strong,
+.stakeholder-request-row small { display: block; }
+.stakeholder-request-row strong { font-size: 13px; }
+.stakeholder-request-row small { margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+
+.stakeholder-map-panel .farmer-map { height: 285px; margin: 0; border: 0; border-radius: 0 0 12px 12px; }
+.stakeholder-map-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 11px 18px; color: var(--muted); font-size: 11.5px; }
+.stakeholder-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.stakeholder-map-legend i { width: 7px; height: 7px; border-radius: 50%; background: var(--green-700); }
+.stakeholder-map-legend .is-pickup { background: var(--blue-700); }.stakeholder-map-legend .is-organization { background: var(--amber-700); }
+.stakeholder-map-note { margin: 0; padding: 11px 18px 15px; color: var(--muted); font-size: 12px; }
+
+.stakeholder-activity-list { padding: 3px 18px 8px; }
+.stakeholder-activity-list article { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.stakeholder-activity-list article:last-child { border-bottom: 0; }
+.stakeholder-activity-list article > span { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: var(--green-50); color: var(--green-700); }.stakeholder-activity-list svg { width: 14px; }
+.stakeholder-activity-list strong { display: block; color: var(--text); font-size: 13px; }.stakeholder-activity-list p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }.stakeholder-activity-list time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.stakeholder-compact-empty { display: flex; align-items: flex-start; gap: 11px; padding: 21px 18px; color: var(--muted); }.stakeholder-compact-empty > svg { width: 19px; height: 19px; color: var(--green-700); }.stakeholder-compact-empty strong { display: block; color: var(--text); font-size: 13.5px; }.stakeholder-compact-empty p { max-width: 360px; margin: 3px 0 7px; font-size: 12.5px; line-height: 1.45; }
+
+@media (max-width: 900px) { .stakeholder-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }.stakeholder-summary-stat:nth-child(2) { border-right: 0; }.stakeholder-summary-stat:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }.stakeholder-primary-grid, .stakeholder-lower-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .stakeholder-operations-dashboard > * + * { margin-top: 14px; }.stakeholder-verification-banner { grid-template-columns: auto minmax(0, 1fr); }.stakeholder-verification-banner a, .stakeholder-verification-banner button { grid-column: 2; justify-self: start; }.stakeholder-summary-stat { padding: 13px; }.stakeholder-donation-list { padding-inline: 14px; }.stakeholder-donation-row { grid-template-columns: 38px minmax(0, 1fr) auto; }.stakeholder-donation-image { width: 38px; height: 38px; }.stakeholder-donation-freshness { display: none; }.stakeholder-section-header { padding-inline: 14px; }.stakeholder-map-legend { padding-inline: 14px; }.stakeholder-activity-list { padding-inline: 14px; } }
 
 button,
 input,
@@ -1157,6 +1266,28 @@ p {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+[data-theme="dark"] .landing-page .lp-donation-cta {
+  background: linear-gradient(110deg, #4ca875 0%, #8cc1a4 48%, #e2ece6 100%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="dark"] .landing-page .lp-donation-copy h2,
+[data-theme="dark"] .landing-page .lp-donation-copy p {
+  color: white;
+}
+
+[data-theme="dark"] .landing-page .lp-donation-actions .btn-primary {
+  background: #429d6b;
+  border-color: #429d6b;
+  color: white;
+}
+
+[data-theme="dark"] .landing-page .lp-donation-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.48);
+  color: #368d60;
+}
+
 .lp-about {
   max-width: 1180px;
   margin: 96px auto 0;
@@ -1855,14 +1986,14 @@ a.lp-contact-card:hover {
 .nav-badge {
   min-width: 20px;
   height: 20px;
-  padding: 0 6px;
+  padding: 0 5px;
   display: inline-grid;
   place-items: center;
-  border-radius: 999px;
-  background: var(--red-700);
+  border-radius: 10px;
+  background: var(--notification-badge);
   color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -10852,9 +10983,11 @@ td {
   margin-top: 6px;
   color: var(--text);
   font-size: 26px;
-  font-weight: 700;
+  /* Operational counts should scan like data, not read like a display headline. */
+  font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 .product-stats-value.warning {
@@ -13702,32 +13835,39 @@ td {
   line-height: 1.2;
 }
 
-.sidebar-scroll .sidebar-nav-link .truncate + .sidebar-hover-arrow {
-  margin-left: 0;
+/* Chevron + count are one right-side unit (see SidebarNavItem.jsx's .sidebar-nav-trailing
+   wrapper) spaced with a single `gap` here instead of each element carrying its own separate
+   offset — the arrow previously had its own margin-left: auto and the badge its own
+   margin-left: 6px, two independent pushes that could drift the pair apart instead of keeping
+   them together. */
+.sidebar-nav-trailing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .sidebar-scroll .sidebar-nav-link .nav-badge {
-  position: absolute;
-  right: 10px;
+  position: static;
 }
 
 .sidebar-hover-arrow {
   display: inline-flex;
-  position: absolute;
-  right: 10px;
+  position: static;
+  right: auto;
   width: 10px;
-  margin-left: 0;
   overflow: hidden;
   color: var(--green-700);
   font-size: 18px;
   font-weight: 600;
   line-height: 1;
   opacity: 0;
-  transform: translateX(-3px);
-  transition: width 150ms ease, margin-left 150ms ease, opacity 150ms ease, transform 150ms ease;
+  transform: translateX(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 
-.sidebar-scroll .sidebar-nav-link:hover .sidebar-hover-arrow,
+.sidebar-scroll .sidebar-nav-link:active .sidebar-hover-arrow,
 .sidebar-scroll .sidebar-nav-link:focus-visible .sidebar-hover-arrow {
   opacity: 1;
   transform: translateX(0);
@@ -14971,46 +15111,12 @@ td {
   background: var(--amber-100);
 }
 
-/* Product Management KPI variants. */
-.farmer-products-page .product-stats-item.accent-neutral {
-  border-left-color: var(--muted);
-}
-
-.farmer-products-page .product-stats-item.accent-success {
-  border-left-color: var(--green-700);
-}
-
-.farmer-products-page .product-stats-item.accent-warning {
-  border-left-color: var(--amber-700);
-}
-
-.farmer-products-page .product-stats-item.accent-inventory {
-  border-left-color: var(--blue-700);
-}
-
-.farmer-products-page .product-stats-item.accent-neutral .product-stats-icon,
-.farmer-products-page .product-stats-item.accent-neutral .product-stats-label {
-  color: var(--muted);
-}
-
-.farmer-products-page .product-stats-item.accent-success .product-stats-icon,
-.farmer-products-page .product-stats-item.accent-success .product-stats-label,
-.farmer-products-page .product-stats-item.accent-success .product-stats-value {
-  color: var(--green-700);
-}
-
-.farmer-products-page .product-stats-item.accent-warning .product-stats-icon,
-.farmer-products-page .product-stats-item.accent-warning .product-stats-label,
-.farmer-products-page .product-stats-item.accent-warning .product-stats-value {
-  color: var(--amber-700);
-}
-
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-icon,
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-label,
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-value {
-  color: var(--blue-700);
-}
-
+/* Product Management KPI icon treatment — one neutral box for all four cards. Four different
+   icon colors (plus a blue "Inventory" tone with no semantic meaning) read as four unrelated
+   status lights instead of one summary. The only real signal on this page is Low Stock, and
+   that already comes through via the amber value text (.product-stats-value.warning above,
+   applied only once that count is above zero) and the thin top accent line — not a recolored
+   icon per card. */
 .farmer-products-page .product-stats-icon-wrap {
   display: grid;
   width: 30px;
@@ -15026,47 +15132,7 @@ td {
 .farmer-products-page .product-stats-icon {
   width: 15px;
   height: 15px;
-}
-
-.farmer-products-page .product-stats-item.accent-success .product-stats-icon-wrap {
-  border-color: color-mix(in srgb, var(--green-700) 25%, var(--line));
-  color: var(--green-700);
-  background: var(--green-50);
-}
-
-.farmer-products-page .product-stats-item.accent-warning .product-stats-icon-wrap {
-  border-color: color-mix(in srgb, var(--amber-700) 25%, var(--line));
-  color: var(--amber-700);
-  background: var(--amber-100);
-}
-
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-icon-wrap {
-  border-color: color-mix(in srgb, var(--blue-700) 25%, var(--line));
-  color: var(--blue-700);
-  background: var(--blue-100);
-}
-
-/* Strong icon contrast: the icon should remain readable at a glance, not fade into the
-   supporting text. Stroke weight is set in SummaryCards.jsx; these colors reinforce each
-   semantic variant without changing the card's restrained surface treatment. */
-.farmer-products-page .product-stats-item.accent-neutral .product-stats-icon-wrap,
-.farmer-products-page .product-stats-item.accent-neutral .product-stats-icon {
   color: var(--muted);
-}
-
-.farmer-products-page .product-stats-item.accent-success .product-stats-icon-wrap,
-.farmer-products-page .product-stats-item.accent-success .product-stats-icon {
-  color: var(--green-800);
-}
-
-.farmer-products-page .product-stats-item.accent-warning .product-stats-icon-wrap,
-.farmer-products-page .product-stats-item.accent-warning .product-stats-icon {
-  color: var(--amber-700);
-}
-
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-icon-wrap,
-.farmer-products-page .product-stats-item.accent-inventory .product-stats-icon {
-  color: var(--blue-700);
 }
 
 /* Product summary cards: use the same editorial rhythm as the dashboard overview without
@@ -18220,4 +18286,43 @@ button,
     grid-column: 1 / -1;
     border-left: 0;
   }
+}
+
+/* Shared dashboard metric treatment: values are operational data, so use the same readable
+   medium weight for every role rather than a headline-bold zero/count. This intentionally
+   sits after the page-specific dashboard polish above. */
+.product-stats-value,
+.farmer-dashboard-page .metrics-overview-value,
+.stakeholder-summary-stat strong,
+.stat-card strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A collapsed sidebar is an icon rail, not a narrow version of the full navigation. Some
+   legacy sidebar rules position `.nav-badge` independently, which let a `9+` count overlap
+   the icon when the rail was collapsed. Keep the accessible count in the DOM, but show the
+   compact notification dot consistently for every navigation item. */
+.app-shell.sidebar-collapsed .sidebar-scroll .sidebar-nav-link .nav-badge {
+  top: 8px;
+  right: 9px;
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 1.5px solid var(--sidebar-bg);
+  border-radius: 50%;
+  font-size: 0;
+  line-height: 0;
+}
+
+.app-shell.sidebar-collapsed .sidebar-scroll .sidebar-nav-link .notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--sidebar-bg);
+  border-radius: 50%;
+  background: var(--notification-badge);
 }

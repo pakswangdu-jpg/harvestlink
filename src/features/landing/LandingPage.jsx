@@ -30,6 +30,7 @@ import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCar
 import BrandWordmark from '../../components/common/BrandWordmark';
 import logo from '../../assets/logo.png';
 import verifiedIcon from '../../assets/icons/verified-farmer.png';
+import { apiClient } from '../../services/apiClient';
 import directTradingIcon from '../../assets/icons/feature-direct-trading.png';
 import secureCheckoutIcon from '../../assets/icons/feature-secure-checkout.png';
 import deliveryTrackingIcon from '../../assets/icons/feature-delivery-tracking.png';
@@ -410,11 +411,11 @@ export default function LandingPage() {
 
         <div className="lp-contact-grid">
           <div className="lp-contact-cards">
-            <a className="lp-contact-card" href="mailto:hello@harvestlink.ph">
+            <a className="lp-contact-card" href="mailto:harvestlink@gmail.com">
               <Mail size={18} />
               <div>
                 <strong>Email</strong>
-                <span>hello@harvestlink.ph</span>
+                <span>harvestlink@gmail.com</span>
               </div>
             </a>
             <a className="lp-contact-card" href="tel:+639455993970">
@@ -500,24 +501,32 @@ export default function LandingPage() {
   );
 }
 
-// No backend inbox exists for landing-page inquiries, so submitting composes a real email
-// via the visitor's own mail client instead of faking a "message sent" success state that
-// would silently go nowhere.
 function ContactForm() {
   const [values, setValues] = useState({ name: '', email: '', message: '' });
+  const [status, setStatus] = useState({ type: '', text: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    const subject = encodeURIComponent(`Message from ${values.name || 'HarvestLink visitor'}`);
-    const body = encodeURIComponent(`${values.message}\n\n— ${values.name} (${values.email})`);
-    window.location.href = `mailto:hello@harvestlink.ph?subject=${subject}&body=${body}`;
+    setStatus({ type: '', text: '' });
+    setIsSubmitting(true);
+    try {
+      await apiClient.post('/contact', values);
+      setValues({ name: '', email: '', message: '' });
+      setStatus({ type: 'success', text: 'Your message has been sent.' });
+    } catch (error) {
+      setStatus({ type: 'error', text: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <form className="lp-contact-form" onSubmit={handleSubmit}>
       <h3>Send us a message</h3>
+      {status.text ? <p className={`form-alert ${status.type}`} role="status">{status.text}</p> : null}
       <label>
         Name
         <input type="text" required value={values.name} onChange={handleChange('name')} placeholder="Your name" />
@@ -530,8 +539,8 @@ function ContactForm() {
         Message
         <textarea required rows={4} value={values.message} onChange={handleChange('message')} placeholder="How can we help?" />
       </label>
-      <button type="submit" className="btn btn-primary btn-md">
-        <Send size={16} /> Send message
+      <button type="submit" className="btn btn-primary btn-md" disabled={isSubmitting}>
+        <Send size={16} /> {isSubmitting ? 'Sending…' : 'Send message'}
       </button>
     </form>
   );

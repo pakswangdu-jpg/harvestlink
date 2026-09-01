@@ -14,6 +14,7 @@ import webhooksRoutes from './webhooks.routes.js';
 import forecastRoutes from './forecast.routes.js';
 import catalogRoutes from './catalog.routes.js';
 import marketPriceOverridesRoutes from './marketPriceOverrides.routes.js';
+import contactRoutes from './contact.routes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/webhooks', webhooksRoutes);
 router.use('/forecast', forecastRoutes);
 router.use('/catalog', catalogRoutes);
 router.use('/market-price-overrides', marketPriceOverridesRoutes);
+router.use('/contact', contactRoutes);
 
 export default router;

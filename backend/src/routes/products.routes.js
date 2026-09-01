@@ -23,10 +23,7 @@ const router = Router();
 
 router.get('/price-reviews/pending', requireAuth, requireRole('admin'), getPendingPriceReviews);
 router.get('/price-reviews/declined', requireAuth, requireRole('admin'), getDeclinedPriceReviews);
-// Public, no requireAuth — must stay above GET /:id below, or Express would match "public"
-// as an :id instead of this handler.
 router.get('/public', listPublicProducts);
-// Must also stay above GET /:id, same reason — this is a static path, not a product id.
 router.get('/historical-price', requireAuth, requireRole('farmer'), getHistoricalPriceAnalysis);
 
 router.get('/', requireAuth, listProducts);

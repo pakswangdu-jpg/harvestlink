@@ -49,7 +49,7 @@ function MiniStat({ label, value, tone }) {
   return (
     <div>
       <p className="text-[12px] text-[var(--muted)]">{label}</p>
-      <p className={`text-[18px] font-semibold leading-tight ${TONE_TEXT[tone] || TONE_TEXT.muted}`}>{value}</p>
+      <p className={`text-[18px] font-medium leading-tight tabular-nums ${TONE_TEXT[tone] || TONE_TEXT.muted}`}>{value}</p>
     </div>
   );
 }

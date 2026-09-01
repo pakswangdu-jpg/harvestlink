@@ -5,6 +5,7 @@ import Button from '../common/Button';
 import { SIDEBAR_ICON_STROKE } from './SidebarNavItem';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
+import NotificationBadge from '../common/NotificationBadge';
 
 // The mobile-only bottom nav strip (see .mobile-bottom-nav in globals.css), normally rendered
 // by AppShell — pulled out here so full-page flows that deliberately skip AppShell
@@ -37,10 +38,15 @@ export default function MobileBottomNav({ user, navItems }) {
     <nav className="mobile-bottom-nav">
       <div className="mobile-bottom-nav-scroll" ref={scrollRef}>
         {navItemsWithBadges.map((item) => (
-          <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
+          <NavLink
+            key={item.to}
+            to={item.to}
+            aria-label={item.badge > 0 ? `${item.label}, ${item.badge > 9 ? '9 or more' : item.badge} items needing attention` : item.label}
+            className={({ isActive }) => (isActive ? 'active' : '')}
+          >
             <item.icon size={20} strokeWidth={SIDEBAR_ICON_STROKE} />
             <span>{item.label}</span>
-            {item.badge > 0 ? <span className="nav-badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
+            <NotificationBadge count={item.badge} />
           </NavLink>
         ))}
       </div>
