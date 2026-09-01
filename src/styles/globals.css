@@ -9,6 +9,11 @@
 :root {
   color-scheme: light;
   --font-ui: "Inter Variable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Fraunces is a humanist serif already loaded in main.jsx but, until now, never actually
+     referenced by any rule — so the app was shipping the font files for nothing. Reserved for
+     the few "moment" headlines (order confirmed, payment step) where a warmer voice than
+     Inter's is worth it; everything else stays on --font-ui. */
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
   font-family: var(--font-ui);
   line-height: 1.5;
   font-weight: 400;
@@ -145,6 +150,19 @@ body,
 #root {
   min-height: 100%;
   margin: 0;
+}
+
+/* No page should ever scroll horizontally — this app is built on minmax(0, 1fr) grid tracks
+   and shrinkable flex items specifically to avoid it (see the many comments on that pattern
+   throughout this file), but nothing enforced it at the document level. A single element
+   rendering even slightly past the viewport edge (a position: absolute panel like
+   .notification-panel included) turns into page-wide horizontal scroll instead of just
+   clipping at the edge, which is worse: everything else on the page shifts/truncates along
+   with it. This is the actual backstop; individual components should still be fixed at the
+   source rather than relying on it to hide the symptom. */
+html,
+body {
+  overflow-x: hidden;
 }
 
 body {
@@ -2058,6 +2076,19 @@ a.lp-contact-card:hover {
   border-bottom: 1px solid var(--line);
 }
 
+/* Without this, the text block's default "automatic minimum size" is its widest unbreakable
+   word/segment, not 0 — on a narrow phone that was still sometimes just wide enough that it
+   and the actions (bell, etc.) couldn't both fit on the row's single flex-wrap line, so the
+   whole actions block dropped to its own line below (and then left-aligned there, since
+   justify-content: space-between has nothing to space a lone wrapped item against). Letting
+   the text block shrink all the way down means its OWN title/subtitle wrap across more lines
+   instead, and the actions stay beside it — which is what the mobile row-not-column fix below
+   was already trying to guarantee, just not reliably enough on its own. */
+.page-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .page-header h1 {
   color: var(--text);
   font-size: 30px;
@@ -3762,6 +3793,15 @@ a.user-chip:hover {
     min-width: 0;
   }
 
+  /* The order actions ("Got it", "Confirm order", "Buy Again", "Pay now"…) sit directly under
+     .ot-action-links in the same stack, so a content-width button below two full-width ones
+     reads as a layout bug rather than a choice. Same flex-basis: 100% reasoning as above.
+     Scoped to this panel because .form-actions is shared by forms across the whole app. */
+  .ot-details-panel .form-actions .btn {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
   .ot-map-panel .live-delivery-map {
     height: 320px;
   }
@@ -4820,70 +4860,6 @@ a.user-chip:hover {
    adds what's actually specific to checkout.
    ========================================================================== */
 
-.checkout-progress {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 0;
-  list-style: none;
-}
-
-.checkout-progress-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 600;
-}
-
-.checkout-progress-marker {
-  display: grid;
-  flex-shrink: 0;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  background: var(--panel);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.checkout-progress-step.is-active .checkout-progress-marker {
-  border-color: var(--green-700);
-  background: var(--green-700);
-  color: white;
-}
-
-.checkout-progress-step.is-active .checkout-progress-label {
-  color: var(--text);
-}
-
-.checkout-progress-step.is-done .checkout-progress-marker {
-  border-color: var(--green-600);
-  background: var(--green-50);
-  color: var(--green-700);
-}
-
-.checkout-progress-connector {
-  width: 32px;
-  height: 1.5px;
-  margin: 0 10px;
-  background: var(--line);
-}
-
-@media (max-width: 480px) {
-  .checkout-progress-connector {
-    width: 16px;
-  }
-
-  .checkout-progress-label {
-    display: none;
-  }
-}
-
 .checkout-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -5168,6 +5144,22 @@ a.user-chip:hover {
   font-size: 0.84rem;
 }
 
+/* Wraps the icon/logo + label text so they group and stay left-aligned as one unit — the
+   parent row is justify-content: space-between with the municipality on the right, and
+   without this wrapper the icon would become a third item competing for that same spacing. */
+.checkout-summary-delivery-method {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkout-summary-delivery-icon {
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: contain;
+  color: var(--muted);
+}
+
 .checkout-summary-note {
   display: flex;
   align-items: center;
@@ -5332,51 +5324,9 @@ a.user-chip:hover {
     border-left-color: #e5ebe7;
   }
 
-  .buyer-orders-page .product-stats-item:nth-child(2) .product-stats-icon,
-  .buyer-orders-page .product-stats-item:nth-child(2) .product-stats-value {
-    color: var(--text-strong);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-warning .product-stats-icon,
-  .buyer-orders-page .product-stats-item.accent-warning .product-stats-value,
-  .buyer-orders-page .product-stats-item.accent-warning .order-stat-dot {
-    color: var(--amber-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-info .product-stats-icon,
-  .buyer-orders-page .product-stats-item.accent-info .product-stats-value,
-  .buyer-orders-page .product-stats-item.accent-info .order-stat-dot {
-    color: var(--blue-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-success .product-stats-icon,
-  .buyer-orders-page .product-stats-item.accent-success .product-stats-value,
-  .buyer-orders-page .product-stats-item.accent-success .order-stat-dot {
-    color: var(--green-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-danger .product-stats-icon,
-  .buyer-orders-page .product-stats-item.accent-danger .product-stats-value,
-  .buyer-orders-page .product-stats-item.accent-danger .order-stat-dot {
-    color: var(--red-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-warning .order-stat-dot {
-    background: var(--amber-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-info .order-stat-dot {
-    background: var(--blue-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-success .order-stat-dot {
-    background: var(--green-700);
-  }
-
-  .buyer-orders-page .product-stats-item.accent-danger .order-stat-dot {
-    background: var(--red-700);
-  }
-
+  /* The per-accent colouring that used to live here (amber/blue/green/red on the icon, the
+     number and the dot) is gone — see the note on .buyer-orders-page .product-stats-item
+     later in this file for why the overview reads as one neutral strip now. */
   .buyer-orders-page {
     gap: 14px;
   }
@@ -5447,36 +5397,9 @@ a.user-chip:hover {
     background: var(--green-700);
   }
 
-  .buyer-orders-page .product-stats-item:nth-child(3) .order-stat-dot,
-  .buyer-orders-page .product-stats-item:nth-child(3) .product-stats-icon,
-  .buyer-orders-page .product-stats-item:nth-child(3) .product-stats-value {
-    color: var(--amber-700);
-  }
-
-  .buyer-orders-page .product-stats-item:nth-child(4) .order-stat-dot,
-  .buyer-orders-page .product-stats-item:nth-child(4) .product-stats-icon,
-  .buyer-orders-page .product-stats-item:nth-child(4) .product-stats-value {
-    color: var(--blue-700);
-  }
-
-  .buyer-orders-page .product-stats-item:nth-child(6) .order-stat-dot,
-  .buyer-orders-page .product-stats-item:nth-child(6) .product-stats-icon,
-  .buyer-orders-page .product-stats-item:nth-child(6) .product-stats-value {
-    color: var(--red-700);
-  }
-
-  .buyer-orders-page .product-stats-item:nth-child(3) .order-stat-dot {
-    background: var(--amber-700);
-  }
-
-  .buyer-orders-page .product-stats-item:nth-child(4) .order-stat-dot {
-    background: var(--blue-700);
-  }
-
-  .buyer-orders-page .product-stats-item:nth-child(6) .order-stat-dot {
-    background: var(--red-700);
-  }
-
+  /* Previously coloured each count individually by position (3rd amber, 4th blue, 6th red) on
+     the dot, the icon AND the number. Neutralised so the strip reads as one summary — see the
+     matching note on .buyer-orders-page .product-stats-item further down this file. */
   .buyer-orders-page .product-stats-label-row svg {
     width: 18px;
     height: 18px;
@@ -6022,7 +5945,7 @@ a.user-chip:hover {
 }
 
 .method-card-group.two .method-card {
-  min-height: 58px;
+  min-height: 50px;
   justify-content: center;
 }
 
@@ -7694,13 +7617,34 @@ a.user-chip:hover {
 /* Compact "who's actually nearby" list under the dashboard map — same avatar/text building
    blocks as .recommended-farm-card, just row-divided instead of individually bordered so it
    reads as one list, not another stack of small cards. */
+/* Capped to roughly four rows and scrolled past that, so a buyer in a dense municipality gets
+   the full nearby shortlist without the panel growing taller than the map above it. Under four
+   entries the max-height is never reached, so no scrollbar appears. */
 .nearby-farmers-list {
   display: flex;
   flex-direction: column;
   margin: 14px 0 0;
-  padding: 4px 0 0;
+  padding: 4px 6px 0 0;
   list-style: none;
   border-top: 1px solid var(--line);
+  max-height: 212px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.nearby-farmers-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nearby-farmers-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nearby-farmers-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
 }
 
 .nearby-farmers-list li {
@@ -7715,9 +7659,20 @@ a.user-chip:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 2px;
+  padding: 10px 6px;
+  border-radius: 8px;
   color: inherit;
   text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.nearby-farmers-list a:hover {
+  background: var(--green-50);
+}
+
+.nearby-farmers-list a:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
 }
 
 .nearby-farmers-list .farmer-list-text {
@@ -9773,10 +9728,6 @@ td {
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
-.gcash-payment-card .checkout-progress {
-  margin: 0 0 22px;
-}
-
 .gcash-payment-page .btn {
   min-height: 36px;
   border-radius: 6px;
@@ -10039,6 +9990,205 @@ td {
   font-weight: 700;
 }
 
+/* The classes below (header bar, copy button, back link, status row, QR logo/labels) had no
+   rules at all — every one of them was silently falling back to raw browser/inline defaults
+   (a native gray button for "Back to Order", the GCash logo rendering at its full raw image
+   size instead of as a small mark, unstyled plain text for the pending-status line). Written
+   to match the flat GitHub-enterprise palette the rest of this page already restates directly
+   (see the .gcash-payment-page comment above) rather than introducing a second visual system. */
+.gcash-payment-header-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+/* .gcash-payment-brand carries its own margin-bottom for the pages that render it bare;
+   inside the header bar the flex `gap` above owns that spacing instead, otherwise the two
+   stack up into an uneven gap between the wordmark and the secure-payment line. */
+.gcash-payment-header-bar .gcash-payment-brand {
+  margin-bottom: 0;
+}
+
+/* p is margin-zeroed globally (see the reset near the top of this file), so this intro
+   paragraph sat flush against the first field label under it with no breathing room. */
+.gcash-form-intro {
+  margin-bottom: 18px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* Scoped to this page — .form-actions is shared app-wide, so none of the app's other forms
+   are affected. Both buttons match the height of the fields above them rather than the page's
+   shorter default, and stay sized to their own labels: stretching the primary across the full
+   field column just traded "too small" for "too long". */
+.gcash-payment-page .form-actions {
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.gcash-payment-page .form-actions .btn {
+  min-height: 42px;
+}
+
+.gcash-payment-page .form-actions .btn-primary {
+  padding-inline: 22px;
+}
+
+.gcash-secure-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #57606a;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.gcash-copyable-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gcash-copy-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #57606a;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.gcash-copy-btn:hover {
+  border-color: #166534;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.gcash-copy-btn:focus-visible {
+  outline: 2px solid #166534;
+  outline-offset: 2px;
+}
+
+.gcash-copy-btn.is-copied {
+  border-color: #166534;
+  background: #166534;
+  color: #ffffff;
+}
+
+.gcash-payment-actions {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gcash-payment-actions .btn {
+  gap: 6px;
+  padding-inline: 10px;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.gcash-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #57606a;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.gcash-back-link:hover {
+  background: #f6f8fa;
+  border-color: #afb8c1;
+}
+
+.gcash-back-link:focus-visible {
+  outline: 2px solid #166534;
+  outline-offset: 2px;
+}
+
+.gcash-status-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--amber-700) 30%, transparent);
+  border-radius: 6px;
+  background: var(--amber-100);
+}
+
+.gcash-status-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+}
+
+.gcash-status-dot.pending {
+  background: var(--amber-700);
+}
+
+.gcash-status-row strong {
+  display: block;
+  color: var(--amber-700);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.gcash-status-row p {
+  margin: 2px 0 0;
+  color: var(--amber-700);
+  font-size: 0.8rem;
+}
+
+.gcash-payment-qr-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.gcash-scan-label {
+  margin: 4px 0 0;
+  color: #24292f;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.gcash-qr-instruction {
+  margin: 6px 0 0;
+  max-width: 30ch;
+  color: #24292f;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.gcash-qr-subinstruction {
+  max-width: 30ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
 @media (max-width: 900px) {
   .gcash-payment-qr-col {
     order: -1;
@@ -10057,7 +10207,10 @@ td {
 [data-theme="dark"] .gcash-detail-list dt,
 [data-theme="dark"] .gcash-instructions,
 [data-theme="dark"] .gcash-steps li,
-[data-theme="dark"] .gcash-payment-status {
+[data-theme="dark"] .gcash-payment-status,
+[data-theme="dark"] .gcash-secure-indicator,
+[data-theme="dark"] .gcash-copy-btn,
+[data-theme="dark"] .gcash-back-link {
   color: #929b96;
 }
 
@@ -10066,18 +10219,41 @@ td {
 [data-theme="dark"] .gcash-detail-list > div,
 [data-theme="dark"] .gcash-instructions,
 [data-theme="dark"] .gcash-payment-qr-col,
-[data-theme="dark"] .gcash-payment-qr-image {
+[data-theme="dark"] .gcash-payment-qr-image,
+[data-theme="dark"] .gcash-copy-btn,
+[data-theme="dark"] .gcash-back-link {
   border-color: #343b37;
 }
 
 [data-theme="dark"] .gcash-instructions,
 [data-theme="dark"] .gcash-payment-qr-col,
-[data-theme="dark"] .gcash-payment-qr-image {
+[data-theme="dark"] .gcash-payment-qr-image,
+[data-theme="dark"] .gcash-copy-btn,
+[data-theme="dark"] .gcash-back-link {
   background: #1b201d;
 }
 
+[data-theme="dark"] .gcash-back-link:hover {
+  background: #232925;
+  border-color: #3a423d;
+}
+
+[data-theme="dark"] .gcash-copy-btn:hover {
+  border-color: #3dbb70;
+  background: #14231a;
+  color: #3dbb70;
+}
+
+[data-theme="dark"] .gcash-copy-btn.is-copied {
+  border-color: #3dbb70;
+  background: #3dbb70;
+  color: #0b1a12;
+}
+
 [data-theme="dark"] .gcash-detail-list dd,
-[data-theme="dark"] .gcash-success-title {
+[data-theme="dark"] .gcash-success-title,
+[data-theme="dark"] .gcash-scan-label,
+[data-theme="dark"] .gcash-qr-instruction {
   color: #f2f4f2;
 }
 
@@ -10147,21 +10323,372 @@ td {
    it against (reference number, sender name, amount) before approving or rejecting. */
 .payment-verification-list {
   display: grid;
-  gap: 16px;
+  gap: 8px;
 }
 
-.payment-verification-card {
+/* One compact row per pending payment; the receipt and the approve/reject decision moved
+   into PaymentVerificationDrawer.jsx, so this list stays scannable when several payments are
+   waiting instead of stacking full receipt cards down the page. */
+.payment-verification-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.payment-verification-row:hover {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.payment-verification-row:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.payment-verification-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.payment-verification-row-main strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.payment-verification-row-main .muted {
+  font-size: 12px;
+}
+
+.payment-verification-row-amount {
+  flex-shrink: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.payment-verification-row-cta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--green-700);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Expands the capped list in place rather than routing anywhere — there is no separate
+   "all payment verifications" page, and inventing one for this would be a bigger change than
+   the queue warrants. */
+/* Delivery tracking access point + overlay (OrderTracking.jsx / DeliveryTrackingOverlay.jsx).
+   The overlay stays in the DOM permanently and is hidden with `visibility`, never
+   `display: none` — the Google map inside needs a real layout box to measure itself against,
+   and its route/ETA keeps feeding the order details panel behind it. */
+.ot-progress-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ot-view-tracking-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ot-view-tracking-btn:hover {
+  border-color: var(--green-700);
+  background: var(--green-50);
+  color: var(--green-800);
+}
+
+.ot-view-tracking-btn:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.tracking-overlay {
+  position: fixed;
+  inset: 0;
+  /* Above .mobile-bottom-nav, which is raised to z-index: 100 below 1080px — at a lower value
+     the fixed nav bar sits on top of this overlay on mobile and covers the map. Still below
+     .toast-stack (300) so confirmations stay visible, and below the map's own fullscreen
+     layer (2000) so its fullscreen control still works from inside here. */
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.tracking-overlay.is-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tracking-overlay-panel {
+  display: flex;
+  width: 100%;
+  max-width: 1040px;
+  max-height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-elevated, var(--panel));
+}
+
+.tracking-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tracking-overlay-header h2 {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.tracking-overlay-close {
+  display: flex;
+  height: 34px;
+  width: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tracking-overlay-close:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.tracking-overlay-close:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.tracking-overlay-body {
   display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 20px;
+  gap: 16px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* The sections inside were written as top-level page sections; inside the overlay they are
+   already on an elevated surface, so they drop their own outer margins. */
+.tracking-overlay-body > section {
+  margin: 0;
+}
+
+/* Tablet: the panel stops being a centred dialog and uses the full width it can get, since
+   the map is the point and a 1040px cap leaves it needlessly small here. */
+@media (max-width: 1080px) {
+  .tracking-overlay {
+    padding: 16px;
+  }
+
+  .tracking-overlay-panel {
+    max-width: none;
+  }
+}
+
+/* Phone: full-screen sheet. 100dvh (not 100vh) so the panel tracks the visible viewport as
+   mobile browser chrome shows/hides, matching what the map's own fullscreen layer already
+   uses, and the safe-area inset keeps the scrollable body clear of the home indicator. */
+@media (max-width: 640px) {
+  .tracking-overlay {
+    padding: 0;
+  }
+
+  .tracking-overlay-panel {
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .tracking-overlay-header {
+    padding: 12px 14px;
+  }
+
+  .tracking-overlay-header h2 {
+    font-size: 0.98rem;
+  }
+
+  .tracking-overlay-body {
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    gap: 12px;
+  }
+
+  /* These sections were page-level panels; inside a full-bleed sheet their own padding
+     stacks with the body's, squeezing the map on a narrow screen. */
+  .tracking-overlay-body > .panel {
+    padding: 14px;
+  }
+}
+
+.payment-verification-toggle {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--green-700);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.payment-verification-toggle:hover {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+
+.payment-verification-toggle:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+/* "Payment info" sits under the method in the Payment column rather than competing for room
+   in the Action column, which already carries the stage action. Low emphasis on purpose — it
+   opens a record, it isn't a decision. */
+.order-payment-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.order-payment-info-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+/* No underline and no green on hover: this opens a drawer, it doesn't navigate, so the link
+   idiom overstated it — and a green underlined row under the payment method competed with the
+   method itself. A quiet darken is enough affordance for a secondary action. */
+.order-payment-info-btn:hover {
+  color: var(--text-secondary);
+}
+
+.order-payment-info-btn:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.payment-verification-drawer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.payment-verification-drawer-label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A PDF receipt can't render in an <img> — this stands in for it rather than leaving a
+   permanently broken image box (see PaymentVerificationDrawer.jsx). */
+.payment-verification-pdf {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  aspect-ratio: 3 / 4;
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-subtle, #f9fafb);
+  background: var(--soft);
+  color: var(--muted);
+  text-align: center;
 }
 
-.payment-verification-receipt {
-  min-width: 0;
+.payment-verification-pdf strong {
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.payment-verification-pdf span {
+  font-size: 12px;
+}
+
+.payment-verification-receipt-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--green-700);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .payment-verification-drawer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* .profile-file-image-btn (the button ZoomableImage always renders) sets width: fit-content
@@ -10190,18 +10717,37 @@ td {
 }
 
 .payment-verification-reject-form {
-  margin-top: 8px;
+  margin-top: 16px;
+}
+
+.payment-verification-reject-form label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .payment-verification-reject-form textarea {
   width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.payment-verification-reject-form textarea:focus {
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.13);
+  outline: none;
 }
 
 @media (max-width: 640px) {
-  .payment-verification-card {
-    grid-template-columns: 1fr;
-  }
-
   .payment-verification-receipt-image {
     aspect-ratio: 16 / 9;
     max-width: 240px;
@@ -10454,6 +11000,18 @@ td {
   flex-shrink: 0;
 }
 
+/* These action buttons are locked to a fixed height with padding: 0, so the label's vertical
+   position comes entirely from its line box — and it was inheriting the document's
+   line-height: 1.5. That extra half-leading is split using the font's ascent/descent rather
+   than its cap height, which leaves the label sitting visibly high inside the button. They are
+   all single-line (white-space: nowrap above), so collapsing the line box to the text itself
+   lets align-items: center actually centre the glyphs. */
+.order-table-wrap .table-actions .btn,
+.order-table-wrap .order-table-actions .btn,
+.order-table-wrap .order-action-single {
+  line-height: 1;
+}
+
 /* Purchase Orders type refinement ---------------------------------------
    Inter is already the app font; this page-scoped pass keeps hierarchy intentional and avoids
    the heavy, oversized button/table text that makes operational screens feel generated. */
@@ -10522,6 +11080,58 @@ td {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0;
+}
+
+/* Purchase Orders carries seven stage tabs (My Products only has four, which is why this is
+   scoped rather than changed on the shared .filter-tabs). Each tab was rendering its own
+   filled count pill, so the strip read as seven competing badges rather than one filter
+   control. The counts are supporting information: inactive ones drop the pill and sit as
+   plain muted numbers, and only the selected tab keeps a tinted one. Same information, far
+   less furniture. */
+.farmer-orders-page .filter-tab {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.farmer-orders-page .filter-tab-count {
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.farmer-orders-page .filter-tab.active .filter-tab-count {
+  background: transparent;
+  color: var(--green-800);
+}
+
+/* A zero stage still earns its number — it says "nothing waiting here" before you click — but
+   shouldn't read as loudly as a stage that actually has orders in it. */
+.farmer-orders-page .filter-tab-count.is-zero {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+/* Seven tabs wrap onto two or three stacked rows on a narrow screen, which turns a single
+   control into a block. One scrolling row keeps it a strip; the scrollbar itself is hidden
+   since the tabs are self-evidently swipeable. */
+.farmer-orders-page .filter-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.farmer-orders-page .filter-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.farmer-orders-page .filter-tab {
+  flex-shrink: 0;
 }
 
 /* 8-column layout (Buyer/Product/Order ID/Payment/Fulfillment/Status/Date/Action) — mirrors
@@ -10892,6 +11502,18 @@ td {
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* PaymentCell (shared with the desktop table's Payment column, see FarmerOrders.jsx) renders
+   its own .order-cell-main + "Payment info" button instead of a plain .order-mobile-card-value
+   — matched to the same top margin/size as its "Fulfillment" sibling so the two grid cells
+   line up. */
+.order-mobile-card-grid .order-payment-cell {
+  margin-top: 2px;
+}
+
+.order-mobile-card-grid .order-payment-cell .order-cell-main {
+  font-size: 13px;
 }
 
 .order-mobile-card-actions {
@@ -11567,9 +12189,24 @@ td {
     padding: 18px;
   }
 
+  /* Row layout kept (not stacked to a column) so the notification bell — and any other
+     header actions — stay beside the title instead of dropping onto their own isolated row
+     below the subtitle. align-items stays flex-start (the base rule's value, not overridden
+     here) to match how this already looks on desktop: the actions sit near the top of the
+     block, close to the title, rather than centered against the full eyebrow+title+subtitle
+     height.
+     No flex-wrap: a previous version had one here as a "safety net", but on a page with a
+     longer title + subtitle (e.g. Purchase Orders' "Review incoming orders, prepare
+     purchases, and manage deliveries.") it was the thing actually causing the bell to drop —
+     wrap chooses the new-line fallback based on each item's own minimum content size before
+     min-width: 0 on the text block (below) has fully taken effect in that calculation on some
+     engines, and once wrapped, a single item left on its own line has nothing to space
+     against, so justify-content: space-between left it pinned to the left edge — exactly the
+     bug this was meant to prevent. Guaranteeing no wrap means the bell can never drop to a new
+     row; the worst case is the title/subtitle themselves wrapping across more lines in a
+     narrower column, which is what min-width: 0 + flex: 1 1 auto is actually for. */
   .page-header {
-    align-items: flex-start;
-    flex-direction: column;
+    row-gap: 10px;
   }
 
   /* Unlike .page-header, .landing-nav keeps its row layout even here — by this width
@@ -11612,15 +12249,6 @@ td {
 
   .profile-summary-item {
     padding: 12px 18px;
-  }
-
-  /* .page-header switching to a column above moves the bell to the LEFT edge of the
-     screen (it's the second stacked child now, not a right-aligned one) — the panel's
-     desktop `right: 0` would still anchor to that same bell, pushing most of its 340px
-     width off-screen to the left instead of over it. Open it from the left edge instead. */
-  .notification-panel {
-    left: 0;
-    right: auto;
   }
 
   .landing-actions {
@@ -15824,10 +16452,11 @@ td {
 }
 
 .profile-page .profile-badges .badge {
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 6px;
-  font-size: 10px;
+  height: 19px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  font-size: 9.5px;
   font-weight: 600;
 }
 
@@ -16528,7 +17157,13 @@ td {
 
 .product-camera-modal {
   position: fixed;
-  z-index: 100;
+  /* .mobile-bottom-nav is raised to z-index: 100 below 1080px (same value this modal used to
+     have) — tied z-index falls back to DOM order, and the nav bar was winning that tie, so it
+     painted on top of the Cancel/Capture buttons instead of behind them. On mobile specifically
+     this modal anchors to the bottom of the screen (see the max-width: 640px rule below), which
+     put its action row directly under where the nav bar sits — unreachable, not just visually
+     covered. */
+  z-index: 150;
   inset: 0;
   display: grid;
   place-items: center;
@@ -16633,6 +17268,9 @@ td {
 
   .product-camera-actions {
     padding-inline: 14px;
+    /* This becomes a bottom sheet at this width — without the safe-area inset, Cancel/Capture
+       photo sit flush against the edge a phone's home indicator overlays. */
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
 
   .product-camera-actions .btn {
@@ -17037,6 +17675,23 @@ td {
 
 .buyer-dashboard-page .buyer-dashboard-primary {
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  align-items: stretch;
+}
+
+/* The map panel's content (map + nearby-farmer list) is naturally much taller than the
+   market panel's (one price stat + a sparkline). Grid stretch alone only matches the two
+   panels' outer height — it doesn't stop the shorter one's own content from top-packing and
+   leaving a dead gap below it, so the market panel needs to become a column itself with its
+   source line pinned to the bottom instead. */
+.buyer-dashboard-page .market-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.buyer-dashboard-page .market-panel .market-source {
+  margin-top: auto;
+  padding-top: 16px;
 }
 
 .buyer-dashboard-page .buyer-dashboard-secondary {
@@ -17406,9 +18061,30 @@ td {
 
 .buyer-dashboard-page .content-grid > .panel:last-child th,
 .buyer-dashboard-page .content-grid > .panel:last-child td {
-  padding: 8px 5px;
-  font-size: 10px;
+  padding: 9px 6px;
+  font-size: 10.5px;
   white-space: nowrap;
+}
+
+/* Product + farmer used to be two separately-truncated columns with no explicit width, which
+   left table-layout: fixed almost nothing to split between them — their header text visibly
+   overlapped and cell values clipped to 2-3 characters. One stacked cell (product name, then
+   a muted farmer line) reads better than two starved columns at this panel width. */
+.buyer-order-product-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.buyer-order-product-cell strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.buyer-order-product-cell .muted {
+  font-size: 10px;
 }
 
 .buyer-dashboard-page .content-grid > .panel:last-child th:first-child,
@@ -17530,45 +18206,22 @@ td {
   border-left: 0;
 }
 
-.buyer-orders-page .product-stats-item:nth-child(2) .product-stats-icon,
-.buyer-orders-page .product-stats-item:nth-child(2) .product-stats-value {
+/* Order overview: one neutral treatment for all five counts. Giving each its own colour
+   (amber / blue / green / red, mirrored again on the icon AND a dot) turned a single summary
+   strip into five unrelated status lights competing for attention — the same thing that was
+   wrong with the My Products summary. These are all just counts of orders in a state; none of
+   them is an alert the buyer has to act on, and "To Receive" in particular had no semantic
+   basis for being blue. The label already says what each number is. */
+.buyer-orders-page .product-stats-item .product-stats-value {
   color: var(--text-strong);
 }
 
-.buyer-orders-page .product-stats-item.accent-warning .product-stats-icon,
-.buyer-orders-page .product-stats-item.accent-warning .product-stats-value {
-  color: var(--amber-700);
+.buyer-orders-page .product-stats-item .product-stats-icon {
+  color: var(--muted);
 }
 
-.buyer-orders-page .product-stats-item.accent-info .product-stats-icon,
-.buyer-orders-page .product-stats-item.accent-info .product-stats-value {
-  color: var(--blue-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-success .product-stats-icon,
-.buyer-orders-page .product-stats-item.accent-success .product-stats-value {
-  color: var(--green-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-danger .product-stats-icon,
-.buyer-orders-page .product-stats-item.accent-danger .product-stats-value {
-  color: var(--red-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-warning .order-stat-dot {
-  background: var(--amber-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-info .order-stat-dot {
-  background: var(--blue-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-success .order-stat-dot {
-  background: var(--green-700);
-}
-
-.buyer-orders-page .product-stats-item.accent-danger .order-stat-dot {
-  background: var(--red-700);
+.buyer-orders-page .product-stats-item .order-stat-dot {
+  background: var(--line);
 }
 
 /* Checkout refinement: a quieter, denser purchase flow with one clear visual priority —
@@ -17576,28 +18229,6 @@ td {
    and panels keep their existing treatment on the rest of the marketplace. */
 .checkout-page {
   --checkout-panel-radius: 10px;
-}
-
-.checkout-page .checkout-progress {
-  margin-bottom: 2px;
-  padding: 0 2px 2px;
-}
-
-.checkout-page .checkout-progress-step {
-  font-size: 0.8rem;
-  letter-spacing: 0.01em;
-}
-
-.checkout-page .checkout-progress-marker {
-  width: 24px;
-  height: 24px;
-  border-width: 1px;
-}
-
-.checkout-page .checkout-progress-connector {
-  width: 40px;
-  margin-inline: 12px;
-  background: var(--line);
 }
 
 .checkout-page .checkout-grid {
@@ -17679,12 +18310,9 @@ td {
   font-weight: 750;
 }
 
-.checkout-page .checkout-submit-btn {
-  font-family: inherit;
-  font-size: 0.84rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
+/* Type for this button is set in one place further down (the rule that used to override the
+   size/weight here while leaving this block's letter-spacing behind, so the label ended up
+   at a weight this rule never intended with tracking the other never checked). */
 
 .checkout-payment-step {
   max-width: 520px;
@@ -17710,11 +18338,13 @@ td {
 }
 
 .checkout-payment-step h2 {
-  margin: 6px 0 10px;
+  margin: 4px 0 8px;
   color: var(--text);
-  font-size: 1.3rem;
+  font-family: var(--font-display);
+  font-size: 1.65rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .checkout-payment-step p {
@@ -17731,13 +18361,75 @@ td {
   font-weight: 600;
 }
 
+/* A reference code, so it keeps the monospace face (digits and letters stay unambiguous when
+   a buyer reads it back to a farmer) — but sits in a quiet chip rather than floating as loose
+   body text, which is what made it read as an orphaned line under the heading. */
 .checkout-payment-order {
-  margin: 20px 0 18px;
-  color: var(--text);
+  display: inline-block;
+  margin: 16px 0 20px;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--text-secondary);
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+
+/* Label left, value right — one line per fact. The five stacked label-above-value pairs this
+   used to borrow from .gcash-detail-list made a short receipt unnecessarily tall and clashed
+   with the card's own centred header. */
+.order-confirmation-summary {
+  margin: 0 0 22px;
+  text-align: left;
+}
+
+.order-confirmation-summary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.order-confirmation-summary dt {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.order-confirmation-summary dd {
+  margin: 0;
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.order-confirmation-summary .order-confirmation-total {
+  margin-top: 2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.order-confirmation-summary .order-confirmation-total dt {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.order-confirmation-summary .order-confirmation-total dd {
+  color: var(--green-800);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .checkout-payment-step .eyebrow {
@@ -17776,9 +18468,9 @@ td {
 }
 
 .checkout-page .method-card {
-  min-height: 58px;
-  padding: 10px 12px;
-  gap: 5px;
+  min-height: 50px;
+  padding: 8px 10px;
+  gap: 4px;
   border-color: var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -17800,17 +18492,24 @@ td {
 }
 
 .checkout-page .method-card-label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .checkout-page .method-card-description {
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 .checkout-page .method-card-icon,
 .checkout-page .method-card-icon-logo {
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
+}
+
+.checkout-page .method-card-check {
+  top: 8px;
+  right: 8px;
+  width: 15px;
+  height: 15px;
 }
 
 /* Lalamove's own selected-state fill (see the base .method-card-courier.is-selected rule
@@ -17871,8 +18570,8 @@ td {
 .checkout-page .checkout-summary-card {
   gap: 16px;
   padding: 20px;
-  border-radius: 9px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
+  box-shadow: none;
 }
 
 .checkout-page .checkout-summary-title {
@@ -17931,18 +18630,20 @@ td {
   letter-spacing: -0.02em;
 }
 
+/* Reversed type: white on a saturated dark green fill. Light glyphs optically bleed into a
+   dark ground, so the same label reads heavier and tighter here than it would dark-on-light —
+   which is why the negative tracking this button used to inherit made it look cramped and
+   over-bold. Slightly open tracking and a weight held at 600 counteract that instead of
+   compounding it. */
 .checkout-page .checkout-submit-btn {
   min-height: 46px;
   border-radius: 7px;
-  padding-inline: 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  padding-inline: 16px;
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   box-shadow: none;
-}
-
-.checkout-page .checkout-submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1);
 }
 
 .checkout-page .checkout-submit-btn:disabled {
@@ -17982,11 +18683,6 @@ td {
 }
 
 @media (max-width: 640px) {
-  .checkout-page .checkout-progress-connector {
-    width: 20px;
-    margin-inline: 8px;
-  }
-
   .checkout-page .checkout-product-card {
     flex-direction: column;
     padding: 18px;
@@ -18198,24 +18894,13 @@ button,
   box-shadow: 0 0 0 2px rgba(232, 240, 235, 0.08);
 }
 
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-warning .product-stats-icon,
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-warning .product-stats-value {
-  color: #d9a441;
+/* Dark mode matches the light treatment: one neutral strip, not five coloured counts. */
+[data-theme='dark'] .buyer-orders-page .buyer-order-overview .product-stats-value {
+  color: #e8f0eb;
 }
 
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-info .product-stats-icon,
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-info .product-stats-value {
-  color: #5b8fd1;
-}
-
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-success .product-stats-icon,
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-success .product-stats-value {
-  color: #45c879;
-}
-
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-danger .product-stats-icon,
-[data-theme='dark'] .buyer-orders-page .buyer-order-overview .accent-danger .product-stats-value {
-  color: #e05a52;
+[data-theme='dark'] .buyer-orders-page .buyer-order-overview .product-stats-icon {
+  color: #b8c9bf;
 }
 
 [data-theme='dark'] .farmer-dashboard-page .metrics-overview-panel .product-stats-icon {
@@ -18325,4 +19010,46 @@ button,
   border: 1.5px solid var(--sidebar-bg);
   border-radius: 50%;
   background: var(--notification-badge);
+}
+
+/* ===== Large displays (ultrawide monitors, TV browsers) =====================
+   .main-content caps itself at 1280px, which is right on a laptop but leaves the app as a
+   narrow ribbon down the middle of a large screen with most of the panel empty. These steps
+   let the content column grow with the viewport while still capping it, so line lengths and
+   table rows stay readable rather than stretching edge to edge.
+
+   Keyed to viewport width because that is the only thing CSS can actually measure. A TV
+   browser normally reports 1920x1080 CSS pixels whatever the panel's diagonal is, so a 36"
+   and a 75" set at the same resolution are indistinguishable to a stylesheet — physical
+   inches cannot be targeted.
+
+   :not(...) keeps the two deliberate opt-outs intact: .main-content-wide (the map page) and
+   .main-content-full-bleed (Messages) still run edge to edge and manage their own width. */
+@media (min-width: 1800px) {
+  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
+    width: min(100%, 1560px);
+    padding: 32px;
+  }
+
+  .app-shell {
+    grid-template-columns: 288px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 2400px) {
+  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
+    width: min(100%, 1880px);
+    padding: 40px;
+    gap: 24px;
+  }
+
+  .app-shell {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 3200px) {
+  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
+    width: min(100%, 2280px);
+  }
 }

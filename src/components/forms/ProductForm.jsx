@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Gift, Image as ImageIcon, MapPin, UploadCloud,
 } from 'lucide-react';
@@ -158,7 +159,15 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         onChange={(event) => validateAndSelect(event.target.files?.[0])}
         hidden
       />
-      {isCameraOpen ? (
+      {isCameraOpen ? createPortal(
+        // Portaled straight to document.body — ProductForm only ever renders inside
+        // ProductDrawer.jsx's slide-over panel, and that panel is a framer-motion
+        // <motion.div animate={{ x: 0 }}>, which applies an inline `transform` that stays set
+        // even once the slide-in finishes. A `transform` on an ancestor traps any
+        // position: fixed descendant inside that ancestor's own stacking context, so no
+        // z-index on this modal could ever out-rank .mobile-bottom-nav — it was only ever
+        // competing within the drawer's much lower position in the real page stack. A portal
+        // is the actual fix; raising z-index alone (tried first) could not have worked.
         <div
           className="product-camera-modal"
           role="dialog"
@@ -185,7 +194,8 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

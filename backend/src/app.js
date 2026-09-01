@@ -23,7 +23,7 @@ function normalizeOrigin(value) {
   return value.trim().replace(/\/+$/, '').toLowerCase();
 }
 
-const allowedOriginPatterns = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173')
+const allowedOriginPatterns = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173,http://localhost:5174')
   .split(',')
   .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);

@@ -2,7 +2,6 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
-import CheckoutProgress from '../../components/checkout/CheckoutProgress';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
@@ -21,7 +20,6 @@ export default function OrderConfirmationPage() {
 
   return (
     <AppShell user={currentUser} navItems={getNavItemsForRole(currentUser.role)} title="Order confirmed" subtitle="Your order has been placed successfully.">
-      <CheckoutProgress currentStep="confirmation" />
       {!order ? (
         <div className="gcash-payment-status">
           <Loader2 className="animate-spin" size={24} />
@@ -30,11 +28,15 @@ export default function OrderConfirmationPage() {
       ) : (
         <section className="panel checkout-payment-step">
           <div className="checkout-payment-step-icon success"><CheckCircle2 size={28} /></div>
-          <p className="eyebrow">Confirmation</p>
           <h2>Order confirmed</h2>
+          <p>
+            {order.farmerName
+              ? `Thanks — ${order.farmerName} has been notified and will prepare your order.`
+              : 'Thanks — the farmer has been notified and will prepare your order.'}
+          </p>
           <div className="checkout-payment-order">Order #{shortOrderId(order.id)}</div>
 
-          <dl className="gcash-detail-list order-confirmation-summary">
+          <dl className="order-confirmation-summary">
             <div>
               <dt>Product</dt>
               <dd>{order.productName}</dd>
@@ -51,9 +53,9 @@ export default function OrderConfirmationPage() {
               <dt>Delivery</dt>
               <dd>{deliveryMethodLabel(order.deliveryMethod)}</dd>
             </div>
-            <div>
+            <div className="order-confirmation-total">
               <dt>Total</dt>
-              <dd className="gcash-amount">{formatCurrency(order.totalAmount)}</dd>
+              <dd>{formatCurrency(order.totalAmount)}</dd>
             </div>
           </dl>
 

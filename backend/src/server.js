@@ -8,7 +8,7 @@ const port = process.env.PORT || 4000;
 
 // Same comma-separated origin list app.js already uses for CORS — kept independent here
 // (not imported from app.js) so this addition can never change app.js's own behavior.
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173')
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173,http://localhost:5174')
   .split(',')
   .map((origin) => origin.trim());
 

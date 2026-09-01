@@ -1,8 +1,18 @@
-import { Clock3, Loader2, MapPinned } from 'lucide-react';
+import { Clock3, Loader2, MapPinned, Truck } from 'lucide-react';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
+import lalamoveLogo from '../../assets/icons/lalamove-logo.png';
+import buyerPickupIcon from '../../assets/icons/buyer-pickup-icon.png';
 import Button from '../common/Button';
 import SecureShieldIcon from '../icons/SecureShieldIcon';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
+
+// Same per-method icon choice as the picker this summary reflects (CheckoutForm.jsx's
+// DELIVERY_METHOD_ICONS) — farmer delivery keeps a plain lucide icon, buyer pickup and courier
+// get their own logo images, so a buyer sees the same mark here that they just clicked on.
+const DELIVERY_METHOD_LOGOS = {
+  buyer_pickup: buyerPickupIcon,
+  courier: lalamoveLogo,
+};
 
 // The sticky right-column summary — the one place a buyer should be able to look to answer
 // "what am I actually paying?" Replaces the old DeliveryFeeSummary.jsx (this was its only
@@ -16,13 +26,14 @@ import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatter
 // buyer's own live location (not a fee — pickup is always free) — `locationStatus`/
 // `locationNotice`/`onRetryLocation` cover the states before that location is available.
 export default function OrderSummaryPanel({
-  product, quantity, subtotal, deliveryMethodLabel, deliveryMunicipality,
+  product, quantity, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
   isSubmitting, orderPlaced, isGcash,
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
   const total = subtotal + fee;
   const quantityNumber = Number(quantity) || 0;
+  const deliveryLogo = DELIVERY_METHOD_LOGOS[deliveryMethod];
 
   return (
     <aside className="checkout-summary">
@@ -41,7 +52,14 @@ export default function OrderSummaryPanel({
 
         <div className="checkout-summary-delivery">
           <div className="checkout-summary-delivery-label">
-            <span>{deliveryMethodLabel}</span>
+            <span className="checkout-summary-delivery-method">
+              {deliveryLogo ? (
+                <img src={deliveryLogo} alt="" width={16} height={16} className="checkout-summary-delivery-icon" />
+              ) : deliveryMethod === 'farmer_delivery' ? (
+                <Truck size={15} className="checkout-summary-delivery-icon" aria-hidden="true" />
+              ) : null}
+              {deliveryMethodLabel}
+            </span>
             {!isPickup && deliveryMunicipality ? <span className="muted">{deliveryMunicipality}</span> : null}
           </div>
 

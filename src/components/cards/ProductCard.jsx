@@ -37,6 +37,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const isOutOfStock = !(product.quantity > 0);
   const canAddToCart = ORDERING_ROLES.includes(currentUser?.role);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   // Once this listing is already in the cart — including after coming back from the cart
   // page's "Continue shopping" link — the button switches to a Cancel action instead of
@@ -69,7 +70,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
           identical regardless of the uploaded photo's own dimensions or the card's own width —
           object-cover then crops any portrait/landscape/panoramic source to fill it. */}
       <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-[var(--green-50)] sm:h-[220px] lg:h-[240px]">
-        {product.image ? (
+        {product.image && !imageFailed ? (
           <>
             {!imageLoaded ? (
               <div className="absolute inset-0 animate-pulse bg-[var(--soft)]" aria-hidden="true" />
@@ -80,6 +81,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
               loading="lazy"
               decoding="async"
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageFailed(true)}
               className={`h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </>
