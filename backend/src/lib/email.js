@@ -8,7 +8,7 @@ import { Resend } from 'resend';
 // available to inboxes that block data URIs.
 const LOGO_BASE64 = readFileSync(fileURLToPath(new URL('../assets/email-logo.png', import.meta.url))).toString('base64');
 
-// Verification emails only — sent via Resend, from the backend exclusively. RESEND_API_KEY is
+// Transactional emails only — sent via Resend, from the backend exclusively. RESEND_API_KEY is
 // read once per process from the environment (Render's Environment tab in production); never
 // sent to or read by the frontend/Vite build. Previously Gmail API (OAuth 2.0), before that
 // Resend — this is Resend again, swapped back in because Gmail's OAuth setup (Google Cloud
@@ -198,5 +198,38 @@ export async function sendVerificationCodeEmail(email, code) {
   }
 
   if (!isProduction) console.info(`[dev-email-trace] Resend ACCEPTED the request for ${email} — id: ${data?.id}`);
+  return data;
+}
+
+export async function sendContactMessageEmail({ name, email, message }) {
+  const recipient = 'johndominiczanoria@gmail.com';
+  const subject = `HarvestLink contact message from ${name}`;
+  const text = [
+    `Name: ${name}`,
+    `Email: ${email}`,
+    '',
+    message,
+  ].join('\n');
+
+  if (!resend) {
+    if (isProduction) {
+      throw new Error('Email delivery is not configured (RESEND_API_KEY is missing).');
+    }
+    console.info(`[dev-email-trace] Contact message addressed to ${recipient} from ${email}`);
+    return { devFallback: true };
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: [recipient],
+    replyTo: 'harvestlink@gmail.com',
+    subject,
+    text,
+  });
+
+  if (error) {
+    throw new Error(`Resend API error: ${error.message || 'Unable to send contact message.'}`, { cause: error });
+  }
+
   return data;
 }

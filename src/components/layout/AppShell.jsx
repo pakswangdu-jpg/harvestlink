@@ -20,10 +20,9 @@ const navListVariants = {
   show: { transition: { staggerChildren: 0.04 } },
 };
 
-// Determines section order for nav items that declare a `group` (farmerNav.js and
-// buyerNav.js). Items with no `group` — stakeholder/admin's nav configs — all land in the
-// "Menu" bucket, which reproduces their original single flat list exactly, so this is
-// additive rather than a behavior change for those roles.
+// Determines section order for nav items that declare a `group` (farmerNav.js,
+// buyerNav.js, and stakeholderNav.js). Items with no `group` (the admin config) land in
+// the "Menu" bucket.
 const NAV_GROUP_ORDER = ['Main', 'Orders', 'Sales', 'Market', 'Community', 'Menu'];
 
 // Desktop-only (the sidebar itself is display:none below 1080px in favor of the mobile

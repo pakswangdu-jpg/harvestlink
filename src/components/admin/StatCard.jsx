@@ -67,7 +67,7 @@ export default function StatCard({
         ) : null}
         <div className="min-w-0">
           <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">{label}</p>
-          <p className="mt-1 text-[22px] font-semibold leading-none text-[var(--text)]">{value}</p>
+          <p className="mt-1 text-[22px] font-medium leading-none tabular-nums text-[var(--text)]">{value}</p>
           {hint || trend ? (
             <p className="mt-1.5 flex items-center gap-1 text-[12px] text-[var(--muted)]">
               {trend ? (

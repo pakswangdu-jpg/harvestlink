@@ -1,87 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Calendar, ClipboardList, Gift, PackageCheck } from 'lucide-react';
+import { ArrowRight, CalendarClock, CheckCircle2, ClipboardList, Gift, HandHeart, MapPin, MessageSquare, PackageOpen, ShoppingBasket, TriangleAlert, Wheat } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
-import Button from '../../components/common/Button';
-import KpiGrid from '../../components/common/KpiGrid';
-import KpiCard from '../../components/common/KpiCard';
-import DonationCard from '../../components/cards/DonationCard';
-import DataTable from '../../components/dashboard/DataTable';
 import StatusBadge from '../../components/common/StatusBadge';
-import EmptyState from '../../components/common/EmptyState';
 import FarmerMap from '../../components/map/FarmerMap';
-import DeliveryMap from '../../components/orders/DeliveryMap';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getStakeholders, getUserById, getVerifiedFarmers } from '../../services/authService';
+import { getUserById } from '../../services/authService';
 import { getAvailableDonations, getDonationsForStakeholder } from '../../services/donationService';
-import { getLiveTransitProgress, getOrdersByBuyer } from '../../services/orderService';
 import { formatDate } from '../../utils/formatters';
-import { nearestByMunicipality } from '../../utils/geo';
 import { stakeholderNavItems } from './stakeholderNav';
 
-// Donation farmer profiles are resolved from the real backend (donation records
-// themselves still live in localStorage — see src/services/donationService.js — but the
-// farmerId on each one is a real account, so its profile can still be looked up).
 async function buildDonationFarmers(donations) {
-  const farmerIds = [...new Set(donations.map((donation) => donation.farmerId))];
-  const farmers = await Promise.all(farmerIds.map((id) => getUserById(id).catch(() => null)));
-  const farmerById = new Map(farmers.filter(Boolean).map((farmer) => [farmer.id, farmer]));
-
-  const byFarmerId = {};
-  donations.forEach((donation) => {
-    const farmer = farmerById.get(donation.farmerId);
-    if (!farmer) return;
-    if (!byFarmerId[donation.farmerId]) {
-      byFarmerId[donation.farmerId] = {
-        id: farmer.id,
-        name: farmer.name,
-        farmName: farmer.farmName,
-        municipality: farmer.municipality,
-        address: farmer.address,
-        contactNumber: farmer.contactNumber,
-        donations: [],
-      };
-    }
-    byFarmerId[donation.farmerId].donations.push({
-      productName: donation.productName,
-      quantity: donation.quantity,
-      unit: donation.unit,
-    });
+  const ids = [...new Set(donations.map((donation) => donation.farmerId))];
+  const farmers = await Promise.all(ids.map((id) => getUserById(id).catch(() => null)));
+  const byId = new Map(farmers.filter(Boolean).map((farmer) => [farmer.id, farmer]));
+  return ids.flatMap((id) => {
+    const farmer = byId.get(id);
+    if (!farmer) return [];
+    const farmerDonations = donations.filter((donation) => donation.farmerId === id);
+    return [{ id: farmer.id, name: farmer.name, farmName: farmer.farmName, municipality: farmer.municipality, address: farmer.address, contactNumber: farmer.contactNumber, donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })) }];
   });
-  return Object.values(byFarmerId);
 }
 
-function buildActiveDeliveryRoutes(orders, currentUser) {
-  return orders
-    // Courier (Lalamove) orders are excluded — see the matching comment in
-    // FarmerDashboard.jsx — HarvestLink has no real courier position to plot here.
-    .filter((order) => order.status === 'confirmed' && order.deliveryMethod !== 'courier')
-    .map((order) => {
-      const { progress, etaMinutes, currentPosition, remainingKm } = getLiveTransitProgress(order);
-      const isPickup = order.deliveryMethod === 'buyer_pickup';
-      return {
-        id: order.id,
-        // For pickup, the destination pin represents where you're starting from, not the
-        // farm itself — the route shows how to get there, not a delivery on its way to you.
-        originLabel: isPickup ? `${order.farmerName} (pickup here)` : `${order.farmerName} (farmer)`,
-        destinationLabel: isPickup ? `${order.buyerName} (you, starting point)` : `${order.buyerName} (you)`,
-        originMunicipality: order.originMunicipality,
-        destinationMunicipality: isPickup ? currentUser.municipality : order.deliveryMunicipality,
-        deliveryMethod: order.deliveryMethod,
-        progress,
-        etaMinutes,
-        currentPosition,
-        remainingKm,
-        label: `${order.productName} — ${order.farmerName}`,
-        href: `/orders/${order.id}`,
-      };
-    });
-}
-
-const EMPTY_STATE = {
-  available: [], myRequests: [], donationFarmers: [], activeDeliveryRoutes: [],
-  verifiedFarmers: [], buyers: [], stakeholders: [],
-};
+const EMPTY_STATE = { available: [], myRequests: [], donationFarmers: [] };
 
 export default function StakeholderDashboard() {
   const { currentUser, acknowledgeVerification } = useAuth();
@@ -89,169 +30,64 @@ export default function StakeholderDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-
     const reload = async () => {
       const available = getAvailableDonations();
       const myRequests = getDonationsForStakeholder(currentUser.id);
-      const [donationFarmers, orders, verifiedFarmers, buyers, stakeholders] = await Promise.all([
-        buildDonationFarmers(available),
-        // Real marketplace purchases (not donation requests) — placed the same way a
-        // buyer account would, so they're tracked the same way: by buyerId ownership.
-        getOrdersByBuyer(currentUser.id),
-        getVerifiedFarmers(),
-        getBuyers(),
-        getStakeholders(),
-      ]);
-      if (cancelled) return;
-
-      setState({
-        available,
-        myRequests,
-        donationFarmers,
-        activeDeliveryRoutes: buildActiveDeliveryRoutes(orders, currentUser),
-        verifiedFarmers,
-        buyers,
-        stakeholders: stakeholders.filter((stakeholder) => stakeholder.id !== currentUser.id),
-      });
+      const donationFarmers = await buildDonationFarmers(available);
+      if (!cancelled) setState({ available, myRequests, donationFarmers });
     };
-
     reload();
     const interval = setInterval(reload, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, currentUser.municipality]);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [currentUser.id]);
 
-  const { available, myRequests, donationFarmers, activeDeliveryRoutes, verifiedFarmers, buyers, stakeholders } = state;
-  const scheduled = myRequests.filter((donation) => donation.status === 'scheduled');
-  const completed = myRequests.filter((donation) => donation.status === 'completed');
-  // The dashboard map is a small "who's nearby" widget, not the full directory.
-  const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
-  const nearbyBuyers = nearestByMunicipality(currentUser.municipality, buyers);
-  const nearbyStakeholders = nearestByMunicipality(currentUser.municipality, stakeholders);
+  const { available, myRequests, donationFarmers } = state;
+  const scheduled = myRequests.filter((item) => item.status === 'scheduled');
+  const completed = myRequests.filter((item) => item.status === 'completed');
+  const awaitingApproval = myRequests.filter((item) => item.status === 'requested');
+  const latestActivity = [...myRequests].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
 
-  return (
-    <AppShell
-      user={currentUser}
-      navItems={stakeholderNavItems}
-      title="Partner dashboard"
-      subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests."
-      pageClassName="stakeholder-dashboard-page"
-    >
-      {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
-        <div className="form-alert success">
-          <strong>Your organization has been approved by admin!</strong>
-          <p>You can now request surplus produce donations.</p>
-          <Button size="sm" variant="secondary" onClick={acknowledgeVerification}>Got it</Button>
-        </div>
-      ) : currentUser.verificationStatus === 'pending' ? (
-        <div className="form-alert warning">
-          <strong>Your organization is pending verification.</strong>
-          <p>An admin typically reviews and approves new accounts within 24 hours. You can explore your dashboard in the meantime, but requesting donations is unlocked once your account is verified.</p>
-        </div>
-      ) : currentUser.verificationStatus === 'rejected' ? (
-        <div className="form-alert error">
-          <strong>Your organization verification was declined.</strong>
-          <p>You can&apos;t request donations until an admin approves your account. Update your profile details and contact support if you believe this was a mistake.</p>
-        </div>
-      ) : null}
-
-      <KpiGrid>
-        <KpiCard label="Available donations" value={available.length} icon={Gift} tone="financial" />
-        <KpiCard label="My requests" value={myRequests.length} icon={ClipboardList} tone="info" />
-        <KpiCard label="Scheduled pickups" value={scheduled.length} icon={Calendar} variant="warning" tone="warning" />
-        <KpiCard label="Completed" value={completed.length} icon={PackageCheck} variant="success" tone="success" />
-      </KpiGrid>
-
-      <section className="content-grid two">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Surplus produce</p>
-              <h2>Available donations</h2>
-            </div>
-            <Link className="btn btn-secondary btn-md" to="/stakeholder-donations">Browse all</Link>
-          </div>
-          {available.length ? (
-            <div className="product-grid preview">
-              {available.slice(0, 4).map((donation) => <DonationCard key={donation.id} donation={donation} />)}
-            </div>
-          ) : (
-            <EmptyState
-              className="empty-state-transparent-icon"
-              icon={Gift}
-              title="No donations yet"
-              message="Available surplus produce will appear here."
-            />
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">History</p>
-              <h2>Recent requests</h2>
-            </div>
-            <Link className="btn btn-secondary btn-md" to="/stakeholder-requests">View all</Link>
-          </div>
-          <DataTable
-            columns={[
-              { key: 'productName', label: 'Product' },
-              { key: 'farmerName', label: 'Farmer' },
-              { key: 'quantity', label: 'Qty', render: (row) => `${row.quantity} ${row.unit}` },
-              { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} type="donation" /> },
-              { key: 'updatedAt', label: 'Updated', render: (row) => <span className="muted">{formatDate(row.updatedAt)}</span> },
-            ]}
-            rows={myRequests.slice(0, 5)}
-            emptyMessage="No donation requests yet."
-          />
-        </div>
+  return <AppShell user={currentUser} navItems={stakeholderNavItems} title="Partner dashboard" subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests." pageClassName="stakeholder-dashboard-page stakeholder-operations-dashboard">
+    <VerificationBanner user={currentUser} onDismiss={acknowledgeVerification} />
+    <section className="stakeholder-quick-actions" aria-label="Quick actions">
+      <Link to="/marketplace"><Wheat aria-hidden="true" />Browse produce</Link><Link to="/stakeholder-donations"><HandHeart aria-hidden="true" />Browse donations</Link><Link to="/stakeholder-requests"><ClipboardList aria-hidden="true" />View requests</Link><Link to="/messages"><MessageSquare aria-hidden="true" />Open messages</Link>
+    </section>
+    <section className="stakeholder-summary" aria-label="Donation overview">
+      <SummaryStat icon={PackageOpen} label="Available donations" value={available.length} hint="Ready to request" />
+      <SummaryStat icon={ClipboardList} label="My requests" value={myRequests.length} hint={awaitingApproval.length ? `${awaitingApproval.length} awaiting approval` : 'No requests awaiting approval'} tone="blue" />
+      <SummaryStat icon={CalendarClock} label="Scheduled pickups" value={scheduled.length} hint={scheduled.length ? 'Pickup details are ready' : 'No pickup scheduled'} tone="amber" />
+      <SummaryStat icon={CheckCircle2} label="Completed" value={completed.length} hint="Successful donations" tone="green" />
+    </section>
+    <section className="stakeholder-primary-grid">
+      <section className="stakeholder-section"><SectionHeader title="Available donations" description="Surplus produce from Cebu farmers" actionTo="/stakeholder-donations" actionLabel="Browse all" />
+        {available.length ? <div className="stakeholder-donation-list">{available.slice(0, 4).map((donation) => <DonationRow key={donation.id} donation={donation} />)}</div> : <CompactEmpty icon={Gift} title="No surplus donations available" message="New surplus produce from verified farmers will appear here." actionTo="/stakeholder-donations" actionLabel="Browse all donations" />}
       </section>
-
-      <section className="content-grid two">
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Map</p>
-              <h2>Active Users</h2>
-              <p className="map-legend">
-                <span className="legend-dot farmer" /> Registered farmer
-                <span className="legend-dot buyer" /> Registered buyer
-                <span className="legend-dot stakeholder" /> Registered stakeholder
-              </p>
-            </div>
-            <span className="live-indicator"><span className="live-dot" /> Live</span>
-          </div>
-          <DeliveryMap
-            routes={activeDeliveryRoutes}
-            farmers={nearbyFarmers}
-            buyers={nearbyBuyers}
-            stakeholders={nearbyStakeholders}
-            viewerMunicipality={currentUser.municipality}
-          />
-          {!activeDeliveryRoutes.length ? (
-            <p className="muted map-empty-note">Confirmed marketplace orders will show up here with a live delivery route.</p>
-          ) : null}
-        </div>
-
-        <div className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Surplus produce</p>
-              <h2>Donation map</h2>
-            </div>
-          </div>
-          <p className="map-legend">
-            <span className="legend-dot donation" /> Farmer with available donations
-          </p>
-          <FarmerMap farmers={[]} donationFarmers={donationFarmers} />
-          {!donationFarmers.length ? (
-            <p className="muted map-empty-note">No surplus produce is available right now — this map updates the moment a farmer donates.</p>
-          ) : null}
-        </div>
+      <section className="stakeholder-section stakeholder-requests-panel"><SectionHeader title="Recent requests" description="Your latest donation activity" actionTo="/stakeholder-requests" actionLabel="View all requests" />
+        {myRequests.length ? <RequestList requests={myRequests.slice(0, 5)} /> : <CompactEmpty icon={ClipboardList} title="No donation requests yet" message="Once you request surplus produce, your pickup schedule will appear here." actionTo="/stakeholder-donations" actionLabel="Browse donations" />}
       </section>
-    </AppShell>
-  );
+    </section>
+    <section className="stakeholder-lower-grid">
+      <section className="stakeholder-section stakeholder-map-panel"><SectionHeader title="Nearby surplus" description="Available donations around Cebu" actionTo="/farmer-map" actionLabel="View map" />
+        <div className="stakeholder-map-legend"><span><i className="is-available" />Available donation</span><span><i className="is-organization" />Your organization</span></div><FarmerMap farmers={[]} stakeholders={[currentUser]} donationFarmers={donationFarmers} currentUserId={currentUser.id} />
+        {!donationFarmers.length ? <p className="stakeholder-map-note">No nearby surplus is available right now. This map updates when farmers list a donation.</p> : null}
+      </section>
+      <section className="stakeholder-section stakeholder-activity-panel"><SectionHeader title="Recent activity" description="Updates to your donation requests" />
+        {latestActivity.length ? <ActivityList items={latestActivity} /> : <CompactEmpty icon={ShoppingBasket} title="No activity yet" message="Donation updates and pickup schedules will appear here." />}
+      </section>
+    </section>
+  </AppShell>;
 }
+
+function VerificationBanner({ user, onDismiss }) {
+  if (user.verificationStatus === 'verified' && user.verificationAcknowledged === false) return <div className="stakeholder-verification-banner is-approved"><CheckCircle2 aria-hidden="true" /><div><strong>Your organization is verified</strong><p>You can now request surplus produce from local farmers.</p></div><button type="button" onClick={onDismiss}>Dismiss</button></div>;
+  if (user.verificationStatus === 'pending') return <div className="stakeholder-verification-banner"><TriangleAlert aria-hidden="true" /><div><strong>Organization verification pending</strong><p>Your organization is being reviewed. Donation requests will be available once your account is verified.</p></div><Link to="/profile">View status</Link></div>;
+  if (user.verificationStatus === 'rejected') return <div className="stakeholder-verification-banner is-rejected"><TriangleAlert aria-hidden="true" /><div><strong>Organization verification needs attention</strong><p>Update your organization details and contact support before requesting donations.</p></div><Link to="/profile">Review profile</Link></div>;
+  return null;
+}
+
+function SummaryStat({ icon: Icon, label, value, hint, tone = 'default' }) { return <article className={`stakeholder-summary-stat tone-${tone}`}><Icon aria-hidden="true" /><div><p>{label}</p><strong>{value}</strong><span>{hint}</span></div></article>; }
+function SectionHeader({ title, description, actionTo, actionLabel }) { return <header className="stakeholder-section-header"><div><h2>{title}</h2><p>{description}</p></div>{actionTo ? <Link to={actionTo}>{actionLabel}<ArrowRight size={15} aria-hidden="true" /></Link> : null}</header>; }
+function DonationRow({ donation }) { return <article className="stakeholder-donation-row"><div className="stakeholder-donation-image">{donation.image ? <img src={donation.image} alt="" /> : <PackageOpen aria-hidden="true" />}</div><div className="stakeholder-donation-copy"><strong>{donation.productName}</strong><span>{donation.quantity} {donation.unit} available</span><small><MapPin size={13} aria-hidden="true" />{donation.location || donation.farmerName}</small></div><div className="stakeholder-donation-freshness"><span>{donation.expirationDate ? `Available until ${formatDate(donation.expirationDate)}` : 'Freshly listed'}</span><small>From {donation.farmerName}</small></div><Link to="/stakeholder-donations" className="stakeholder-row-action">Request</Link></article>; }
+function RequestList({ requests }) { return <div className="stakeholder-request-list"><div className="stakeholder-request-head"><span>Produce</span><span>Farmer</span><span>Pickup date</span><span>Status</span></div>{requests.map((request) => <div className="stakeholder-request-row" key={request.id}><div><strong>{request.productName}</strong><small>{request.quantity} {request.unit}</small></div><span>{request.farmerName}</span><span>{request.pickupDate ? formatDate(request.pickupDate) : 'Awaiting schedule'}</span><StatusBadge value={request.status} type="donation" /></div>)}</div>; }
+function ActivityList({ items }) { return <div className="stakeholder-activity-list">{items.map((item) => <article key={item.id}><span><CheckCircle2 aria-hidden="true" /></span><div><strong>{item.status === 'scheduled' ? 'Pickup scheduled' : item.status === 'completed' ? 'Donation received' : 'Donation request sent'}</strong><p>{item.productName} · {item.quantity} {item.unit}</p></div><time>{formatDate(item.updatedAt)}</time></article>)}</div>; }
+function CompactEmpty({ icon: Icon, title, message, actionTo, actionLabel }) { return <div className="stakeholder-compact-empty"><Icon aria-hidden="true" /><div><strong>{title}</strong><p>{message}</p>{actionTo ? <Link to={actionTo}>{actionLabel}<ArrowRight size={14} aria-hidden="true" /></Link> : null}</div></div>; }

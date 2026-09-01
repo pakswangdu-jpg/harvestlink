@@ -38,7 +38,7 @@ export default function KpiCard({
         <h3 className="truncate text-[13px] font-medium text-[var(--muted)]">{label}</h3>
       </div>
       <div className="mt-3">
-        <p className="whitespace-nowrap text-[28px] font-bold leading-none tracking-tight text-[var(--text)]">{value}</p>
+        <p className="whitespace-nowrap text-[28px] font-medium leading-none tracking-tight tabular-nums text-[var(--text)]">{value}</p>
         {hint ? <p className="mt-1.5 text-[12px] text-[var(--muted)]">{hint}</p> : null}
       </div>
     </article>
