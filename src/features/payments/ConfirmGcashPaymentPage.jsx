@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  CheckCircle2, FileText, Loader2, UploadCloud, X, XCircle,
+  CheckCircle2, FileText, Loader2, ShieldCheck, UploadCloud, X, XCircle,
 } from 'lucide-react';
 import PaymentProgressTracker from '../../components/orders/PaymentProgressTracker';
 import BrandWordmark from '../../components/common/BrandWordmark';
@@ -11,6 +11,13 @@ import { useAuth } from '../auth/AuthContext';
 import { getGcashCheckout, submitPaymentProof } from '../../services/paymentService';
 import { uploadPaymentReceipt } from '../../services/uploadService';
 import { formatCurrency, formatDate, shortOrderId } from '../../utils/formatters';
+import {
+  filterGcashReferenceInput,
+  filterPersonNameInput,
+  isValidGcashReference,
+  isValidPersonName,
+  normalizeGcashReference,
+} from '../../utils/validators';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import logo from '../../assets/logo.png';
 
@@ -159,7 +166,11 @@ export default function ConfirmGcashPaymentPage() {
     const errors = {};
     if (!receiptFile) errors.receiptFile = 'Upload your payment receipt.';
     if (!referenceNumber.trim()) errors.referenceNumber = 'Enter the GCash reference number.';
+    else if (!isValidGcashReference(referenceNumber)) {
+      errors.referenceNumber = 'A GCash reference number is 12 to 13 digits — check the Ref. No. on your receipt.';
+    }
     if (!senderName.trim()) errors.senderName = 'Enter the sender name on the payment.';
+    else if (!isValidPersonName(senderName)) errors.senderName = 'Enter a name using letters only.';
     if (!paymentDatetime) errors.paymentDatetime = 'Enter the date and time you paid.';
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
@@ -170,7 +181,7 @@ export default function ConfirmGcashPaymentPage() {
       const receiptUrl = await uploadPaymentReceipt(receiptFile, checkout.order.buyerId);
       const order = await submitPaymentProof(id, {
         receiptUrl,
-        referenceNumber: referenceNumber.trim(),
+        referenceNumber: normalizeGcashReference(referenceNumber),
         senderName: senderName.trim(),
         paymentDatetime: new Date(paymentDatetime).toISOString(),
         notes: notes.trim(),
@@ -186,10 +197,13 @@ export default function ConfirmGcashPaymentPage() {
   return (
     <main className="gcash-payment-page">
       <div className="gcash-payment-wrap">
-        <Link to="/" className="gcash-payment-brand">
-          <img src={logo} alt="" />
-          <span><BrandWordmark /></span>
-        </Link>
+        <div className="gcash-payment-header-bar">
+          <Link to="/" className="gcash-payment-brand">
+            <img src={logo} alt="" />
+            <span><BrandWordmark /></span>
+          </Link>
+          <span className="gcash-secure-indicator"><ShieldCheck size={13} /> <span>Secure Payment</span></span>
+        </div>
 
         <div className="panel gcash-payment-card">
           {stage === 'loading' ? (
@@ -215,7 +229,7 @@ export default function ConfirmGcashPaymentPage() {
                   <h2>Order #{shortOrderId(checkout.order.id)}</h2>
                 </div>
               </div>
-              <p className="muted">Thanks for paying! Upload your receipt so {checkout.order.farmerName} can verify it and confirm your order.</p>
+              <p className="muted gcash-form-intro">Thanks for paying! Upload your receipt so {checkout.order.farmerName} can verify it and confirm your order.</p>
 
               {submitError ? <div className="form-alert error">{submitError}</div> : null}
 
@@ -236,7 +250,14 @@ export default function ConfirmGcashPaymentPage() {
                   <span>GCash reference number</span>
                   <input
                     value={referenceNumber}
-                    onChange={(event) => { setReferenceNumber(event.target.value); setFieldErrors((prev) => ({ ...prev, referenceNumber: undefined })); }}
+                    onChange={(event) => {
+                      setReferenceNumber(filterGcashReferenceInput(event.target.value));
+                      setFieldErrors((prev) => ({ ...prev, referenceNumber: undefined }));
+                    }}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    // 13 digits plus the 3 spaces GCash's own grouping uses.
+                    maxLength={16}
                     placeholder="e.g. 1234 5678 9012"
                   />
                   {fieldErrors.referenceNumber ? <small className="field-error">{fieldErrors.referenceNumber}</small> : null}
@@ -246,7 +267,12 @@ export default function ConfirmGcashPaymentPage() {
                   <span>Sender name</span>
                   <input
                     value={senderName}
-                    onChange={(event) => { setSenderName(event.target.value); setFieldErrors((prev) => ({ ...prev, senderName: undefined })); }}
+                    onChange={(event) => {
+                      setSenderName(filterPersonNameInput(event.target.value));
+                      setFieldErrors((prev) => ({ ...prev, senderName: undefined }));
+                    }}
+                    autoComplete="name"
+                    maxLength={120}
                     placeholder="Name on the GCash account you paid from"
                   />
                   {fieldErrors.senderName ? <small className="field-error">{fieldErrors.senderName}</small> : null}

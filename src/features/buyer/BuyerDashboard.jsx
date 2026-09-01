@@ -16,9 +16,14 @@ import { getActiveProducts } from '../../services/productService';
 import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
-import { formatCurrency, formatDate, getFirstName, getInitials } from '../../utils/formatters';
+import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
 import { haversineKm, nearestByMunicipality } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
+
+// How many nearby farms the dashboard widget lists. The list itself is capped to roughly four
+// rows tall and scrolls past that (see .nearby-farmers-list), so this is about how far the
+// "who's nearby" shortlist reaches, not how much vertical space it takes.
+const NEARBY_FARMERS_LIMIT = 10;
 
 const EMPTY_STATE = {
   products: [], orders: [], verifiedFarmers: [], registeredBuyers: [], registeredStakeholders: [],
@@ -87,7 +92,7 @@ export default function BuyerDashboard() {
   const nearbyFarmers = nearestByMunicipality(currentUser.municipality, verifiedFarmers);
   const buyerCoords = buyerCoordsById[currentUser.id];
   const nearbyFarmersWithDistance = nearbyFarmers
-    .slice(0, 4)
+    .slice(0, NEARBY_FARMERS_LIMIT)
     .map((farmer) => ({
       farmer,
       distanceKm: buyerCoords && farmerCoordsById[farmer.id]
@@ -106,16 +111,11 @@ export default function BuyerDashboard() {
     <AppShell
       user={currentUser}
       navItems={buyerNavItems}
-      title={`Welcome, ${getFirstName(currentUser.name)}!`}
-      subtitle="Browse Cebu harvests, check out, and track delivery from local farmers."
+      title={`Welcome, ${getFirstName(currentUser.name)}`}
+      subtitle="Browse Cebu harvests, check farmgate prices, and track orders from nearby farms."
       pageClassName="buyer-dashboard-page"
     >
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Overview</p>
-          <h2>Account overview</h2>
-        </div>
-      </div>
+      <section className="buyer-overview" aria-label="Account overview">
       <div className="product-stats-bar">
         <div className="product-stats-item">
           <div className="product-stats-label-row"><Wallet size={16} className="product-stats-icon" aria-hidden="true" /><p className="product-stats-label">Total spend</p></div>
@@ -143,18 +143,18 @@ export default function BuyerDashboard() {
           <p className="product-stats-hint">Received orders</p>
         </div>
       </div>
+      </section>
 
       <section className="content-grid two buyer-dashboard-primary">
-        <div className="panel">
+        <div className="panel buyer-map-panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Nearby farmers</p>
               <h2>Nearby farmers</h2>
-              <p className="section-supporting-text">Browse active farms and available produce nearby.</p>
+              <p className="section-supporting-text">Active farms around {currentUser.municipality || 'Cebu'}.</p>
               <p className="map-legend">
-                <span className="legend-dot farmer" /> Registered farmer
-                <span className="legend-dot buyer" /> Registered buyer
-                <span className="legend-dot stakeholder" /> Registered stakeholder
+                <span className="legend-dot farmer" /> Farmer
+                <span className="legend-dot buyer" /> Buyer
+                <span className="legend-dot stakeholder" /> Stakeholder
               </p>
             </div>
             <span className="live-indicator"><span className="live-dot" /> Live</span>
@@ -199,11 +199,10 @@ export default function BuyerDashboard() {
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Marketplace</p>
               <h2>Fresh listings</h2>
-              <p className="section-supporting-text">Recently listed produce from nearby farms.</p>
+              <p className="section-supporting-text">Grade A produce currently for sale.</p>
             </div>
-            <Link className="btn btn-secondary btn-md" to="/marketplace">Browse all</Link>
+            <Link className="btn btn-secondary btn-sm" to="/marketplace">Browse all</Link>
           </div>
           {freshListings.length ? (
             <div className="product-grid preview">
@@ -224,46 +223,57 @@ export default function BuyerDashboard() {
         <div className="panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">History</p>
               <h2>Recent orders</h2>
-              <p className="section-supporting-text">Your latest purchases and delivery status.</p>
+              <p className="section-supporting-text">Latest purchases and delivery status.</p>
             </div>
-            <Link className="btn btn-secondary btn-md" to="/buyer-orders">View history</Link>
+            <Link className="btn btn-secondary btn-sm" to="/buyer-orders">View history</Link>
           </div>
           <DataTable
             columns={[
-              { key: 'productName', label: 'Product', truncate: true },
-              { key: 'farmerName', label: 'Farmer', truncate: true },
-              { key: 'totalAmount', label: 'Total', width: '90px', render: (row) => formatCurrency(row.totalAmount) },
-              { key: 'status', label: 'Status', width: '96px', render: (row) => <StatusBadge value={row.status} /> },
-              { key: 'createdAt', label: 'Date', width: '108px', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
+              { key: 'id', label: 'Order', width: '68px', render: (row) => <span className="buyer-order-id">{shortOrderId(row.id)}</span> },
+              {
+                key: 'productName',
+                label: 'Product',
+                render: (row) => (
+                  <div className="buyer-order-product-cell">
+                    <strong className="truncate" title={row.productName}>{row.productName}</strong>
+                    <span className="muted truncate" title={row.farmerName}>{row.farmerName}</span>
+                  </div>
+                ),
+              },
+              { key: 'totalAmount', label: 'Total', width: '78px', render: (row) => formatCurrency(row.totalAmount) },
+              { key: 'createdAt', label: 'Date', width: '84px', render: (row) => <span className="muted">{formatDate(row.createdAt)}</span> },
+              { key: 'status', label: 'Status', width: '92px', render: (row) => <StatusBadge value={row.status} /> },
               {
                 key: 'action',
                 label: '',
-                width: '48px',
+                width: '36px',
                 align: 'right',
                 render: (row) => (
                   <Link className="dashboard-row-action" to={`/orders/${row.id}`} aria-label={`View order ${row.id}`}>
-                    <Eye size={15} aria-hidden="true" />
+                    <Eye size={16} aria-hidden="true" />
                   </Link>
                 ),
               },
             ]}
             rows={orders.slice(0, 5)}
-            emptyMessage="No orders yet."
+            emptyMessage={{
+              title: 'No orders yet',
+              message: 'Orders you place in the marketplace will appear here.',
+            }}
           />
         </div>
       </section>
 
       {recommendedFarmers.length ? (
-        <section className="panel">
+        <section className="panel buyer-recommended-panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">For you</p>
               <h2>Recommended farms</h2>
+              <p className="section-supporting-text">Highest-rated verified farms on HarvestLink.</p>
             </div>
           </div>
-          <div className="content-grid two">
+          <div className="buyer-recommended-grid">
             {recommendedFarmers.map((farmer) => (
               <Link
                 key={farmer.id}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
-import CheckoutProgress from '../../components/checkout/CheckoutProgress';
 import CheckoutForm from '../../components/forms/CheckoutForm';
 import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
@@ -70,7 +69,6 @@ export default function ProductDetails() {
       subtitle="Review your order before placing it."
       pageClassName="checkout-page"
     >
-      {canRequest ? <CheckoutProgress currentStep="checkout" /> : null}
       {canRequest ? (
         <CheckoutForm
           product={product}

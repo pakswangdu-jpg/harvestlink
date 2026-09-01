@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Check, CheckCircle2, Clipboard, ClipboardList, MapPin, Navigation, Package, Search, Truck, X,
+  Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck, X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -8,7 +8,7 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
-import ZoomableImage from '../../components/common/ZoomableImage';
+import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
@@ -34,6 +34,10 @@ function getOrderStage(order) {
   if (step === 'picked_up' || step === 'delivered') return 'completed';
   return 'confirmed';
 }
+
+// How many pending payments the verification panel shows before collapsing the rest behind
+// its "Review all" toggle.
+const VISIBLE_VERIFICATION_LIMIT = 3;
 
 const STAGE_LABELS = {
   pending: 'Pending',
@@ -172,9 +176,20 @@ function OrderIdCell({ order, copiedOrderId, onCopy }) {
   );
 }
 
-function PaymentCell({ order }) {
+function PaymentCell({ order, onViewPayment }) {
   return (
-    <div className="order-cell-main"><PaymentMethodLabel method={order.paymentMethod} /></div>
+    <div className="order-payment-cell">
+      <div className="order-cell-main"><PaymentMethodLabel method={order.paymentMethod} /></div>
+      <button
+        type="button"
+        className="order-payment-info-btn"
+        onClick={() => onViewPayment(order)}
+        title="Payment information"
+        aria-label={`Payment information for order ${shortOrderId(order.id)}`}
+      >
+        <Receipt size={14} aria-hidden="true" /> Payment info
+      </button>
+    </div>
   );
 }
 
@@ -190,12 +205,24 @@ function DeliveryCell({ order }) {
 
 // One primary action per row, matching getPrimaryAction's decision exactly — Pending is the
 // only stage that also gets a secondary (Reject) button.
-function OrderActions({ order, onAction }) {
+//
+// A GCash payment waiting on this farmer's decision is surfaced on the row too, not only in
+// the Payment Verification panel above, so it can be actioned while working down the table.
+// It is added ALONGSIDE the stage action rather than replacing it: an order can legitimately
+// keep moving through preparing/delivery while its payment is still being verified, and
+// swallowing "Confirm Order" behind a payment prompt would stall the order.
+function OrderActions({ order, onAction, onReviewPayment }) {
   const action = getPrimaryAction(order);
+  const paymentAction = order.paymentVerificationStatus === 'pending' ? (
+    <Button size="sm" onClick={() => onReviewPayment(order)}>
+      <Check size={14} /> Approve Payment
+    </Button>
+  ) : null;
 
   if (action.kind === 'confirm') {
     return (
       <div className="table-actions order-table-actions">
+        {paymentAction}
         <Button size="sm" onClick={() => onAction('confirm', order)}>
           <Check size={14} /> Confirm Order
         </Button>
@@ -207,16 +234,27 @@ function OrderActions({ order, onAction }) {
   }
 
   if (action.kind === 'book-courier') {
+    if (!paymentAction) {
+      return (
+        <Link className="btn btn-primary btn-sm order-action-single" to={`/orders/${order.id}`}>
+          <Truck size={14} /> Book with Lalamove
+        </Link>
+      );
+    }
     return (
-      <Link className="btn btn-primary btn-sm order-action-single" to={`/orders/${order.id}`}>
-        <Truck size={14} /> Book with Lalamove
-      </Link>
+      <div className="table-actions order-table-actions">
+        {paymentAction}
+        <Link className="btn btn-primary btn-sm" to={`/orders/${order.id}`}>
+          <Truck size={14} /> Book with Lalamove
+        </Link>
+      </div>
     );
   }
 
   if (action.kind === 'advance') {
     return (
       <div className="table-actions order-table-actions">
+        {paymentAction}
         <Button
           size="sm"
           onClick={() => onAction('advance', order, action)}
@@ -235,6 +273,7 @@ function OrderActions({ order, onAction }) {
   if (action.kind === 'awaiting-buyer') {
     return (
       <div className="table-actions order-table-actions">
+        {paymentAction}
         <span className="order-cell-sub">Awaiting buyer confirmation</span>
         {getOrderStage(order) === 'out_for_delivery' ? (
           <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>
@@ -247,7 +286,16 @@ function OrderActions({ order, onAction }) {
     );
   }
 
-  return <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>;
+  if (!paymentAction) {
+    return <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>;
+  }
+
+  return (
+    <div className="table-actions order-table-actions">
+      {paymentAction}
+      <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>View Details</Link>
+    </div>
+  );
 }
 
 export default function FarmerOrders() {
@@ -257,8 +305,8 @@ export default function FarmerOrders() {
   const [error, setError] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
-  const [paymentRejectingId, setPaymentRejectingId] = useState(null);
-  const [paymentRejectReason, setPaymentRejectReason] = useState('');
+  const [verifyingOrderId, setVerifyingOrderId] = useState(null);
+  const [showAllVerifications, setShowAllVerifications] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(null);
 
   const [activeStage, setActiveStage] = useState('all');
@@ -318,19 +366,32 @@ export default function FarmerOrders() {
     setConfirmAction(null);
   };
 
-  const handleConfirmPaymentReject = async () => {
-    if (!paymentRejectReason.trim()) {
-      setError('Enter a reason for rejecting this payment.');
-      return;
-    }
-    await run(() => rejectPaymentVerification(paymentRejectingId, paymentRejectReason.trim()), 'Payment rejected.');
-    setPaymentRejectingId(null);
-    setPaymentRejectReason('');
+  // Both close the drawer afterwards — the order drops out of pendingVerifications once its
+  // verification status changes, so leaving it open would strand the farmer on a payment that
+  // no longer needs a decision.
+  const handleApprovePayment = async (order) => {
+    await run(() => approvePaymentVerification(order.id), 'Payment approved.');
+    setVerifyingOrderId(null);
+  };
+
+  const handleRejectPayment = async (order, reason) => {
+    await run(() => rejectPaymentVerification(order.id, reason), 'Payment rejected.');
+    setVerifyingOrderId(null);
   };
 
   // Only GCash orders ever go through submitPaymentProof (see payments.controller.js) —
   // COD orders never set paymentVerificationStatus at all, so this naturally excludes them.
   const pendingVerifications = orders.filter((order) => order.paymentVerificationStatus === 'pending');
+  // Resolved from the live list rather than held as its own copy, so the drawer always
+  // reflects the latest poll. Looked up across ALL orders, not just pendingVerifications —
+  // the same drawer doubles as the read-only payment record reachable from every row's
+  // "Payment info" button, including COD and already-settled payments.
+  const verifyingOrder = orders.find((order) => order.id === verifyingOrderId) || null;
+  // A busy farmer can have a long queue of payments waiting — capped so this panel never
+  // pushes the actual Purchase Orders table off the screen, with the full list one click away.
+  const visibleVerifications = showAllVerifications
+    ? pendingVerifications
+    : pendingVerifications.slice(0, VISIBLE_VERIFICATION_LIMIT);
 
   const stageCounts = useMemo(() => {
     const counts = { all: orders.length };
@@ -428,55 +489,36 @@ export default function FarmerOrders() {
           </div>
 
           <div className="payment-verification-list">
-            {pendingVerifications.map((order) => (
-              <div key={order.id} className="payment-verification-card">
-                <div className="payment-verification-receipt">
-                  <ZoomableImage
-                    src={order.paymentReceiptUrl}
-                    alt={`Payment receipt from ${order.buyerName}`}
-                    fallbackMessage="Unable to load this receipt."
-                    className="payment-verification-receipt-image"
-                  />
-                </div>
-
-                <div className="payment-verification-details">
-                  <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
-                  <div className="ot-detail-row"><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
-                  <div className="ot-detail-row"><span>Amount</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
-                  <div className="ot-detail-row"><span>Reference #</span><strong>{order.paymentReferenceNumber || '—'}</strong></div>
-                  <div className="ot-detail-row"><span>Sender name</span><strong>{order.paymentSenderName || '—'}</strong></div>
-                  <div className="ot-detail-row"><span>Submitted</span><strong>{formatDate(order.paymentSubmittedAt)}</strong></div>
-                  {order.paymentNotes ? (
-                    <div className="ot-detail-row"><span>Notes</span><strong>{order.paymentNotes}</strong></div>
-                  ) : null}
-
-                  {paymentRejectingId === order.id ? (
-                    <div className="form-stack payment-verification-reject-form">
-                      <textarea
-                        rows="2"
-                        value={paymentRejectReason}
-                        onChange={(event) => setPaymentRejectReason(event.target.value)}
-                        placeholder="Reason for rejecting this payment"
-                      />
-                      <div className="table-actions">
-                        <Button size="sm" variant="danger" onClick={handleConfirmPaymentReject}>Confirm Reject</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setPaymentRejectingId(null); setPaymentRejectReason(''); }}>Cancel</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="table-actions">
-                      <Button size="sm" onClick={() => run(() => approvePaymentVerification(order.id), 'Payment approved.')}>
-                        <Check size={15} /> Approve Payment
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => { setPaymentRejectingId(order.id); setPaymentRejectReason(''); }}>
-                        <X size={15} /> Reject Payment
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
+            {visibleVerifications.map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                className="payment-verification-row"
+                onClick={() => setVerifyingOrderId(order.id)}
+              >
+                <span className="payment-verification-row-main">
+                  <strong>{order.buyerName}</strong>
+                  <span className="muted">
+                    Order #{shortOrderId(order.id)} · Ref {order.paymentReferenceNumber || '—'} · {formatDate(order.paymentSubmittedAt)}
+                  </span>
+                </span>
+                <span className="payment-verification-row-amount">{formatCurrency(order.totalAmount)}</span>
+                <span className="payment-verification-row-cta">Review <ChevronRight size={15} aria-hidden="true" /></span>
+              </button>
             ))}
           </div>
+
+          {pendingVerifications.length > VISIBLE_VERIFICATION_LIMIT ? (
+            <button
+              type="button"
+              className="payment-verification-toggle"
+              onClick={() => setShowAllVerifications((previous) => !previous)}
+            >
+              {showAllVerifications
+                ? 'Show less'
+                : `Review all ${pendingVerifications.length} payments`}
+            </button>
+          ) : null}
         </section>
       ) : null}
 
@@ -501,7 +543,9 @@ export default function FarmerOrders() {
                   onClick={() => setActiveStage(tab.key)}
                 >
                   {tab.label}
-                  <span className="filter-tab-count">{stageCounts[tab.key] || 0}</span>
+                  <span className={`filter-tab-count${stageCounts[tab.key] ? '' : ' is-zero'}`}>
+                    {stageCounts[tab.key] || 0}
+                  </span>
                 </button>
               ))}
             </div>
@@ -576,11 +620,11 @@ export default function FarmerOrders() {
                           <td><BuyerCell order={order} /></td>
                           <td><ProductCell order={order} /></td>
                           <td><OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} /></td>
-                          <td><PaymentCell order={order} /></td>
+                          <td><PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
                           <td><DeliveryCell order={order} /></td>
                           <td><OrderStageBadge order={order} /></td>
                           <td><span className="muted">{formatDate(order.createdAt)}</span></td>
-                          <td><OrderActions order={order} onAction={handleAction} /></td>
+                          <td><OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
                         </tr>
                       ))}
                     </tbody>
@@ -601,7 +645,7 @@ export default function FarmerOrders() {
                       <div className="order-mobile-card-grid">
                         <div>
                           <p className="order-mobile-card-label">Payment</p>
-                          <p className="order-mobile-card-value"><PaymentMethodLabel method={order.paymentMethod} /></p>
+                          <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
                         </div>
                         <div>
                           <p className="order-mobile-card-label">Fulfillment</p>
@@ -616,7 +660,7 @@ export default function FarmerOrders() {
                       </div>
 
                       <div className="order-mobile-card-actions">
-                        <OrderActions order={order} onAction={handleAction} />
+                        <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
                       </div>
                     </div>
                   ))}
@@ -659,6 +703,13 @@ export default function FarmerOrders() {
         confirmLabel={confirmAction ? confirmAction.action.label : 'Confirm'}
         onConfirm={confirmAdvance}
         onCancel={() => setConfirmAction(null)}
+      />
+
+      <PaymentVerificationDrawer
+        order={verifyingOrder}
+        onClose={() => setVerifyingOrderId(null)}
+        onApprove={handleApprovePayment}
+        onReject={handleRejectPayment}
       />
     </AppShell>
   );

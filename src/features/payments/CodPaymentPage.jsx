@@ -2,7 +2,6 @@ import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
-import CheckoutProgress from '../../components/checkout/CheckoutProgress';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
@@ -23,7 +22,6 @@ export default function CodPaymentPage() {
 
   return (
     <AppShell user={currentUser} navItems={getNavItemsForRole(currentUser.role)} title="Payment" subtitle="Review your payment method before confirming.">
-      <CheckoutProgress currentStep="payment" />
       {!order ? (
         <div className="gcash-payment-status">
           <Loader2 className="animate-spin" size={24} />

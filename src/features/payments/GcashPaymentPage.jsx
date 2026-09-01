@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  CheckCircle2, Copy, Loader2, ShieldCheck, XCircle,
+  ArrowLeft, Check, CheckCircle2, Copy, Loader2, ShieldCheck, XCircle,
 } from 'lucide-react';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import CheckoutProgress from '../../components/checkout/CheckoutProgress';
 import MobileBottomNav from '../../components/layout/MobileBottomNav';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -15,6 +14,10 @@ import { formatCurrency, shortOrderId } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import logo from '../../assets/logo.png';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
+
+// Non-permanent — reverts on its own so the button stays clickable if the buyer wants to
+// copy again, matching the same pattern ProductCard.jsx uses for "Added to Cart".
+const COPIED_FEEDBACK_MS = 1500;
 
 const PAYMENT_STEPS = [
   'Open your GCash app.',
@@ -49,6 +52,7 @@ export default function GcashPaymentPage() {
   const [checkout, setCheckout] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   // Bumped by "Try Again" to force the effect below to refetch — the farmer setting up
   // GCash (Profile.jsx) doesn't push anything to an already-open checkout tab, so without
   // this a buyer who hit the "not set up yet" error has no way back except abandoning the
@@ -83,6 +87,8 @@ export default function GcashPaymentPage() {
   const copyGcashNumber = () => {
     if (!checkout?.gcash?.number) return;
     navigator.clipboard?.writeText(checkout.gcash.number).then(() => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), COPIED_FEEDBACK_MS);
       showToast({ type: 'success', message: 'GCash number copied.' });
     }).catch(() => {});
   };
@@ -99,7 +105,6 @@ export default function GcashPaymentPage() {
         </div>
 
         <div className="panel gcash-payment-card">
-          <CheckoutProgress currentStep="payment" />
           {stage === 'loading' ? (
             <div className="gcash-payment-status">
               <Loader2 className="animate-spin" size={24} />
@@ -153,8 +158,13 @@ export default function GcashPaymentPage() {
                         <dt>GCash number</dt>
                         <dd className="gcash-copyable-row">
                           {checkout.gcash.number}
-                          <button type="button" className="gcash-copy-btn" onClick={copyGcashNumber} aria-label="Copy GCash number">
-                            <Copy size={13} />
+                          <button
+                            type="button"
+                            className={`gcash-copy-btn${isCopied ? ' is-copied' : ''}`}
+                            onClick={copyGcashNumber}
+                            aria-label="Copy GCash number"
+                          >
+                            {isCopied ? <Check size={14} /> : <Copy size={13} />}
                           </button>
                         </dd>
                       </div>
@@ -183,7 +193,7 @@ export default function GcashPaymentPage() {
                       <CheckCircle2 size={16} /> Payment Completed — Upload Receipt
                     </button>
                     <button type="button" className="gcash-back-link" onClick={() => setIsLeaveDialogOpen(true)}>
-                      Back to Order
+                      <ArrowLeft size={14} /> Back to Order
                     </button>
                   </div>
 

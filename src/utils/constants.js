@@ -203,8 +203,8 @@ export function getMunicipalityCoords(municipality) {
 }
 
 export const PAYMENT_METHODS = [
-  { value: 'cod', label: 'COD' },
   { value: 'gcash', label: 'GCash' },
+  { value: 'cod', label: 'COD' },
 ];
 
 export const ONLINE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method.value !== 'cod').map((method) => method.value);

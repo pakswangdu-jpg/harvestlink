@@ -96,7 +96,7 @@ export default function CheckoutForm({
   const [values, setValues] = useState(() => ({
     quantity: defaultQuantity(product, initialQuantity),
     message: '',
-    paymentMethod: 'cod',
+    paymentMethod: 'gcash',
     deliveryMethod: 'farmer_delivery',
     deliveryMunicipality: currentUser.municipality || CEBU_MUNICIPALITIES[0],
   }));
@@ -418,6 +418,7 @@ export default function CheckoutForm({
         product={product}
         quantity={values.quantity}
         subtotal={subtotal}
+        deliveryMethod={values.deliveryMethod}
         deliveryMethodLabel={deliveryMethodLabel}
         deliveryMunicipality={!isPickup ? values.deliveryMunicipality : null}
         estimate={feeEstimate}

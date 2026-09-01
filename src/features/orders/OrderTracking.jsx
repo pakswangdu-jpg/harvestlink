@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  BadgeCheck, Check, CheckCircle2, Clock3, Copy, FileText, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, X,
+  BadgeCheck, Check, CheckCircle2, Clock3, Copy, FileText, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, X,
 } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -14,6 +14,7 @@ import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
+import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { getUserById } from '../../services/authService';
@@ -211,6 +212,8 @@ export default function OrderTracking() {
   // OSRM-based figures remain the fallback for that brief gap (and for any error case where
   // Directions never resolves at all).
   const [liveRoute, setLiveRoute] = useState(null);
+  // Presentation only — whether the (always-mounted) tracking overlay is visible.
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
   if (loadedId !== id) return null;
   if (!order) return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
@@ -324,7 +327,14 @@ export default function OrderTracking() {
                 <p className="eyebrow">Tracking</p>
                 <h2>Order progress</h2>
               </div>
-              <span className="live-indicator"><span className="live-dot" /> Live</span>
+              <div className="ot-progress-heading-actions">
+                {isTrackable ? (
+                  <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
+                    <Map size={15} aria-hidden="true" /> View tracking
+                  </button>
+                ) : null}
+                <span className="live-indicator"><span className="live-dot" /> Live</span>
+              </div>
             </div>
             {isCourier ? (
               <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={isFarmer} onDeliveryUpdate={setDelivery} />
@@ -516,6 +526,15 @@ export default function OrderTracking() {
           </section>
         ) : null}
 
+        {/* Same three tracking sections as before, unchanged — only their placement moved,
+            from inline below the order details into the overlay opened by "View tracking".
+            The overlay keeps them mounted at all times (see its own comment), so the map's
+            Google ETA keeps feeding displayEtaMinutes above exactly as it did inline. */}
+        <DeliveryTrackingOverlay
+          open={isTrackingOpen}
+          onClose={() => setIsTrackingOpen(false)}
+          title={isPickup ? 'Pickup tracking' : 'Delivery tracking'}
+        >
         {isTrackable ? (
           <section className="ot-summary-cards-wrap">
             <div className="section-heading">
@@ -612,6 +631,7 @@ export default function OrderTracking() {
             />
           </section>
         ) : null}
+        </DeliveryTrackingOverlay>
 
         <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
       </div>

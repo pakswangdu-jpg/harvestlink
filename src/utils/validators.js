@@ -222,6 +222,48 @@ export function validateProfileForm(values, role) {
   return errors;
 }
 
+// A GCash transaction "Ref. No." is all digits — buyers commonly copy it across in the
+// spaced grouping GCash itself displays ("1234 5678 9012 3"), so spaces are accepted on the
+// way in and stripped here rather than rejected.
+export function normalizeGcashReference(value) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+// Deliberately a 12-13 digit RANGE, not a single fixed length: GCash receipts in the wild
+// carry both (13 is the common Express Send/transaction length, 12 shows up too — the app's
+// own placeholder was written against a 12-digit example). Pinning this to one exact length
+// would block a buyer holding a perfectly valid receipt from submitting proof of a payment
+// they've already made, which is a far worse failure here than accepting one digit of slack.
+export const GCASH_REFERENCE_MIN_DIGITS = 12;
+export const GCASH_REFERENCE_MAX_DIGITS = 13;
+
+export function isValidGcashReference(value) {
+  const digits = normalizeGcashReference(value);
+  return digits.length >= GCASH_REFERENCE_MIN_DIGITS && digits.length <= GCASH_REFERENCE_MAX_DIGITS;
+}
+
+// Letters only — but "letters" has to mean Filipino names as actually written: Ñ/ñ and
+// accented characters (Muñoz, José), the periods in "Ma. Cristina" and "Jr.", hyphenated
+// surnames (Dela Cruz-Santos), and apostrophes. Only digits and other symbols are rejected.
+// \p{L} with the u flag covers the accented/Ñ cases that a bare A-Z class would wrongly strip.
+const NAME_ALLOWED_PATTERN = /^[\p{L} .'-]+$/u;
+
+export function isValidPersonName(value) {
+  const trimmed = String(value ?? '').trim();
+  // At least two actual letters, so ".." or "-" alone can't pass the pattern above.
+  return NAME_ALLOWED_PATTERN.test(trimmed) && (trimmed.match(/\p{L}/gu) || []).length >= 2;
+}
+
+// Live input filters — applied as the buyer types so an invalid character never lands in the
+// field in the first place, instead of only being reported after they hit Submit.
+export function filterGcashReferenceInput(value) {
+  return String(value ?? '').replace(/[^\d ]/g, '');
+}
+
+export function filterPersonNameInput(value) {
+  return String(value ?? '').replace(/[^\p{L} .'-]/gu, '');
+}
+
 export function validateGcashForm(values) {
   const errors = {};
   if (!required(values.gcashAccountName)) errors.gcashAccountName = 'Enter the name on your GCash account.';
