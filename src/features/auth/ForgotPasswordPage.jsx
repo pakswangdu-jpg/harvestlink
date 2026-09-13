@@ -6,6 +6,14 @@ import FormField from '../../components/common/FormField';
 import { supabase } from '../../lib/supabaseClient';
 import logo from '../../assets/logo.png';
 
+function getPasswordRecoveryRedirect() {
+  const url = new URL('/reset-password', window.location.origin);
+  // Supabase redirect allowlists commonly include localhost, while Vite may be opened
+  // through its equivalent loopback hostname.
+  if (url.hostname === '127.0.0.1') url.hostname = 'localhost';
+  return url.toString();
+}
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -22,9 +30,16 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     setError('');
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    let resetError;
+    try {
+      ({ error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: getPasswordRecoveryRedirect(),
+      }));
+    } catch (requestError) {
+      setIsSubmitting(false);
+      setError(requestError instanceof Error ? requestError.message : 'Unable to send the reset link. Please try again.');
+      return;
+    }
     setIsSubmitting(false);
     // Always show the same success state regardless of whether the email actually exists —
     // confirming/denying an email's existence here would let anyone probe which addresses
