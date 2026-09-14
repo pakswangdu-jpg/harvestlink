@@ -11,7 +11,6 @@ import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
-import { findNearestMunicipality } from '../../utils/geo';
 import { reverseGeocode } from '../../services/geocodeService';
 import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
@@ -906,14 +905,9 @@ export default function AuthPage({ mode }) {
     if (file) updateField(field, file);
   };
 
-  // Uses the browser's Geolocation API to auto-fill municipality, street address, and zip
-  // code — nice-to-have for a mobile-first registration flow where typing a full address is
-  // tedious. Municipality is matched by real distance (findNearestMunicipality), not by
-  // trusting OSM's admin-boundary text, so it always resolves to one of our known list.
-  // Shared by farmer/buyer and Partner Organization Registration alike — same underlying
-  // geocodeService.reverseGeocode() call either way, just filling in different fields
-  // afterward since stakeholder's Location section breaks barangay out on its own instead of
-  // folding it into one free-text address line.
+  // Shared by farmer, buyer, and partner-organization registration. Only an exact
+  // reverse-geocoder municipality match is accepted; nearest-city fallback would misrepresent
+  // a real GPS point outside that municipality.
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLocationNotice('Location access is not supported on this device.');
@@ -923,42 +917,53 @@ export default function AuthPage({ mode }) {
     setLocationNotice('');
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
-        updateField('municipality', findNearestMunicipality(latitude, longitude));
-        const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
-        setIsLocating(false);
-        if (reverse?.address) {
+        const { latitude, longitude, accuracy } = position.coords;
+        try {
+          const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
+          const municipality = CEBU_MUNICIPALITIES.find(
+            (candidate) => candidate.toLowerCase() === reverse?.cityText?.trim().toLowerCase(),
+          );
+          if (municipality) updateField('municipality', municipality);
           if (isStakeholderRegister) {
-            updateField('address', reverse.street);
-            // Google's reverse geocoder genuinely has no barangay-level data for a large share
-            // of Cebu addresses (confirmed against its raw API response — plenty of real
-            // points resolve straight from street to city, with nothing in between) — this
-            // is a real gap in the source data, not something to retry or guess around, so
-            // the notice below says so plainly instead of implying every field got filled in.
-            if (reverse.barangay) updateField('barangay', reverse.barangay);
-            setLocationNotice(
-              reverse.barangay
-                ? 'Location detected — please double-check the details below.'
-                : "Location detected, but we couldn't determine your barangay automatically — please fill that in."
-            );
-          } else {
+            if (reverse?.street) updateField('address', reverse.street);
+            if (reverse?.barangay) updateField('barangay', reverse.barangay);
+          } else if (reverse?.address) {
             updateField('address', reverse.address);
-            if (reverse.zipCode) updateField('zipCode', reverse.zipCode);
-            setLocationNotice('Location detected — please double-check the details below.');
           }
-        } else {
-          setLocationNotice('Location detected, but we could not fill in your street address automatically — please enter it manually.');
+          if (reverse?.zipCode) updateField('zipCode', reverse.zipCode);
+
+          const accuracyText = Number.isFinite(accuracy)
+            ? ` Location accuracy is about ${Math.round(accuracy)} m.`
+            : '';
+          const lowAccuracyText = Number.isFinite(accuracy) && accuracy > 1000
+            ? ' Accuracy is low; move to an area with better GPS reception or manually verify the address.'
+            : '';
+          if (!reverse) {
+            setLocationNotice(`Location detected, but no address was returned.${accuracyText}${lowAccuracyText}`);
+          } else if (isStakeholderRegister && !reverse.barangay) {
+            setLocationNotice(`Location detected, but the barangay was unavailable.${accuracyText}${lowAccuracyText}`);
+          } else if (!municipality) {
+            setLocationNotice(`Location detected, but the municipality is outside the supported list.${accuracyText}${lowAccuracyText}`);
+          } else {
+            setLocationNotice(`Location detected.${accuracyText}${lowAccuracyText} Please double-check the details below.`);
+          }
+        } catch {
+          setLocationNotice('Reverse geocoding failed. Your location was detected, but please enter the address manually.');
+        } finally {
+          setIsLocating(false);
         }
       },
       (error) => {
         setIsLocating(false);
         setLocationNotice(
           error.code === error.PERMISSION_DENIED
-            ? 'Location access was denied. You can still fill this in manually.'
-            : 'Unable to detect your location. Please fill this in manually.'
+            ? 'Location permission denied. You can still fill this in manually.'
+            : error.code === error.TIMEOUT
+              ? 'Location timed out. Please try again or fill this in manually.'
+              : 'Location unavailable. Please try again or fill this in manually.'
         );
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   };
 

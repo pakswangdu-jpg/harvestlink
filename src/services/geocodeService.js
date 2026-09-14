@@ -3,7 +3,6 @@ import { loadGoogleGeocoding } from '../lib/googleMapsLoader';
 // Bumped whenever the underlying geocoder changes, so previously-cached results computed
 // by the old provider don't keep being served as if they came from this one.
 const CACHE_PREFIX = 'harvestlink_geocode_google_v1_';
-const REVERSE_CACHE_PREFIX = 'harvestlink_reverse_geocode_google_v1_';
 // Addresses rarely change, and geocoding is a metered API — cache aggressively rather than
 // re-querying the same place repeatedly.
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -99,20 +98,13 @@ function addressComponent(components, type) {
 
 // Turns a raw GPS coordinate (from the browser's Geolocation API) into a street-level
 // address line and postcode, for the registration form's "use my location" button.
-// Coordinates are rounded to ~11m precision before caching/querying — GPS jitters by a few
-// meters between reads, and there's no reason to re-query near-identical points. Returns
-// null (never a guess) if the geocoder has no data there.
+// Coordinates are sent at the precision returned by the device. A reverse-geocoded address is
+// descriptive only; it must never replace the actual GPS coordinates with a guessed municipality.
 export async function reverseGeocode({ lat, lng }) {
-  const roundedLat = Number(lat).toFixed(4);
-  const roundedLng = Number(lng).toFixed(4);
-  const cacheKey = `${REVERSE_CACHE_PREFIX}${roundedLat}__${roundedLng}`;
-  const cached = readCache(cacheKey);
-  if (cached) return cached;
-
   const geocoder = await getGeocoder();
   try {
     const { results } = await geocoder.geocode({
-      location: { lat: Number(roundedLat), lng: Number(roundedLng) },
+      location: { lat: Number(lat), lng: Number(lng) },
     });
     if (!results.length) return null;
     const components = results[0].address_components;
@@ -137,10 +129,11 @@ export async function reverseGeocode({ lat, lng }) {
       barangay,
       zipCode: addressComponent(components, 'postal_code'),
       cityText,
+      province: addressComponent(components, 'administrative_area_level_1'),
+      formattedAddress: results[0].formatted_address || '',
     };
-    writeCache(cacheKey, result);
     return result;
-  } catch {
-    return null;
+  } catch (error) {
+    throw new Error('Reverse geocoding failed.', { cause: error });
   }
 }
