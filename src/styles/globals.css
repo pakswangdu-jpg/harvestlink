@@ -1846,22 +1846,21 @@ a.lp-contact-card:hover {
   --muted: #ffffff;
 }
 
-/* The nav stays part of the fixed rail rather than becoming a second scroll container. */
+/* The nav stays part of the fixed rail rather than becoming a second scroll container.
+   Keeping this as the flexible middle region reserves a real row for Logout below it,
+   instead of allowing the bottom action to overlap Settings on shorter screens. */
 .sidebar-scroll {
   margin-top: 14px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   overflow-x: hidden;
 }
 
 .sidebar-logout {
-  position: absolute;
-  right: 8px;
-  bottom: 12px;
-  left: 8px;
-  margin-top: 0;
-  z-index: 1;
+  position: static;
+  flex: 0 0 40px;
+  margin-top: 4px;
 }
 
 /* Scoped to the sidebar only — .brand-mark/.brand strong/.brand small are shared with the
