@@ -192,7 +192,7 @@ export async function sendVerificationCodeEmail(email, code) {
   });
 
   if (error) {
-    const reason = error?.message || 'Unable to send verification email.';
+    const reason = error?.message || 'U  to send verification email.';
     if (!isProduction) console.info(`[dev-email-trace] Resend REJECTED the request for ${email}: ${reason}`);
     throw new Error(`Resend API error: ${reason}`, { cause: error });
   }
