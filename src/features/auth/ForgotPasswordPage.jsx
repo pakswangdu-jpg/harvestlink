@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
+import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import { supabase } from '../../lib/supabaseClient';
+import { isValidEmail } from '../../utils/validators';
 import logo from '../../assets/logo.png';
 
 function getPasswordRecoveryRedirect() {
@@ -12,6 +14,17 @@ function getPasswordRecoveryRedirect() {
   // through its equivalent loopback hostname.
   if (url.hostname === '127.0.0.1') url.hostname = 'localhost';
   return url.toString();
+}
+
+function getResetErrorMessage(error) {
+  const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
+  if (message.includes('invalid') && message.includes('email')) {
+    return 'Please enter a valid email address.';
+  }
+  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+    return 'Something went wrong while sending the reset link. Please try again.';
+  }
+  return "We couldn't send the reset link. Please check the email address and try again.";
 }
 
 export default function ForgotPasswordPage() {
@@ -24,7 +37,11 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) {
-      setError('Enter your email address.');
+      setError('Please enter your email address.');
+      return;
+    }
+    if (!isValidEmail(trimmed)) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -37,15 +54,15 @@ export default function ForgotPasswordPage() {
       }));
     } catch (requestError) {
       setIsSubmitting(false);
-      setError(requestError instanceof Error ? requestError.message : 'Unable to send the reset link. Please try again.');
+      setError(getResetErrorMessage(requestError));
       return;
     }
     setIsSubmitting(false);
     // Always show the same success state regardless of whether the email actually exists —
     // confirming/denying an email's existence here would let anyone probe which addresses
     // are registered.
-    if (resetError && resetError.status !== 400) {
-      setError(resetError.message);
+    if (resetError) {
+      setError(getResetErrorMessage(resetError));
       return;
     }
     setSent(true);
@@ -76,20 +93,25 @@ export default function ForgotPasswordPage() {
         </div>
 
         {sent ? (
-          <div className="form-alert success">
-            If an account exists for {email.trim()}, a password reset link is on its way — check your inbox
-            (and spam folder). The link expires after a while, so use it soon.
-          </div>
+          <FormAlert
+            type="success"
+            title="Reset link sent"
+            message={`If an account exists for ${email.trim()}, you'll receive a password reset link shortly. Check your inbox and spam folder.`}
+          />
         ) : (
           <form className="form-stack" onSubmit={handleSubmit}>
-            {error ? <div className="form-alert error">{error}</div> : null}
+            {error ? <FormAlert type="error" message={error} /> : null}
             <FormField label="Email address" name="email" error={null}>
               <input
                 id="email"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (error) setError('');
+                }}
                 placeholder="name@example.com"
+                autoComplete="email"
                 autoFocus
               />
             </FormField>
