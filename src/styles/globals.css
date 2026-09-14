@@ -14518,40 +14518,40 @@ td {
 
 @media (min-width: 1081px) and (max-height: 1000px) {
   .sidebar {
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 
   .sidebar-brand-row {
-    padding-bottom: 8px;
+    padding-bottom: 12px;
   }
 
   .sidebar-scroll {
-    margin-top: 5px;
+    margin-top: 10px;
   }
 
   .sidebar-scroll nav {
-    gap: 5px !important;
+    gap: 10px !important;
   }
 
   .sidebar-scroll nav > div > p,
   .sidebar-general > p {
-    padding-bottom: 3px;
+    padding-bottom: 5px;
   }
 
   .sidebar-scroll nav a,
   .sidebar-general > a,
   .sidebar-logout {
-    min-height: 31px;
-    height: 31px;
+    min-height: 36px;
+    height: 36px;
   }
 
   .sidebar-logout {
-    flex-basis: 31px;
+    flex-basis: 36px;
   }
 
   .sidebar-general {
-    margin-top: 4px;
+    margin-top: 10px;
   }
 }
 
