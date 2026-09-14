@@ -13918,6 +13918,10 @@ td {
   max-width: 58ch;
 }
 
+.auth-page-login {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+}
+
 /* --green-900 is #064e3b in light mode — the brand's own heading green, and the
    right color for this headline. Its dark-mode value is a bright mint tuned for
    links and icons, which at headline size reads as a neon slab instead of a
@@ -13927,8 +13931,9 @@ td {
 }
 
 .auth-card-login {
-  padding: 32px;
-  border-radius: 16px;
+  padding: 26px 28px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(20, 65, 38, 0.07);
 }
 
 .auth-back-button {
@@ -13948,62 +13953,72 @@ td {
 }
 
 .auth-card-login .auth-card-brand {
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.auth-card-login .auth-card-brand .brand-mark {
+  height: 44px;
 }
 
 .auth-card-login .auth-card-brand strong {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .auth-card-login .auth-card-header {
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
 .auth-card-login .auth-card-header h2 {
-  font-size: 1.75rem;
+  font-size: 1.55rem;
   letter-spacing: -0.02em;
 }
 
 .auth-card-login .auth-card-header p {
-  margin-top: 6px;
-  font-size: 0.94rem;
+  margin-top: 5px;
+  font-size: 0.88rem;
 }
 
 .auth-card-login .form-stack {
-  gap: 16px;
+  gap: 13px;
 }
 
 .auth-card-login .form-field input {
-  padding-top: 12px;
-  padding-bottom: 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 /* The shared rule pulls this row up by -8px, which fought the form's own vertical
    rhythm and left the checkbox nearly touching the password field. */
 .auth-card-login .auth-remember-row {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .auth-card-login .auth-forgot-link {
-  font-weight: 650;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .auth-card-login .auth-submit {
-  min-height: 46px;
-  margin-top: 6px;
-  font-size: 0.95rem;
+  min-height: 42px;
+  margin-top: 4px;
+  border-radius: 7px;
+  font-size: 0.9rem;
 }
 
 .auth-card-login .auth-switch {
-  margin-top: 20px;
-  font-size: 0.92rem;
+  margin-top: 16px;
+  font-size: 0.86rem;
 }
 
 .auth-card-login .auth-switch a {
-  font-weight: 700;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .auth-card-login {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 /* The password show/hide toggle and the two text links are real interactive
@@ -17167,7 +17182,7 @@ td {
   }
 
   .auth-card-login {
-    padding: 26px 20px;
+    padding: 22px 18px;
   }
 
   .auth-card-login .auth-card-header h2 {
