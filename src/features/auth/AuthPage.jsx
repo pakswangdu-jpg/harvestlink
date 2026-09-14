@@ -1,7 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, Building2, CheckCircle, ClipboardCheck, Clock3, FileText, Handshake,
-  LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, XCircle,
+  ArrowLeft, LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
@@ -1124,6 +1124,17 @@ export default function AuthPage({ mode }) {
       </section>
 
       <section className={`auth-card ${isRegister ? 'auth-card-register' : 'auth-card-login'} ${isStakeholderRegister ? 'auth-card-glass' : ''}`}>
+        {!isRegister ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="auth-back-button"
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back
+          </Button>
+        ) : null}
         <Link to="/" className="auth-card-brand">
           <span className="brand-mark">
             <img src={logo} alt="" />
