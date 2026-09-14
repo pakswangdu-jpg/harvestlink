@@ -13926,6 +13926,20 @@ td {
   border-radius: 16px;
 }
 
+.auth-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-inline: 0;
+  color: var(--muted);
+}
+
+.auth-back-button:hover {
+  color: var(--green-700);
+  background: transparent;
+}
+
 .auth-card-login .auth-card-brand {
   gap: 12px;
   margin-bottom: 20px;
