@@ -1819,18 +1819,9 @@ a.lp-contact-card:hover {
      16px break from the nav, but Logout is the last row of the GENERAL group and needs the
      same tight 4px rhythm as the items above it — a single shared gap can't do both. */
   gap: 0;
-  /* Logout sits right after Menu/General now instead of being pinned to the viewport
-     bottom (no flex-1 spacer above it) — this is just a safety net for a short viewport
-     with enough nav items to overflow 100vh, so the whole sidebar scrolls as one unit
-     instead of clipping, rather than the old nested Menu-only scroll region. */
-  overflow-y: auto;
+  /* The sidebar is a stationary rail; only the dashboard column may scroll. */
+  overflow: hidden;
   overflow-x: hidden;
-  scrollbar-width: none;
-}
-
-.sidebar::-webkit-scrollbar,
-.sidebar-scroll::-webkit-scrollbar {
-  display: none;
 }
 
 /* Sidebar text and icons are pure black rather than the app's softer navy/slate. Done by
@@ -1855,23 +1846,13 @@ a.lp-contact-card:hover {
   --muted: #ffffff;
 }
 
-/* Nothing previously pushed the General group (profile card + Settings) or the Logout button
-   toward the bottom of the sidebar — with no flex-grow anywhere in .sidebar's column, every
-   child just stacked at the top of the full 100vh rail, leaving a large dead gap below Logout
-   instead of anchoring account controls to the bottom the way a sidebar normally does.
-   flex:1 here claims the remaining space after the brand row; min-height:0 is required for a
-   flex child to actually be allowed to scroll instead of just growing to fit its content;
-   overflow-y:auto keeps a long nav list scrollable within its own region instead of pushing
-   Logout off-screen. The General group itself gets margin-top:auto in AppShell.jsx so it (and
-   Logout, its sibling outside this scroll region) settle at the bottom instead of directly
-   under the primary nav list. */
+/* The nav stays part of the fixed rail rather than becoming a second scroll container. */
 .sidebar-scroll {
   margin-top: 14px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   overflow-x: hidden;
-  scrollbar-width: none;
 }
 
 .sidebar-logout {
