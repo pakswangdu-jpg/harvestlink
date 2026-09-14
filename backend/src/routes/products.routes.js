@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 import {
   applyDiscount,
   approvePriceReview,
@@ -27,10 +28,10 @@ router.get('/public', listPublicProducts);
 router.get('/historical-price', requireAuth, requireRole('farmer'), getHistoricalPriceAnalysis);
 
 router.get('/', requireAuth, listProducts);
-router.post('/', requireAuth, requireRole('farmer'), createProduct);
+router.post('/', requireAuth, requireRole('farmer'), rateLimit({ name: 'product-create', limit: 30, windowMs: 60 * 1000, key: (req) => req.profile.id }), createProduct);
 router.get('/:id', requireAuth, getProduct);
-router.patch('/:id', requireAuth, requireRole('farmer'), updateProduct);
-router.delete('/:id', requireAuth, requireRole('farmer'), deleteProduct);
+router.patch('/:id', requireAuth, requireRole('farmer'), rateLimit({ name: 'product-update', limit: 60, windowMs: 60 * 1000, key: (req) => req.profile.id }), updateProduct);
+router.delete('/:id', requireAuth, requireRole('farmer'), rateLimit({ name: 'product-delete', limit: 30, windowMs: 60 * 1000, key: (req) => req.profile.id }), deleteProduct);
 router.patch('/:id/status', requireAuth, requireRole('farmer'), setProductStatus);
 router.post('/:id/discount', requireAuth, requireRole('farmer'), applyDiscount);
 router.delete('/:id/discount', requireAuth, requireRole('farmer'), removeDiscount);
