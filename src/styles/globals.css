@@ -14516,37 +14516,42 @@ td {
   place-items: center;
 }
 
-@media (min-width: 1081px) and (max-height: 800px) {
+@media (min-width: 1081px) and (max-height: 1000px) {
   .sidebar {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .sidebar-brand-row {
-    padding-bottom: 10px;
+    padding-bottom: 8px;
   }
 
   .sidebar-scroll {
-    margin-top: 8px;
+    margin-top: 5px;
   }
 
   .sidebar-scroll nav {
-    gap: 8px !important;
+    gap: 5px !important;
+  }
+
+  .sidebar-scroll nav > div > p,
+  .sidebar-general > p {
+    padding-bottom: 3px;
   }
 
   .sidebar-scroll nav a,
   .sidebar-general > a,
   .sidebar-logout {
-    min-height: 34px;
-    height: 34px;
+    min-height: 31px;
+    height: 31px;
   }
 
   .sidebar-logout {
-    flex-basis: 34px;
+    flex-basis: 31px;
   }
 
   .sidebar-general {
-    margin-top: 6px;
+    margin-top: 4px;
   }
 }
 
