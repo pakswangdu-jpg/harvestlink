@@ -1,15 +1,13 @@
 import {
-  LayoutGrid, LineChart, TrendingUp, UserRound,
+  Handshake, LayoutGrid, LineChart, TrendingUp, UserRound,
 } from 'lucide-react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
-import donationsNavIcon from '../../assets/icons/nav-donations-handshake.png';
 import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
 import messagesNavIcon from '../../assets/icons/nav-messages.png';
 import nearbyNavIcon from '../../assets/icons/nav-nearby-pin.png';
 import ordersNavIcon from '../../assets/icons/nav-orders.png';
 import productsNavIcon from '../../assets/icons/nav-products-add.png';
 
-const DonationsNavIcon = createMaskNavIcon(donationsNavIcon);
 const NearbyNavIcon = createMaskNavIcon(nearbyNavIcon);
 const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
 const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
@@ -34,6 +32,6 @@ export const farmerNavItems = [
   { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, group: 'Market' },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp, group: 'Market' },
   { to: '/demand-forecast', label: 'Demand Forecast', icon: LineChart, group: 'Market' },
-  { to: '/farmer-donations', label: 'Donations', icon: DonationsNavIcon, group: 'Community' },
+  { to: '/farmer-donations', label: 'Donations', icon: Handshake, group: 'Community' },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];
