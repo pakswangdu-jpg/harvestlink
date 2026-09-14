@@ -12089,6 +12089,15 @@ td {
     padding: 4px;
   }
 
+  .mobile-bottom-nav a > svg,
+  .mobile-bottom-nav button > svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    visibility: visible;
+  }
+
   .mobile-bottom-nav a .nav-badge {
     position: absolute;
     top: 2px;
