@@ -1863,6 +1863,11 @@ a.lp-contact-card:hover {
   margin-top: 4px;
 }
 
+.sidebar-general {
+  flex: 0 0 auto;
+  margin-top: 8px;
+}
+
 /* Scoped to the sidebar only — .brand-mark/.brand strong/.brand small are shared with the
    landing page navbar and public farmer profile, which keep their own square-logo look. 34px
    (up from 32px) reads as better balanced against the two-line text block beside it — the
@@ -14391,6 +14396,10 @@ td {
   gap: 3px !important;
 }
 
+.sidebar-general {
+  gap: 3px !important;
+}
+
 .sidebar-scroll nav a {
   height: 40px;
   border-radius: 8px;
@@ -14419,18 +14428,21 @@ td {
   stroke-width: 2.35;
 }
 
-.sidebar-scroll > div > a {
+.sidebar-scroll > div > a,
+.sidebar-general > a {
   min-height: 40px;
   border-radius: 8px;
 }
 
-.sidebar-scroll > div > a > span:last-child > span:first-child {
+.sidebar-scroll > div > a > span:last-child > span:first-child,
+.sidebar-general > a > span:last-child > span:first-child {
   color: var(--text) !important;
   font-size: 13px;
   font-weight: 600;
 }
 
-.sidebar-scroll > div > a > span:last-child > span:last-child {
+.sidebar-scroll > div > a > span:last-child > span:last-child,
+.sidebar-general > a > span:last-child > span:last-child {
   color: var(--muted) !important;
   font-size: 12px;
   line-height: 1.35;
@@ -14446,7 +14458,8 @@ td {
    different amount of transparent padding than the lucide dashboard glyph, so aligning the
    raw images themselves makes labels appear to drift. A fixed icon slot keeps the Sales group
    on one clean vertical axis without replacing any of the existing artwork or routes. */
-.sidebar-scroll .sidebar-nav-link {
+.sidebar-scroll .sidebar-nav-link,
+.sidebar-general .sidebar-nav-link {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -14458,7 +14471,8 @@ td {
   line-height: 1;
 }
 
-.sidebar-scroll .sidebar-nav-icon {
+.sidebar-scroll .sidebar-nav-icon,
+.sidebar-general .sidebar-nav-icon {
   display: grid;
   width: 24px;
   height: 24px;
@@ -14468,7 +14482,9 @@ td {
 }
 
 .sidebar-scroll .sidebar-nav-icon > svg,
-.sidebar-scroll .sidebar-nav-icon > span {
+.sidebar-scroll .sidebar-nav-icon > span,
+.sidebar-general .sidebar-nav-icon > svg,
+.sidebar-general .sidebar-nav-icon > span {
   width: 20px;
   height: 20px;
 }

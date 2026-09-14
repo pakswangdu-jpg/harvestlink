@@ -152,15 +152,16 @@ export default function AppShell({
             ))}
           </nav>
 
-          <div className="mt-auto flex flex-col gap-1">
-            {!isSidebarCollapsed ? (
-              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
-            ) : null}
-            {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
-            {profileItem ? (
-              <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
-            ) : null}
-          </div>
+        </div>
+
+        <div className="sidebar-general flex flex-col gap-1">
+          {!isSidebarCollapsed ? (
+            <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
+          ) : null}
+          {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
+          {profileItem ? (
+            <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
+          ) : null}
         </div>
 
         <button
