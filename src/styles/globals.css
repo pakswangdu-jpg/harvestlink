@@ -14555,6 +14555,26 @@ td {
   }
 }
 
+/* Browser zoom reduces the CSS viewport height. Allow the fixed rail to scroll only in that
+   constrained case so every navigation item remains reachable without changing normal desktop
+   behavior or making the dashboard share the sidebar's scroll position. */
+@media (min-width: 1081px) and (max-height: 760px) {
+  .sidebar {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--line);
+  }
+}
+
 .sidebar-scroll .sidebar-nav-link .truncate {
   min-width: 0;
   flex: 1 1 auto;
