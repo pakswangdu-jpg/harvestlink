@@ -1715,6 +1715,7 @@ a.lp-contact-card:hover {
    specifically so the dashboard's brand green can differ from the landing page's without a
    second set of variable names. */
 .app-shell {
+  --sidebar-width: 260px;
   --green-900: #04371f;
   --green-800: #065e36;
   --green-700: #087443;
@@ -1747,7 +1748,7 @@ a.lp-contact-card:hover {
   height: 100vh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   background: var(--soft);
   transition: grid-template-columns 0.25s ease;
 }
@@ -1795,12 +1796,16 @@ a.lp-contact-card:hover {
    itself is display:none below 1080px regardless of this class, in favor of the mobile
    bottom nav, so there's nothing to collapse on a small screen. */
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
+  --sidebar-width: 76px;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  z-index: 20;
+  width: var(--sidebar-width);
   height: 100vh;
   /* Tightening the wordmark's line-height shortened the brand block, so the vertical padding
      absorbs the difference — it keeps the header's top and bottom breathing room balanced
@@ -2018,6 +2023,7 @@ a.lp-contact-card:hover {
 }
 
 .main-content {
+  grid-column: 2;
   width: min(100%, 1280px);
   height: 100vh;
   min-height: 0;
@@ -12031,7 +12037,13 @@ td {
   }
 
   .sidebar {
+    position: static;
+    width: auto;
     display: none;
+  }
+
+  .main-content {
+    grid-column: 1;
   }
 
   /* The sidebar (and the logo/brand block that lives inside it) is gone below this
@@ -19056,7 +19068,8 @@ button,
   }
 
   .app-shell {
-    grid-template-columns: 288px minmax(0, 1fr);
+    --sidebar-width: 288px;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 }
 
@@ -19068,7 +19081,8 @@ button,
   }
 
   .app-shell {
-    grid-template-columns: 320px minmax(0, 1fr);
+    --sidebar-width: 320px;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 }
 
