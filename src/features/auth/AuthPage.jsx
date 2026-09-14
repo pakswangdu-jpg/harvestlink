@@ -10,6 +10,7 @@ import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
+import { setAuthPersistence } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { reverseGeocode } from '../../services/geocodeService';
 import { checkContactNumberAvailability } from '../../services/authService';
@@ -987,6 +988,7 @@ export default function AuthPage({ mode }) {
         }
       : form;
     try {
+      if (!isRegister) setAuthPersistence(rememberMe);
       const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
       if (isRegister && result.pendingVerification) {
         setOtpEmail(form.email.trim().toLowerCase());
@@ -1034,6 +1036,7 @@ export default function AuthPage({ mode }) {
     setOtpError('');
     setIsVerifyingOtp(true);
     try {
+      if (!isRegister) setAuthPersistence(rememberMe);
       const user = await verifyOtp(otpEmail, otpValue, form.password, pendingFiles);
       if (isRegister) clearRegisterDraft();
       if (!isRegister) {

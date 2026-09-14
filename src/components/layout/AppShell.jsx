@@ -152,36 +152,35 @@ export default function AppShell({
             ))}
           </nav>
 
-        </div>
+          <div className="sidebar-general flex flex-col gap-1">
+            {!isSidebarCollapsed ? (
+              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
+            ) : null}
+            {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
+            {profileItem ? (
+              <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
+            ) : null}
+          </div>
 
-        <div className="sidebar-general flex flex-col gap-1">
-          {!isSidebarCollapsed ? (
-            <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
-          ) : null}
-          {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
-          {profileItem ? (
-            <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
-          ) : null}
+          <button
+            type="button"
+            onClick={handleLogout}
+            title={isSidebarCollapsed ? 'Logout' : undefined}
+            // Signing out is a normal navigation action, not a destructive one — the old red
+            // hover fill made it read as "delete my account" and pulled the eye straight to the
+            // bottom of the sidebar. Matches the inactive nav rows instead.
+            // text/font utilities need `!` here: the global `button { font: inherit }` reset is
+            // unlayered CSS, which always beats Tailwind's layered utilities no matter their
+            // specificity — without it this row silently renders at the inherited 16px/400
+            // instead of matching the 14px/600 nav rows above it.
+            className={`sidebar-logout flex h-9 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px]! font-medium! text-[var(--text)] transition-colors duration-150 hover:bg-[var(--green-50)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
+          >
+            <span className="sidebar-nav-icon" aria-hidden="true">
+              <LogOut size={20} strokeWidth={SIDEBAR_ICON_STROKE} className="shrink-0" />
+            </span>
+            {!isSidebarCollapsed ? 'Logout' : null}
+          </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          title={isSidebarCollapsed ? 'Logout' : undefined}
-          // Signing out is a normal navigation action, not a destructive one — the old red
-          // hover fill made it read as "delete my account" and pulled the eye straight to the
-          // bottom of the sidebar. Matches the inactive nav rows instead.
-          // text/font utilities need `!` here: the global `button { font: inherit }` reset is
-          // unlayered CSS, which always beats Tailwind's layered utilities no matter their
-          // specificity — without it this row silently renders at the inherited 16px/400
-          // instead of matching the 14px/600 nav rows above it.
-          className={`sidebar-logout flex h-9 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px]! font-medium! text-[var(--text)] transition-colors duration-150 hover:bg-[var(--green-50)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
-        >
-          <span className="sidebar-nav-icon" aria-hidden="true">
-            <LogOut size={20} strokeWidth={SIDEBAR_ICON_STROKE} className="shrink-0" />
-          </span>
-          {!isSidebarCollapsed ? 'Logout' : null}
-        </button>
       </motion.aside>
 
       {/* .sidebar is display:none under the same breakpoint that switches on
