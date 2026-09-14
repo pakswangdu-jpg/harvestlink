@@ -1856,7 +1856,12 @@ a.lp-contact-card:hover {
 }
 
 .sidebar-logout {
-  margin-top: 4px;
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  left: 8px;
+  margin-top: 0;
+  z-index: 1;
 }
 
 /* Scoped to the sidebar only — .brand-mark/.brand strong/.brand small are shared with the
