@@ -13932,6 +13932,8 @@ td {
   gap: 6px;
   margin-bottom: 14px;
   padding-inline: 0;
+  border-color: transparent;
+  background: transparent;
   color: var(--muted);
 }
 
