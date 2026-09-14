@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { rateLimit } from '../middleware/rateLimit.js';
 import {
   deleteMessage,
   editMessage,
@@ -13,7 +14,7 @@ const router = Router();
 
 router.get('/', requireAuth, listMessages);
 router.get('/direct-threads', requireAuth, listDirectThreads);
-router.post('/', requireAuth, sendMessage);
+router.post('/', requireAuth, rateLimit({ name: 'messages', limit: 30, windowMs: 60 * 1000, key: (req) => req.profile.id }), sendMessage);
 router.patch('/direct/:otherUserId/read', requireAuth, markDirectThreadRead);
 router.patch('/message/:messageId', requireAuth, editMessage);
 router.delete('/message/:messageId', requireAuth, deleteMessage);

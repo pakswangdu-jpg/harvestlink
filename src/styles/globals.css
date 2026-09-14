@@ -1744,6 +1744,8 @@ a.lp-contact-card:hover {
   --violet-100: #ece7f7;
   --radius: 8px;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   background: var(--soft);
@@ -2017,6 +2019,10 @@ a.lp-contact-card:hover {
 
 .main-content {
   width: min(100%, 1280px);
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   margin: 0 auto;
   padding: 28px;
   display: grid;
@@ -2054,6 +2060,10 @@ a.lp-contact-card:hover {
 .main-content-flush {
   width: 100%;
   max-width: none;
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -12123,6 +12133,20 @@ td {
 }
 
 @media (max-width: 1080px) {
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .main-content,
+  .main-content-flush {
+    height: auto;
+    min-height: 0;
+    overflow-y: visible;
+    overscroll-behavior: auto;
+  }
+
   .lp-about {
     grid-template-columns: minmax(0, 1fr);
   }
