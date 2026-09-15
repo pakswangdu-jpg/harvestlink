@@ -17142,6 +17142,13 @@ td {
    would otherwise stretch the full viewport — an ~850px-wide password field. Capping both the
    hero and the card to the same measure keeps their left edges aligned as a single column. */
 @media (max-width: 900px) {
+  /* The login-specific two-column rule is declared later than the shared responsive
+     collapse above, so repeat the one-column track here to keep the card from being
+     squeezed into the remaining desktop-side track on tablet and mobile widths. */
+  .auth-page-login {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .auth-page-login .auth-hero,
   .auth-card-login {
     width: 100%;
