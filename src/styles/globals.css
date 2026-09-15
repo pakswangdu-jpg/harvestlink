@@ -17145,13 +17145,14 @@ td {
   /* The login-specific two-column rule is declared later than the shared responsive
      collapse above, so repeat the one-column track here to keep the card from being
      squeezed into the remaining desktop-side track on tablet and mobile widths. */
-  .auth-page-login {
+  .auth-page.auth-page-login {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .auth-page-login .auth-hero,
   .auth-card-login {
     width: 100%;
+    min-width: 0;
     max-width: 480px;
     margin-inline: auto;
   }
@@ -17160,7 +17161,7 @@ td {
      center then floats each item in the middle of its own oversized row — which reads as a
      random gap between the pitch and the form. Packing the rows centers the pair as a group
      instead, letting the grid's own gap set the spacing. */
-  .auth-page-login {
+  .auth-page.auth-page-login {
     align-content: center;
   }
 }
