@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Settings } from 'lucide-react';
 import BrandWordmark from '../common/BrandWordmark';
 import NotificationBell from '../notifications/NotificationBell';
 import CartButton from '../cart/CartButton';
@@ -160,6 +160,9 @@ export default function AppShell({
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
               <SidebarNavItem to={profileItem.to} label="Profile" icon={profileItem.icon} isCollapsed={isSidebarCollapsed} />
+            ) : null}
+            {profileItem ? (
+              <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}
           </div>
 
