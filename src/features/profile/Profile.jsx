@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Bell, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
@@ -18,12 +18,6 @@ import { hasErrors, validateGcashForm, validatePasswordForm, validateProfileForm
 import { farmerNavItems } from '../farmer/farmerNav';
 import { buyerNavItems } from '../buyer/buyerNav';
 import { stakeholderNavItems } from '../stakeholder/stakeholderNav';
-import {
-  areBrowserNotificationsEnabled,
-  canUseBrowserNotifications,
-  requestBrowserNotificationPermission,
-  setBrowserNotificationsEnabled,
-} from '../../utils/browserNotifications';
 
 const NAV_ITEMS_BY_ROLE = {
   farmer: farmerNavItems,
@@ -57,33 +51,6 @@ export default function Profile() {
   const [avatarError, setAvatarError] = useState('');
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const avatarMenuRef = useRef(null);
-  const [browserNotificationsEnabled, setBrowserNotificationsEnabledState] = useState(
-    () => areBrowserNotificationsEnabled(currentUser.id)
-  );
-  const [notificationNotice, setNotificationNotice] = useState('');
-
-  const handleBrowserNotificationsChange = async (event) => {
-    const enabled = event.target.checked;
-    setNotificationNotice('');
-    if (!enabled) {
-      setBrowserNotificationsEnabled(currentUser.id, false);
-      setBrowserNotificationsEnabledState(false);
-      setNotificationNotice('Desktop notifications are disabled.');
-      return;
-    }
-    const permission = await requestBrowserNotificationPermission();
-    if (permission === 'granted') {
-      setBrowserNotificationsEnabled(currentUser.id, true);
-      setBrowserNotificationsEnabledState(true);
-      setNotificationNotice('Desktop notifications are enabled.');
-    } else if (permission === 'denied') {
-      setBrowserNotificationsEnabledState(false);
-      setNotificationNotice('Notifications are blocked in your browser settings.');
-    } else {
-      setBrowserNotificationsEnabledState(false);
-      setNotificationNotice('Desktop notifications are not supported by this browser.');
-    }
-  };
 
   // Same click-outside-to-close pattern as NotificationBell.
   useEffect(() => {
@@ -697,28 +664,6 @@ export default function Profile() {
         )}
       </section>
 
-      <section className="panel">
-        <div className="profile-notification-preference">
-          <div className="profile-notification-preference-copy">
-            <Bell size={17} aria-hidden="true" />
-            <div>
-              <strong>Desktop notifications</strong>
-              <p className="muted">Get alerts for new orders, messages, and account updates.</p>
-            </div>
-          </div>
-          <label className="profile-notification-switch">
-            <input
-              type="checkbox"
-              checked={browserNotificationsEnabled && canUseBrowserNotifications()}
-              onChange={handleBrowserNotificationsChange}
-              disabled={!canUseBrowserNotifications()}
-              aria-label="Enable desktop notifications"
-            />
-            <span aria-hidden="true" />
-          </label>
-        </div>
-        {notificationNotice ? <p className="profile-notification-notice" role="status">{notificationNotice}</p> : null}
-      </section>
     </AppShell>
   );
 }
