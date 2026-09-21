@@ -20,7 +20,9 @@ async function request(path, { method = 'GET', body } = {}) {
   // 204 No Content has no body to parse.
   const payload = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.error || `Request failed with status ${response.status}`);
+    const error = new Error(payload?.error || `Request failed with status ${response.status}`);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }

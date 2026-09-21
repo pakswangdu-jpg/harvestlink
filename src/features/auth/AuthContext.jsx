@@ -20,10 +20,16 @@ export function AuthProvider({ children }) {
     try {
       const profile = await apiClient.get('/profiles/me');
       setCurrentUserState(profile);
-    } catch {
-      // Session exists but no profile (or the account is suspended) — treat as logged out.
-      await supabase.auth.signOut();
-      setCurrentUserState(null);
+    } catch (error) {
+      // Only an explicit auth failure means the Supabase session is no longer usable.
+      // Network failures, a temporary API outage, and server errors must not log out a
+      // user whose valid session can still be refreshed.
+      if (error.status === 401 || error.status === 403) {
+        await supabase.auth.signOut();
+        setCurrentUserState(null);
+        return;
+      }
+      console.error('Unable to refresh the current profile:', error);
     }
   };
 
