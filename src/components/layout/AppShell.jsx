@@ -159,9 +159,6 @@ export default function AppShell({
             ) : null}
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
-              <SidebarNavItem to={profileItem.to} label="Profile" icon={profileItem.icon} isCollapsed={isSidebarCollapsed} />
-            ) : null}
-            {profileItem ? (
               <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}
           </div>
