@@ -48,10 +48,18 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (session) await hydrateProfile();
-      if (!cancelled) setLoading(false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (session) await hydrateProfile();
+      } catch (error) {
+        // A failed session read must not leave ProtectedRoute rendering a blank screen
+        // forever. Supabase will retry token refresh when it becomes available again.
+        console.error('Unable to restore the saved session:', error);
+        if (!cancelled) setCurrentUserState(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
 
     const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
