@@ -10,11 +10,11 @@ const OPTIONS = [
 // Reuses .segmented-control (the same compact three-way control Grade/Sales type already use
 // in ProductForm.jsx) rather than a bespoke switch, so this reads as part of the existing
 // design language instead of a new control style.
-export default function ThemeToggle() {
+export default function ThemeToggle({ compact = false }) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className="segmented-control three" role="radiogroup" aria-label="Theme">
+    <div className={`segmented-control three ${compact ? 'theme-toggle-compact' : ''}`.trim()} role="radiogroup" aria-label="Theme">
       {OPTIONS.map((option) => (
         <button
           key={option.value}

@@ -96,6 +96,185 @@
   alter table public.profiles add column if not exists partnership_description text;
 
   -- ============================================================================
+  -- Role tables — keep profiles as the shared account/identity table, and store
+  -- role-specific fields in one-to-one subtype tables. Existing accounts remain
+  -- untouched; the backfill below copies their current role data safely.
+  -- ============================================================================
+  create table if not exists public.farmers (
+    id uuid primary key references public.profiles(id) on delete cascade,
+    farm_name text,
+    birthday date,
+    gov_id_file_url text,
+    verification_status text check (verification_status in ('pending','verified','rejected')),
+    verification_acknowledged boolean not null default true,
+    verified_at timestamptz,
+    gcash_account_name text,
+    gcash_number text,
+    gcash_qr_url text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  );
+
+  create table if not exists public.buyers (
+    id uuid primary key references public.profiles(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  );
+
+  create table if not exists public.stakeholders (
+    id uuid primary key references public.profiles(id) on delete cascade,
+    organization_name text,
+    organization_type text,
+    contact_person text,
+    accreditation_file_url text,
+    organization_description text,
+    barangay text,
+    partnership_description text,
+    verification_status text check (verification_status in ('pending','verified','rejected')),
+    verification_acknowledged boolean not null default true,
+    verified_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  );
+
+  -- The tables may already exist in older projects with only a small subset of
+  -- columns. CREATE TABLE IF NOT EXISTS does not upgrade those tables, so add
+  -- every role-specific column explicitly before the backfill below.
+  alter table public.farmers add column if not exists farm_name text;
+  alter table public.farmers add column if not exists birthday date;
+  alter table public.farmers add column if not exists gov_id_file_url text;
+  alter table public.farmers add column if not exists verification_status text;
+  alter table public.farmers add column if not exists verification_acknowledged boolean not null default true;
+  alter table public.farmers add column if not exists verified_at timestamptz;
+  alter table public.farmers add column if not exists gcash_account_name text;
+  alter table public.farmers add column if not exists gcash_number text;
+  alter table public.farmers add column if not exists gcash_qr_url text;
+  alter table public.farmers add column if not exists created_at timestamptz not null default now();
+  alter table public.farmers add column if not exists updated_at timestamptz not null default now();
+
+  alter table public.buyers add column if not exists created_at timestamptz not null default now();
+  alter table public.buyers add column if not exists updated_at timestamptz not null default now();
+
+  alter table public.stakeholders add column if not exists organization_name text;
+  alter table public.stakeholders add column if not exists organization_type text;
+  alter table public.stakeholders add column if not exists contact_person text;
+  alter table public.stakeholders add column if not exists accreditation_file_url text;
+  alter table public.stakeholders add column if not exists organization_description text;
+  alter table public.stakeholders add column if not exists barangay text;
+  alter table public.stakeholders add column if not exists partnership_description text;
+  alter table public.stakeholders add column if not exists verification_status text;
+  alter table public.stakeholders add column if not exists verification_acknowledged boolean not null default true;
+  alter table public.stakeholders add column if not exists verified_at timestamptz;
+  alter table public.stakeholders add column if not exists created_at timestamptz not null default now();
+  alter table public.stakeholders add column if not exists updated_at timestamptz not null default now();
+
+  -- Backfill existing profiles without overwriting a role row that may already
+  -- contain newer data from a previous partial migration.
+  insert into public.farmers (
+    id, farm_name, birthday, gov_id_file_url, verification_status,
+    verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
+  )
+  select id, farm_name, birthday, gov_id_file_url, verification_status,
+    verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
+  from public.profiles
+  where role = 'farmer'
+  on conflict (id) do nothing;
+
+  insert into public.buyers (id)
+  select id from public.profiles where role = 'buyer'
+  on conflict (id) do nothing;
+
+  insert into public.stakeholders (
+    id, organization_name, organization_type, contact_person, accreditation_file_url,
+    organization_description, barangay, partnership_description, verification_status,
+    verification_acknowledged, verified_at
+  )
+  select id, organization_name, organization_type, contact_person, accreditation_file_url,
+    organization_description, barangay, partnership_description, verification_status,
+    verification_acknowledged, verified_at
+  from public.profiles
+  where role = 'stakeholder'
+  on conflict (id) do nothing;
+
+  create or replace function public.sync_profile_role_table()
+  returns trigger
+  language plpgsql
+  security definer
+  set search_path = public
+  as $$
+  begin
+    delete from public.farmers where id = new.id and new.role <> 'farmer';
+    delete from public.buyers where id = new.id and new.role <> 'buyer';
+    delete from public.stakeholders where id = new.id and new.role <> 'stakeholder';
+
+    if new.role = 'farmer' then
+      insert into public.farmers (
+        id, farm_name, birthday, gov_id_file_url, verification_status,
+        verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
+      )
+      values (
+        new.id, new.farm_name, new.birthday, new.gov_id_file_url, new.verification_status,
+        new.verification_acknowledged, new.verified_at, new.gcash_account_name,
+        new.gcash_number, new.gcash_qr_url
+      )
+      on conflict (id) do update set
+        farm_name = excluded.farm_name,
+        birthday = excluded.birthday,
+        gov_id_file_url = excluded.gov_id_file_url,
+        verification_status = excluded.verification_status,
+        verification_acknowledged = excluded.verification_acknowledged,
+        verified_at = excluded.verified_at,
+        gcash_account_name = excluded.gcash_account_name,
+        gcash_number = excluded.gcash_number,
+        gcash_qr_url = excluded.gcash_qr_url,
+        updated_at = now();
+    elsif new.role = 'buyer' then
+      insert into public.buyers (id) values (new.id)
+      on conflict (id) do update set updated_at = now();
+    elsif new.role = 'stakeholder' then
+      insert into public.stakeholders (
+        id, organization_name, organization_type, contact_person, accreditation_file_url,
+        organization_description, barangay, partnership_description, verification_status,
+        verification_acknowledged, verified_at
+      )
+      values (
+        new.id, new.organization_name, new.organization_type, new.contact_person,
+        new.accreditation_file_url, new.organization_description, new.barangay,
+        new.partnership_description, new.verification_status,
+        new.verification_acknowledged, new.verified_at
+      )
+      on conflict (id) do update set
+        organization_name = excluded.organization_name,
+        organization_type = excluded.organization_type,
+        contact_person = excluded.contact_person,
+        accreditation_file_url = excluded.accreditation_file_url,
+        organization_description = excluded.organization_description,
+        barangay = excluded.barangay,
+        partnership_description = excluded.partnership_description,
+        verification_status = excluded.verification_status,
+        verification_acknowledged = excluded.verification_acknowledged,
+        verified_at = excluded.verified_at,
+        updated_at = now();
+    end if;
+    return new;
+  end;
+  $$;
+
+  drop trigger if exists profiles_role_tables_trigger on public.profiles;
+  create trigger profiles_role_tables_trigger
+    after insert or update of role, farm_name, birthday, gov_id_file_url,
+      verification_status, verification_acknowledged, verified_at,
+      gcash_account_name, gcash_number, gcash_qr_url, organization_name,
+      organization_type, contact_person, accreditation_file_url,
+      organization_description, barangay, partnership_description
+    on public.profiles
+    for each row execute function public.sync_profile_role_table();
+
+  alter table public.farmers enable row level security;
+  alter table public.buyers enable row level security;
+  alter table public.stakeholders enable row level security;
+
+  -- ============================================================================
   -- pending_registrations — stores temporary pre-confirmation signup data until
   -- the user verifies their email with a 6-digit code (see
   -- backend/src/controllers/auth.controller.js).
@@ -449,6 +628,13 @@
   );
 
   create index if not exists notifications_user_id_read_idx on public.notifications (user_id, read);
+
+  -- Remove a user's notifications automatically when the associated profile is
+  -- deleted. This also upgrades older installs whose FK was created without an
+  -- explicit delete action.
+  alter table public.notifications drop constraint if exists notifications_user_id_fkey;
+  alter table public.notifications add constraint notifications_user_id_fkey
+    foreign key (user_id) references public.profiles(id) on delete cascade;
 
   -- Safe to re-run: 'message'/'payment' are new notification types (see backend/src/lib/
   -- notify.js's new call sites) — a fresh create table above already includes them, this only

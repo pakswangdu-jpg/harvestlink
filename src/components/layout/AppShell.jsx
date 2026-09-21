@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, LogOut, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import BrandWordmark from '../common/BrandWordmark';
 import NotificationBell from '../notifications/NotificationBell';
 import CartButton from '../cart/CartButton';
 import SidebarNavItem, { SIDEBAR_ICON_STROKE } from './SidebarNavItem';
 import SidebarUserCard from './SidebarUserCard';
 import MobileBottomNav from './MobileBottomNav';
+import ThemeToggle from '../common/ThemeToggle';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
@@ -158,7 +159,7 @@ export default function AppShell({
             ) : null}
             {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
-              <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
+              <SidebarNavItem to={profileItem.to} label="Profile" icon={profileItem.icon} isCollapsed={isSidebarCollapsed} />
             ) : null}
           </div>
 
@@ -251,6 +252,7 @@ export default function AppShell({
             <div className="page-header-actions">
               {headerActions}
               {ORDERING_ROLES.includes(user.role) ? <CartButton /> : null}
+              <ThemeToggle compact />
               {hasProfile ? <NotificationBell userId={user.id} /> : null}
             </div>
           </header>

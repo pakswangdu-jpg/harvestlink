@@ -6528,6 +6528,16 @@ a.user-chip:hover {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.theme-toggle-compact {
+  gap: 2px;
+  padding: 3px;
+}
+
+.theme-toggle-compact button {
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
 .payment-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
