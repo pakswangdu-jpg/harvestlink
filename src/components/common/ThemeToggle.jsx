@@ -11,7 +11,22 @@ const OPTIONS = [
 // in ProductForm.jsx) rather than a bespoke switch, so this reads as part of the existing
 // design language instead of a new control style.
 export default function ThemeToggle({ compact = false }) {
-  const { theme, setTheme } = useTheme();
+  const { theme, effectiveTheme, setTheme } = useTheme();
+
+  if (compact) {
+    const isDark = effectiveTheme === 'dark';
+    return (
+      <button
+        type="button"
+        className="theme-toggle-compact"
+        onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+      </button>
+    );
+  }
 
   return (
     <div className={`segmented-control three ${compact ? 'theme-toggle-compact' : ''}`.trim()} role="radiogroup" aria-label="Theme">

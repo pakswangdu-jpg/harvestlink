@@ -6529,13 +6529,23 @@ a.user-chip:hover {
 }
 
 .theme-toggle-compact {
-  gap: 2px;
-  padding: 3px;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 8px;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-.theme-toggle-compact button {
-  padding: 6px 8px;
-  white-space: nowrap;
+.theme-toggle-compact:hover {
+  background: var(--soft);
+  border-color: var(--green-700);
+  color: var(--green-700);
 }
 
 .payment-grid {
