@@ -1,23 +1,86 @@
 
-const MODEL = 'gemini-flash-latest';
+const DEFAULT_MODEL = 'gemini-flash-latest';
+const DEFAULT_FALLBACK_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Gemini's own 503 body literally says "usually temporary... try again later" — one quick
-// retry recovers most of those without the farmer ever seeing the deterministic fallback
-// instead of Gemini's actual writeup. Not applied to other error codes (400/403/etc.),
-// where retrying identically can't change the outcome and would only add latency to a
-// guaranteed failure.
-const RETRYABLE_STATUS_CODES = new Set([429, 503]);
-const RETRY_DELAY_MS = 700;
-// Google's endpoint can black-hole a request under network trouble (proxy/firewall, brief
-// outage) instead of returning a fast error — without a hard cap, that hang propagates all
-// the way up through getCropForecastDetail and leaves the whole crop-detail request (not
-// just the AI narrative) stuck forever. 10s is generous for a real answer but still short
-// enough that a farmer isn't staring at a stalled report.
-const REQUEST_TIMEOUT_MS = 10000;
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+const REQUEST_TIMEOUT_MS = 8000;
+// All attempts and backoff share a budget so an optional AI summary cannot keep
+// the forecast report waiting through several full request timeouts.
+const TOTAL_TIMEOUT_MS = 12000;
+const pendingInsights = new Map();
+
+function insightModels() {
+  const primary = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
+  const fallbacks = process.env.GEMINI_FALLBACK_MODELS === undefined
+    ? DEFAULT_FALLBACK_MODELS
+    : process.env.GEMINI_FALLBACK_MODELS.split(',');
+  return [...new Set([primary, ...fallbacks]
+    .map((model) => model.trim().replace(/^models\//, ''))
+    .filter(Boolean))].slice(0, MAX_ATTEMPTS);
+}
 
 function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
+
+function retryAfterMs(response) {
+  const value = response.headers.get('retry-after');
+  if (!value) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? 0 : Math.max(0, date - Date.now());
+}
+
+async function requestInsights(requestBody, apiKey, models) {
+  const deadline = Date.now() + TOTAL_TIMEOUT_MS;
+  let failure = 'temporary service failure';
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    // Try a different model on transient failure instead of spending every
+    // attempt on the same overloaded endpoint. A single configured model still retries.
+    const model = models[attempt % models.length];
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    let retryAfter = 0;
+
+    try {
+      const response = await fetch(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: requestBody,
+        signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remaining)),
+      });
+      if (response.ok) return await response.json();
+
+      failure = `${model}: HTTP ${response.status}`;
+      retryAfter = retryAfterMs(response);
+      await response.body?.cancel();
+      // A retired/unavailable model can fail with 404 even when the key is valid.
+      // Authentication and malformed-request errors should still stop immediately.
+      const canSwitchMissingModel = response.status === 404 && attempt < models.length - 1;
+      if (!RETRYABLE_STATUS_CODES.has(response.status) && !canSwitchMissingModel) {
+        console.error(`Gemini forecast insights unavailable (${failure}); check API access/configuration.`);
+        return null;
+      }
+    } catch (error) {
+      if (!['TypeError', 'AbortError', 'TimeoutError'].includes(error.name)) throw error;
+      failure = `${model}: ${error.name}`;
+    }
+
+    if (attempt === MAX_ATTEMPTS - 1) break;
+    // Jitter prevents simultaneous reports from retrying in lockstep. Respect
+    // Retry-After, but fall back immediately if that wait exceeds our budget.
+    const delay = Math.max(retryAfter, RETRY_DELAY_MS * (2 ** attempt) + Math.floor(Math.random() * 250));
+    if (delay >= deadline - Date.now()) break;
+    await sleep(delay);
+  }
+
+  console.warn(`Gemini temporarily unavailable (${failure}); using the standard forecast report.`);
+  return null;
 }
 
 // `forecast` carries only already-computed, real values (see priceForecastEngine.js and
@@ -27,6 +90,20 @@ export async function generateForecastInsights(forecast) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
+  // React remounts and concurrent requests for the same report share one call.
+  const models = insightModels();
+  const key = JSON.stringify({ models, forecast });
+  if (pendingInsights.has(key)) return pendingInsights.get(key);
+  const pending = generateInsights(forecast, apiKey, models);
+  pendingInsights.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    pendingInsights.delete(key);
+  }
+}
+
+async function generateInsights(forecast, apiKey, models) {
   // A crop with recent orders but no *currently active* listing has no priceSampleCount to
   // average (see computeCropForecast in forecast.controller.js), so currentPrice — and the
   // predictedPrice projected from it — legitimately come back null. Building the prompt
@@ -73,36 +150,16 @@ Respond with strict JSON: {"summary": "2-3 sentence plain-language market summar
       generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 2048 },
     });
 
-    let response = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: requestBody,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok && RETRYABLE_STATUS_CODES.has(response.status)) {
-      await sleep(RETRY_DELAY_MS);
-      response = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: requestBody,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    }
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('Gemini forecast insight generation failed:', response.status, errorBody);
-      return null;
-    }
-
-    const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data = await requestInsights(requestBody, apiKey, models);
+    const text = data?.candidates?.[0]?.content?.parts
+      ?.filter((part) => !part.thought && typeof part.text === 'string')
+      .map((part) => part.text).join('');
     if (!text) return null;
 
     const parsed = JSON.parse(text);
-    if (!parsed.summary || !parsed.recommendation) return null;
-    return { summary: String(parsed.summary), recommendation: String(parsed.recommendation) };
+    if (typeof parsed.summary !== 'string' || !parsed.summary.trim()
+      || typeof parsed.recommendation !== 'string' || !parsed.recommendation.trim()) return null;
+    return { summary: parsed.summary.trim(), recommendation: parsed.recommendation.trim() };
   } catch (error) {
     console.error('Gemini forecast insight generation failed:', error.message);
     return null;

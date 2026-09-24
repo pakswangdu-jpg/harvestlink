@@ -253,16 +253,6 @@ export default function FarmerProducts() {
       title="My Products"
       subtitle="Manage your product listings, inventory, pricing, and availability."
       pageClassName="farmer-products-page"
-      headerActions={(
-        <Button
-          onClick={openAddDrawer}
-          disabled={!canAddProducts}
-          title={canAddProducts ? undefined : 'Verify your account before adding products.'}
-          className="add-product-button"
-        >
-          <Plus size={16} strokeWidth={2} aria-hidden="true" /> Add Product
-        </Button>
-      )}
     >
       {!isVerified ? (
         <div className={`form-alert ${currentUser.verificationStatus === 'rejected' ? 'error' : 'warning'}`}>
@@ -280,7 +270,21 @@ export default function FarmerProducts() {
         </div>
       ) : null}
 
-      <SummaryCards summary={summary} />
+      <SummaryCards
+        summary={summary}
+        isLoading={isLoading}
+        hasError={loadError}
+        action={(
+          <Button
+            onClick={openAddDrawer}
+            disabled={!canAddProducts}
+            title={canAddProducts ? undefined : 'Verify your account before adding products.'}
+            className="add-product-button"
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden="true" /> Add Product
+          </Button>
+        )}
+      />
 
       <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
         <div className="mb-3 flex items-center justify-between">

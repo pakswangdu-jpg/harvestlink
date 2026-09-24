@@ -71,7 +71,6 @@ export const ORGANIZATION_TYPES = [
   'Agricultural Organization',
   'Agricultural NGO',
   'Producer Organization',
-  'Other',
 ];
 
 export const CEBU_MUNICIPALITIES = [
@@ -128,7 +127,6 @@ export const CEBU_MUNICIPALITIES = [
   'Tuburan',
   'Tudela',
   'Valencia',
-  'Other',
 ];
 
 export const DEFAULT_MUNICIPALITY = 'Cebu City';
@@ -187,13 +185,12 @@ export const CEBU_MUNICIPALITY_COORDS = {
   Tuburan: { lat: 10.7167, lng: 123.8000 },
   Tudela: { lat: 10.7333, lng: 124.3333 },
   Valencia: { lat: 10.4000, lng: 123.6667 },
-  Other: { lat: 10.3157, lng: 123.8854 },
 };
 
 export function matchMunicipality(freeText) {
   const normalized = String(freeText || '').toLowerCase();
   const match = CEBU_MUNICIPALITIES.find(
-    (municipality) => municipality !== 'Other' && normalized.includes(municipality.toLowerCase())
+    (municipality) => normalized.includes(municipality.toLowerCase())
   );
   return match || DEFAULT_MUNICIPALITY;
 }

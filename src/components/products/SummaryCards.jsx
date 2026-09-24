@@ -1,50 +1,63 @@
-import { Boxes, CheckCircle2, Info, Package, TriangleAlert } from 'lucide-react';
+import { useId } from 'react';
+import { Boxes, CircleCheck, Package, TriangleAlert } from 'lucide-react';
+import './SummaryCards.css';
 
-// Four cards, each with a colored top accent + label/info-icon row + a bold value — the
-// seller-center-style card anatomy the user referenced. No vs-Previous-Month comparison:
-// these are point-in-time counts (not counters we track historically), so a trend arrow
-// here would have to be fabricated — this page has a standing "no fake data" rule.
 const CARDS = [
   {
-    key: 'total', label: 'Products', hint: 'listed', icon: Package, accent: 'neutral',
-    tooltip: 'Total products you have ever listed, active or not.',
+    key: 'total', label: 'Products', hint: 'Total products', emptyHint: 'No products yet', icon: Package,
+    description: 'All products in your inventory, including inactive listings.',
   },
   {
-    key: 'active', label: 'Active', hint: 'listings', icon: CheckCircle2, accent: 'success',
-    tooltip: 'Products currently visible to buyers in the marketplace.',
+    key: 'active', label: 'Active Listings', hint: 'Currently available', emptyHint: 'No active listings', icon: CircleCheck,
+    description: 'Products with an Active stock status. Low-stock products are counted separately.',
   },
   {
-    key: 'lowStock', label: 'Low Stock', hint: 'needs attention', icon: TriangleAlert, accent: 'warning',
-    tooltip: 'Active products at or below their low-stock threshold.',
+    key: 'lowStock', label: 'Low Stock', hint: 'Needs attention', emptyHint: 'Nothing to review', icon: TriangleAlert,
+    description: 'Products at or below their low-stock threshold.',
   },
   {
-    key: 'totalInventory', label: 'Inventory', hint: 'units in stock', icon: Boxes, accent: 'inventory',
-    tooltip: 'Combined stock quantity across all your active products.',
+    key: 'totalInventory', label: 'Units in Stock', hint: 'Total inventory', emptyHint: 'No inventory yet', icon: Boxes,
+    description: 'Combined stock quantity across all your products, in their listed units.',
   },
 ];
 
-export default function SummaryCards({ summary }) {
+export default function SummaryCards({ summary, action, isLoading = false, hasError = false }) {
+  const headingId = useId();
+  const hasProducts = summary.total > 0;
+  const isUnavailable = isLoading || hasError;
+
   return (
-    <div className="product-stats-bar">
-      {CARDS.map(({ key, label, hint, icon: Icon, accent, tooltip }) => {
-        const value = summary[key];
-        const isWarning = accent === 'warning' && value > 0;
-        return (
-          <div key={key} className={`product-stats-item accent-${accent}`}>
-            <div className="product-stats-label-row">
-              <span className="product-stats-icon-wrap" aria-hidden="true">
-                <Icon size={15} strokeWidth={2.25} className="product-stats-icon" />
-              </span>
-              <p className="product-stats-label">{label}</p>
-              <span className="product-stats-info" title={tooltip}>
-                <Info size={12} aria-hidden="true" />
-              </span>
+    <section className="inventory-overview" aria-labelledby={headingId} aria-busy={isLoading}>
+      <div className="inventory-overview-header">
+        <div>
+          <h2 className="inventory-overview-title" id={headingId}>Inventory Overview</h2>
+          <p className="inventory-overview-description">Monitor your listings and current stock levels.</p>
+        </div>
+        {action}
+      </div>
+      <dl className="inventory-overview-grid">
+        {CARDS.map(({ key, label, hint, emptyHint, icon: Icon, description }) => {
+          const value = summary[key];
+          const isWarning = !isUnavailable && key === 'lowStock' && value > 0;
+          const isActive = !isUnavailable && key === 'active' && value > 0;
+          const supportingText = isLoading ? 'Loading inventory…'
+            : hasError ? 'Inventory unavailable'
+              : !hasProducts ? emptyHint
+                : key === 'lowStock' && value === 0 ? 'Stock levels healthy'
+                  : key === 'active' && value === 0 ? emptyHint : hint;
+
+          return (
+            <div key={key} className={`inventory-metric${isWarning ? ' inventory-metric-warning' : ''}${isActive ? ' inventory-metric-active' : ''}`}>
+              <dt className="inventory-metric-label" title={description}>
+                <span>{label}</span>
+                <Icon size={20} strokeWidth={2} className="inventory-metric-icon" aria-hidden="true" />
+              </dt>
+              <dd className="inventory-metric-value">{isUnavailable ? '—' : value}</dd>
+              <dd className="inventory-metric-hint">{supportingText}</dd>
             </div>
-            <p className={`product-stats-value ${isWarning ? 'warning' : ''}`}>{value}</p>
-            <p className="product-stats-hint">{hint}</p>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }

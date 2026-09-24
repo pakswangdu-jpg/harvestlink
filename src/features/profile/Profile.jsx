@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, UserSquare } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, ImagePlus, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, Trash2, UserSquare, X } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import FormField from '../../components/common/FormField';
-import StatusBadge from '../../components/common/StatusBadge';
 import InfoRow from '../../components/common/InfoRow';
 import FilePreviewCard from '../../components/common/FilePreviewCard';
 import ZoomableImage from '../../components/common/ZoomableImage';
@@ -50,7 +50,12 @@ export default function Profile() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
+  const [isRemoveAvatarDialogOpen, setIsRemoveAvatarDialogOpen] = useState(false);
   const avatarMenuRef = useRef(null);
+  const avatarInputRef = useRef(null);
 
   // Same click-outside-to-close pattern as NotificationBell.
   useEffect(() => {
@@ -58,31 +63,59 @@ export default function Profile() {
     const handleClickOutside = (event) => {
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target)) setIsAvatarMenuOpen(false);
     };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setIsAvatarMenuOpen(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [isAvatarMenuOpen]);
 
-  // Uploads immediately on picking a file — a profile picture isn't a form field that
-  // needs a Save click, it's a single self-contained action (same as the file picker
-  // pattern already used for gov ID/accreditation uploads).
-  const handleAvatarChange = async (event) => {
+  useLayoutEffect(() => {
+    const content = document.querySelector('.profile-page')?.closest('.main-content');
+    content?.scrollTo({ top: 0, behavior: 'auto' });
+  }, []);
+
+  const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    setIsAvatarMenuOpen(false);
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setAvatarError('Please choose an image file.');
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setAvatarError('Please choose a JPG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Profile photos must be 5 MB or smaller.');
       return;
     }
     setAvatarError('');
+    setIsAvatarMenuOpen(false);
+    setAvatarFile(file);
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+    setIsAvatarPreviewOpen(true);
+  };
+
+  const closeAvatarPreview = () => {
+    if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    setAvatarPreviewUrl('');
+    setAvatarFile(null);
+    setIsAvatarPreviewOpen(false);
+  };
+
+  const handleAvatarSave = async () => {
+    if (!avatarFile) return;
     setIsUploadingAvatar(true);
+    setAvatarError('');
     try {
-      const avatarUrl = await uploadAvatar(file, currentUser.id);
+      const avatarUrl = await uploadAvatar(avatarFile, currentUser.id);
       await updateUserProfile(currentUser.id, { avatarUrl });
       await refreshUser();
+      closeAvatarPreview();
     } catch (error) {
-      // Storage/RLS errors are raw Postgres text and not something a user can act on —
-      // log the real one for debugging, show a plain message instead.
       console.error('Avatar upload failed:', error);
       setAvatarError('Could not upload photo right now. Please try again later.');
     } finally {
@@ -91,6 +124,7 @@ export default function Profile() {
   };
 
   const handleRemoveAvatar = async () => {
+    setIsRemoveAvatarDialogOpen(false);
     setIsAvatarMenuOpen(false);
     setAvatarError('');
     setIsUploadingAvatar(true);
@@ -105,9 +139,7 @@ export default function Profile() {
     }
   };
 
-  // GCash payment info (farmer-only) — a separate, always-editable form rather than the
-  // Personal/Farm panels' view-then-Edit toggle, since it's just two fields plus the QR
-  // upload below (which, like the avatar photo, saves itself immediately on picking a file).
+  // GCash payment info (farmer-only) uses a view-then-edit flow; QR uploads remain independent.
   const [gcashDraft, setGcashDraft] = useState({
     gcashAccountName: currentUser.gcashAccountName || '',
     gcashNumber: currentUser.gcashNumber || '',
@@ -115,6 +147,9 @@ export default function Profile() {
   const [gcashErrors, setGcashErrors] = useState({});
   const [gcashNotice, setGcashNotice] = useState('');
   const [isSavingGcash, setIsSavingGcash] = useState(false);
+  const [isEditingGcash, setIsEditingGcash] = useState(
+    !currentUser.gcashAccountName && !currentUser.gcashNumber,
+  );
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrError, setQrError] = useState('');
 
@@ -154,6 +189,7 @@ export default function Profile() {
       setGcashErrors({});
       await refreshUser();
       setGcashNotice('Payment information updated.');
+      setIsEditingGcash(false);
     } catch (error) {
       setGcashErrors({ gcashAccountName: error.message });
     } finally {
@@ -253,60 +289,69 @@ export default function Profile() {
       navItems={navItems}
       title="My profile"
       subtitle="Your account details on HarvestLink."
+      headerActions={!isEditing ? (
+        <Button
+          variant="secondary"
+          onClick={startEditing}
+          className="profile-page-header-edit"
+        >
+          <Edit3 size={15} /> Edit Profile
+        </Button>
+      ) : null}
       pageClassName="profile-page"
     >
       <section className="panel profile-header">
-        <div className="profile-banner" />
         <div className="profile-identity">
           <div className="profile-identity-main">
             <div className="profile-avatar-block">
-              <div className="profile-avatar-lg">
-                {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt="" /> : getInitials(currentUser.name)}
-              </div>
+              <button
+                type="button"
+                className="profile-avatar-lg"
+                aria-label="Change profile photo"
+                title="Change profile photo"
+                onClick={() => setIsAvatarMenuOpen((previous) => !previous)}
+                disabled={isUploadingAvatar}
+              >
+                {currentUser.avatarUrl ? <img src={currentUser.avatarUrl} alt={`${currentUser.name}'s profile`} /> : getInitials(currentUser.name)}
+                <span className="profile-avatar-camera" aria-hidden="true"><Camera size={15} /></span>
+              </button>
               <div className="profile-avatar-menu-wrap" ref={avatarMenuRef}>
-                <button
-                  type="button"
-                  className="profile-avatar-menu-toggle"
-                  onClick={() => setIsAvatarMenuOpen((previous) => !previous)}
-                  disabled={isUploadingAvatar}
-                >
-                  <Camera size={14} /> Change photo
-                </button>
                 {isAvatarMenuOpen ? (
                   <div className="profile-avatar-menu">
-                    <label className="profile-avatar-menu-item">
-                      Upload new photo
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={isUploadingAvatar}
-                        onChange={handleAvatarChange}
-                      />
-                    </label>
+                    <button type="button" className="profile-avatar-menu-item" onClick={() => avatarInputRef.current?.click()}>
+                      <ImagePlus size={15} /> Change photo
+                    </button>
                     {currentUser.avatarUrl ? (
                       <button
                         type="button"
                         className="profile-avatar-menu-item danger"
                         disabled={isUploadingAvatar}
-                        onClick={handleRemoveAvatar}
+                        onClick={() => setIsRemoveAvatarDialogOpen(true)}
                       >
-                        Remove photo
+                        <Trash2 size={15} /> Remove photo
                       </button>
                     ) : null}
                   </div>
                 ) : null}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="profile-avatar-file-input"
+                  disabled={isUploadingAvatar}
+                  onChange={handleAvatarChange}
+                />
               </div>
             </div>
             <div className="profile-identity-text">
               <h2>{currentUser.name}</h2>
-              <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
-              <div className="profile-badges">
-                <StatusBadge value={currentUser.role} />
-                {currentUser.verificationStatus ? (
-                  <StatusBadge value={currentUser.verificationStatus} type="verification" />
-                ) : (
-                  <span className="badge badge-active"><BadgeCheck size={13} /> Active account</span>
-                )}
+              <div className="profile-contact-row">
+                <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
+                <span className="profile-account-type">
+                  <BadgeCheck size={14} />
+                  {currentUser.verificationStatus === 'verified' ? 'Verified ' : ''}
+                  {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)}
+                </span>
               </div>
               {isUploadingAvatar ? <span className="profile-avatar-status">Saving…</span> : null}
               {avatarError ? <span className="profile-avatar-status error">{avatarError}</span> : null}
@@ -352,6 +397,32 @@ export default function Profile() {
           </div>
         </div>
       </section>
+      <ConfirmDialog
+        open={isRemoveAvatarDialogOpen}
+        title="Remove profile photo?"
+        message="Your current profile photo will be removed and your initials will be shown instead."
+        confirmLabel="Remove photo"
+        onConfirm={handleRemoveAvatar}
+        onCancel={() => setIsRemoveAvatarDialogOpen(false)}
+      />
+      {isAvatarPreviewOpen ? (
+        <div className="profile-avatar-preview-backdrop" role="presentation" onClick={closeAvatarPreview}>
+          <div className="profile-avatar-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-photo-preview-title" onClick={(event) => event.stopPropagation()}>
+            <div className="profile-avatar-preview-heading">
+              <h2 id="profile-photo-preview-title">Profile photo</h2>
+              <button type="button" aria-label="Close preview" onClick={closeAvatarPreview}><X size={18} /></button>
+            </div>
+            <img src={avatarPreviewUrl} alt="Selected profile preview" className="profile-avatar-preview-image" />
+            {avatarError ? <p className="profile-avatar-status error">{avatarError}</p> : null}
+            <div className="profile-avatar-preview-actions">
+              <Button variant="secondary" onClick={closeAvatarPreview} disabled={isUploadingAvatar}>Cancel</Button>
+              <Button onClick={handleAvatarSave} disabled={isUploadingAvatar}>
+                {isUploadingAvatar ? 'Uploading…' : 'Save photo'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <section className="content-grid two">
         <div className="panel">
@@ -551,51 +622,117 @@ export default function Profile() {
           <p className="muted gcash-intro">Configure how buyers can send GCash payments directly to your account.</p>
 
           {isGcashSetupComplete ? (
-            <div className="form-alert success has-icon">
+            <div className="gcash-status success">
               <CheckCircle2 size={16} />
-              <span>GCash payments are active — buyers can pay you directly.</span>
+              <div>
+                <strong>GCash payments active</strong>
+                <span>Buyers can pay using the payment details below.</span>
+              </div>
             </div>
           ) : (
-            <div className="form-alert warning has-icon">
+            <div className="gcash-status warning">
               <CircleAlert size={16} />
-              <span>
-                GCash payments aren&apos;t active for buyers yet — you still need
-                {!hasGcashAccountName && !hasGcashQr ? ' your account name and QR code' : !hasGcashAccountName ? ' your account name (below)' : ' your QR code (below)'}.
-              </span>
+              <div>
+                <strong>GCash payments not active yet</strong>
+                <span>
+                  Add
+                  {!hasGcashAccountName && !hasGcashQr ? ' your account name and QR code' : !hasGcashAccountName ? ' your account name' : ' your QR code'}
+                  {' '}to accept buyer payments.
+                </span>
+              </div>
             </div>
           )}
 
           {gcashNotice ? <div className="form-alert success">{gcashNotice}</div> : null}
 
-          <div className="content-grid two gcash-grid">
-            <form className="form-stack" onSubmit={handleGcashSubmit}>
-              <FormField label="GCash Account Name" name="gcashAccountName" error={gcashErrors.gcashAccountName}>
-                <input
-                  id="gcashAccountName"
-                  value={gcashDraft.gcashAccountName}
-                  onChange={(event) => updateGcashField('gcashAccountName', event.target.value)}
-                  placeholder="Juan Dela Cruz"
-                />
-              </FormField>
-              <FormField label="GCash Mobile Number" name="gcashNumber" error={gcashErrors.gcashNumber}>
-                <input
-                  id="gcashNumber"
-                  value={gcashDraft.gcashNumber}
-                  onChange={(event) => updateGcashField('gcashNumber', event.target.value)}
-                  placeholder="09171234567"
-                  inputMode="numeric"
-                />
-              </FormField>
-              <div className="form-actions">
-                <Button type="submit" disabled={isSavingGcash}>{isSavingGcash ? 'Saving…' : 'Save'}</Button>
+          <div className="gcash-settings-grid">
+            {isEditingGcash ? (
+              <form className="gcash-details-form" onSubmit={handleGcashSubmit}>
+                <div className="gcash-subsection-heading">
+                  <h3>Payment details</h3>
+                  <p>Used to receive direct GCash payments from buyers.</p>
+                </div>
+                <FormField label="GCash Account Name" name="gcashAccountName" error={gcashErrors.gcashAccountName}>
+                  <input
+                    id="gcashAccountName"
+                    value={gcashDraft.gcashAccountName}
+                    onChange={(event) => updateGcashField('gcashAccountName', event.target.value)}
+                    placeholder="Juan Dela Cruz"
+                  />
+                </FormField>
+                <FormField label="GCash Mobile Number" name="gcashNumber" error={gcashErrors.gcashNumber}>
+                  <input
+                    id="gcashNumber"
+                    value={gcashDraft.gcashNumber}
+                    onChange={(event) => updateGcashField('gcashNumber', event.target.value)}
+                    placeholder="09171234567"
+                    inputMode="numeric"
+                  />
+                </FormField>
+                <div className="form-actions gcash-form-actions">
+                  <Button type="submit" disabled={isSavingGcash}>{isSavingGcash ? 'Saving…' : 'Save changes'}</Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={isSavingGcash}
+                    onClick={() => {
+                      setGcashDraft({
+                        gcashAccountName: currentUser.gcashAccountName || '',
+                        gcashNumber: currentUser.gcashNumber || '',
+                      });
+                      setGcashErrors({});
+                      setGcashNotice('');
+                      if (currentUser.gcashAccountName || currentUser.gcashNumber) {
+                        setIsEditingGcash(false);
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className="gcash-details-form gcash-details-readonly">
+                <div className="gcash-subsection-heading">
+                  <h3>Payment details</h3>
+                  <p>These details are used to receive direct GCash payments from buyers.</p>
+                </div>
+                <dl className="gcash-details-list">
+                  <div>
+                    <dt>GCash Account Name</dt>
+                    <dd>{currentUser.gcashAccountName}</dd>
+                  </div>
+                  <div>
+                    <dt>GCash Mobile Number</dt>
+                    <dd>{currentUser.gcashNumber}</dd>
+                  </div>
+                </dl>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="gcash-edit-btn"
+                  onClick={() => {
+                    setGcashDraft({
+                      gcashAccountName: currentUser.gcashAccountName || '',
+                      gcashNumber: currentUser.gcashNumber || '',
+                    });
+                    setGcashNotice('');
+                    setIsEditingGcash(true);
+                  }}
+                >
+                  <Edit3 size={15} /> Edit payment details
+                </Button>
               </div>
-            </form>
+            )}
 
-            <div className="form-field">
-              <span>Upload Official GCash QR Code</span>
+            <div className="gcash-qr-section">
+              <div className="gcash-subsection-heading">
+                <h3>GCash QR code</h3>
+                <p>Buyers can scan this code when paying through GCash.</p>
+              </div>
               {currentUser.gcashQrUrl ? (
                 <div className="gcash-qr-preview">
-                  <ZoomableImage src={currentUser.gcashQrUrl} alt="GCash QR code" />
+                  <ZoomableImage src={currentUser.gcashQrUrl} alt="GCash payment QR code" />
                 </div>
               ) : (
                 <div className="gcash-qr-preview empty">
@@ -603,11 +740,15 @@ export default function Profile() {
                   <span>No QR code uploaded</span>
                 </div>
               )}
+              <span className={`gcash-qr-status${currentUser.gcashQrUrl ? ' uploaded' : ''}`}>
+                {currentUser.gcashQrUrl ? <><CheckCircle2 size={14} /> QR code uploaded</> : 'Upload your official GCash QR code to let buyers scan and pay.'}
+              </span>
               {qrError ? <small className="field-error">{qrError}</small> : null}
               <label className="btn btn-secondary btn-md gcash-qr-upload-btn">
                 <input type="file" accept="image/*" disabled={isUploadingQr} onChange={handleQrChange} />
-                {isUploadingQr ? 'Uploading…' : currentUser.gcashQrUrl ? 'Replace QR' : 'Upload QR'}
+                {isUploadingQr ? 'Uploading…' : currentUser.gcashQrUrl ? 'Replace QR code' : 'Upload QR code'}
               </label>
+              <small className="gcash-qr-note">Only upload the official QR code for the GCash account shown here.</small>
             </div>
           </div>
         </section>

@@ -178,7 +178,8 @@ export default function FarmerDemandForecast() {
         {!crops.length ? (
           <EmptyState
             title="No market activity yet"
-            message="Once buyers start ordering and farmers start listing produce, forecasts will appear here."
+            message="Forecasts will appear here once buyers place orders and farmers list produce."
+            className="forecast-empty-state"
           />
         ) : (
           <>
