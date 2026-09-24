@@ -16,7 +16,7 @@ export const CEBU_MUNICIPALITIES = [
   'Malabuyoc', 'Mandaue City', 'Minglanilla', 'Moalboal', 'Naga City', 'Oslob', 'Pilar',
   'Pinamungajan', 'Poro', 'Ronda', 'Samboan', 'San Fernando', 'San Francisco',
   'San Remigio', 'Santander', 'Santa Fe', 'Sibonga', 'Sogod', 'Tabogon', 'Tabuelan',
-  'Talisay City', 'Toledo City', 'Tuburan', 'Tudela', 'Valencia', 'Other',
+  'Talisay City', 'Toledo City', 'Tuburan', 'Tudela', 'Valencia',
 ];
 
 export const DEFAULT_MUNICIPALITY = 'Cebu City';
@@ -78,7 +78,6 @@ export const CEBU_MUNICIPALITY_COORDS = {
   Tuburan: { lat: 10.7167, lng: 123.8000 },
   Tudela: { lat: 10.7333, lng: 124.3333 },
   Valencia: { lat: 10.4000, lng: 123.6667 },
-  Other: { lat: 10.3157, lng: 123.8854 },
 };
 
 export function getMunicipalityCoords(municipality) {

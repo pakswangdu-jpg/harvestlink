@@ -29,16 +29,18 @@ const listCache = new Map();
 // Longer TTL specifically for the crop-detail endpoint, which spends a Gemini call — mirrors
 // the old forecast_predictions table's 6h reuse window, just in-memory instead of persisted.
 const DETAIL_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+// A temporary Gemini outage should not suppress AI insights for the full six hours.
+const DETAIL_FALLBACK_CACHE_TTL_MS = 60 * 1000;
 const detailCache = new Map();
 
 function getCached(cache, key, ttlMs) {
   const entry = cache.get(key);
-  if (!entry || Date.now() - entry.cachedAt > ttlMs) return null;
+  if (!entry || Date.now() - entry.cachedAt >= (entry.ttlMs ?? ttlMs)) return null;
   return entry.data;
 }
 
-function setCached(cache, key, data) {
-  cache.set(key, { data, cachedAt: Date.now() });
+function setCached(cache, key, data, ttlMs) {
+  cache.set(key, { data, cachedAt: Date.now(), ttlMs });
 }
 
 const EXCLUDED_ORDER_STATUSES = ['rejected', 'cancelled'];
@@ -564,6 +566,6 @@ export async function getCropForecastDetail(req, res) {
     demandHistoricalChart,
     demandForecastCurve,
   };
-  setCached(detailCache, cacheKey, response);
+  setCached(detailCache, cacheKey, response, insights ? DETAIL_CACHE_TTL_MS : DETAIL_FALLBACK_CACHE_TTL_MS);
   res.json(response);
 }

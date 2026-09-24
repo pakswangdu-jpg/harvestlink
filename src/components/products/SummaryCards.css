@@ -1,0 +1,121 @@
+.inventory-overview {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.farmer-products-page > .inventory-overview {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.inventory-overview-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 14px;
+}
+
+.inventory-overview .inventory-overview-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.inventory-overview-description {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.inventory-overview .inventory-overview-header > .btn {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.inventory-overview .inventory-overview-header > .btn:hover,
+.inventory-overview .inventory-overview-header > .btn:active {
+  transform: none;
+}
+
+.inventory-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin: 0;
+}
+
+.inventory-metric {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.inventory-metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.inventory-metric-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.inventory-metric-value {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.inventory-metric-hint {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.inventory-metric-active .inventory-metric-icon {
+  color: var(--green-800);
+}
+
+.inventory-metric-warning .inventory-metric-icon,
+.inventory-metric-warning .inventory-metric-value {
+  color: var(--amber-700);
+}
+
+@container (min-width: 380px) {
+  .inventory-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 880px) {
+  .inventory-overview-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

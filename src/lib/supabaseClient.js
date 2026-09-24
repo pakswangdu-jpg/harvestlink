@@ -7,10 +7,6 @@ const REMEMBER_SESSION_KEY = 'harvestlink:rememberSession';
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set — see .env.example.');
 }
-
-// Supabase expects a synchronous storage adapter. Route its managed session to localStorage
-// only when the login form explicitly enables Remember me; otherwise keep the existing
-// per-tab sessionStorage behavior. No credentials are stored by this adapter.
 const authStorage = {
   getItem(key) {
     const remember = window.localStorage.getItem(REMEMBER_SESSION_KEY);

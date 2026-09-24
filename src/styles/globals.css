@@ -1,7 +1,4 @@
-/* Tailwind utilities only — deliberately skips tailwindcss/preflight.css (the reset layer),
-   since that would silently restyle every bare <h1>-<h6>/<ul>/<button>/etc. across the whole
-   app on top of the hand-written cascade below. Utility classes (e.g. flex, gap-2, text-sm)
-   are available everywhere; just add them to className as needed on new/existing markup. */
+
 @layer theme, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
@@ -9,10 +6,6 @@
 :root {
   color-scheme: light;
   --font-ui: "Inter Variable", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  /* Fraunces is a humanist serif already loaded in main.jsx but, until now, never actually
-     referenced by any rule — so the app was shipping the font files for nothing. Reserved for
-     the few "moment" headlines (order confirmed, payment step) where a warmer voice than
-     Inter's is worth it; everything else stays on --font-ui. */
   --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
   font-family: var(--font-ui);
   line-height: 1.5;
@@ -21,6 +14,8 @@
   background: #f5f8f4;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  font-kerning: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --green-900: #064e3b;
@@ -591,6 +586,7 @@ p {
   width: 44px;
   height: 44px;
   flex-shrink: 0;
+  overflow: hidden;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -598,6 +594,12 @@ p {
   color: white;
   font-weight: 800;
   font-size: 0.9rem;
+}
+
+.lp-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .lp-preview-header strong {
@@ -725,6 +727,16 @@ p {
   box-shadow: 0 0 0 4px var(--green-100);
 }
 
+.lp-float-stat.top {
+  top: -22px;
+  left: 24px;
+}
+
+.lp-float-stat.bottom {
+  bottom: -22px;
+  right: 24px;
+}
+
 .lp-float-stat {
   position: absolute;
   display: flex;
@@ -752,16 +764,6 @@ p {
   margin: 0 4px;
   background: var(--line);
   font-style: normal;
-}
-
-.lp-float-stat.top {
-  top: -22px;
-  left: 24px;
-}
-
-.lp-float-stat.bottom {
-  bottom: -22px;
-  right: 24px;
 }
 
 .landing-feature-grid {
@@ -876,6 +878,13 @@ p {
   display: grid;
   gap: 10px;
   justify-items: center;
+}
+
+.landing-section-heading > p:last-child {
+  max-width: 560px;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  line-height: 1.55;
 }
 
 .landing-section-heading h2 {
@@ -1087,7 +1096,7 @@ p {
   font-weight: 700;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1080px) {
   .public-farmer-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1147,7 +1156,7 @@ p {
 }
 
 .landing-steps {
-  max-width: 900px;
+  max-width: 960px;
   margin: 96px auto 0;
 }
 
@@ -1156,7 +1165,7 @@ p {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  gap: 0;
 }
 
 .lp-timeline-item {
@@ -1164,7 +1173,7 @@ p {
   display: grid;
   grid-template-columns: 48px 1fr;
   gap: 20px;
-  padding-bottom: 32px;
+  padding-bottom: 26px;
 }
 
 .lp-timeline-item:last-child {
@@ -1178,8 +1187,8 @@ p {
   top: 48px;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(var(--lp-accent), var(--lp-line));
-  opacity: 0.5;
+  background: var(--lp-line);
+  opacity: 0.8;
 }
 
 .lp-timeline-marker {
@@ -1189,49 +1198,35 @@ p {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--green-600), var(--green-800));
+  background: var(--green-700);
   color: white;
-  box-shadow: var(--lp-shadow-sm);
 }
 
 .lp-timeline-number {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 20px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: var(--panel);
-  color: var(--green-800);
-  border: 1px solid var(--lp-line);
-  font-size: 0.65rem;
-  font-weight: 800;
+  display: block;
+  margin-bottom: 3px;
+  color: var(--green-700);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .lp-timeline-content {
-  padding: 14px 20px;
-  border-radius: var(--lp-radius);
-  background: var(--panel);
-  border: 1px solid var(--lp-line);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.lp-timeline-item:hover .lp-timeline-content {
-  transform: translateX(4px);
-  box-shadow: var(--lp-shadow);
+  padding: 2px 0 0;
 }
 
 .lp-timeline-content h3 {
   color: var(--green-900);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
+  line-height: 1.3;
 }
 
 .lp-timeline-content p {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 0.92rem;
+  max-width: 680px;
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
 
 .lp-donation-cta {
@@ -1745,11 +1740,20 @@ a.lp-contact-card:hover {
   --violet-100: #ece7f7;
   --radius: 8px;
   min-height: 100vh;
+  min-height: 100dvh;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  width: 100%;
+  max-width: 100%;
   background: var(--soft);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 400;
+  font-variation-settings: "opsz" 14;
+  letter-spacing: 0;
   transition: grid-template-columns 0.25s ease;
 }
 
@@ -1807,6 +1811,7 @@ a.lp-contact-card:hover {
   z-index: 20;
   width: var(--sidebar-width);
   height: 100vh;
+  height: 100dvh;
   /* Tightening the wordmark's line-height shortened the brand block, so the vertical padding
      absorbs the difference — it keeps the header's top and bottom breathing room balanced
      around the logo instead of the block sitting high against the divider. */
@@ -1970,28 +1975,31 @@ a.lp-contact-card:hover {
   margin-top: 14px;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .sidebar-scroll::-webkit-scrollbar {
-  width: 6px;
+  display: none;
 }
 
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: transparent;
+.sidebar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: var(--line);
+.sidebar::-webkit-scrollbar {
+  display: none;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 999px;
+@supports (scrollbar-width: none) {
+  .sidebar-scroll,
+  .sidebar {
+    scrollbar-width: none;
+  }
 }
 
 .nav-badge {
@@ -2010,12 +2018,15 @@ a.lp-contact-card:hover {
 
 .main-content {
   grid-column: 2;
-  width: min(100%, 1280px);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   height: 100vh;
   min-height: 0;
+  justify-self: stretch;
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: 0 auto;
+  margin: 0;
   padding: 28px;
   display: grid;
   /* minmax(0, 1fr) on the implicit single column — without it, a wide child (e.g. the
@@ -2025,6 +2036,17 @@ a.lp-contact-card:hover {
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.main-content > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.main-content::-webkit-scrollbar {
+  display: none;
 }
 
 /* Opt-out of .main-content's padded/centered/top-packed layout for pages that need to fill
@@ -4647,7 +4669,12 @@ a.user-chip:hover {
 .app-shell .btn {
   min-height: 36px;
   border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 14px;
   font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.25;
+  white-space: nowrap;
   transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
@@ -4662,7 +4689,7 @@ a.user-chip:hover {
 
 .app-shell .btn-md {
   padding: 8px 14px;
-  font-size: 0.9rem;
+  font-size: 14px;
 }
 
 .app-shell .btn-lg {
@@ -4744,6 +4771,25 @@ a.user-chip:hover {
 
 .app-shell .btn-danger:hover {
   background: var(--red-100);
+}
+
+.app-shell .page-header h1 {
+  font-size: clamp(26px, 2vw, 30px);
+  font-weight: 650;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+}
+
+.app-shell .page-header p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.app-shell .sidebar-nav-link,
+.app-shell .sidebar-logout {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .full-width {
@@ -7962,6 +8008,40 @@ td {
   background: var(--soft);
 }
 
+.forecast-empty-state {
+  min-height: 156px;
+  gap: 7px;
+  padding: 24px 20px;
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.forecast-empty-state .empty-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  color: var(--green-800);
+  background: var(--green-100);
+}
+
+.forecast-empty-state h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  line-height: 1.35;
+}
+
+.forecast-empty-state p {
+  max-width: 380px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 /* Warm amber instead of the shared default green tint — for a "waiting on someone else"
    empty state (the Hourglass), matching the same amber used for "Pending requests" elsewhere
    in the app rather than the neutral gray or default green, which don't carry that meaning. */
@@ -9353,12 +9433,33 @@ td {
   font-weight: 800;
   box-shadow: 0 6px 20px rgba(16, 24, 40, 0.14), 0 0 0 1px rgba(16, 24, 40, 0.03);
   overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.profile-avatar-lg:disabled {
+  cursor: not-allowed;
 }
 
 .profile-avatar-lg img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-avatar-camera {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid var(--panel);
+  border-radius: 999px;
+  background: var(--surface-elevated);
+  color: var(--text);
 }
 
 .profile-avatar-menu-wrap {
@@ -9407,7 +9508,9 @@ td {
 }
 
 .profile-avatar-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 8px 10px;
   border-radius: 6px;
@@ -9427,8 +9530,72 @@ td {
   color: var(--red-700);
 }
 
-.profile-avatar-menu-item input {
+.profile-avatar-file-input {
   display: none;
+}
+
+.profile-avatar-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15, 23, 20, 0.55);
+}
+
+.profile-avatar-preview-dialog {
+  width: min(100%, 360px);
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow);
+}
+
+.profile-avatar-preview-heading,
+.profile-avatar-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.profile-avatar-preview-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.profile-avatar-preview-heading button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.profile-avatar-preview-heading button:hover {
+  background: var(--green-50);
+  color: var(--text);
+}
+
+.profile-avatar-preview-image {
+  display: block;
+  width: 220px;
+  height: 220px;
+  margin: 20px auto;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.profile-avatar-preview-actions {
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .profile-avatar-status {
@@ -9474,6 +9641,13 @@ td {
   color: var(--muted);
   font-size: 0.88rem;
   margin-top: 5px;
+}
+
+.profile-contact-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
 
 .profile-badges {
@@ -9607,6 +9781,204 @@ td {
 
 .gcash-qr-upload-btn input {
   display: none;
+}
+
+.profile-page .gcash-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 20px;
+}
+
+.profile-page .gcash-details-form,
+.profile-page .gcash-qr-section {
+  min-width: 0;
+}
+
+.profile-page .gcash-details-form {
+  max-width: 580px;
+}
+
+.profile-page .gcash-subsection-heading {
+  margin-bottom: 16px;
+}
+
+.profile-page .gcash-subsection-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-page .gcash-subsection-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.profile-page .gcash-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--green-700) 18%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--green-600) 7%, var(--panel));
+  color: var(--green-800);
+}
+
+.profile-page .gcash-status.warning {
+  border-color: color-mix(in srgb, var(--amber-700) 22%, var(--line));
+  background: color-mix(in srgb, var(--amber-500) 8%, var(--panel));
+  color: var(--text);
+}
+
+.profile-page .gcash-status svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.profile-page .gcash-status strong,
+.profile-page .gcash-status span {
+  display: block;
+}
+
+.profile-page .gcash-status strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.profile-page .gcash-status span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-page .gcash-details-form .form-field {
+  max-width: 560px;
+}
+
+.profile-page .gcash-details-form .form-actions {
+  margin-top: 4px;
+}
+
+.profile-page .gcash-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-page .gcash-details-readonly {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.profile-page .gcash-details-list {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 0 20px;
+}
+
+.profile-page .gcash-details-list div {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-page .gcash-details-list dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.profile-page .gcash-details-list dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.profile-page .gcash-edit-btn {
+  min-height: 40px;
+}
+
+.profile-page .gcash-qr-section {
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+
+.profile-page .gcash-qr-preview {
+  width: min(180px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.profile-page .gcash-qr-preview.empty {
+  gap: 8px;
+  padding: 18px;
+}
+
+.profile-page .gcash-qr-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: 240px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-page .gcash-qr-status.uploaded {
+  align-items: center;
+  color: var(--green-700);
+}
+
+.profile-page .gcash-qr-upload-btn {
+  margin-top: 12px;
+  min-height: 40px;
+}
+
+.profile-page .gcash-qr-note {
+  display: block;
+  max-width: 260px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .profile-page .gcash-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .profile-page .gcash-details-form {
+    max-width: none;
+  }
+
+  .profile-page .gcash-qr-section {
+    padding-top: 24px;
+    padding-left: 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
 }
 
 /* GcashPaymentPage — a standalone page outside .app-shell (no sidebar, deliberately, see
@@ -11942,7 +12314,7 @@ td {
   display: none;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 860px) {
   .app-shell {
     /* minmax(0, 1fr), not a bare 1fr — a plain 1fr track still won't shrink below its
        content's min-content size (the classic CSS grid blowout gotcha), so any wide child
@@ -12068,7 +12440,7 @@ td {
   }
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 860px) {
   .app-shell {
     height: auto;
     min-height: 100vh;
@@ -13866,6 +14238,7 @@ td {
 }
 
 .auth-back-button {
+  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -13901,22 +14274,44 @@ td {
 }
 
 .auth-card-login .auth-card-header h2 {
-  font-size: 1.55rem;
-  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  font-size: 1.7rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
 }
 
 .auth-card-login .auth-card-header p {
   margin-top: 5px;
-  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-size: 0.94rem;
+  line-height: 1.5;
 }
 
 .auth-card-login .form-stack {
-  gap: 13px;
+  gap: 16px;
 }
 
-.auth-card-login .form-field input {
-  padding-top: 10px;
-  padding-bottom: 10px;
+.auth-card-login .form-field {
+  gap: 8px;
+  font-weight: 600;
+}
+
+.auth-card-login .form-field > span:first-child {
+  color: var(--text-strong);
+  font-size: 0.92rem;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.auth-card-login .form-field input,
+.auth-card-login .form-field select {
+  min-height: 48px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  font-size: 1rem;
+  line-height: 1.4;
+  letter-spacing: 0;
 }
 
 /* The shared rule pulls this row up by -8px, which fought the form's own vertical
@@ -13926,20 +14321,24 @@ td {
 }
 
 .auth-card-login .auth-forgot-link {
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
 .auth-card-login .auth-submit {
-  min-height: 42px;
-  margin-top: 4px;
-  border-radius: 7px;
-  font-size: 0.9rem;
+  min-height: 48px;
+  margin-top: 2px;
+  border-radius: 8px;
+  font-size: 0.96rem;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .auth-card-login .auth-switch {
-  margin-top: 16px;
-  font-size: 0.86rem;
+  margin-top: 18px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .auth-card-login .auth-switch a {
@@ -16290,7 +16689,6 @@ td {
 .messages-page .messages-empty-state > span {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
 }
 
 .messages-page .messages-empty-state h3 {
@@ -16434,15 +16832,22 @@ td {
   line-height: 1.5;
 }
 
+.profile-page-header-edit {
+  display: none;
+}
+
 .profile-page .profile-header {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  grid-row: auto;
+  overflow: visible;
   border-radius: 10px;
   box-shadow: none;
 }
 
 .profile-page .profile-banner {
-  height: 84px;
-  background: linear-gradient(115deg, var(--panel-subtle), var(--soft));
-  background-image: linear-gradient(115deg, var(--panel-subtle), var(--soft));
+  display: none;
 }
 
 .profile-page .profile-banner::before,
@@ -16451,71 +16856,147 @@ td {
 }
 
 .profile-page .profile-identity {
-  gap: 16px;
-  padding: 0 24px 20px;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: 24px;
+  padding: 24px;
+}
+
+.profile-page .profile-edit-btn {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  white-space: nowrap;
+  min-height: 36px;
+  padding: 8px 12px;
 }
 
 .profile-page .profile-identity-main {
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
   gap: 16px;
+}
+
+.profile-page .profile-avatar-block {
+  position: relative;
+  width: 88px;
+  min-width: 88px;
+  gap: 0;
+}
+
+.profile-page .profile-avatar-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  width: 210px;
 }
 
 .profile-page .profile-avatar-lg {
   width: 88px;
   height: 88px;
-  margin-top: -44px;
+  margin-top: 0;
   border-width: 3px;
-  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.14);
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.12);
 }
 
-.profile-page .profile-avatar-menu-toggle {
-  padding: 5px 10px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 600;
+.profile-page .profile-avatar-camera {
+  right: 5px;
+  bottom: 5px;
+  width: 28px;
+  height: 28px;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.16);
+  pointer-events: none;
+}
+
+.profile-page .profile-avatar-lg:hover .profile-avatar-camera,
+.profile-page .profile-avatar-lg:focus-visible .profile-avatar-camera {
+  background: var(--green-700);
+  color: white;
+}
+
+.profile-page .profile-avatar-lg:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green-600) 30%, transparent);
+  outline-offset: 3px;
 }
 
 .profile-page .profile-identity-text h2 {
+  margin: 0;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 650;
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
 
 .profile-page .profile-email {
-  margin-top: 4px;
+  margin-top: 0;
   font-size: 13px;
   line-height: 1.4;
 }
 
-.profile-page .profile-badges {
-  gap: 6px;
-  margin-top: 9px;
+.profile-page .profile-contact-row {
+  margin-top: 6px;
+  gap: 4px 10px;
 }
 
-.profile-page .profile-badges .badge {
-  height: 19px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: 5px;
-  font-size: 9.5px;
+.profile-account-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--green-700);
+  font-size: 13px;
   font-weight: 600;
 }
 
-/* min-width: 641px, not unconditional — .profile-page .profile-summary-row (2 classes) is
-   more specific than the max-width: 640px breakpoint's own bare .profile-summary-row rule (1
-   class), so left unguarded this silently overrode that rule's 1-column mobile collapse at
-   EVERY width, including inside that media query — CSS specificity doesn't care which one is
-   nested in a media query. That locked the row to 4 cramped columns on phones, clipping
-   "Buyer"/"Mandaue City"/"Jul 25, 2026" down to a few characters each. */
+.profile-page .profile-avatar-status {
+  margin-top: 6px;
+}
+
 @media (min-width: 641px) {
+  .profile-page-header-edit {
+    display: inline-flex;
+  }
+
+  .profile-page .profile-identity {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+  }
+
+  .profile-page .profile-identity-main {
+    flex-direction: row;
+    text-align: left;
+  }
+
   .profile-page .profile-summary-row {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
+@media (min-width: 641px) and (max-width: 1200px) {
+  .profile-page .profile-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-page .profile-identity-main {
+    min-width: 0;
+    flex: 1 1 420px;
+  }
+
+  .profile-page .profile-identity-text {
+    min-width: 0;
+  }
+}
+
 .profile-page .profile-summary-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   gap: 8px;
-  padding: 14px 20px;
+  min-width: 0;
+  padding: 12px 20px;
 }
 
 .profile-page .profile-summary-icon {
@@ -16659,15 +17140,86 @@ td {
   font-weight: 600;
 }
 
+@media (max-width: 900px) {
+  .profile-page .profile-header,
+  .profile-page .profile-identity,
+  .profile-page .profile-identity-main {
+    display: flex;
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .profile-page .profile-header {
+    display: block;
+  }
+
+  .profile-page .profile-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-page .content-grid.two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
+  .profile-page {
+    scroll-margin-top: 12px;
+  }
+
+  .profile-page .profile-banner {
+    height: 48px;
+  }
+
   .profile-page .profile-identity {
-    padding: 0 18px 18px;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 14px;
+  }
+
+  .profile-page .profile-edit-btn {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-page .profile-identity-main {
+    width: 100%;
+    flex: 1 1 100%;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .profile-page .profile-avatar-block {
+    width: 80px;
+    gap: 6px;
   }
 
   .profile-page .profile-avatar-lg {
     width: 80px;
     height: 80px;
-    margin-top: -40px;
+    margin-top: 0;
+  }
+
+  .profile-page .profile-avatar-menu-wrap {
+    width: 100%;
+  }
+
+  .profile-page .profile-avatar-menu {
+    left: 0;
+  }
+
+  .profile-page .profile-identity-text {
+    flex: 1 1 auto;
+    padding-top: 6px;
+  }
+
+  .profile-page .profile-identity-text h2 {
+    overflow-wrap: anywhere;
+  }
+
+  .profile-page .profile-summary-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .profile-page .panel:not(.profile-header) {
@@ -18809,11 +19361,21 @@ dd,
 td {
   font-family: var(--font-ui);
   font-weight: 400;
+  line-height: 1.5;
 }
 
 th {
   font-family: var(--font-ui);
   font-weight: 600;
+  line-height: 1.35;
+}
+
+button,
+input,
+select,
+textarea {
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 14;
 }
 
 /* Order overview uses one solid botanical surface instead of mixed/translucent fills. */
@@ -18833,6 +19395,7 @@ button,
 .btn {
   font-family: var(--font-ui);
   font-weight: 600;
+  letter-spacing: -0.005em;
   letter-spacing: -0.01em;
 }
 
@@ -19059,48 +19622,4 @@ button,
   border: 1.5px solid var(--sidebar-bg);
   border-radius: 50%;
   background: var(--notification-badge);
-}
-
-/* ===== Large displays (ultrawide monitors, TV browsers) =====================
-   .main-content caps itself at 1280px, which is right on a laptop but leaves the app as a
-   narrow ribbon down the middle of a large screen with most of the panel empty. These steps
-   let the content column grow with the viewport while still capping it, so line lengths and
-   table rows stay readable rather than stretching edge to edge.
-
-   Keyed to viewport width because that is the only thing CSS can actually measure. A TV
-   browser normally reports 1920x1080 CSS pixels whatever the panel's diagonal is, so a 36"
-   and a 75" set at the same resolution are indistinguishable to a stylesheet — physical
-   inches cannot be targeted.
-
-   :not(...) keeps the two deliberate opt-outs intact: .main-content-wide (the map page) and
-   .main-content-full-bleed (Messages) still run edge to edge and manage their own width. */
-@media (min-width: 1800px) {
-  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
-    width: min(100%, 1560px);
-    padding: 32px;
-  }
-
-  .app-shell {
-    --sidebar-width: 288px;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 2400px) {
-  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
-    width: min(100%, 1880px);
-    padding: 40px;
-    gap: 24px;
-  }
-
-  .app-shell {
-    --sidebar-width: 320px;
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 3200px) {
-  .main-content:not(.main-content-wide):not(.main-content-full-bleed) {
-    width: min(100%, 2280px);
-  }
 }

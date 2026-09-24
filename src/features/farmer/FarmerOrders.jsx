@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck, X,
+  Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -9,12 +9,14 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
+import OrderStatusSummary from '../../components/orders/OrderStatusSummary';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
 import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
 import { formatCurrency, formatDate, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
+import './FarmerOrders.css';
 
 // Collapses the order's real status/deliveryStatus columns into the 7 lifecycle stages a
 // farmer actually thinks in (see DELIVERY_SEQUENCES in constants.js for the underlying
@@ -214,20 +216,20 @@ function DeliveryCell({ order }) {
 function OrderActions({ order, onAction, onReviewPayment }) {
   const action = getPrimaryAction(order);
   const paymentAction = order.paymentVerificationStatus === 'pending' ? (
-    <Button size="sm" onClick={() => onReviewPayment(order)}>
-      <Check size={14} /> Approve Payment
+    <Button size="sm" variant="ghost" className="farmer-order-action farmer-order-action-review" onClick={() => onReviewPayment(order)}>
+      <Receipt size={14} aria-hidden="true" /> Review payment
     </Button>
   ) : null;
 
   if (action.kind === 'confirm') {
     return (
-      <div className="table-actions order-table-actions">
+      <div className="farmer-order-actions">
         {paymentAction}
-        <Button size="sm" onClick={() => onAction('confirm', order)}>
-          <Check size={14} /> Confirm Order
+        <Button size="sm" className="farmer-order-action farmer-order-action-primary" onClick={() => onAction('confirm', order)} aria-label={`Confirm order from ${order.buyerName}`}>
+          <Check size={14} aria-hidden="true" /> Confirm
         </Button>
-        <Button size="sm" variant="danger" onClick={() => onAction('reject', order)}>
-          <X size={14} /> Reject
+        <Button size="sm" variant="ghost" className="farmer-order-action farmer-order-action-reject" onClick={() => onAction('reject', order)} aria-label={`Reject order from ${order.buyerName}`}>
+          Reject
         </Button>
       </div>
     );
@@ -236,16 +238,16 @@ function OrderActions({ order, onAction, onReviewPayment }) {
   if (action.kind === 'book-courier') {
     if (!paymentAction) {
       return (
-        <Link className="btn btn-primary btn-sm order-action-single" to={`/orders/${order.id}`}>
-          <Truck size={14} /> Book with Lalamove
+        <Link className="farmer-order-action farmer-order-action-primary" to={`/orders/${order.id}`}>
+          <Truck size={14} aria-hidden="true" /> Book with Lalamove
         </Link>
       );
     }
     return (
-      <div className="table-actions order-table-actions">
+      <div className="farmer-order-actions">
         {paymentAction}
-        <Link className="btn btn-primary btn-sm" to={`/orders/${order.id}`}>
-          <Truck size={14} /> Book with Lalamove
+        <Link className="farmer-order-action farmer-order-action-primary" to={`/orders/${order.id}`}>
+          <Truck size={14} aria-hidden="true" /> Book with Lalamove
         </Link>
       </div>
     );
@@ -253,17 +255,18 @@ function OrderActions({ order, onAction, onReviewPayment }) {
 
   if (action.kind === 'advance') {
     return (
-      <div className="table-actions order-table-actions">
+      <div className="farmer-order-actions">
         {paymentAction}
         <Button
           size="sm"
+          className="farmer-order-action farmer-order-action-primary"
           onClick={() => onAction('advance', order, action)}
         >
-          {action.label === 'Start Delivery' ? <Navigation size={14} /> : <Check size={14} />} {action.label}
+          {action.label === 'Start Delivery' ? <Navigation size={14} aria-hidden="true" /> : <Check size={14} aria-hidden="true" />} {action.label}
         </Button>
         {getOrderStage(order) === 'out_for_delivery' ? (
-          <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>
-            <MapPin size={14} /> Track Delivery
+          <Link className="farmer-order-action farmer-order-action-link" to={`/orders/${order.id}`}>
+            <MapPin size={14} aria-hidden="true" /> Track delivery
           </Link>
         ) : null}
       </div>
@@ -272,28 +275,28 @@ function OrderActions({ order, onAction, onReviewPayment }) {
 
   if (action.kind === 'awaiting-buyer') {
     return (
-      <div className="table-actions order-table-actions">
+      <div className="farmer-order-actions">
         {paymentAction}
-        <span className="order-cell-sub">Awaiting buyer confirmation</span>
+        <span className="farmer-order-action-note">Awaiting buyer confirmation</span>
         {getOrderStage(order) === 'out_for_delivery' ? (
-          <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>
-            <MapPin size={14} /> Track Delivery
+          <Link className="farmer-order-action farmer-order-action-link" to={`/orders/${order.id}`}>
+            <MapPin size={14} aria-hidden="true" /> Track delivery
           </Link>
         ) : (
-          <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>
+          <Link className="farmer-order-action farmer-order-action-link" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link>
         )}
       </div>
     );
   }
 
   if (!paymentAction) {
-    return <Link className="btn btn-secondary btn-sm order-action-single" to={`/orders/${order.id}`}>View Details</Link>;
+    return <Link className="farmer-order-action farmer-order-action-link" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link>;
   }
 
   return (
-    <div className="table-actions order-table-actions">
+    <div className="farmer-order-actions">
       {paymentAction}
-      <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}>View Details</Link>
+      <Link className="farmer-order-action farmer-order-action-link" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link>
     </div>
   );
 }
@@ -442,41 +445,12 @@ export default function FarmerOrders() {
     <AppShell
       user={currentUser}
       navItems={farmerNavItems}
+      eyebrow="Order Management"
       title="Purchase Orders"
-      subtitle="Review incoming orders, prepare purchases, and manage deliveries."
+      subtitle="Review and process customer orders from confirmation to completion."
       pageClassName="farmer-orders-page"
     >
       {error ? <div className="form-alert error">{error}</div> : null}
-
-      {orders.length ? (
-        <div className="product-stats-bar">
-          <div className="product-stats-item accent-warning">
-            <div className="product-stats-label-row"><ClipboardList size={16} /><p className="product-stats-label">New Orders</p></div>
-            <p className="product-stats-value">{stageCounts.pending}</p>
-            <p className="product-stats-hint">Awaiting your response</p>
-          </div>
-          <div className="product-stats-item accent-info">
-            <div className="product-stats-label-row"><Package size={16} /><p className="product-stats-label">To Prepare</p></div>
-            <p className="product-stats-value">{stageCounts.confirmed + stageCounts.preparing}</p>
-            <p className="product-stats-hint">Confirmed, not yet ready</p>
-          </div>
-          <div className="product-stats-item accent-info">
-            <div className="product-stats-label-row"><MapPin size={16} /><p className="product-stats-label">Ready for Pickup</p></div>
-            <p className="product-stats-value">{stageCounts.ready_for_pickup}</p>
-            <p className="product-stats-hint">Waiting on the buyer</p>
-          </div>
-          <div className="product-stats-item accent-info">
-            <div className="product-stats-label-row"><Truck size={16} /><p className="product-stats-label">Out for Delivery</p></div>
-            <p className="product-stats-value">{stageCounts.out_for_delivery}</p>
-            <p className="product-stats-hint">In transit</p>
-          </div>
-          <div className="product-stats-item accent-success">
-            <div className="product-stats-label-row"><Check size={16} /><p className="product-stats-label">Completed</p></div>
-            <p className="product-stats-value">{stageCounts.completed}</p>
-            <p className="product-stats-hint">Fulfilled orders</p>
-          </div>
-        </div>
-      ) : null}
 
       {pendingVerifications.length ? (
         <section className="panel payment-verification-panel">
@@ -522,16 +496,11 @@ export default function FarmerOrders() {
         </section>
       ) : null}
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Order management</p>
-            <h2>Purchase Orders</h2>
-          </div>
-        </div>
-
+      <section className="farmer-orders-workspace" aria-label="Purchase orders">
         {orders.length ? (
           <>
+            <OrderStatusSummary stageCounts={stageCounts} />
+
             <div className="filter-tabs" role="tablist" aria-label="Filter by order stage">
               {STAGE_TABS.map((tab) => (
                 <button

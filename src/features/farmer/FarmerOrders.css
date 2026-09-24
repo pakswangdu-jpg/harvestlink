@@ -1,0 +1,138 @@
+.main-content.farmer-orders-page {
+  gap: 16px;
+}
+
+.farmer-orders-page > .page-header {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+}
+
+.farmer-orders-page .page-header p.eyebrow {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.farmer-orders-page .page-header > div > p:not(.eyebrow) {
+  color: var(--text-secondary);
+}
+
+.farmer-orders-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.farmer-orders-workspace > .order-toolbar {
+  margin: 0;
+}
+
+.farmer-orders-workspace > .order-table-wrap {
+  margin-top: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.farmer-orders-workspace .filter-tab:focus-visible,
+.farmer-orders-workspace .order-toolbar-select:focus-visible,
+.farmer-orders-workspace .order-toolbar-reset:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.farmer-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.farmer-orders-page .farmer-order-action {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  box-shadow: none;
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.farmer-orders-page .farmer-order-action svg {
+  flex-shrink: 0;
+  stroke-width: 2;
+}
+
+.farmer-orders-page .farmer-order-action-primary {
+  border-color: color-mix(in srgb, var(--green-800) 30%, var(--line));
+  background: var(--green-50);
+  color: var(--green-800);
+  font-weight: 600;
+}
+
+.farmer-orders-page .farmer-order-action-primary:hover {
+  border-color: var(--green-800);
+  background: var(--green-100);
+}
+
+.farmer-orders-page .farmer-order-action-reject {
+  padding-inline: 2px;
+  color: var(--red-700);
+}
+
+.farmer-orders-page .farmer-order-action-link,
+.farmer-orders-page .farmer-order-action-review {
+  justify-content: flex-start;
+  padding-inline: 0;
+  color: var(--text-secondary);
+}
+
+.farmer-orders-page .farmer-order-action-review {
+  flex-basis: 100%;
+}
+
+.farmer-orders-page .farmer-order-action-link:hover,
+.farmer-orders-page .farmer-order-action-review:hover,
+.farmer-orders-page .farmer-order-action-reject:hover {
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.farmer-orders-page .farmer-order-action:hover,
+.farmer-orders-page .farmer-order-action:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.farmer-orders-page .farmer-order-action:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 3px;
+}
+
+.farmer-order-action-note {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}

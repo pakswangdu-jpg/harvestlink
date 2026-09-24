@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed:admin": "node scripts/seedAdmin.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --experimental-test-module-mocks --test tests/*.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

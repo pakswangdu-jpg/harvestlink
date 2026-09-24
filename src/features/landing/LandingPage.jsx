@@ -36,6 +36,7 @@ import secureCheckoutIcon from '../../assets/icons/feature-secure-checkout.png';
 import deliveryTrackingIcon from '../../assets/icons/feature-delivery-tracking.png';
 import surplusDonationIcon from '../../assets/icons/feature-surplus-donation.png';
 import adminOversightIcon from '../../assets/icons/feature-admin-oversight.png';
+import kathrynBernardoPhoto from '../../assets/kathryn-bernardo.jpg';
 
 // Custom illustration for "Role-based dashboards" — three role avatars (farmer/buyer/admin)
 // feeding into one dashboard panel, matching the reference the client supplied rather than
@@ -131,12 +132,12 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: UserPlus, title: 'Register & verify', text: 'Farmers, buyers, and partner organizations create an account for their role.' },
-  { icon: Search, title: 'List or browse produce', text: 'Farmers list fresh harvests; buyers search and filter the marketplace.' },
-  { icon: CreditCard, title: 'Order & pay', text: 'Buyers choose a delivery method and pay by cash on delivery or GCash.' },
-  { icon: ClipboardCheck, title: 'Prepare & deliver', text: 'Farmers confirm the order and move it through preparing, packed, and delivery or pickup.' },
-  { icon: Truck, title: 'Track & receive', text: 'Buyers track every step in real time until the order is delivered.' },
-  { icon: Gift, title: 'Discount or donate surplus', text: 'Unsold aging stock can be discounted for buyers or donated to a partner organization instead of wasted.' },
+  { icon: UserPlus, title: 'Register & verify', text: 'Create your account and complete verification to start selling or buying.' },
+  { icon: Search, title: 'List or browse produce', text: 'Farmers add their available harvest, while buyers can search for fresh produce.' },
+  { icon: CreditCard, title: 'Order & pay', text: 'Buyers place an order, choose delivery or pickup, and pay through GCash or Cash on Delivery.' },
+  { icon: ClipboardCheck, title: 'Prepare & deliver', text: 'Farmers confirm the order, prepare the produce, and arrange delivery or buyer pickup.' },
+  { icon: Truck, title: 'Track & receive', text: 'Buyers can follow the order status until their produce is delivered or ready for pickup.' },
+  { icon: Gift, title: 'Discount or donate surplus', text: 'Unsold produce can be discounted for buyers or donated to a community partner instead of going to waste.' },
 ];
 
 const ABOUT_HIGHLIGHTS = [
@@ -260,10 +261,12 @@ export default function LandingPage() {
         <div className="lp-preview" aria-label="HarvestLink dashboard preview">
           <div className="lp-preview-card">
             <div className="lp-preview-header">
-              <span className="lp-preview-avatar">MD</span>
+              <span className="lp-preview-avatar">
+                <img src={kathrynBernardoPhoto} alt="Kathryn Bernardo" />
+              </span>
               <div>
-                <strong>Maria Dela Cruz</strong>
-                <span className="lp-preview-farm"><img src={verifiedIcon} alt="" width={13} height={13} className="h-[13px] w-[13px] object-contain" /> Dela Cruz Farm · Verified farmer</span>
+                <strong>Kathryn Bernardo</strong>
+                <span className="lp-preview-farm"><img src={verifiedIcon} alt="" width={13} height={13} className="h-[13px] w-[13px] object-contain" /> Bernardo Farm · Verified farmer</span>
               </div>
             </div>
 
@@ -332,15 +335,16 @@ export default function LandingPage() {
         <div className="landing-section-heading">
           <p className="eyebrow">Process</p>
           <h2>How HarvestLink works</h2>
+          <p>From listing your harvest to getting it into buyers&apos; hands, HarvestLink keeps every step simple.</p>
         </div>
         <ol className="lp-timeline">
           {STEPS.map((step, index) => (
             <li key={step.title} className="lp-timeline-item">
               <span className="lp-timeline-marker">
-                <span className="lp-timeline-number">{index + 1}</span>
                 <step.icon size={16} />
               </span>
               <div className="lp-timeline-content">
+                <span className="lp-timeline-number">{String(index + 1).padStart(2, '0')}</span>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
               </div>
