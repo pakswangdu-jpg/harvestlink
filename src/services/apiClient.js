@@ -1,38 +1,51 @@
 import { supabase } from '../lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL;
+// Render's free service can take about a minute to start before processing a request.
+const REQUEST_TIMEOUT_MS = 90000;
 
 if (!API_URL) {
   throw new Error('VITE_API_URL must be set — see .env.example.');
 }
 
 async function request(path, { method = 'GET', body } = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
   const headers = { 'Content-Type': 'application/json' };
   if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 15000);
+  const timeoutId = window.setTimeout(() => controller.abort(new DOMException(
+    `The HarvestLink server did not respond within ${REQUEST_TIMEOUT_MS / 1000} seconds. Please try again.`,
+    'TimeoutError',
+  )), REQUEST_TIMEOUT_MS);
 
-  let response;
   try {
-    response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
+
+    // 204 No Content has no body to parse.
+    const payload = response.status === 204 ? null : await response.json().catch((error) => {
+      // A proxy may return an HTML error page; preserve its HTTP status below.
+      if (!response.ok && error instanceof SyntaxError) return null;
+      throw error;
+    });
+    if (!response.ok) {
+      const error = new Error(payload?.error || `Request failed with status ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  } catch (error) {
+    // Body reads can report AbortError even when our timer supplied a TimeoutError.
+    if (error.name === 'AbortError' && controller.signal.aborted) throw controller.signal.reason;
+    throw error;
   } finally {
     window.clearTimeout(timeoutId);
   }
-
-  // 204 No Content has no body to parse.
-  const payload = response.status === 204 ? null : await response.json().catch(() => null);
-  if (!response.ok) {
-    const error = new Error(payload?.error || `Request failed with status ${response.status}`);
-    error.status = response.status;
-    throw error;
-  }
-  return payload;
 }
 
 // Matches the `try { ... } catch (error) { setErrors({ form: error.message }) }` pattern
