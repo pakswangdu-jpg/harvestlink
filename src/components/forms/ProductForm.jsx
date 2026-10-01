@@ -13,6 +13,8 @@ import SellingBelowCostWarning from './SellingBelowCostWarning';
 import DiscountCalculator from './DiscountCalculator';
 import NewProductDiscountField from './NewProductDiscountField';
 import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
+import { readStorage, writeStorage } from '../../services/storageService';
+import { useToast } from '../../contexts/ToastContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import {
   fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity, RECOMMENDED_MARGIN_PERCENT,
@@ -263,24 +265,6 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
 const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
-const FIELD_LABELS = {
-  name: 'Product',
-  category: 'Category',
-  grade: 'Grade',
-  sellingType: 'Sales type',
-  moq: 'Minimum Order Quantity (MOQ)',
-  price: 'Price',
-  discountPercent: 'Discount',
-  unit: 'Unit',
-  quantity: 'Quantity available',
-  expirationDate: 'Expiration date',
-  costPrice: 'Cost per unit',
-  kgPerUnit: 'Unit weight in kg',
-  location: 'Location',
-  description: 'Description',
-  image: 'Product image',
-};
-
 function focusFirstError(errors) {
   const firstField = FIELD_ORDER.find((field) => errors[field]);
   const element = firstField && document.getElementById(firstField);
@@ -323,14 +307,20 @@ function buildDefaultValues(product, currentUser) {
 
 export default function ProductForm({
   product, currentUser, onSubmit, onCancel, formId, hideActions = false, onSubmittingChange,
-  onApplyDiscount, onRemoveDiscount,
+  onApplyDiscount, onRemoveDiscount, draftStorageKey = null,
 }) {
   const { getCategoryOptions, getUnitOptions } = useCatalog();
-  const [values, setValues] = useState(() => buildDefaultValues(product, currentUser));
+  const { showToast } = useToast();
+  const [values, setValues] = useState(() => {
+    const defaults = buildDefaultValues(product, currentUser);
+    if (!draftStorageKey || product) return defaults;
+    return { ...defaults, ...readStorage(draftStorageKey, {}) };
+  });
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
+  const draftStorageFailed = useRef(false);
 
 
 
@@ -342,6 +332,19 @@ export default function ProductForm({
     onSubmittingChange?.(isSubmitting || isReadingImage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitting, isReadingImage]);
+
+  useEffect(() => {
+    if (!draftStorageKey || product) return;
+    try {
+      writeStorage(draftStorageKey, values);
+      draftStorageFailed.current = false;
+    } catch (error) {
+      if (!draftStorageFailed.current) {
+        showToast({ type: 'error', message: error.message || 'Unable to save your product draft.' });
+      }
+      draftStorageFailed.current = true;
+    }
+  }, [draftStorageKey, product, values, showToast]);
 
   const isWholesale = values.sellingType === 'wholesale';
   const categoryOptions = getCategoryOptions(values.category);
@@ -505,19 +508,13 @@ export default function ProductForm({
 
     setIsSubmitting(false);
     onSubmit({ ...values, marketReference: reference });
-    if (!product) setValues(buildDefaultValues(null, currentUser));
   };
 
   return (
     <form id={formId} className="form-stack product-form" onSubmit={handleSubmit}>
       {hasErrors(errors) ? (
         <div className="form-alert error">
-          <strong>{Object.keys(errors).filter((key) => errors[key]).length > 1 ? 'Fix these before adding:' : 'Fix this before adding:'}</strong>
-          <ul>
-            {FIELD_ORDER.filter((field) => errors[field]).map((field) => (
-              <li key={field}>{FIELD_LABELS[field] || field}: {errors[field]}</li>
-            ))}
-          </ul>
+          <strong>Please fill up first.</strong>
         </div>
       ) : null}
 

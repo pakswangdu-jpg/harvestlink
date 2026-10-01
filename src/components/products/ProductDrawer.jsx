@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { PackageCheck, X } from 'lucide-react';
 import ProductForm from '../forms/ProductForm';
 import Button from '../common/Button';
+import { removeStorage } from '../../services/storageService';
+import { useToast } from '../../contexts/ToastContext';
 
 const FORM_ID = 'product-drawer-form';
 
@@ -12,16 +14,62 @@ const FORM_ID = 'product-drawer-form';
 export default function ProductDrawer({
   open, product, currentUser, onSubmit, onClose, onApplyDiscount, onRemoveDiscount,
 }) {
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [pendingValues, setPendingValues] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const draftStorageKey = !product && currentUser?.id
+    ? `harvestlink:product-draft:${currentUser.id}`
+    : null;
+
+  const handleFormSubmit = (values) => {
+    if (product) {
+      onSubmit(values);
+      return;
+    }
+    setPendingValues(values);
+    setIsConfirmationOpen(true);
+  };
+
+  const closeConfirmation = useCallback(() => {
+    if (isSaving) return;
+    setIsConfirmationOpen(false);
+    setPendingValues(null);
+  }, [isSaving]);
+
+  const confirmSave = async () => {
+    if (!pendingValues || isSaving) return;
+    setIsSaving(true);
+    try {
+      const saved = await onSubmit(pendingValues);
+      if (saved && draftStorageKey) {
+        try {
+          removeStorage(draftStorageKey);
+        } catch (error) {
+          showToast({ type: 'error', message: error.message || 'Product saved, but the saved draft could not be cleared.' });
+        }
+      }
+      setIsConfirmationOpen(false);
+      setPendingValues(null);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (isConfirmationOpen) {
+        closeConfirmation();
+        return;
+      }
+      onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, isConfirmationOpen, isSaving, closeConfirmation]);
 
   return (
     <AnimatePresence>
@@ -32,7 +80,9 @@ export default function ProductDrawer({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          onClick={onClose}
+          onClick={() => {
+            if (!isConfirmationOpen && !isSaving) onClose();
+          }}
         >
           <motion.div
             className="product-drawer-panel absolute right-0 top-0 flex h-full w-full max-w-[800px] flex-col bg-[var(--surface-elevated)] shadow-2xl"
@@ -69,9 +119,10 @@ export default function ProductDrawer({
                 key={product?.id || 'new-product'}
                 product={product}
                 currentUser={currentUser}
-                onSubmit={onSubmit}
+                onSubmit={handleFormSubmit}
                 formId={FORM_ID}
                 hideActions
+                draftStorageKey={draftStorageKey}
                 onSubmittingChange={setIsSubmitting}
                 onApplyDiscount={onApplyDiscount}
                 onRemoveDiscount={onRemoveDiscount}
@@ -85,6 +136,44 @@ export default function ProductDrawer({
               </Button>
             </div>
           </motion.div>
+        </motion.div>
+      ) : null}
+      {isConfirmationOpen ? (
+        <motion.div
+          className="product-save-confirmation-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={closeConfirmation}
+        >
+          <motion.section
+            className="product-save-confirmation"
+            role="dialog"
+            aria-modal="true"
+            aria-busy={isSaving}
+            aria-labelledby="product-save-confirmation-title"
+            aria-describedby="product-save-confirmation-message"
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="product-save-confirmation-icon" aria-hidden="true">
+              <PackageCheck size={21} strokeWidth={1.9} />
+            </div>
+            <h2 id="product-save-confirmation-title">Save this product?</h2>
+            <p id="product-save-confirmation-message">
+              Please review the product details before adding it to your listings. Are you sure you want to save this product?
+            </p>
+            <div className="product-save-confirmation-actions">
+              <Button variant="secondary" onClick={closeConfirmation} disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={confirmSave} disabled={isSaving}>
+                {isSaving ? 'Adding product...' : 'Yes, add product'}
+              </Button>
+            </div>
+          </motion.section>
         </motion.div>
       ) : null}
     </AnimatePresence>

@@ -175,8 +175,10 @@ export default function FarmerProducts() {
         setEditingProduct(created);
       }
       reload();
+      return true;
     } catch (submitError) {
       showToast({ type: 'error', message: submitError.message || 'Something went wrong while saving this product. Please try again.' });
+      return false;
     }
   };
 
