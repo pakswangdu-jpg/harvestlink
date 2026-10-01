@@ -17593,6 +17593,23 @@ td {
   font-weight: 600;
 }
 
+@media (max-width: 860px) {
+  .app-shell.role-farmer .farmer-products-page .page-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+
+  .app-shell.role-farmer .farmer-products-page .page-header-actions > .add-product-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}
+
 .farmer-products-page .product-stats-bar {
   gap: 12px;
 }
