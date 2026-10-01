@@ -29,14 +29,14 @@ const PRODUCT_IMAGE_ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PRODUCT_IMAGE_ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
-// A compact <select> — not a big custom picker — that just routes to whichever hidden file
-// input matches the farmer's choice: capture="environment" for the camera one (native camera
-// on mobile, plain file picker where a device has no camera to speak of, e.g. desktop), no
-// capture attribute for the plain "pick an existing file" one. The select is reset back to
-// its placeholder after every pick (it's a one-shot trigger, not a stored selection) so it's
-// ready to route another pick the next time. Client-side type/size checks are just an
-// immediate, friendly first pass — the upload itself (and its own validation) is still
-// whatever uploadProductImage/the storage bucket already enforced.
+
+
+
+
+
+
+
+
 function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onValidationError, onRemove }) {
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
@@ -109,7 +109,7 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
       setIsCameraOpen(true);
     } else {
-      // Native capture remains the fallback for older browsers and desktop devices.
+
       cameraInputRef.current?.click();
     }
   };
@@ -160,14 +160,14 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         hidden
       />
       {isCameraOpen ? createPortal(
-        // Portaled straight to document.body — ProductForm only ever renders inside
-        // ProductDrawer.jsx's slide-over panel, and that panel is a framer-motion
-        // <motion.div animate={{ x: 0 }}>, which applies an inline `transform` that stays set
-        // even once the slide-in finishes. A `transform` on an ancestor traps any
-        // position: fixed descendant inside that ancestor's own stacking context, so no
-        // z-index on this modal could ever out-rank .mobile-bottom-nav — it was only ever
-        // competing within the drawer's much lower position in the real page stack. A portal
-        // is the actual fix; raising z-index alone (tried first) could not have worked.
+
+
+
+
+
+
+
+
         <div
           className="product-camera-modal"
           role="dialog"
@@ -259,8 +259,8 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
   );
 }
 
-// Order matches the form's visual top-to-bottom layout, so the first error found here
-// is always the first one the farmer would encounter while scrolling down.
+
+
 const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 const FIELD_LABELS = {
@@ -303,20 +303,20 @@ function buildDefaultValues(product, currentUser) {
     isDonation: false,
     ...product,
     costPrice: product?.costPrice ?? '',
-    // Only ever read/submitted while creating a brand-new listing (see the Discount field
-    // below) — editing an existing product uses DiscountCalculator's own live save against
-    // product.discountPercent instead, so this always starts blank there.
+
+
+
     discountPercent: '',
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
-    // Never persisted (see CostBasedEstimateCard.jsx) — only ever drives the live Cost-Based
-    // Price Estimate preview, so it always starts at the spec default, edit mode or not.
+
+
     markupPercent: RECOMMENDED_MARGIN_PERCENT,
-    // Always the farmer's own registered municipality (see the static Location field below)
-    // — placed after the ...product spread so it wins even when editing an older listing
-    // whose saved location predates a since-updated profile, keeping every listing in sync
-    // with the farmer's current account rather than possibly going stale.
+
+
+
+
     location: currentUser?.municipality || CEBU_MUNICIPALITIES[0],
   };
 }
@@ -331,11 +331,11 @@ export default function ProductForm({
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
-  // Third pricing tier — only fetched once PSA has already answered (see the effect below)
-  // so a PSA-covered crop, the common case, never pays for a wasted historical-price query.
-  // No separate loading flag — "loading" is derived below by comparing this against the key
-  // the current name/unit actually want, the same pattern marketResult/isLoadingReference
-  // above already uses.
+
+
+
+
+
   const [historicalResult, setHistoricalResult] = useState({ key: null, data: null });
 
   useEffect(() => {
@@ -378,10 +378,10 @@ export default function ProductForm({
     };
   }, [matchedCommodity, values.isDonation]);
 
-  // PSA's price is always per kg, but a farmer can list by sack/bundle/piece/crate — so any
-  // comparison against PSA (deviation check, recommendation) has to go through a kg-per-unit
-  // conversion. Units with one universal weight (kg/g/t/L/mL — see unitConversion.js) convert
-  // automatically; everything else needs the farmer's own "How many kg is 1 X?" answer.
+
+
+
+
   const fixedKgPerUnit = getFixedKgPerUnit(values.unit);
   const needsManualConversion = Boolean(values.unit) && fixedKgPerUnit == null;
   const kgPerUnitValue = fixedKgPerUnit ?? Number(values.kgPerUnit);
@@ -391,9 +391,9 @@ export default function ProductForm({
   const deviationPct = marketReference && pricePerKg != null
     ? Number((((pricePerKg - marketReference.referencePrice) / marketReference.referencePrice) * 100).toFixed(1))
     : null;
-  // Convert PSA's per-kg price into the farmer's selling unit FIRST (basePrice = psaPricePerKg
-  // × unitWeightKg), then let getRecommendedPrice apply the margin and round once — see that
-  // function's own comment for why converting before marking up (rather than after) matters.
+
+
+
   const equivalentPsaPricePerUnit = marketReference && hasKgConversion ? marketReference.referencePrice * kgPerUnitValue : null;
   const recommendedPrice = equivalentPsaPricePerUnit != null ? getRecommendedPrice(equivalentPsaPricePerUnit) : null;
   const isOverThreshold = deviationPct != null && deviationPct > PRICE_DEVIATION_THRESHOLD_PERCENT;
@@ -401,20 +401,20 @@ export default function ProductForm({
   const isLoadingReference = Boolean(matchedCommodity) && marketResult.commodityId !== matchedCommodity.id;
 
   const costNum = Number(values.costPrice);
-  // Sanity bound on any cost-based figure, normalized to per-kg (same conversion the PSA
-  // comparison above already computes) so it holds a sack-priced and a kg-priced listing to
-  // the same real-world bar. Without this, a mistyped cost (an extra digit, or the total
-  // cost of a whole harvest typed into a per-unit field) could still produce an equally
-  // absurd Cost-Based estimate — the exact bug this catches. Same MAX_PLAUSIBLE_PRICE_PER_KG
-  // the submit-blocking validator in validators.js uses, so what's flagged here always
-  // matches what submission actually rejects.
+
+
+
+
+
+
+
   const costPerKg = hasKgConversion && costNum > 0 ? costNum / kgPerUnitValue : null;
   const isCostImplausible = costPerKg != null && costPerKg > MAX_PLAUSIBLE_PRICE_PER_KG;
 
-  // Third pricing tier — real HarvestLink transaction history for this exact product name +
-  // unit, platform-wide (see historicalPriceService.js), consulted only once PSA itself has
-  // definitively come back with nothing (never both at once — PSA always wins when it has an
-  // answer, per the tier order the whole feature is built around).
+
+
+
+
   const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit) && !isLoadingReference && !marketReference;
   const historicalKey = wantsHistoricalLookup ? `${values.name.trim().toLowerCase()}::${values.unit}` : null;
 
@@ -432,16 +432,16 @@ export default function ProductForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historicalKey]);
 
-  // Loading whenever we want an answer for this exact key but don't have one yet — the same
-  // "derive it, don't store it" style isLoadingReference above uses.
+
+
   const isLoadingHistorical = historicalKey != null && historicalResult.key !== historicalKey;
   const historicalAnalysis = !isLoadingHistorical && historicalResult.data?.matched ? historicalResult.data : null;
 
-  // General rule: never recommend selling below production cost — checked against BOTH AI
-  // tiers, not just PSA, since the rule itself isn't PSA-specific. Only evaluated once a cost
-  // is actually on file (costNum > 0) — with no cost yet there's nothing to compare against,
-  // so the normal recommendation still shows (this is what lets a farmer see a PSA/historical
-  // price before they've even gotten to the cost field).
+
+
+
+
+
   const isPsaRecommendationLoss = Boolean(marketReference) && hasKgConversion && Boolean(recommendedPrice) && costNum > 0 && recommendedPrice.price <= costNum;
   const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice <= costNum;
 
@@ -481,10 +481,10 @@ export default function ProductForm({
 
     setIsSubmitting(true);
     let reference = marketReference;
-    // If the background PSA check for this commodity hasn't resolved yet, fetch it
-    // directly here (bounded by fetchAnnualPriceTrend's own timeout) so the price-review
-    // decision still uses real data — without ever making the farmer wait before they
-    // can even click submit.
+
+
+
+
     if (!values.isDonation && matchedCommodity && marketResult.commodityId !== matchedCommodity.id) {
       try {
         const points = await fetchAnnualPriceTrend(matchedCommodity.id, 3);
@@ -629,7 +629,7 @@ export default function ProductForm({
             </select>
           </FormField>
           <FormField label="Quantity available" name="quantity" error={errors.quantity}>
-            {/* step="any" — a fractional step made the spinner's first click jump to "0.01" before any typing */}
+            {                                                                                                    }
             <input id="quantity" type="number" min="0" step="any" value={values.quantity} onChange={(event) => updateField('quantity', event.target.value)} placeholder="100" />
           </FormField>
         </div>
@@ -703,15 +703,15 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
-        {/* Tier order is the whole point of this feature: PSA > HarvestLink's own verified
-            transaction history > a plain cost+markup estimate that's explicitly labeled as
-            NOT an AI recommendation > an honest "we have nothing" card. Never more than one
-            tier renders at once, and a lower tier is only ever reached once every tier above
-            it has definitively come back empty — see the effects above for how PSA and
-            historical data are each fetched. Either AI tier is further replaced outright by
-            SellingBelowCostWarning the moment its own recommendation would sell at a loss —
-            never shown alongside/nested in the normal card, since there's nothing safe to
-            recommend in that case. */}
+        {
+
+
+
+
+
+
+
+                                      }
         {!values.isDonation && hasTypedName ? (
           isLoadingReference || isLoadingHistorical ? (
             <div className="price-analysis-card">

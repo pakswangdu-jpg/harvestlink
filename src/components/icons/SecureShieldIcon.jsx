@@ -1,8 +1,8 @@
-// A filled variant of lucide's ShieldCheck — the library only exposes one uniform
-// stroke/fill color per icon, but a "secure checkout" trust badge reads far more like a real
-// trust badge (bold, green, unmistakably a shield) with the shield solid-filled and the
-// checkmark cut out in white, rather than a thin single-color outline. Same two path shapes
-// as lucide's own shield-check.svg, just given independent colors.
+
+
+
+
+
 export default function SecureShieldIcon({ size = 15, color = 'var(--green-700)' }) {
   return (
     <svg

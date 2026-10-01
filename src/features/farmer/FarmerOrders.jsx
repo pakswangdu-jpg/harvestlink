@@ -18,11 +18,11 @@ import { formatCurrency, formatDate, deliveryMethodLabel, getInitials, shortOrde
 import { farmerNavItems } from './farmerNav';
 import './FarmerOrders.css';
 
-// Collapses the order's real status/deliveryStatus columns into the 7 lifecycle stages a
-// farmer actually thinks in (see DELIVERY_SEQUENCES in constants.js for the underlying
-// per-method step lists this reads from). "packed" folds into "preparing" here — it's still
-// the same "not moving yet" phase from the farmer's point of view — but the underlying
-// advance-delivery action still walks the real steps one at a time, so nothing is skipped.
+
+
+
+
+
 function getOrderStage(order) {
   if (order.status === 'pending') return 'pending';
   if (order.status === 'rejected') return 'rejected';
@@ -37,8 +37,8 @@ function getOrderStage(order) {
   return 'confirmed';
 }
 
-// How many pending payments the verification panel shows before collapsing the rest behind
-// its "Review all" toggle.
+
+
 const VISIBLE_VERIFICATION_LIMIT = 3;
 
 const STAGE_LABELS = {
@@ -52,9 +52,9 @@ const STAGE_LABELS = {
   cancelled: 'Cancelled',
 };
 
-// Tabs are a deliberately shorter list than every possible stage — Rejected/Cancelled orders
-// still show up (and are still searchable/countable) inside "All", they just don't get their
-// own tab, so this strip stays a quick-glance "what needs me" filter, not a full status list.
+
+
+
 const STAGE_TABS = [
   { key: 'all', label: 'All' },
   { key: 'pending', label: 'Pending' },
@@ -93,9 +93,9 @@ function isWithinDateFilter(order, dateFilter) {
   return Date.now() - created <= days * 24 * 60 * 60 * 1000;
 }
 
-// The action column's whole point: exactly one primary next step per order, not a grab-bag of
-// buttons. Mirrors the real per-delivery-method step sequence (DELIVERY_SEQUENCES) instead of
-// a separate hardcoded list, so a farmer can never be shown a step that skips or repeats one.
+
+
+
 function getPrimaryAction(order) {
   if (order.status === 'pending') return { kind: 'confirm' };
   if (order.status !== 'confirmed') return { kind: 'view' };
@@ -108,17 +108,17 @@ function getPrimaryAction(order) {
     return { kind: 'advance', next: nextStep, label: 'Mark Ready' };
   }
   if (nextStep === 'out_for_delivery') {
-    // A courier order's next step is booking a real Lalamove delivery (driver/vehicle/
-    // tracking link) — too much for a table row, so this sends the farmer to the full order
-    // page instead, which already has the "Book with Lalamove" flow (see DeliveryInfoCard.jsx).
+
+
+
     if (order.deliveryMethod === 'courier') return { kind: 'book-courier' };
     return { kind: 'advance', next: nextStep, label: 'Start Delivery' };
   }
-  // The final delivery step (picked up / delivered) can only be confirmed by the BUYER — the
-  // backend 403s if the farmer calls advanceDelivery here (see the isFinalStep check in
-  // orders.controller.js). The order finishes on its own (status -> 'completed') the moment
-  // the buyer confirms; this page's own 4s poll picks that change up automatically, so there's
-  // nothing for the farmer to click at this stage.
+
+
+
+
+
   if (nextStep === 'picked_up' || nextStep === 'delivered') {
     return { kind: 'awaiting-buyer' };
   }
@@ -205,14 +205,14 @@ function DeliveryCell({ order }) {
   );
 }
 
-// One primary action per row, matching getPrimaryAction's decision exactly — Pending is the
-// only stage that also gets a secondary (Reject) button.
-//
-// A GCash payment waiting on this farmer's decision is surfaced on the row too, not only in
-// the Payment Verification panel above, so it can be actioned while working down the table.
-// It is added ALONGSIDE the stage action rather than replacing it: an order can legitimately
-// keep moving through preparing/delivery while its payment is still being verified, and
-// swallowing "Confirm Order" behind a payment prompt would stall the order.
+
+
+
+
+
+
+
+
 function OrderActions({ order, onAction, onReviewPayment }) {
   const action = getPrimaryAction(order);
   const paymentAction = order.paymentVerificationStatus === 'pending' ? (
@@ -369,9 +369,9 @@ export default function FarmerOrders() {
     setConfirmAction(null);
   };
 
-  // Both close the drawer afterwards — the order drops out of pendingVerifications once its
-  // verification status changes, so leaving it open would strand the farmer on a payment that
-  // no longer needs a decision.
+
+
+
   const handleApprovePayment = async (order) => {
     await run(() => approvePaymentVerification(order.id), 'Payment approved.');
     setVerifyingOrderId(null);
@@ -382,16 +382,16 @@ export default function FarmerOrders() {
     setVerifyingOrderId(null);
   };
 
-  // Only GCash orders ever go through submitPaymentProof (see payments.controller.js) —
-  // COD orders never set paymentVerificationStatus at all, so this naturally excludes them.
+
+
   const pendingVerifications = orders.filter((order) => order.paymentVerificationStatus === 'pending');
-  // Resolved from the live list rather than held as its own copy, so the drawer always
-  // reflects the latest poll. Looked up across ALL orders, not just pendingVerifications —
-  // the same drawer doubles as the read-only payment record reachable from every row's
-  // "Payment info" button, including COD and already-settled payments.
+
+
+
+
   const verifyingOrder = orders.find((order) => order.id === verifyingOrderId) || null;
-  // A busy farmer can have a long queue of payments waiting — capped so this panel never
-  // pushes the actual Purchase Orders table off the screen, with the full list one click away.
+
+
   const visibleVerifications = showAllVerifications
     ? pendingVerifications
     : pendingVerifications.slice(0, VISIBLE_VERIFICATION_LIMIT);

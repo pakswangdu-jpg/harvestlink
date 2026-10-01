@@ -10,7 +10,7 @@ import SidebarUserCard from './SidebarUserCard';
 import MobileBottomNav from './MobileBottomNav';
 import ThemeToggle from '../common/ThemeToggle';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
-import { useAuth } from '../../features/auth/AuthContext';
+import { useLogout } from '../../hooks/useLogout';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
 import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
@@ -21,21 +21,21 @@ const navListVariants = {
   show: { transition: { staggerChildren: 0.04 } },
 };
 
-// Determines section order for nav items that declare a `group` (farmerNav.js,
-// buyerNav.js, and stakeholderNav.js). Items with no `group` (the admin config) land in
-// the "Menu" bucket.
+
+
+
 const NAV_GROUP_ORDER = ['Main', 'Orders', 'Sales', 'Market', 'Community', 'Menu'];
 
-// Desktop-only (the sidebar itself is display:none below 1080px in favor of the mobile
-// bottom nav — see globals.css — so this never applies there). Persisted across navigations
-// and future visits: every page mounts its own <AppShell>, so component state alone would
-// reset to expanded on every single click through the app.
+
+
+
+
 const SIDEBAR_COLLAPSED_KEY = 'harvestlink:sidebarCollapsed';
 
 export default function AppShell({
   user, navItems, title, subtitle, eyebrow = 'Cebu farm-to-market', children, fullBleed = false, wide = false, hideHeader = false, headerActions = null, pageClassName = '',
 }) {
-  const { logout } = useAuth();
+  const { handleLogout, isLoggingOut } = useLogout();
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
@@ -48,21 +48,21 @@ export default function AppShell({
     });
   };
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
-  // Mounted here (not on the order tracking page) so GPS sharing starts the instant an order
-  // goes "out for delivery" no matter which page the farmer used to mark it that way — the
-  // order detail page, the orders list, etc. all call the same backend action.
+
+
+
   const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null);
-  // The buyer_pickup mirror of the hook above — "buyer" here means whoever placed the order
-  // (buyer_id ownership), same as everywhere else in this app; a stakeholder checking out
-  // through the marketplace can choose pickup too, so this covers both roles, not just
-  // literal role === 'buyer'.
+
+
+
+
   const { error: pickupSharingError } = useBuyerActivePickupSharing(['buyer', 'stakeholder'].includes(user.role) ? user.id : null);
-  // Shared with MobileBottomNav.jsx (used directly by full-page flows that skip AppShell)
-  // so both the desktop sidebar and any mobile bottom nav show the same live badge counts.
+
+
   const navItemsWithBadges = useNavItemsWithBadges(user, navItems);
 
-  // The desktop sidebar promotes Profile into a rich user card under GENERAL instead of a
-  // plain menu row; the mobile bottom nav keeps the full list (Profile included) unchanged.
+
+
   const menuItems = navItemsWithBadges.filter((item) => item.label !== 'Profile');
   const profileItem = navItemsWithBadges.find((item) => item.label === 'Profile');
   const isCheckoutPage = location.pathname.startsWith('/products/');
@@ -75,7 +75,7 @@ export default function AppShell({
         ? 'My Orders'
         : null;
 
-  // Buckets menuItems by their declared `group`, defaulting ungrouped items into "Menu".
+
   const menuGroups = useMemo(() => {
     const byLabel = new Map();
     menuItems.forEach((item) => {
@@ -90,17 +90,8 @@ export default function AppShell({
     return orderedLabels.map((label) => ({ label, items: byLabel.get(label) }));
   }, [menuItems]);
 
-  const handleLogout = () => {
-    // A client-side navigate() here raced with ProtectedRoute's own "no user -> /login"
-    // redirect and lost (React Router kept matching the old protected route for a beat
-    // after the session cleared). A full navigation sidesteps that entirely: the app
-    // reboots fresh at "/" with no session and no protected route in the picture.
-    logout();
-    window.location.href = '/';
-  };
-
   return (
-    <div className={`app-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`.trim()}>
+    <div className={`app-shell role-${user.role} ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`.trim()}>
       <motion.aside
         className="sidebar"
         initial={{ opacity: 0, x: -24 }}
@@ -157,7 +148,7 @@ export default function AppShell({
             {!isSidebarCollapsed ? (
               <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
             ) : null}
-            {profileItem ? <SidebarUserCard user={user} to={profileItem.to} isCollapsed={isSidebarCollapsed} /> : null}
+            {profileItem ? <SidebarUserCard user={user} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
               <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}
@@ -166,14 +157,17 @@ export default function AppShell({
           <button
             type="button"
             onClick={handleLogout}
+            disabled={isLoggingOut}
+            aria-busy={isLoggingOut}
+            aria-label="Logout"
             title={isSidebarCollapsed ? 'Logout' : undefined}
-            // Signing out is a normal navigation action, not a destructive one — the old red
-            // hover fill made it read as "delete my account" and pulled the eye straight to the
-            // bottom of the sidebar. Matches the inactive nav rows instead.
-            // text/font utilities need `!` here: the global `button { font: inherit }` reset is
-            // unlayered CSS, which always beats Tailwind's layered utilities no matter their
-            // specificity — without it this row silently renders at the inherited 16px/400
-            // instead of matching the 14px/600 nav rows above it.
+
+
+
+
+
+
+
             className={`sidebar-logout flex h-9 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px]! font-medium! text-[var(--text)] transition-colors duration-150 hover:bg-[var(--green-50)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
           >
             <span className="sidebar-nav-icon" aria-hidden="true">
@@ -184,13 +178,13 @@ export default function AppShell({
         </div>
       </motion.aside>
 
-      {/* .sidebar is display:none under the same breakpoint that switches on
-          .mobile-bottom-nav (see globals.css) — without this, the logo/HarvestLink brand
-          disappeared entirely below 1080px, since it only ever lived inside .sidebar. Hidden
-          on desktop (display:none by default, only switched on inside that same media query)
-          so there's never a duplicate logo once the real sidebar is visible again. Skipped for
-          fullBleed pages (MessagesPage) — that layout locks to an exact 100vh for its own
-          internal split-pane scroll, and this would push it taller than the viewport. */}
+      {
+
+
+
+
+
+                                                                                         }
       {!fullBleed ? (
         <Link className="brand mobile-topbar" to={ROLE_DASHBOARDS[user.role]}>
           <span className="brand-mark">
@@ -203,13 +197,13 @@ export default function AppShell({
         </Link>
       ) : null}
 
-      {/* fullBleed locks .main-content to a fixed height:100vh (see globals.css) for pages that
-          manage their own internal scroll region edge-to-edge — genuinely only MessagesPage.
-          Admin pages that just want "no built-in header, no max-width cap" (their content is a
-          normal, page-scrolling column of stacked cards/tables) should pass hideHeader alone
-          instead, which applies main-content-flush — the same full-width layout minus the
-          height lock, which broke natural mobile scrolling on those pages since their stacked
-          content is almost always taller than one viewport. */}
+      {
+
+
+
+
+
+                                                               }
       <main
         className={`main-content ${pageClassName} ${fullBleed ? 'main-content-full-bleed' : ''} ${!fullBleed && hideHeader ? 'main-content-flush' : ''} ${wide ? 'main-content-wide' : ''}`
           .trim().replace(/\s+/g, ' ')}

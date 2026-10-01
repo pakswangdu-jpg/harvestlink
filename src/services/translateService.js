@@ -1,8 +1,8 @@
-// Google's public "gtx" translate endpoint — the same free, keyless endpoint many
-// open-source translation tools rely on. LibreTranslate's public instance (the more
-// commonly recommended free/keyless option) now requires an API key, and even when it
-// didn't, it has no Cebuano model — this endpoint actually supports Cebuano ('ceb'),
-// which is the language that matters most for a Cebu-based marketplace.
+
+
+
+
+
 const TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single';
 const CACHE_PREFIX = 'harvestlink_translate_v1_';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -30,15 +30,15 @@ function writeCache(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify({ value, cachedAt: Date.now() }));
   } catch {
-    // Storage full or unavailable — cache is best-effort only.
+
   }
 }
 
-// Translates a chat message on demand (never automatically) into the given target
-// language. Source language is auto-detected so this works regardless of which language
-// either party actually typed in. Returns null (never a guess) if the free endpoint is
-// unreachable or the response shape is unexpected, so callers can show a clear
-// "translation unavailable" state instead of silently displaying garbage.
+
+
+
+
+
 export async function translateText(text, targetLang) {
   const trimmed = String(text || '').trim();
   if (!trimmed) return null;

@@ -1,9 +1,12 @@
   -- HarvestLink — Supabase schema (skeleton pass: profiles, products, orders, notifications, messages)
   --
-  -- Run this whole file once in the Supabase SQL editor (Dashboard -> SQL Editor -> New query)
-  -- against a fresh project. Safe to re-run: every statement is guarded with
-  -- IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS so re-running after a partial failure
-  -- won't error out on "already exists".
+  -- Run this file in the Supabase SQL editor only when provisioning a fresh project.
+  -- It defines profiles as the sole application account table; all business-table
+  -- user foreign keys target public.profiles(id).
+  --
+  -- For an existing project, apply the ordered migrations in supabase/migrations.
+  -- Do not rerun this provisioning schema against production: it contains data
+  -- cleanup steps which are not part of the profile-table consolidation.
   --
   -- Scope: donations, market-price overrides, reports, demand forecast, geocoding, and
   -- translation caches are NOT part of this schema — those stay on localStorage / free
@@ -15,9 +18,10 @@
   create extension if not exists pgcrypto; -- gen_random_uuid()
 
   -- ============================================================================
-  -- profiles — one row per account, 1:1 with auth.users. Farmer/stakeholder-only
-  -- columns are simply nullable rather than split into subtype tables, matching
-  -- how the app already treats a "user" as one flat object everywhere.
+  -- profiles — the single application account row per auth.users user.
+  -- Role-specific nullable fields live here alongside shared identity fields.
+  -- Do not add buyers, farmers, or stakeholders account tables; all user
+  -- relationships in the application reference this table.
   -- ============================================================================
   create table if not exists public.profiles (
     id uuid primary key references auth.users(id) on delete cascade,
@@ -68,6 +72,27 @@
     updated_at timestamptz not null default now()
   );
 
+-- Existing accounts remain unset until the user chooses and saves a location.
+alter table public.profiles
+  add column if not exists latitude double precision,
+  add column if not exists longitude double precision;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_coordinates_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles add constraint profiles_coordinates_check check (
+      (latitude is null and longitude is null) or
+      (latitude is not null and longitude is not null and
+       latitude between -90 and 90 and longitude between -180 and 180)
+    );
+  end if;
+end $$;
+notify pgrst, 'reload schema';
+
   create index if not exists profiles_role_idx on public.profiles (role);
 
   -- Safe to re-run against an already-created table from an earlier version of this schema.
@@ -94,185 +119,6 @@
   alter table public.profiles add column if not exists organization_description text;
   alter table public.profiles add column if not exists barangay text;
   alter table public.profiles add column if not exists partnership_description text;
-
-  -- ============================================================================
-  -- Role tables — keep profiles as the shared account/identity table, and store
-  -- role-specific fields in one-to-one subtype tables. Existing accounts remain
-  -- untouched; the backfill below copies their current role data safely.
-  -- ============================================================================
-  create table if not exists public.farmers (
-    id uuid primary key references public.profiles(id) on delete cascade,
-    farm_name text,
-    birthday date,
-    gov_id_file_url text,
-    verification_status text check (verification_status in ('pending','verified','rejected')),
-    verification_acknowledged boolean not null default true,
-    verified_at timestamptz,
-    gcash_account_name text,
-    gcash_number text,
-    gcash_qr_url text,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  );
-
-  create table if not exists public.buyers (
-    id uuid primary key references public.profiles(id) on delete cascade,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  );
-
-  create table if not exists public.stakeholders (
-    id uuid primary key references public.profiles(id) on delete cascade,
-    organization_name text,
-    organization_type text,
-    contact_person text,
-    accreditation_file_url text,
-    organization_description text,
-    barangay text,
-    partnership_description text,
-    verification_status text check (verification_status in ('pending','verified','rejected')),
-    verification_acknowledged boolean not null default true,
-    verified_at timestamptz,
-    created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
-  );
-
-  -- The tables may already exist in older projects with only a small subset of
-  -- columns. CREATE TABLE IF NOT EXISTS does not upgrade those tables, so add
-  -- every role-specific column explicitly before the backfill below.
-  alter table public.farmers add column if not exists farm_name text;
-  alter table public.farmers add column if not exists birthday date;
-  alter table public.farmers add column if not exists gov_id_file_url text;
-  alter table public.farmers add column if not exists verification_status text;
-  alter table public.farmers add column if not exists verification_acknowledged boolean not null default true;
-  alter table public.farmers add column if not exists verified_at timestamptz;
-  alter table public.farmers add column if not exists gcash_account_name text;
-  alter table public.farmers add column if not exists gcash_number text;
-  alter table public.farmers add column if not exists gcash_qr_url text;
-  alter table public.farmers add column if not exists created_at timestamptz not null default now();
-  alter table public.farmers add column if not exists updated_at timestamptz not null default now();
-
-  alter table public.buyers add column if not exists created_at timestamptz not null default now();
-  alter table public.buyers add column if not exists updated_at timestamptz not null default now();
-
-  alter table public.stakeholders add column if not exists organization_name text;
-  alter table public.stakeholders add column if not exists organization_type text;
-  alter table public.stakeholders add column if not exists contact_person text;
-  alter table public.stakeholders add column if not exists accreditation_file_url text;
-  alter table public.stakeholders add column if not exists organization_description text;
-  alter table public.stakeholders add column if not exists barangay text;
-  alter table public.stakeholders add column if not exists partnership_description text;
-  alter table public.stakeholders add column if not exists verification_status text;
-  alter table public.stakeholders add column if not exists verification_acknowledged boolean not null default true;
-  alter table public.stakeholders add column if not exists verified_at timestamptz;
-  alter table public.stakeholders add column if not exists created_at timestamptz not null default now();
-  alter table public.stakeholders add column if not exists updated_at timestamptz not null default now();
-
-  -- Backfill existing profiles without overwriting a role row that may already
-  -- contain newer data from a previous partial migration.
-  insert into public.farmers (
-    id, farm_name, birthday, gov_id_file_url, verification_status,
-    verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
-  )
-  select id, farm_name, birthday, gov_id_file_url, verification_status,
-    verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
-  from public.profiles
-  where role = 'farmer'
-  on conflict (id) do nothing;
-
-  insert into public.buyers (id)
-  select id from public.profiles where role = 'buyer'
-  on conflict (id) do nothing;
-
-  insert into public.stakeholders (
-    id, organization_name, organization_type, contact_person, accreditation_file_url,
-    organization_description, barangay, partnership_description, verification_status,
-    verification_acknowledged, verified_at
-  )
-  select id, organization_name, organization_type, contact_person, accreditation_file_url,
-    organization_description, barangay, partnership_description, verification_status,
-    verification_acknowledged, verified_at
-  from public.profiles
-  where role = 'stakeholder'
-  on conflict (id) do nothing;
-
-  create or replace function public.sync_profile_role_table()
-  returns trigger
-  language plpgsql
-  security definer
-  set search_path = public
-  as $$
-  begin
-    delete from public.farmers where id = new.id and new.role <> 'farmer';
-    delete from public.buyers where id = new.id and new.role <> 'buyer';
-    delete from public.stakeholders where id = new.id and new.role <> 'stakeholder';
-
-    if new.role = 'farmer' then
-      insert into public.farmers (
-        id, farm_name, birthday, gov_id_file_url, verification_status,
-        verification_acknowledged, verified_at, gcash_account_name, gcash_number, gcash_qr_url
-      )
-      values (
-        new.id, new.farm_name, new.birthday, new.gov_id_file_url, new.verification_status,
-        new.verification_acknowledged, new.verified_at, new.gcash_account_name,
-        new.gcash_number, new.gcash_qr_url
-      )
-      on conflict (id) do update set
-        farm_name = excluded.farm_name,
-        birthday = excluded.birthday,
-        gov_id_file_url = excluded.gov_id_file_url,
-        verification_status = excluded.verification_status,
-        verification_acknowledged = excluded.verification_acknowledged,
-        verified_at = excluded.verified_at,
-        gcash_account_name = excluded.gcash_account_name,
-        gcash_number = excluded.gcash_number,
-        gcash_qr_url = excluded.gcash_qr_url,
-        updated_at = now();
-    elsif new.role = 'buyer' then
-      insert into public.buyers (id) values (new.id)
-      on conflict (id) do update set updated_at = now();
-    elsif new.role = 'stakeholder' then
-      insert into public.stakeholders (
-        id, organization_name, organization_type, contact_person, accreditation_file_url,
-        organization_description, barangay, partnership_description, verification_status,
-        verification_acknowledged, verified_at
-      )
-      values (
-        new.id, new.organization_name, new.organization_type, new.contact_person,
-        new.accreditation_file_url, new.organization_description, new.barangay,
-        new.partnership_description, new.verification_status,
-        new.verification_acknowledged, new.verified_at
-      )
-      on conflict (id) do update set
-        organization_name = excluded.organization_name,
-        organization_type = excluded.organization_type,
-        contact_person = excluded.contact_person,
-        accreditation_file_url = excluded.accreditation_file_url,
-        organization_description = excluded.organization_description,
-        barangay = excluded.barangay,
-        partnership_description = excluded.partnership_description,
-        verification_status = excluded.verification_status,
-        verification_acknowledged = excluded.verification_acknowledged,
-        verified_at = excluded.verified_at,
-        updated_at = now();
-    end if;
-    return new;
-  end;
-  $$;
-
-  drop trigger if exists profiles_role_tables_trigger on public.profiles;
-  create trigger profiles_role_tables_trigger
-    after insert or update of role, farm_name, birthday, gov_id_file_url,
-      verification_status, verification_acknowledged, verified_at,
-      gcash_account_name, gcash_number, gcash_qr_url, organization_name,
-      organization_type, contact_person, accreditation_file_url,
-      organization_description, barangay, partnership_description
-    on public.profiles
-    for each row execute function public.sync_profile_role_table();
-
-  alter table public.farmers enable row level security;
-  alter table public.buyers enable row level security;
-  alter table public.stakeholders enable row level security;
 
   -- ============================================================================
   -- pending_registrations — stores temporary pre-confirmation signup data until
@@ -895,14 +741,9 @@
   on conflict (name) do nothing;
 
   -- ============================================================================
-  -- Row Level Security — enabled on every table; only ONE real policy exists
-  -- (orders_select_own, below), added specifically so Supabase Realtime can push live
-  -- GPS/status updates straight to an order's own buyer/farmer without a round trip through
-  -- the backend (see src/features/orders/OrderTracking.jsx). Every other read/write still
-  -- goes exclusively through the backend's service_role key (which bypasses RLS
-  -- unconditionally), so this remains one narrow, explicit exception, not a general opening —
-  -- the anon/authenticated keys the frontend holds still can't read or write anything else on
-  -- these tables, even via a future accidental `supabase.from('products')` call.
+  -- Row Level Security — profiles allow authenticated users to access only their
+  -- own row; orders and notifications have narrow Realtime policies below. All
+  -- other application database access goes through the backend service role.
   -- ============================================================================
   alter table public.profiles enable row level security;
   alter table public.products enable row level security;
@@ -912,6 +753,33 @@
   alter table public.ratings enable row level security;
   alter table public.categories enable row level security;
   alter table public.units enable row level security;
+
+  drop policy if exists profiles_select_own on public.profiles;
+  create policy profiles_select_own on public.profiles
+    for select to authenticated
+    using ((select auth.uid()) = id);
+
+  drop policy if exists profiles_insert_own on public.profiles;
+  create policy profiles_insert_own on public.profiles
+    for insert to authenticated
+    with check ((select auth.uid()) = id);
+
+  drop policy if exists profiles_update_own on public.profiles;
+  create policy profiles_update_own on public.profiles
+    for update to authenticated
+    using ((select auth.uid()) = id)
+    with check ((select auth.uid()) = id);
+
+  drop policy if exists profiles_own_row_guard on public.profiles;
+  create policy profiles_own_row_guard on public.profiles
+    as restrictive for all to authenticated
+    using ((select auth.uid()) = id)
+    with check ((select auth.uid()) = id);
+
+  drop policy if exists profiles_prevent_user_delete on public.profiles;
+  create policy profiles_prevent_user_delete on public.profiles
+    as restrictive for delete to authenticated
+    using (false);
 
   -- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
   -- directly — Realtime enforces RLS just like any other read, so without this policy the

@@ -4,10 +4,10 @@ import { getDeliverySequence } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS } from '../../utils/constants';
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
 
-// A timestamp per step isn't tracked in the schema — only order.createdAt (when it was
-// placed) and order.transitStartedAt (when "Start Delivery" was pressed) exist. Every other
-// step genuinely has no reliable timestamp to show, so none is shown for those rather than
-// guessing from order.updatedAt (which also changes on unrelated things like GPS pings).
+
+
+
+
 function timestampForStep(step, order) {
   if (step === 'pending') return order.createdAt;
   if (step === 'out_for_delivery') return order.transitStartedAt;
@@ -40,9 +40,9 @@ export default function OrderTracker({ order, isFarmer = false }) {
       {isActive ? (
         <ol className="tracker">
           {sequence.map((step, index) => {
-            // The final step has no later step to be superseded by, so on its own
-            // `index < currentIndex` would never fire — treat it as done once the order
-            // itself is marked completed, rather than leaving it stuck on "active" forever.
+
+
+
             const isReached = index < currentIndex || (index === currentIndex && order.status === 'completed');
             const state = isReached ? 'done' : index === currentIndex ? 'active' : 'upcoming';
             const timestamp = state === 'done' || state === 'active' ? timestampForStep(step, order) : null;

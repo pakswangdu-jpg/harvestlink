@@ -7,9 +7,9 @@ import { formatCurrency } from '../../../utils/formatters';
 
 const MAX_OVERRIDE_PRICE = 999999;
 
-// Mounted only while a commodity is being edited (see the outer wrapper below) and keyed by
-// commodity id at the call site — same pattern as AdminUsers.jsx's UserDetail — so its lazy
-// useState initializer seeds the price field fresh per commodity with no effect needed.
+
+
+
 function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
   const [price, setPrice] = useState(initialPrice != null ? String(initialPrice) : '');
   const [reason, setReason] = useState('');
@@ -97,11 +97,11 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
   );
 }
 
-// Thin, always-mounted wrapper — stays alive across open/close so Modal's own exit
-// animation can play; only OverrideForm itself mounts/unmounts with the commodity.
-// `initialPrice` seeds the New Override Price field (e.g. a draft the admin already typed in
-// the row) and is deliberately separate from commodity.referencePrice, which this always
-// shows, unmodified, as the real "Current PSA Price" for comparison.
+
+
+
+
+
 export default function OverrideModal({
   commodity, initialPrice, onClose, onConfirm,
 }) {

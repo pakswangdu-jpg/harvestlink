@@ -5,13 +5,13 @@ import { getMunicipalityCoords, CEBU_MUNICIPALITIES } from '../utils/constants.j
 import { matchMunicipality } from '../lib/geo.js';
 import { ApiError } from '../lib/ApiError.js';
 
-// POST /api/lalamove/quote — checkout-time preview only (mirrors deliveryFee.controller.js's
-// getDeliveryFeeEstimate, which farmer_delivery/buyer_pickup keep using unchanged — this is
-// the courier-specific equivalent, backed by a real Lalamove quotation instead of the
-// road-distance fee formula). Never trusted for what actually gets charged: the fee shown
-// here is re-quoted from scratch when the farmer confirms the order (see
-// createLalamoveDeliveryForOrder below), exactly like every other delivery-fee preview in
-// this app is independently recomputed server-side at order creation.
+
+
+
+
+
+
+
 export async function getLalamoveQuote(req, res) {
   const { productId, deliveryMunicipality } = req.body;
   if (!productId) throw new ApiError('productId is required.', 400);
@@ -38,21 +38,21 @@ export async function getLalamoveQuote(req, res) {
       expiresAt: quotation.expiresAt,
     });
   } catch (error) {
-    // Never a fabricated fee — the frontend shows "Delivery quotation unavailable. Please try
-    // again." for this exact status (see lalamoveService.js / CheckoutForm.jsx).
+
+
     throw new ApiError(error.message || 'Delivery quotation unavailable.', 502);
   }
 }
 
-// Called from updateOrderStatus (orders.controller.js) the moment the farmer confirms a
-// courier-method order — the same trigger point that already sent a "Courier assigned"
-// notification before this integration existed. Re-quotes from scratch rather than reusing
-// whatever quotationId the buyer saw at checkout: Lalamove quotations expire after 5 minutes,
-// and a farmer can take far longer than that to confirm an order.
-//
-// Never throws in a way that blocks the order confirmation itself — a failed Lalamove booking
-// still leaves a confirmed order, just without lalamove_order_id set, so the farmer's existing
-// manual "Book with Lalamove" fallback (LinkLalamoveDeliveryDialog.jsx) remains available.
+
+
+
+
+
+
+
+
+
 export async function createLalamoveDeliveryForOrder(order) {
   try {
     const { data: farmer } = await supabaseAdmin
@@ -83,9 +83,9 @@ export async function createLalamoveDeliveryForOrder(order) {
       lalamove_quotation_id: quotation.quotationId,
       lalamove_status: created.status,
       delivery_status: mapped.deliveryStatus,
-      // Lalamove's own real tracking page for this order — same "Track Delivery" link the
-      // manual-entry fallback already opens (see DeliveryInfoCard.jsx), just populated
-      // automatically instead of the farmer copying it in by hand.
+
+
+
       tracking_url: created.trackingUrl,
     }, { onConflict: 'order_id' });
 

@@ -43,7 +43,7 @@ function savePinnedKeys(userId, keys) {
   try {
     localStorage.setItem(pinnedStorageKey(userId), JSON.stringify([...keys]));
   } catch {
-    // best-effort only
+
   }
 }
 
@@ -61,9 +61,9 @@ function dateSeparatorLabel(dateIso) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-// Merges a freshly-fetched page into existing state by id — handles new messages arriving,
-// and edits/deletes to already-loaded messages, without disturbing older pages the buyer/
-// farmer already scrolled up to load (infinite scroll never gets silently reset by polling).
+
+
+
 function mergeMessages(existing, incoming) {
   const byId = new Map(existing.map((message) => [message.id, message]));
   incoming.forEach((message) => byId.set(message.id, message));
@@ -80,10 +80,10 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedKeys, setPinnedKeys] = useState(() => loadPinnedKeys(currentUser.id));
 
-  // Order-entry resolution — only relevant arriving via /messages/:orderId. A buyer/farmer
-  // pair has exactly ONE conversation (see messageService.js), so entering from an order
-  // never shows a separate thread — it shows the SAME merged conversation with that order's
-  // other party, just with that specific order pinned above the messages.
+
+
+
+
   const [orderContext, setOrderContext] = useState({ key: null, order: null, otherPartyId: null, notFound: false });
   useEffect(() => {
     if (!orderId) return undefined;
@@ -127,9 +127,9 @@ export default function MessagesPage() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
-  // Defaults to English rather than Cebuano — this is a Cebu-based marketplace, so most
-  // messages are already typed in Cebuano/Bisaya; defaulting the translate target to the
-  // same language made a freshly-clicked "Translate" button look broken (same text back).
+
+
+
   const [targetLang, setTargetLang] = useState('en');
   const [translations, setTranslations] = useState({});
 
@@ -138,7 +138,7 @@ export default function MessagesPage() {
   const isNearBottomRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
 
-  // --- Conversation list (left sidebar), polled the same ~4s cadence the old inbox used. ---
+
   useEffect(() => {
     let cancelled = false;
     const reload = async () => {
@@ -174,7 +174,7 @@ export default function MessagesPage() {
     });
   };
 
-  // --- Active conversation: the other party's profile. ---
+
   useEffect(() => {
     if (!otherPartyId) return undefined;
     let cancelled = false;
@@ -190,11 +190,11 @@ export default function MessagesPage() {
     if (threadNotFound) navigate('/messages', { replace: true });
   }, [threadNotFound, navigate]);
 
-  // --- Active conversation: messages, first page on switch + polling for new ones. ---
-  // No "clear on inactive" branch here is intentional: `messages` only ever renders inside
-  // the hasActiveThread branch of the JSX below, so leaving it stale while there's no active
-  // thread is invisible — and the first successful load of a NEW thread already fully
-  // replaces it (see reload's isFirstLoad branch), never merges stale content in.
+
+
+
+
+
   useEffect(() => {
     if (!otherPartyId || threadNotFound) return undefined;
     let cancelled = false;
@@ -216,7 +216,7 @@ export default function MessagesPage() {
     };
   }, [otherPartyId, threadNotFound]);
 
-  // --- Auto-scroll: always on first load / own send, only if already near bottom otherwise. ---
+
   useEffect(() => {
     if (isNearBottomRef.current) bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [messages]);
@@ -234,8 +234,8 @@ export default function MessagesPage() {
       setMessages((current) => mergeMessages(current, result.messages));
       setHasMoreOlder(result.hasMore);
       setIsLoadingOlder(false);
-      // Keep the buyer/farmer's view anchored on the same message after older ones are
-      // prepended, instead of the scroll position jumping to the very top.
+
+
       requestAnimationFrame(() => {
         if (container) container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
       });
@@ -245,7 +245,7 @@ export default function MessagesPage() {
   const otherPartyName = otherParty ? (otherParty.organizationName || otherParty.farmName || otherParty.name) : '';
   const { isOtherTyping, notifyTyping, notifyStoppedTyping } = useChatTyping(otherPartyId);
 
-  // --- Compose actions ---
+
   const refreshMessages = async () => {
     const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
     setMessages((current) => mergeMessages(current, result.messages));

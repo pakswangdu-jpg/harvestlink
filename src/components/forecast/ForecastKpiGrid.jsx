@@ -40,9 +40,9 @@ function CardHeader({ icon: Icon, iconColor, label }) {
   );
 }
 
-// Section 2 — six premium KPI cards, every value already computed by the page from real
-// getDemandForecast data (see FarmerDemandForecast.jsx). This component only formats and
-// lays them out; it derives nothing new.
+
+
+
 export default function ForecastKpiGrid({
   highDemandCrops, averageForecastPrice, averagePriceChangePercent,
   bestCrop, marketTrend, weather, weatherRiskLevel, averageConfidence, periodLabel,

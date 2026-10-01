@@ -9,8 +9,8 @@ const SORT_OPTIONS = [
   { value: 'name', label: 'Name (A–Z)' },
 ];
 
-// The location/sort selects are native <select> elements (same convention as
-// Marketplace.jsx's filter bar) — no custom listbox needed for two short, static lists.
+
+
 function InlineSelect({ value, onChange, options, ariaLabel }) {
   return (
     <div className="relative shrink-0">
@@ -29,8 +29,8 @@ function InlineSelect({ value, onChange, options, ariaLabel }) {
   );
 }
 
-// Category multi-select popover behind the "Filter" button — click-outside-to-close follows
-// the same pattern as NotificationBell.jsx's dropdown.
+
+
 function FilterPopover({ categories, selected, onToggle, onClear }) {
   const wrapperRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);

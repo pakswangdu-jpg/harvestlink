@@ -1,9 +1,9 @@
 import { ChevronDown } from 'lucide-react';
 
-// This project deliberately skips Tailwind's Preflight reset (see src/styles/globals.css's
-// top comment), so a bare <select> keeps the browser's own native chrome unless explicitly
-// stripped — appearance-none + a custom chevron here, same fix applied to the Messages
-// translate dropdown.
+
+
+
+
 export default function Select({ className = '', ...props }) {
   return (
     <div className="relative inline-flex">

@@ -9,10 +9,10 @@ export const STORAGE_KEYS = {
   legacyRequests: 'harvestlink_purchase_requests',
 };
 
-// Crop categories/products/units used to live here as hardcoded arrays — they're now
-// admin-editable data in Supabase (public.categories / public.products_catalog /
-// public.units / public.product_units), read via src/contexts/CatalogContext.jsx's
-// useCatalog() hook instead (see supabase/schema.sql for why).
+
+
+
+
 
 export const PRODUCT_GRADES = [
   { value: 'A', label: 'Grade A — Premium' },
@@ -24,22 +24,22 @@ export const SALES_TYPES = [
   { value: 'wholesale', label: 'Wholesale' },
 ];
 
-// A single, easy-to-adjust cutoff for the "low stock" warning shown to buyers/stakeholders
-// on the marketplace card and product detail page — not per-product, since there's no
-// per-listing threshold field to configure one from.
+
+
+
 export const LOW_STOCK_THRESHOLD = 10;
 
-// Zero/negative quantity isn't "low stock" — that's out of stock, already surfaced via the
-// product's own status instead of this warning.
+
+
 export function isLowStock(quantity) {
   const value = Number(quantity);
   return value > 0 && value <= LOW_STOCK_THRESHOLD;
 }
 
-// A single status per product for anywhere that used to show the raw `status` field and a
-// separate inventory badge side by side (My Products' table/cards) — inactive is the most
-// specific truth (a farmer deliberately paused it) so it wins even over an empty quantity;
-// otherwise inventory drives it. `value` doubles as the `badge-${value}` CSS class suffix.
+
+
+
+
 export function getProductStatusInfo(product) {
   if (product.status === 'inactive') return { value: 'inactive', label: 'Inactive' };
   const quantity = Number(product.quantity);
@@ -48,12 +48,12 @@ export function getProductStatusInfo(product) {
   return { value: 'active', label: 'Active' };
 }
 
-// How many days out an expiration date starts showing an "Expiring soon" warning, instead
-// of only flagging it once it's already too late to act on.
+
+
 export const EXPIRING_SOON_DAYS = 3;
 
-// 'expired' | 'expiring_soon' | null — null covers both "no expiration date set" and "expires
-// comfortably later," so callers can do a single truthy check before rendering a badge.
+
+
 export function getExpiryStatus(expirationDate) {
   if (!expirationDate) return null;
   const today = new Date();
@@ -236,7 +236,7 @@ export const ROLE_DASHBOARDS = {
   admin: '/admin-dashboard',
 };
 
-// Farmers can browse the marketplace but never place orders on it (they sell, not buy) — the
-// single source of truth for that rule, shared by ProductDetails' checkout gate, ProductCard's
-// Add to Cart button, and the cart icon/route's own visibility.
+
+
+
 export const ORDERING_ROLES = ['buyer', 'stakeholder'];

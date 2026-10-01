@@ -1,57 +1,57 @@
-// MARKET_COMMODITIES (src/services/marketPriceService.js) has no category field of its own —
-// it's just PSA's flat list of the 43 commodities that table publishes a price for. This is a
-// small, presentational grouping on top of that list purely for this page's Category filter/
-// column — it has nothing to do with, and never touches, the admin-editable product catalog
-// categories used elsewhere (Admin Categories, ProductForm) which classify actual listings.
+
+
+
+
+
 const CATEGORY_BY_COMMODITY_ID = {
-  // Vegetables
-  28: 'Vegetables', // Cabbage
-  41: 'Vegetables', // Tomato
-  33: 'Vegetables', // Eggplant (Native, Long)
-  34: 'Vegetables', // Eggplant (Native, Round)
-  32: 'Vegetables', // Eggplant
-  27: 'Vegetables', // Ampalaya
-  38: 'Vegetables', // Onion (Yellow Granex)
-  40: 'Vegetables', // Onion (Red Shallot)
-  39: 'Vegetables', // Onion (Red Creole)
-  // Root & tuber crops
-  29: 'Root Crops', // Camote
-  31: 'Root Crops', // Cassava (Industrial Use)
-  30: 'Root Crops', // Cassava
-  42: 'Root Crops', // Potato
-  // Fruits
-  21: 'Fruits', // Mango (Piko)
-  22: 'Fruits', // Mango (Indian)
-  23: 'Fruits', // Mango (Others)
-  20: 'Fruits', // Mango (Carabao)
-  15: 'Fruits', // Banana (Lakatan)
-  16: 'Fruits', // Banana (Latundan)
-  13: 'Fruits', // Banana (Bungulan)
-  14: 'Fruits', // Banana (Cavendish)
-  18: 'Fruits', // Banana (Others)
-  17: 'Fruits', // Banana (Saba)
-  19: 'Fruits', // Calamansi
-  24: 'Fruits', // Pineapple (Formosa)
-  25: 'Fruits', // Pineapple (Hawaiian)
-  26: 'Fruits', // Pineapple (Native)
-  // Legumes
-  35: 'Legumes', // Mongo (Green, Labo)
-  37: 'Legumes', // Mongo (Yellow)
-  36: 'Legumes', // Mongo (Mungbean)
-  // Cash / industrial crops
-  1: 'Cash Crops', // Coconut (Mature)
-  2: 'Cash Crops', // Coconut (Young / Buko)
-  12: 'Cash Crops', // Cacao
-  8: 'Cash Crops', // Sugarcane
-  3: 'Cash Crops', // Coffee (Arabica)
-  5: 'Cash Crops', // Coffee (Liberica / Barako)
-  4: 'Cash Crops', // Coffee (Excelsa)
-  6: 'Cash Crops', // Coffee (Robusta)
-  0: 'Cash Crops', // Abaca
-  7: 'Cash Crops', // Rubber
-  9: 'Cash Crops', // Tobacco (Native)
-  10: 'Cash Crops', // Tobacco (Virginia)
-  11: 'Cash Crops', // Tobacco (Others)
+
+  28: 'Vegetables',
+  41: 'Vegetables',
+  33: 'Vegetables',
+  34: 'Vegetables',
+  32: 'Vegetables',
+  27: 'Vegetables',
+  38: 'Vegetables',
+  40: 'Vegetables',
+  39: 'Vegetables',
+
+  29: 'Root Crops',
+  31: 'Root Crops',
+  30: 'Root Crops',
+  42: 'Root Crops',
+
+  21: 'Fruits',
+  22: 'Fruits',
+  23: 'Fruits',
+  20: 'Fruits',
+  15: 'Fruits',
+  16: 'Fruits',
+  13: 'Fruits',
+  14: 'Fruits',
+  18: 'Fruits',
+  17: 'Fruits',
+  19: 'Fruits',
+  24: 'Fruits',
+  25: 'Fruits',
+  26: 'Fruits',
+
+  35: 'Legumes',
+  37: 'Legumes',
+  36: 'Legumes',
+
+  1: 'Cash Crops',
+  2: 'Cash Crops',
+  12: 'Cash Crops',
+  8: 'Cash Crops',
+  3: 'Cash Crops',
+  5: 'Cash Crops',
+  4: 'Cash Crops',
+  6: 'Cash Crops',
+  0: 'Cash Crops',
+  7: 'Cash Crops',
+  9: 'Cash Crops',
+  10: 'Cash Crops',
+  11: 'Cash Crops',
 };
 
 export const COMMODITY_CATEGORIES = ['Vegetables', 'Fruits', 'Root Crops', 'Legumes', 'Cash Crops'];

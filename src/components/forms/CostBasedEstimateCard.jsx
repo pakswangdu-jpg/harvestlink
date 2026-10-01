@@ -10,12 +10,12 @@ function Row({ label, value, emphasize }) {
   );
 }
 
-// Gray, deliberately NOT green — this is never labeled or styled as an AI recommendation
-// (see globals.css's .price-analysis-card.tone-cost), because it isn't one: every number
-// here comes only from what the farmer themselves typed in, marked up by a percentage they
-// can change. Only ever rendered once PSA AND historical transaction data have both come up
-// empty (see PriceAnalysisPanel.jsx) — the last, least-preferred pricing tier, not a
-// replacement for real market data when it exists.
+
+
+
+
+
+
 export default function CostBasedEstimateCard({
   costPrice, unit, markupPercent, onMarkupChange, isImplausible, costPerKg,
 }) {
@@ -69,9 +69,9 @@ export default function CostBasedEstimateCard({
         ) : null}
       </div>
 
-      {/* Exact required copy — no button here on purpose (see the caller): this figure was
-          never verified against real market data, so applying it is left as a deliberate,
-          manual step (retype it into the Price field above) rather than one click. */}
+      {
+
+                                                                                      }
       <p className="price-analysis-disclaimer">
         This estimate is calculated only from your production cost because no verified market data exists.
       </p>

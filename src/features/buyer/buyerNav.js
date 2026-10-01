@@ -1,5 +1,5 @@
 import {
-  LayoutGrid, TrendingUp, UserRound,
+  LayoutGrid, TrendingUp, UserRound, MapPin, Store, MessageSquare, Package,
 } from 'lucide-react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
@@ -12,16 +12,16 @@ const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
 const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
 const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 
-// `group` drives the sidebar's section headings (see AppShell.jsx's grouping logic and
-// NAV_GROUP_ORDER) — mirrors farmerNav.js's own grouping, adapted for what a buyer actually
-// does here: they don't sell anything, so "Sales" doesn't fit — "Orders" covers their own
-// purchases and the messages tied to them instead.
+
+
+
+
 export const buyerNavItems = [
   { to: '/buyer-dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
-  { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon, group: 'Orders' },
-  { to: '/messages', label: 'Messages', icon: MessagesNavIcon, group: 'Orders' },
-  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, group: 'Market' },
-  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, group: 'Market' },
+  { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon, bottomIcon: Package, group: 'Orders' },
+  { to: '/messages', label: 'Messages', icon: MessagesNavIcon, bottomIcon: MessageSquare, group: 'Orders' },
+  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, bottomIcon: Store, group: 'Market' },
+  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, bottomIcon: MapPin, group: 'Market' },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp, group: 'Market' },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

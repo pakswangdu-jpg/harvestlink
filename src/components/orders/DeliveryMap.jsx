@@ -2,26 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { getMunicipalityCoords } from '../../utils/constants';
-import { haversineKm, resolveRoutePoints } from '../../utils/geo';
+import { haversineKm, resolveRoutePoints, validateCoordinates, nearbyMapPoints } from '../../utils/geo';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { buildMapPopup, buildPresenceMarkup } from '../map/mapPopupMarkup';
 
+import { buildViewerIcon, buildViewerPopup } from '../map/userLocationMarker';
+
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
-// Google-Maps-navigation blue — used for every route line (replaces the old always-dashed-
-// orange preview line, which couldn't visually distinguish a real live-navigation route from
-// a time-estimated one).
+
+
+
 const ROUTE_LINE_COLOR = '#1a73e8';
 
-// Live-navigation reroute tuning: the driver's device pings roughly every 8s while sharing
-// is on (see useFarmerActiveDeliverySharing.js), but OSRM's public routing server is a shared,
-// free, no-key instance — refetching on every single ping would hammer it. So a fresh route
-// is only requested when either (a) it's been a while and the driver has actually moved, or
-// (b) the driver has genuinely strayed off the last-fetched line, similar to how a real nav
-// app only reroutes on an actual missed turn, not on every GPS tick.
+
+
+
+
+
+
 const LIVE_REROUTE_MIN_INTERVAL_MS = 20000;
 const LIVE_REROUTE_MIN_MOVE_KM = 0.05;
 const LIVE_REROUTE_DEVIATION_KM = 0.08;
@@ -29,13 +31,14 @@ const LIVE_REROUTE_DEVIATION_COOLDOWN_MS = 8000;
 const MARKER_ANIMATION_DURATION_MS = 1500;
 
 const PRECISION_LABELS = {
+  registered: 'Registered location',
   address: 'Exact registered address',
   municipality: 'Approximate — municipality center',
   fallback: 'Approximate — municipality area',
 };
 
-// Same teardrop pin as FarmerMap.jsx — see that file for why `alert` is a static ring
-// rather than a CSS pulse (a data-URI <img> icon can't run a CSS animation).
+
+
 const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
 
 function buildPinIcon(mapsApi, color, { alert = false } = {}) {
@@ -69,11 +72,11 @@ function pointKey(point) {
   return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
 }
 
-// Tweens a persisted marker smoothly to its new position instead of snapping — Google Maps
-// markers have no built-in "animate to" affordance, so this hand-interpolates position
-// across requestAnimationFrame ticks. Cancels any animation already in flight for this
-// marker first, so a fast run of updates (e.g. two realtime pings arriving close together)
-// doesn't fight itself.
+
+
+
+
+
 function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DURATION_MS) {
   if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
 
@@ -93,24 +96,24 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
   entry.animationFrameId = requestAnimationFrame(step);
 }
 
-// `routes`: [{ id, originLabel, destinationLabel, originMunicipality, destinationMunicipality,
-//   deliveryMethod, progress, label, href, etaMinutes, currentPosition, remainingKm }] —
-//   `currentPosition`/`remainingKm` come from getLiveTransitProgress and are only non-null
-//   once whichever party is actually moving for this order has a fresh GPS fix — the farmer
-//   for a real delivery (see useFarmerActiveDeliverySharing.js), the buyer for a
-//   buyer_pickup order (see useBuyerActivePickupSharing.js); otherwise the truck
-//   position/ETA fall back to the time-estimated simulation, same as before.
-// `farmers`: optional [{ id, name, farmName, municipality }] — DTI-verified farmers plotted
-// as a reference layer alongside the live delivery routes (e.g. on the buyer dashboard).
-// `buyers`: optional [{ id, name, municipality }] — registered buyers plotted the same way
-// (e.g. on the farmer dashboard, so a farmer can see who's nearby).
-// `stakeholders`: optional [{ id, name, organizationName, municipality }] — registered
-// partner organizations plotted the same way (e.g. on the stakeholder dashboard).
-// `alertStyle`: when true, the farmer/buyer/stakeholder reference pins (not the route pins)
-// get the alert-ring treatment, the same one used for surplus-donation pins on the farmer map.
-// `viewerMunicipality`: the signed-in account's own municipality — folded into the camera
-// framing below so an idle dashboard (no active deliveries yet) still opens centered on the
-// viewer's own area with nearby accounts in view, instead of a generic whole-Cebu view.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function DeliveryMap({
   routes = [],
   farmers = [],
@@ -118,6 +121,9 @@ export default function DeliveryMap({
   stakeholders = [],
   alertStyle = false,
   viewerMunicipality = null,
+  viewerCoords = null,
+  viewerAddress = '',
+  nearbyView = false,
 }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
@@ -127,16 +133,17 @@ export default function DeliveryMap({
   const farmerMarkersRef = useRef([]);
   const buyerMarkersRef = useRef([]);
   const stakeholderMarkersRef = useRef([]);
+  const viewerMarkerRef = useRef(null);
   const markerSignaturesRef = useRef({ farmers: null, buyers: null, stakeholders: null });
   const fittedSignatureRef = useRef(null);
   const requestedRouteKeysRef = useRef(new Set());
-  // Truck markers are persisted (not recreated every render, unlike every other marker here)
-  // so their position can be smoothly animated between updates instead of snapping — keyed
-  // by route id: { [routeId]: { marker, infoWindow, infoHtml, animationFrameId } }.
+
+
+
   const truckMarkersRef = useRef({});
-  // Bookkeeping for the live-navigation reroute effect (throttle + deviation detection) —
-  // a ref, not state, so reading the latest value inside that effect doesn't need it in the
-  // dependency array (same pattern as requestedRouteKeysRef above).
+
+
+
   const liveRouteMetaRef = useRef({});
   const pendingLiveFetchRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -144,15 +151,15 @@ export default function DeliveryMap({
   const { effectiveTheme } = useTheme();
   const [roadGeometries, setRoadGeometries] = useState({});
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
-  const farmerCoordsById = useMapCoordinates(farmers);
-  const buyerCoordsById = useMapCoordinates(buyers);
-  const stakeholderCoordsById = useMapCoordinates(stakeholders);
+  const farmerCoordsById = useMapCoordinates(farmers, { registeredOnly: nearbyView });
+  const buyerCoordsById = useMapCoordinates(buyers, { registeredOnly: nearbyView });
+  const stakeholderCoordsById = useMapCoordinates(stakeholders, { registeredOnly: nearbyView });
 
-  // Cancels any in-flight marker animation on unmount — otherwise a rAF loop could keep
-  // calling setPosition on a marker whose map context is already gone. Deliberately reads
-  // truckMarkersRef.current at unmount time (not a snapshot from mount time) — entries are
-  // created/destroyed throughout the component's life, so the mount-time value would almost
-  // always be stale by the time this actually runs.
+
+
+
+
+
   useEffect(() => {
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,12 +189,13 @@ export default function DeliveryMap({
 
     loadGoogleMaps().then((mapsApi) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
+      const center = validateCoordinates(viewerCoords?.lat, viewerCoords?.lng);
       const map = new mapsApi.Map(containerRef.current, {
-        center: CEBU_CENTER,
+        ...(center ? { center } : nearbyView ? {} : { center: CEBU_CENTER }),
         zoom: 10,
         disableDefaultUI: true,
         zoomControl: true,
-        gestureHandling: 'greedy',
+        gestureHandling: nearbyView ? 'cooperative' : 'greedy',
         clickableIcons: false,
         styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [],
       });
@@ -199,24 +207,24 @@ export default function DeliveryMap({
     return () => {
       cancelled = true;
     };
-    // Deliberately mount-once — effectiveTheme is read for the map's initial styling only;
-    // a later theme switch is handled by the dedicated effect below instead of recreating
-    // the whole map (and every route/marker layer) from scratch.
+
+
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-styles the already-created map in place when the theme changes — Google's base tiles
-  // have no swappable "dark tile URL" the way a Leaflet map would, so a `styles` array is the
-  // Maps-JS-native equivalent.
+
+
+
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
   }, [effectiveTheme, mapReady]);
 
-  // The container's real size is only final after the CSS grid layout settles, which can
-  // happen after Google's own initial measurement (and again on the fullscreen toggle) —
-  // without re-triggering 'resize' and restoring the center, panning/zooming can look
-  // subtly broken or the map can appear blank until manually nudged.
+
+
+
+
   useEffect(() => {
     if (!mapReady || !containerRef.current) return undefined;
     const map = mapRef.current;
@@ -259,6 +267,9 @@ export default function DeliveryMap({
           name: displayName,
           person: farmer.name,
           municipality: farmer.municipality,
+          address: farmer.address,
+          barangay: farmer.barangay,
+          coords,
           presence: buildPresenceMarkup(farmer),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
           links: [
@@ -277,6 +288,45 @@ export default function DeliveryMap({
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
 
+    const lat = Number(viewerCoords?.lat);
+    const lng = Number(viewerCoords?.lng);
+    const hasViewerPoint = validateCoordinates(viewerCoords?.lat, viewerCoords?.lng);
+
+    if (!hasViewerPoint) {
+      if (viewerMarkerRef.current) {
+        viewerMarkerRef.current.marker.setMap(null);
+        viewerMarkerRef.current.infoWindow.close();
+      }
+      return;
+    }
+
+    const position = { lat, lng };
+    if (!viewerMarkerRef.current) {
+      const marker = new mapsApi.Marker({
+        position,
+        map,
+        icon: buildViewerIcon(mapsApi),
+        title: 'Your location',
+        zIndex: 900,
+      });
+      const infoWindow = new mapsApi.InfoWindow({
+        content: buildViewerPopup(viewerAddress),
+      });
+      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
+      viewerMarkerRef.current = { marker, infoWindow };
+      return;
+    }
+
+    viewerMarkerRef.current.infoWindow.setContent(buildViewerPopup(viewerAddress));
+    viewerMarkerRef.current.marker.setMap(map);
+    viewerMarkerRef.current.marker.setPosition(position);
+  }, [mapReady, viewerCoords?.lat, viewerCoords?.lng, viewerAddress]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return;
+
     const signature = buyers.map((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       return `${buyer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
@@ -289,9 +339,9 @@ export default function DeliveryMap({
     buyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
-      // Violet, not the route-destination blue — a dashboard showing both an active
-      // "delivery to you" route AND registered-buyer reference pins at the same time would
-      // otherwise render two different things in the same color.
+
+
+
       const marker = new mapsApi.Marker({
         position: coords,
         map,
@@ -302,6 +352,9 @@ export default function DeliveryMap({
         content: buildMapPopup({
           name: buyer.name,
           municipality: buyer.municipality,
+          address: buyer.address,
+          barangay: buyer.barangay,
+          coords,
           contactNumber: buyer.contactNumber,
           presence: buildPresenceMarkup(buyer),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
@@ -342,6 +395,9 @@ export default function DeliveryMap({
           name: displayName,
           person: stakeholder.contactPerson,
           municipality: stakeholder.municipality,
+          address: stakeholder.address,
+          barangay: stakeholder.barangay,
+          coords,
           contactNumber: stakeholder.contactNumber,
           presence: buildPresenceMarkup(stakeholder),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
@@ -353,13 +409,13 @@ export default function DeliveryMap({
     });
   }, [mapReady, stakeholders, stakeholderCoordsById, alertStyle]);
 
-  // Fetches the actual road path for each distinct origin/destination pair once, so the
-  // route line follows real streets/bridges instead of cutting a straight line across
-  // whatever's in between (open water, in Cebu's case). Tracked in a ref (not state) so a
-  // pair already resolved successfully is never re-fetched on every 4s poll while its order
-  // is active. A *failed* attempt (network blip, timeout, transient rate limit) is deleted
-  // from that ref instead of sticking forever, so the next poll retries it rather than
-  // permanently locking the route onto the straight-line fallback for the rest of the session.
+
+
+
+
+
+
+
   useEffect(() => {
     routes.forEach((route) => {
       const { origin, destination } = resolveRoutePoints(route);
@@ -378,15 +434,15 @@ export default function DeliveryMap({
     });
   }, [routes]);
 
-  // Once a route has a live GPS fix (route.currentPosition — see
-  // useFarmerActiveDeliverySharing.js for a delivery, useBuyerActivePickupSharing.js for a
-  // pickup order), this recalculates the road route from THAT position to wherever that
-  // party is actually heading, instead of the original trip, so the blue line always shows
-  // the actual remaining path, exactly like turn-by-turn navigation. For a delivery that's
-  // the buyer (destination); for a pickup order it's the reverse — the buyer is the one
-  // moving, toward the farm (origin). Throttled and deviation-gated (see the
-  // LIVE_REROUTE_* constants above) rather than refetched on every position tick, since
-  // OSRM's public server can't absorb that load from a single app.
+
+
+
+
+
+
+
+
+
   useEffect(() => {
     routes.forEach((route) => {
       if (!route.currentPosition) return;
@@ -430,7 +486,7 @@ export default function DeliveryMap({
 
     routeLayerRef.current.forEach((layer) => layer.setMap(null));
     routeLayerRef.current = [];
-    const allPoints = [];
+    let allPoints = [];
     const truckRouteIdsThisRender = new Set();
 
     routes.forEach((route) => {
@@ -445,11 +501,11 @@ export default function DeliveryMap({
       allPoints.push(destination);
       if (route.currentPosition) allPoints.push(route.currentPosition);
 
-      // Once there's a live GPS fix, the blue line shows the actual REMAINING route (current
-      // position -> wherever that party is heading, recalculated as they move — see the
-      // effect above), not the original full trip. Falls back to a straight line only until
-      // the first live route resolves, or until the routing service is unreachable — never
-      // blocks rendering on the fetch.
+
+
+
+
+
       const travelTarget = isPickup ? origin : destination;
       const isLiveNavigating = Boolean(route.currentPosition);
       const liveRoute = isLiveNavigating ? liveRouteGeometries[route.id] : null;
@@ -460,18 +516,18 @@ export default function DeliveryMap({
           ? [route.currentPosition, travelTarget]
           : (staticRoadPoints?.length > 1 ? staticRoadPoints : [origin, destination]);
 
-      // A white casing drawn underneath keeps the route line readable against any tile
-      // color (dense street yellows/oranges, green cover, blue water) instead of blending
-      // into whatever's directly beneath it.
+
+
+
       const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, map });
       routeLayerRef.current.push(casing);
       const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_LINE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, map });
       routeLayerRef.current.push(routeLine);
 
-      // A fresh GPS fix from whichever party is actually moving for this order (the farmer
-      // for a delivery, the buyer for a pickup order — see useFarmerActiveDeliverySharing.js
-      // / useBuyerActivePickupSharing.js) always wins over the walked-along-the-route
-      // estimate — it's the real position, not a guess.
+
+
+
+
       const truckPosition = route.currentPosition || pointAlongRoute(pathPoints, route.progress);
       if (!truckPosition) return;
       truckRouteIdsThisRender.add(route.id);
@@ -482,11 +538,11 @@ export default function DeliveryMap({
       const positionSourceText = `<br/><small>${route.currentPosition ? '📍 Live GPS location' : 'Estimated position'}</small>`;
       const infoHtml = (route.href ? `<a href="${route.href}">${popupText}</a>` : popupText) + etaText + distanceText + positionSourceText;
 
-      // Truck markers are persisted across renders (not recreated, unlike every other marker
-      // here) so their move to a new position can be smoothly animated instead of snapping.
-      // The click listener is registered once at creation and reads `entry.infoHtml` live —
-      // re-registering it every render (like the other markers do) would stack a new
-      // listener on top of the old one every single time, firing the popup N times per click.
+
+
+
+
+
       let entry = truckMarkersRef.current[route.id];
       if (!entry) {
         const marker = new mapsApi.Marker({ position: truckPosition, map, icon: buildTruckIcon(mapsApi) });
@@ -504,8 +560,8 @@ export default function DeliveryMap({
       }
     });
 
-    // Drop truck markers for any order no longer being tracked (delivered, cancelled, or the
-    // buyer navigated away) — these are persisted across renders, so nothing else removes them.
+
+
     Object.keys(truckMarkersRef.current).forEach((routeId) => {
       if (truckRouteIdsThisRender.has(routeId)) return;
       const entry = truckMarkersRef.current[routeId];
@@ -514,25 +570,36 @@ export default function DeliveryMap({
       delete truckMarkersRef.current[routeId];
     });
 
-    // Reference pins (and the viewer's own municipality) are part of the "what's around me"
-    // view too — without this, a dashboard with zero active deliveries fell back to a
-    // generic, unfocused whole-Cebu view instead of framing the viewer's own area and the
-    // nearby accounts actually being shown.
+
+
+
+
     Object.values(farmerCoordsById).forEach((coords) => allPoints.push(coords));
     Object.values(buyerCoordsById).forEach((coords) => allPoints.push(coords));
     Object.values(stakeholderCoordsById).forEach((coords) => allPoints.push(coords));
-    if (viewerMunicipality) allPoints.push(getMunicipalityCoords(viewerMunicipality));
+    const viewerLat = Number(viewerCoords?.lat);
+    const viewerLng = Number(viewerCoords?.lng);
+    const viewerPoint = validateCoordinates(viewerCoords?.lat, viewerCoords?.lng);
+    if (nearbyView && viewerPoint) {
+      allPoints = nearbyMapPoints(viewerPoint, farmers.map((farmer) => farmerCoordsById[farmer.id]).filter(Boolean));
+    } else if (viewerPoint) {
+      allPoints.push({ lat: viewerLat, lng: viewerLng });
+    } else if (viewerMunicipality && !nearbyView) {
+      allPoints.push(getMunicipalityCoords(viewerMunicipality));
+    }
 
-    // Live polling rebuilds `routes` every few seconds even when nothing but a truck's
-    // progress ticked forward — only reset the camera when the actual set of tracked
-    // orders/reference pins changes, so recentering never overrides a pan/zoom the user
-    // just made.
+
+
+
+
     const signature = [
       routes.map((route) => route.id).sort().join(','),
       farmers.map((farmer) => farmer.id).sort().join(','),
       buyers.map((buyer) => buyer.id).sort().join(','),
       stakeholders.map((stakeholder) => stakeholder.id).sort().join(','),
+      Number.isFinite(viewerLat) && Number.isFinite(viewerLng) ? `${viewerLat.toFixed(5)},${viewerLng.toFixed(5)}` : '',
       viewerMunicipality || '',
+      nearbyView ? allPoints.map((point) => `${point.lat},${point.lng}`).join(';') : '',
     ].join('|');
     if (signature === fittedSignatureRef.current) return;
     fittedSignatureRef.current = signature;
@@ -544,7 +611,10 @@ export default function DeliveryMap({
       const bounds = new mapsApi.LatLngBounds();
       allPoints.forEach((point) => bounds.extend(point));
       map.fitBounds(bounds, 36);
-    } else {
+      if (nearbyView) mapsApi.event.addListenerOnce(map, 'idle', () => {
+        if (map.getZoom() > 16) map.setZoom(16);
+      });
+    } else if (!nearbyView) {
       map.setCenter(viewerMunicipality ? getMunicipalityCoords(viewerMunicipality) : CEBU_CENTER);
       map.setZoom(10);
     }
@@ -560,6 +630,9 @@ export default function DeliveryMap({
     buyerCoordsById,
     stakeholderCoordsById,
     viewerMunicipality,
+    nearbyView,
+    viewerCoords?.lat,
+    viewerCoords?.lng,
   ]);
 
   return (

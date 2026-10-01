@@ -7,9 +7,9 @@ const OPTIONS = [
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
-// Reuses .segmented-control (the same compact three-way control Grade/Sales type already use
-// in ProductForm.jsx) rather than a bespoke switch, so this reads as part of the existing
-// design language instead of a new control style.
+
+
+
 export default function ThemeToggle({ compact = false }) {
   const { theme, effectiveTheme, setTheme } = useTheme();
 

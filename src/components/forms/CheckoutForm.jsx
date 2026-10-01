@@ -19,25 +19,25 @@ import { formatQuantity } from '../../utils/formatters';
 
 const MESSAGE_MAX_LENGTH = 200;
 
-// Farmer delivery keeps a plain lucide icon; buyer pickup and courier both get their own
-// image assets (buyer-pickup-icon.png / lalamove-logo.png) instead of a lucide stand-in —
-// rendered separately below since one's a component and the other's an <img src>, same
-// split as the payment method icons.
+
+
+
+
 const DELIVERY_METHOD_ICONS = {
   farmer_delivery: Truck,
 };
 
-// COD gets a plain lucide icon; GCash gets its real logo image (gcash-com-logo.png) instead
-// of a lucide stand-in — rendered separately below since one's a component and the other's
-// an <img src>.
+
+
+
 const PAYMENT_METHOD_ICONS = {
   cod: Banknote,
 };
 
-// One-line explanation shown under each option's label — the DELIVERY_METHODS/PAYMENT_METHODS
-// labels themselves ("Farmer delivery", "COD") stay short since they're reused elsewhere
-// (order tables, receipts), so the fuller "what does this actually mean" copy lives here,
-// local to this one selector.
+
+
+
+
 const DELIVERY_METHOD_DESCRIPTIONS = {
   farmer_delivery: 'The farmer delivers to your address',
   buyer_pickup: "Pick up directly from the farmer's location",
@@ -49,11 +49,11 @@ const PAYMENT_METHOD_DESCRIPTIONS = {
   gcash: 'Pay the farmer directly with GCash',
 };
 
-// Used only if the live backend estimate (Smart Distance-Based Delivery Fee System — see
-// backend/src/lib/deliveryFee.js) fails to load, e.g. a network blip — a straight-line
-// distance and the old flat per-km formula, clearly not the real tiered pricing, just enough
-// to keep checkout usable and honest about it (see the warning in OrderSummaryPanel.jsx)
-// rather than blocking the buyer entirely.
+
+
+
+
+
 function buildFallbackEstimate(originMunicipality, deliveryMunicipality) {
   return {
     fee: estimateDeliveryFee(originMunicipality, deliveryMunicipality, 'farmer_delivery'),
@@ -64,9 +64,9 @@ function buildFallbackEstimate(originMunicipality, deliveryMunicipality) {
   };
 }
 
-// Same "keep checkout usable if the live backend call itself fails" reasoning as
-// buildFallbackEstimate above, just for pickup: a straight-line distance from the buyer's
-// real (already-granted) live location to the farm, instead of no distance at all.
+
+
+
 function buildPickupFallbackEstimate(originMunicipality, buyerCoords) {
   return {
     fee: 0,
@@ -77,11 +77,11 @@ function buildPickupFallbackEstimate(originMunicipality, buyerCoords) {
   };
 }
 
-// A real, in-range starting quantity instead of an empty field with a misleading placeholder
-// — the old `placeholder="25"` looked like a real value sitting in an empty input, which is
-// exactly why the subtotal showed ₱0.00 next to what looked like a quantity. Wholesale starts
-// at its minimum order; everything else starts at 1 — both capped to what's actually in stock,
-// so the very first render can never show an impossible order.
+
+
+
+
+
 function defaultQuantity(product, initialQuantity) {
   if (initialQuantity) return initialQuantity;
   const stock = Number(product.quantity) || 0;
@@ -96,7 +96,7 @@ export default function CheckoutForm({
   const [values, setValues] = useState(() => ({
     quantity: defaultQuantity(product, initialQuantity),
     message: '',
-    paymentMethod: 'gcash',
+    paymentMethod: product.farmerGcashEnabled ? 'gcash' : 'cod',
     deliveryMethod: 'farmer_delivery',
     deliveryMunicipality: currentUser.municipality || CEBU_MUNICIPALITIES[0],
   }));
@@ -107,15 +107,18 @@ export default function CheckoutForm({
   const isPickup = values.deliveryMethod === 'buyer_pickup';
   const isCourier = values.deliveryMethod === 'courier';
   const stock = Number(product.quantity) || 0;
+  const availablePaymentMethods = product.farmerGcashEnabled
+    ? PAYMENT_METHODS
+    : PAYMENT_METHODS.filter((method) => method.value !== 'gcash');
 
   const [feeEstimate, setFeeEstimate] = useState(null);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState('');
 
-  // Pickup has no delivery fee, but the buyer still benefits from knowing exactly how far
-  // the farm is from wherever they actually are right now — 'idle' | 'locating' | 'granted'
-  // | 'denied' | 'unsupported'. Requested fresh each time pickup is selected (not persisted
-  // from the profile) since a saved address can go stale but a live GPS reading can't.
+
+
+
+
   const [buyerCoords, setBuyerCoords] = useState(null);
   const [locationStatus, setLocationStatus] = useState('idle');
   const [locationNotice, setLocationNotice] = useState('');
@@ -129,13 +132,13 @@ export default function CheckoutForm({
     setLocationStatus('locating');
     setLocationNotice('');
 
-    // Belt-and-suspenders on top of the `timeout` option below — some browser/OS
-    // combinations (notably Chrome on Windows with system Location Services turned off)
-    // never invoke either getCurrentPosition callback at all, which used to leave this
-    // stuck on "Detecting your location…" forever with no way out. This guarantees the UI
-    // always lands on an actionable state (with a "Try again" button, via
-    // OrderSummaryPanel's onRetryLocation) shortly after the API's own deadline, even if
-    // the browser itself never calls back.
+
+
+
+
+
+
+
     let settled = false;
     const watchdog = setTimeout(() => {
       if (settled) return;
@@ -167,18 +170,18 @@ export default function CheckoutForm({
     );
   };
 
-  // Auto-requests once, the first time the buyer switches to pickup — not on every render,
-  // and not re-prompted just because other fields change while pickup stays selected.
+
+
   useEffect(() => {
     if (isPickup && locationStatus === 'idle') requestBuyerLocation();
   }, [isPickup, locationStatus]);
 
-  // Instantly recalculates distance/ETA/fee whenever the buyer changes delivery method,
-  // municipality, or (for pickup) once their live location comes through — no page refresh,
-  // no "recalculate" button.
+
+
+
   useEffect(() => {
     if (isPickup && !buyerCoords) {
-      // Still locating, denied, or unsupported — nothing real to estimate yet.
+
       setFeeEstimate(null);
       setEstimateError('');
       return undefined;
@@ -188,10 +191,10 @@ export default function CheckoutForm({
     setIsEstimating(true);
     setEstimateError('');
 
-    // Courier gets a real Lalamove quotation instead of the generic road-distance fee
-    // formula farmer_delivery/buyer_pickup use — see lalamoveService.js. No fallback estimate
-    // on failure here (unlike the other two methods below): a made-up number next to the
-    // Lalamove logo would misrepresent it as a real quote from Lalamove specifically.
+
+
+
+
     if (isCourier) {
       getLalamoveQuote(product.id, values.deliveryMunicipality)
         .then((result) => {
@@ -262,15 +265,15 @@ export default function CheckoutForm({
   const isGcash = values.paymentMethod === 'gcash';
   const deliveryMethodLabel = DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
 
-  // Live, not just on submit — the moment a typed quantity exceeds real stock, the field
-  // shows it immediately (see FormField's error prop below) instead of waiting for a submit
-  // attempt to reveal an order that was never going to be accepted.
+
+
+
   const liveQuantityError = quantityNumber > stock ? `Only ${formatQuantity(stock)} ${product.unit} available.` : null;
 
-  // The order is created immediately either way — for GCash, the caller (ProductDetails.jsx)
-  // routes the buyer on to the dedicated GCash payment page (src/features/payments/
-  // GcashPaymentPage.jsx) afterward instead of straight to order tracking; that page is what
-  // actually collects "payment" and marks the order paid.
+
+
+
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = validateCheckoutForm(values, product, currentUser);
@@ -364,8 +367,8 @@ export default function CheckoutForm({
             ) : null}
 
             <FormField label="Payment method" name="paymentMethod" error={errors.paymentMethod}>
-              <div className="method-card-group two" role="radiogroup" aria-label="Payment method">
-                {PAYMENT_METHODS.map((method) => {
+              <div className={`method-card-group ${availablePaymentMethods.length === 1 ? 'one' : 'two'}`} role="radiogroup" aria-label="Payment method">
+                {availablePaymentMethods.map((method) => {
                   const Icon = PAYMENT_METHOD_ICONS[method.value];
                   const isSelected = values.paymentMethod === method.value;
                   return (

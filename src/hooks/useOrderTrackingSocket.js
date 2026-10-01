@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getSocket } from '../lib/socketClient';
 
-// Joins the Socket.IO room for one order (see backend/src/realtime/orderTracking.js) and
-// exposes whatever live GPS fix arrives over it, plus a connection status for the "GPS
-// accuracy / connection status" indicator on the tracking UI. Purely additive — this is a
-// new, faster broadcast layer alongside the existing REST-poll/Supabase-Realtime path
-// already used by OrderTracking.jsx, not a replacement for it.
+
+
+
+
+
 export function useOrderTrackingSocket(orderId) {
   const [livePosition, setLivePosition] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
@@ -32,8 +32,8 @@ export function useOrderTrackingSocket(orderId) {
     };
 
     const handleLocationUpdate = (payload) => {
-      // The shared socket may still be a member of a previously-joined order's room for a
-      // moment during navigation — only accept updates that actually match this hook's order.
+
+
       if (payload?.orderId !== orderId) return;
       setLivePosition({ lat: payload.lat, lng: payload.lng, accuracy: payload.accuracy, locationUpdatedAt: payload.locationUpdatedAt });
     };

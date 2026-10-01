@@ -5,12 +5,12 @@ function round2(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-// The create-flow counterpart to DiscountCalculator.jsx — that component saves live against
-// an existing product's discount endpoint (see its own comment), which doesn't exist yet
-// here. This one is fully controlled by ProductForm's own `values.discountPercent` and
-// carries no product id, no debounce, no save call — the percent just rides along in the
-// normal form submission and the backend computes/stores the same original/discounted price
-// pair createProduct's applyDiscount sibling already does for an existing listing.
+
+
+
+
+
+
 export default function NewProductDiscountField({ percent, onChange, price, unit }) {
   const trimmed = String(percent ?? '').trim();
   const numericPercent = trimmed === '' ? 0 : Number(trimmed);

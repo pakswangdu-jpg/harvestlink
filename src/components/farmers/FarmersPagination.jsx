@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Client-side pagination over an already-fetched list (see AllFarmersPage.jsx) — the
-// directory's full farmer list is one lightweight public call, so there's no need for real
-// server-side paging, just slicing 12-at-a-time the same way the page already sorts/filters
-// client-side.
+
+
+
+
 function pageNumbers(current, total) {
   if (total <= 5) return Array.from({ length: total }, (_, index) => index + 1);
   const pages = new Set([1, total, current, current - 1, current + 1]);

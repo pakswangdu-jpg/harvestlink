@@ -1,3 +1,27 @@
+:root:not([data-theme='dark']) .farmer-products-page {
+  background: #f5f8f4;
+}
+
+:root:not([data-theme='dark']) .inventory-metric:nth-child(1) {
+  border-color: #d9e1e6;
+  background: #f3f6f8;
+}
+
+:root:not([data-theme='dark']) .inventory-metric:nth-child(2) {
+  border-color: #d8e3d5;
+  background: #f2f7f1;
+}
+
+:root:not([data-theme='dark']) .inventory-metric:nth-child(3) {
+  border-color: #e8dfcc;
+  background: #fbf7ee;
+}
+
+:root:not([data-theme='dark']) .inventory-metric:nth-child(4) {
+  border-color: #dde2d3;
+  background: #f4f6ef;
+}
+
 .inventory-overview {
   container-type: inline-size;
   min-width: 0;
@@ -45,6 +69,11 @@
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 
+.inventory-overview .add-product-button:not(:hover):not(:active):not(:disabled) {
+  border-color: #147d43;
+  background: #147d43;
+}
+
 .inventory-overview .inventory-overview-header > .btn:hover,
 .inventory-overview .inventory-overview-header > .btn:active {
   transform: none;
@@ -72,13 +101,13 @@
   gap: 8px;
   color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 20px;
 }
 
 .inventory-metric-icon {
   flex-shrink: 0;
-  color: var(--muted);
+  color: var(--icon-muted);
 }
 
 .inventory-metric-value {
@@ -100,7 +129,7 @@
 }
 
 .inventory-metric-active .inventory-metric-icon {
-  color: var(--green-800);
+  color: color-mix(in srgb, var(--green-800) 65%, var(--icon-muted));
 }
 
 .inventory-metric-warning .inventory-metric-icon,

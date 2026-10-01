@@ -2,9 +2,9 @@ const WIDTH = 132;
 const HEIGHT = 40;
 const PADDING = 4;
 
-// valueKey defaults to 'price' (the only thing MarketPricePanel.jsx, the original caller,
-// ever passes) — a second caller can pass 'value' to sparkline a different annual series
-// (e.g. MarketInsights.jsx's bearing-tree-count mini trend) without duplicating this file.
+
+
+
 export default function PriceSparkline({ points, valueKey = 'price', ariaLabel = 'Recent price trend' }) {
   const valid = points.filter((point) => point[valueKey] != null);
   if (valid.length < 2) {

@@ -1,6 +1,21 @@
-// Maps snake_case Postgres rows to the exact camelCase shape the frontend already expects
-// (the same field names the old localStorage-backed services used) — keeping this mapping
-// in one place means every controller returns a consistent, frontend-ready shape.
+function serializeCoordinates(row) {
+  const isCoordinateValue = (value) => (
+    typeof value === 'number'
+    || (typeof value === 'string' && value.trim() !== '')
+  ) && Number.isFinite(Number(value));
+
+  if (!isCoordinateValue(row.latitude) || !isCoordinateValue(row.longitude)) {
+    return { latitude: null, longitude: null };
+  }
+
+  const latitude = Number(row.latitude);
+  const longitude = Number(row.longitude);
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+    return { latitude: null, longitude: null };
+  }
+
+  return { latitude, longitude };
+}
 
 export function serializeProfile(row) {
   if (!row) return null;
@@ -16,6 +31,7 @@ export function serializeProfile(row) {
     address: row.address,
     zipCode: row.zip_code,
     municipality: row.municipality,
+    ...serializeCoordinates(row),
     accountStatus: row.account_status,
     avatarUrl: row.avatar_url || null,
     farmName: row.farm_name,
@@ -40,13 +56,14 @@ export function serializeProfile(row) {
   };
 }
 
-// farmerName/farmerVerified/farmerRating aren't columns on products (deliberately not
-// denormalized — see supabase/schema.sql) — callers resolve them via a profiles/ratings
-// lookup and pass them in (see withFarmerNames in products.controller.js).
+
+
+
 export function serializeProduct(row, farmerInfo = {}) {
   if (!row) return null;
   const {
     farmerName = null, farmerVerified = false, farmerRating = null, farmerRatingCount = 0,
+    farmerGcashEnabled = false,
   } = farmerInfo;
   return {
     id: row.id,
@@ -55,6 +72,7 @@ export function serializeProduct(row, farmerInfo = {}) {
     farmerVerified,
     farmerRating,
     farmerRatingCount,
+    farmerGcashEnabled,
     name: row.name,
     category: row.category,
     grade: row.grade,
@@ -98,9 +116,9 @@ export function serializeOrder(row) {
     buyerAvatarUrl: row.buyer_avatar_url || null,
     quantity: Number(row.quantity),
     deliveryFee: Number(row.delivery_fee || 0),
-    // Snapshotted by the Smart Distance-Based Delivery Fee System at order creation (see
-    // backend/src/lib/deliveryFee.js) — null for a buyer-pickup order, which has no
-    // delivery leg to measure.
+
+
+
     deliveryDistanceKm: row.delivery_distance_km == null ? null : Number(row.delivery_distance_km),
     deliveryDurationMinutes: row.delivery_duration_minutes == null ? null : Number(row.delivery_duration_minutes),
     deliveryFeeTier: row.delivery_fee_tier || null,
@@ -108,14 +126,14 @@ export function serializeOrder(row) {
     message: row.message || '',
     paymentMethod: row.payment_method,
     paymentStatus: row.payment_status,
-    // Only ever set by the demo GCash payment module (backend/src/controllers/
-    // payments.controller.js) once a payment actually completes — null for a pending or
-    // COD order.
+
+
+
     transactionId: row.transaction_id || null,
     paidAt: row.paid_at || null,
     paymentReceiptUrl: row.payment_receipt_url || null,
-    // Payment verification — see backend/src/controllers/payments.controller.js.
-    // paymentVerificationStatus is null until the buyer submits proof of payment.
+
+
     paymentReferenceNumber: row.payment_reference_number || null,
     paymentSenderName: row.payment_sender_name || null,
     paymentSubmittedAt: row.payment_submitted_at || null,
@@ -153,8 +171,8 @@ export function serializeDelivery(row) {
     trackingUrl: row.tracking_url,
     estimatedArrival: row.estimated_arrival,
     deliveryStatus: row.delivery_status,
-    // Populated once createLalamoveDeliveryForOrder (orders.controller.js) books through the
-    // real Lalamove API — null for an order still on the manual-entry fallback path.
+
+
     lalamoveOrderId: row.lalamove_order_id || null,
     lalamoveQuotationId: row.lalamove_quotation_id || null,
     lalamoveStatus: row.lalamove_status || null,

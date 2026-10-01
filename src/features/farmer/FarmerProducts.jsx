@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, SearchX } from 'lucide-react';
+import { Archive, ArchiveRestore, Copy, Eye, Gift, Plus, SearchX, Trash2 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EditSquareIcon from '../../components/icons/EditSquareIcon';
@@ -9,6 +9,7 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import SellerProductCard from '../../components/cards/SellerProductCard';
 import SummaryCards from '../../components/products/SummaryCards';
+import ActionMenu from '../../components/products/ActionMenu';
 import ProductFilters from '../../components/products/ProductFilters';
 import ProductTable, { ProductTableSkeleton } from '../../components/products/ProductTable';
 import ProductDrawer from '../../components/products/ProductDrawer';
@@ -34,8 +35,8 @@ const STATUS_TABS = [
   { value: 'out-of-stock', label: 'Out of Stock' },
 ];
 
-// Fields a fresh duplicate should start clean with — never carries over another listing's
-// lifecycle state (its own id/status/discount/DTI price review/timestamps).
+
+
 function buildDuplicatePayload(product) {
   return {
     name: product.name,
@@ -54,10 +55,10 @@ function buildDuplicatePayload(product) {
     expirationDate: product.expirationDate || '',
     status: 'active',
     isDonation: false,
-    // Opts out of the backend's restock merge (see createProduct in
-    // products.controller.js) — this payload matches an existing listing on every merge-key
-    // field by definition, so without this "Duplicate" would just fold back into the
-    // original and appear to do nothing.
+
+
+
+
     allowDuplicate: true,
   };
 }
@@ -151,8 +152,8 @@ export default function FarmerProducts() {
         showToast({ type: 'success', message: 'Product updated successfully.' });
         closeDrawer();
       } else if (values.isDonation) {
-        // allowDuplicate: a donation posts price 0 — folding it into an existing listing for
-        // the same crop would silently reprice that listing to free (see createProduct).
+
+
         const created = await createProduct({
           ...values, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
         });
@@ -167,10 +168,10 @@ export default function FarmerProducts() {
             ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing.`
             : 'Product added successfully.',
         });
-        // Keep the drawer open, now switched into edit mode for the product that was just
-        // created (ProductForm's Discount section only ever renders once a product exists),
-        // so a farmer can apply a discount right away instead of closing the drawer and
-        // having to find and reopen this same listing from the list to do it.
+
+
+
+
         setEditingProduct(created);
       }
       reload();
@@ -345,9 +346,30 @@ export default function FarmerProducts() {
                   key={product.id}
                   product={product}
                   actions={(
-                    <Button size="sm" variant="secondary" className="btn-icon-only" onClick={() => openEditDrawer(product)} aria-label="Edit product" title="Edit product">
-                      <EditSquareIcon size={20} />
-                    </Button>
+                    <>
+                      <Button size="sm" variant="secondary" className="btn-icon-only" onClick={() => openEditDrawer(product)} aria-label="Edit product" title="Edit product">
+                        <EditSquareIcon size={20} />
+                      </Button>
+                      <ActionMenu
+                        items={[
+                          { label: 'View', icon: Eye, onClick: () => navigate(`/products/${product.id}`) },
+                          { label: 'Duplicate', icon: Copy, onClick: () => handleDuplicate(product) },
+                          {
+                            label: 'Donate remaining stock',
+                            icon: Gift,
+                            onClick: () => handleDonate(product),
+                            hidden: Number(product.quantity) <= 0,
+                          },
+                          {
+                            label: product.status === 'active' ? 'Deactivate Listing' : 'Reactivate Listing',
+                            icon: product.status === 'active' ? Archive : ArchiveRestore,
+                            onClick: () => setArchiveTarget(product),
+                            dividerBefore: true,
+                          },
+                          { label: 'Delete Product', icon: Trash2, onClick: () => setDeleteTarget(product), danger: true },
+                        ]}
+                      />
+                    </>
                   )}
                 />
               ))}

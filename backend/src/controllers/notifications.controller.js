@@ -2,9 +2,9 @@ import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeNotification } from '../lib/serialize.js';
 import { ApiError } from '../lib/ApiError.js';
 
-// Always scoped to the authenticated caller — there's no public POST route,
-// notifications are only ever created as a side effect of other controllers
-// (see lib/notify.js), never invoked directly from a client request.
+
+
+
 export async function listMyNotifications(req, res) {
   const { data, error } = await supabaseAdmin
     .from('notifications')

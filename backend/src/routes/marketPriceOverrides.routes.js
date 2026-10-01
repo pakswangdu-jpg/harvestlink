@@ -7,8 +7,8 @@ import {
 
 const router = Router();
 
-// Any signed-in role can read (every role's PSA price lookup needs to see current
-// overrides) — only admin can write.
+
+
 router.get('/', requireAuth, listOverrides);
 router.get('/:commodityId/history', requireAuth, getOverrideHistory);
 router.patch('/:commodityId', requireAuth, requireRole('admin'), setOverride);

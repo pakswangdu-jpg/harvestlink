@@ -51,8 +51,8 @@ export default function ProductDetails() {
 
   const handleOrder = async (values) => {
     const order = await createOrder({ ...values, productId: product.id });
-    // The order now exists independently of the cart — leaving a checked-out item sitting in
-    // the cart would let a buyer "re-order" it by mistake straight from the cart page.
+
+
     removeItem(product.id);
     navigate(order.paymentMethod === 'gcash'
       ? `/orders/${order.id}/pay/gcash`

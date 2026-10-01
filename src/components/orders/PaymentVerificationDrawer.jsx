@@ -7,26 +7,26 @@ import PaymentMethodLabel from '../common/PaymentMethodLabel';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency, formatDate, shortOrderId } from '../../utils/formatters';
 
-// A receipt is uploaded as JPG/PNG *or PDF* (see ConfirmGcashPaymentPage's dropzone, which
-// accepts all four) — a PDF can never render inside an <img>, which is what made a perfectly
-// valid PDF receipt show as "Unable to load this receipt." Those get a file affordance
-// instead. The "Open original" link below is offered for every receipt regardless of type, so
-// a farmer is never left unable to see the proof of payment they're being asked to approve —
-// including when the image itself fails for some other reason (an expired or blocked URL).
+
+
+
+
+
+
 function isPdfReceipt(url) {
   return /\.pdf(?:[?#].*)?$/i.test(String(url || ''));
 }
 
-// Split out from the drawer shell purely so the parent can give it key={order.id}: remounting
-// on a different order resets the reject-in-progress state for free, instead of an effect
-// synchronising it (which would half-carry one buyer's typed reason onto another's payment).
+
+
+
 function PaymentVerificationContent({ order, onClose, onApprove, onReject }) {
   const [isRejecting, setIsRejecting] = useState(false);
   const [reason, setReason] = useState('');
   const isPdf = isPdfReceipt(order.paymentReceiptUrl);
-  // Only a payment the buyer has actually submitted and that is still waiting on this farmer
-  // can be approved or rejected. Everything else (COD, an already-settled GCash payment, one
-  // the farmer already rejected) opens the same drawer as a read-only payment record.
+
+
+
   const isAwaitingDecision = order.paymentVerificationStatus === 'pending';
 
   return (
@@ -58,9 +58,9 @@ function PaymentVerificationContent({ order, onClose, onApprove, onReject }) {
           <div>
             <p className="payment-verification-drawer-label">Receipt</p>
             {!order.paymentReceiptUrl ? (
-              /* COD orders never produce one, and a GCash order only has a receipt once the
-                 buyer has submitted proof — an <img> pointed at nothing would render as a
-                 broken/failed receipt and read like an error that isn't one. */
+
+
+
               <div className="payment-verification-pdf">
                 <FileText size={28} aria-hidden="true" />
                 <strong>No receipt</strong>
@@ -170,9 +170,9 @@ function PaymentVerificationContent({ order, onClose, onApprove, onReject }) {
   );
 }
 
-// Right-side slide-over, deliberately reusing .product-drawer-* (ProductDrawer.jsx's chrome)
-// rather than restyling a second drawer from scratch — the farmer gets the same open/close
-// behaviour and proportions here as the Add Product drawer they already know.
+
+
+
 export default function PaymentVerificationDrawer({ order, onClose, onApprove, onReject }) {
   useEffect(() => {
     if (!order) return undefined;

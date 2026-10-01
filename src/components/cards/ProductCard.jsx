@@ -10,23 +10,23 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 
-// Stricter than the farmer-facing LOW_STOCK_THRESHOLD (10 units — "you should restock soon,"
-// see utils/constants.js's isLowStock) — a buyer scanning the marketplace only needs a
-// warning when a listing is genuinely about to sell out, not on every item that happens to
-// be below a farmer's own restock threshold. That aggressive over-warning was one of the
-// specific problems with the old card.
+
+
+
+
+
 const CRITICAL_STOCK_THRESHOLD = 5;
 
-// Non-permanent — reverts on its own so "Add to Cart" stays clickable for adding more,
-// matching how the cart badge itself just keeps incrementing rather than the button locking.
+
+
 const ADDED_FEEDBACK_MS = 1500;
 
-// The marketplace's product listing card — used in the buyer marketplace grid, the buyer
-// dashboard's "fresh listings" strip, and (via a caller-supplied `actions` override) the
-// public signed-out farmer profile page. "Add to Cart" adds one unit of this listing to the
-// signed-in buyer/stakeholder's cart (see contexts/CartContext.jsx) without leaving this
-// page — "View Details" remains the way to open the full checkout form for a specific
-// quantity/delivery method.
+
+
+
+
+
+
 export default function ProductCard({ product, actions, showStatus = false, className = '' }) {
   const { currentUser } = useAuth();
   const { addItem, removeItem, isInCart } = useCart();
@@ -39,9 +39,9 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  // Once this listing is already in the cart — including after coming back from the cart
-  // page's "Continue shopping" link — the button switches to a Cancel action instead of
-  // silently staying "Add to Cart" with no way to tell it's already there.
+
+
+
   const inCart = isInCart(product.id);
 
   const handleAddToCart = () => {
@@ -66,9 +66,9 @@ export default function ProductCard({ product, actions, showStatus = false, clas
 
   return (
     <article className={`group product-card flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)] ${className}`.trim()}>
-      {/* Fixed px height per breakpoint (not aspect-ratio) so every card's image band is
-          identical regardless of the uploaded photo's own dimensions or the card's own width —
-          object-cover then crops any portrait/landscape/panoramic source to fill it. */}
+      {
+
+                                                                                        }
       <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-[var(--green-50)] sm:h-[220px] lg:h-[240px]">
         {product.image && !imageFailed ? (
           <>
@@ -130,8 +130,8 @@ export default function ProductCard({ product, actions, showStatus = false, clas
             ) : null}
           </div>
 
-          {/* One clean status line instead of a scatter of separate badges — Fresh is the
-              baseline signal for any active listing, Verified/Grade only add on when real. */}
+          {
+                                                                                              }
           <div className="product-card-trust flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)]">
             <span className="flex items-center gap-1 text-[var(--green-700)]">
               <Leaf size={13} className="shrink-0" /> Fresh

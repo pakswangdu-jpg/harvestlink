@@ -10,11 +10,11 @@ import { formatDate, getInitials, shortOrderId } from '../../utils/formatters';
 
 const RECENT_REVIEWS_LIMIT = 3;
 
-// A "Ratings & reviews" panel embedded directly on FarmerDashboard.jsx — this is the only
-// place a farmer's rating history is shown (deliberately not its own page/nav item). Shows
-// a score+breakdown summary plus the most recent reviews, the same "recent N, not the full
-// list" treatment the dashboard's Products/Orders panels already use. "Add a product"/"View
-// marketplace" live in this panel's own footer rather than floating below it on the dashboard.
+
+
+
+
+
 export default function FarmerReviewsPanel({ farmerId }) {
   const navigate = useNavigate();
   const [ratings, setRatings] = useState([]);
@@ -27,9 +27,9 @@ export default function FarmerReviewsPanel({ farmerId }) {
       .then(async (result) => {
         if (cancelled) return;
         setRatings(result);
-        // Ratings only carry raterId/raterRole, not a snapshotted name (see
-        // backend/src/lib/serialize.js's serializeRating) — resolved once per unique rater
-        // rather than once per rating.
+
+
+
         const uniqueRaterIds = [...new Set(result.map((rating) => rating.raterId))];
         const raters = await Promise.all(uniqueRaterIds.map((id) => getUserById(id).catch(() => null)));
         if (cancelled) return;

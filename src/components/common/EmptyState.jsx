@@ -1,8 +1,8 @@
 import { Inbox } from 'lucide-react';
 import Button from './Button';
 
-// `iconSrc` (an image path) is opt-in and wins over `icon` when both are given — every
-// existing caller keeps rendering its lucide icon unchanged.
+
+
 export default function EmptyState({
   title, message, actionLabel, onAction, icon: Icon = Inbox, iconSrc, compact = false, className = '',
 }) {

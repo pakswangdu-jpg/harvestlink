@@ -1,12 +1,12 @@
 import { Check, X } from 'lucide-react';
 import { getDeliverySequence } from '../../services/orderService';
 
-// A GCash-specific companion to OrderTracker.jsx — that component tracks delivery steps
-// only; this one adds the two payment-verification steps in front of them (see
-// payments.controller.js's submitPaymentProof/approvePaymentVerification/
-// rejectPaymentVerification), so a buyer can see "did my payment go through" and "is my
-// order moving" as one continuous timeline. Reuses OrderTracker's .tracker/.tracker-step
-// classes for a consistent look.
+
+
+
+
+
+
 export default function PaymentProgressTracker({ order }) {
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const sequence = getDeliverySequence(order.deliveryMethod);

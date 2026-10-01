@@ -8,9 +8,9 @@ import { formatCurrency } from '../../../utils/formatters';
 
 const MAX_OVERRIDE_PRICE = 999999;
 
-// nonce forces a fresh mount (and therefore fresh form state) every time the parent opens
-// this for a new bulk action — same remount-via-key pattern as OverrideModal, needed here
-// because "reopen with the same selection" has no other value that naturally changes.
+
+
+
 function BulkUpdateForm({ rows, onClose, onConfirm }) {
   const [mode, setMode] = useState('fixed');
   const [value, setValue] = useState('');

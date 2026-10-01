@@ -45,11 +45,11 @@ export default function MarketInsights() {
     };
   }, [commodityId]);
 
-  // 'nearest' only scrolls the crop list if the selected row genuinely isn't visible — a
-  // direct click (the only way commodityId ever changes today) already has its target on
-  // screen, so this is a no-op then and the list's own scroll position is left exactly where
-  // the user had it, while still covering any future non-click path that selects a crop
-  // that's currently scrolled out of view.
+
+
+
+
+
   const selectedCropRowRef = useRef(null);
   useEffect(() => {
     selectedCropRowRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });

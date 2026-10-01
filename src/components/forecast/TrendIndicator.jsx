@@ -6,8 +6,8 @@ const TREND_STYLES = {
   decreasing: { icon: TrendingDown, bg: 'bg-[var(--red-100)]', text: 'text-[var(--red-700)]', label: 'Decreasing' },
 };
 
-// Green = increasing, Yellow = stable, Red = decreasing — the one color rule this whole
-// module keeps consistent everywhere a trend is shown (this pill, the chart, the summary).
+
+
 export default function TrendIndicator({ trend }) {
   const style = TREND_STYLES[trend] || TREND_STYLES.stable;
   const Icon = style.icon;

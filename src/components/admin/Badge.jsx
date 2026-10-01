@@ -1,13 +1,13 @@
-// Small, flat, muted-color badge — light tint of the tone color as background, the tone
-// color itself as text (same convention GitHub's own labels use). Never used decoratively —
-// only for a field that's genuinely a status.
+
+
+
 const TONE_CLASSES = {
   neutral: 'bg-[var(--soft)] text-[var(--muted)]',
   success: 'bg-[var(--green-100)] text-[var(--green-800)]',
   danger: 'bg-[var(--red-100)] text-[var(--red-700)]',
   warning: 'bg-[var(--amber-100)] text-[var(--amber-700)]',
-  // Added for Price Monitoring's 6-color status system (Under Review / Overridden /
-  // Underpriced) — additive only, every existing tone/caller above is untouched.
+
+
   orange: 'bg-[var(--orange-100)] text-[var(--orange-700)]',
   info: 'bg-[var(--blue-100)] text-[var(--blue-700)]',
   teal: 'bg-[var(--teal-100)] text-[var(--teal-700)]',

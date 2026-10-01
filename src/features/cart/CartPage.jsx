@@ -10,9 +10,9 @@ import { getProductById } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
-// Kept short — this is a live-ness refresh (catching stock/price changes made elsewhere
-// while the cart is open), not a real-time channel, matching the poll interval other pages
-// in this app already use for the same purpose (Marketplace, NotificationBell).
+
+
+
 const REFRESH_INTERVAL_MS = 5000;
 
 export default function CartPage() {
@@ -21,9 +21,9 @@ export default function CartPage() {
   const navigate = useNavigate();
   const navItems = getNavItemsForRole(currentUser.role);
   const [productsById, setProductsById] = useState({});
-  // Derived, not its own state: "loading" just means "haven't fetched every item currently
-  // in the cart yet" — recomputing it from productsById/items avoids a second piece of state
-  // that could drift out of sync with the fetch below.
+
+
+
   const loading = items.length > 0 && !items.every((item) => item.productId in productsById);
 
   useEffect(() => {
@@ -47,9 +47,9 @@ export default function CartPage() {
     };
   }, [items]);
 
-  // A listing's stock can drop below what's already in the cart (another buyer bought it,
-  // or the farmer adjusted it) — this clamps the cart down to whatever's actually available
-  // instead of letting the buyer "check out" a quantity that no longer exists.
+
+
+
   useEffect(() => {
     items.forEach((item) => {
       const product = productsById[item.productId];

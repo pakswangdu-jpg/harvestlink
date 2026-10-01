@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ImageOff, X, ZoomIn } from 'lucide-react';
 
-// Mounted fresh (via the key below) whenever `src` changes, so its lazy useState initializer
-// picks up the new image's load state with no effect needed to reset it.
+
+
 function ZoomableImageInner({
   src, alt, className, fallbackMessage,
 }) {
   const [isZoomed, setIsZoomed] = useState(false);
-  // 'loading' | 'loaded' | 'error' — starts 'error' immediately for a missing src rather
-  // than waiting on an <img> load attempt that was never going to succeed.
+
+
   const [status, setStatus] = useState(() => (src ? 'loading' : 'error'));
 
   useEffect(() => {
@@ -60,12 +60,12 @@ function ZoomableImageInner({
   );
 }
 
-// A plain, always-resolvable image (a public URL — unlike FilePreviewCard's private-bucket
-// signed-URL case) that opens into the same full-screen lightbox on click, reusing its exact
-// classes — lets an image only ever shown in a small fixed preview box (e.g. a GCash QR
-// code) actually be viewed/read/scanned at full size. Also verifies the image actually loads
-// before treating it as showable — a broken `src` renders `fallbackMessage` instead of the
-// browser's own broken-image icon, and is never clickable/zoomable.
+
+
+
+
+
+
 export default function ZoomableImage({ src, alt, className = '', fallbackMessage = 'Unable to load this image.' }) {
   return (
     <ZoomableImageInner

@@ -2,8 +2,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { TriangleAlert } from 'lucide-react';
 import Button from './Button';
 
-// Generic yes/no confirmation dialog — used wherever an action needs a "are you sure"
-// checkpoint before something irreversible happens (e.g. deleting a product).
+
+
 export default function ConfirmDialog({
   open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel,
 }) {

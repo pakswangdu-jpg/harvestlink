@@ -1,5 +1,5 @@
-// Wraps destructive-only actions in a visually distinct, lightly-tinted red container so
-// they never sit next to informational status badges or routine actions.
+
+
 export default function DangerZone({ children }) {
   return (
     <div className="rounded-lg border border-red-100 bg-red-50/40 p-5">

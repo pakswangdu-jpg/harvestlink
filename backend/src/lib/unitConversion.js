@@ -1,9 +1,9 @@
-// Server-side twin of src/utils/unitConversion.js — duplicated (not imported across the
-// frontend/backend boundary) because Render only builds and deploys the backend/ directory in
-// isolation (see render.yaml's rootDir), so backend code must be fully self-contained. Keep
-// this in sync with the frontend copy if either changes. See that file's own comment for the
-// full reasoning behind which units are fixed vs. always asked, and why both the abbreviated
-// and full-name spellings are covered for gram/kilogram/ton/mL/liter.
+
+
+
+
+
+
 export const FIXED_KG_PER_UNIT = {
   g: 0.001,
   gram: 0.001,

@@ -10,9 +10,9 @@ import logo from '../../assets/logo.png';
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
-  // 'checking' until we know whether the recovery link actually established a session —
-  // Supabase's client parses the link's token from the URL asynchronously on page load, so
-  // this can't be known synchronously on first render.
+
+
+
   const [sessionState, setSessionState] = useState('checking');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,8 +24,8 @@ export default function ResetPasswordPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!cancelled) setSessionState(session ? 'ready' : 'invalid');
     });
-    // Covers the case where the session isn't parsed from the URL until just after this
-    // effect's initial getSession() call resolves.
+
+
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if (event === 'PASSWORD_RECOVERY' || session) setSessionState('ready');
@@ -56,9 +56,9 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // The recovery link's session is now a normal authenticated session for this account —
-    // hydrate it into AuthContext and send them straight to their dashboard instead of
-    // making them log in again with the password they just set.
+
+
+
     await refreshUser();
     navigate('/login', { replace: true });
   };

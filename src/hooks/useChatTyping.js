@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getSocket } from '../lib/socketClient';
 
-// How long after the last keystroke we tell the other side we've stopped — not on every
-// keyup, so this doesn't flood the socket while someone's mid-sentence.
+
+
 const STOP_TYPING_DELAY_MS = 2000;
-// Safety auto-clear if a stop-typing event is ever dropped (tab closed mid-type, etc.) —
-// without this, "X is typing…" could get stuck on indefinitely.
+
+
 const REMOTE_TYPING_TIMEOUT_MS = 4000;
 
-// Real-time typing indicator for one open conversation (see backend/src/realtime/
-// chatPresence.js) — purely additive alongside the existing REST send/poll flow.
+
+
 export function useChatTyping(otherUserId) {
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const stopTimerRef = useRef(null);

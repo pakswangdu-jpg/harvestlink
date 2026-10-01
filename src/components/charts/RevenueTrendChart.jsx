@@ -23,9 +23,9 @@ function ChartTooltip({ active, payload, label, seriesLabel = 'paid order income
   );
 }
 
-// Plain line chart — no gradient fill, no spring-animated callouts. Same real
-// monthlyRevenue data as before (see getMonthlyRevenue in reportService.js), just presented
-// the way an internal ops dashboard would rather than a marketing chart.
+
+
+
 export default function RevenueTrendChart({ points, compact = false, seriesLabel = 'paid order income' }) {
   const gradientId = `revenue-area-${useId().replace(/:/g, '')}`;
   const chartHeight = compact ? 132 : CHART_HEIGHT;

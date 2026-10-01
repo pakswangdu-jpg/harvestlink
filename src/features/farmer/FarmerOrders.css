@@ -136,3 +136,60 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+@media (max-width: 860px) {
+  .farmer-orders-page .farmer-orders-workspace .filter-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .farmer-orders-page .farmer-orders-workspace .filter-tab {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 44px;
+    height: auto;
+    white-space: normal;
+  }
+
+  .farmer-orders-page .order-toolbar-search,
+  .farmer-orders-page .order-toolbar-select,
+  .farmer-orders-page .order-toolbar-reset,
+  .farmer-orders-page .farmer-order-action {
+    min-height: 44px;
+  }
+
+  .farmer-orders-page .order-toolbar-search {
+    min-width: 0;
+    max-width: 100%;
+    flex-basis: 100%;
+  }
+
+  .farmer-orders-page .order-toolbar-search input {
+    min-width: 0;
+  }
+
+  .farmer-orders-page .order-toolbar-filters {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .farmer-orders-page .order-toolbar-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .farmer-orders-page .order-mobile-card-top {
+    flex-wrap: wrap;
+  }
+
+  .farmer-orders-page .order-mobile-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .farmer-orders-page .order-mobile-card {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}

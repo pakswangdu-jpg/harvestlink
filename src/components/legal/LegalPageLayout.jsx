@@ -4,30 +4,30 @@ import { ArrowLeft } from 'lucide-react';
 import BrandWordmark from '../common/BrandWordmark';
 import logo from '../../assets/logo.png';
 
-// Shared chrome for the Privacy Policy and Terms of Service pages — sticky branded header,
-// a scrollspy table of contents, and the numbered-section content area. Both legal pages are
-// pure content (see PrivacyPolicy.jsx / TermsOfService.jsx); everything structural lives
-// here once instead of being duplicated across the two.
-//
-// `sections`: [{ id, title, content: ReactNode }] — content is raw JSX (headings inside it
-// use h3, since this layout renders each entry's own h2). `intro` is optional JSX rendered
-// between the title block and the first section (a short "what this document covers" lede).
+
+
+
+
+
+
+
+
 export default function LegalPageLayout({ title, lastUpdated, intro, sections }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeId, setActiveId] = useState(sections[0]?.id);
 
-  // Terms of Service / Privacy Policy can be opened from mid-flow (registration, checkout).
-  // AuthPage.jsx links here same-tab on purpose (a target="_blank" tab doesn't inherit this
-  // origin's sessionStorage without an opener relationship, which would silently disconnect
-  // it from the registration draft saved there — see AuthPage.jsx's own comment on those
-  // links). Browser history is still an unreliable "back" signal on its own even same-tab
-  // (e.g. arriving via a hard navigation), so this always prefers an explicit destination.
-  //
-  // The reliable fix: whoever links here says explicitly where "back" means, via
-  // ?returnTo=/register (see AuthPage.jsx) — this always wins once present. Only a visitor
-  // who reached this page some other way (no returnTo at all — a bookmark, the footer, a
-  // shared link) falls through to real browser history, and only failing that, home.
+
+
+
+
+
+
+
+
+
+
+
   const returnTo = searchParams.get('returnTo');
   const handleBack = () => {
     if (returnTo && returnTo.startsWith('/')) navigate(returnTo);
@@ -50,10 +50,10 @@ export default function LegalPageLayout({ title, lastUpdated, intro, sections })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Scrolls manually (rather than relying on the browser's default anchor jump) so the
-  // sticky header's height is accounted for via scroll-margin-top on each <section>, and so
-  // the URL hash updates without a hard jump for keyboard/reduced-motion users who still
-  // benefit from a focus target.
+
+
+
+
   const handleTocClick = (event, id) => {
     event.preventDefault();
     const target = document.getElementById(id);

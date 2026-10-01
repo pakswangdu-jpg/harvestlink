@@ -8,16 +8,16 @@ function duplicateOr(error, message) {
   return new ApiError(error.code === DUPLICATE_ERROR_CODE ? message : error.message, 400);
 }
 
-// GET /api/catalog?includeInactive=true — the single source of truth for the whole app's
-// Category/Unit taxonomy (see supabase/schema.sql). Any signed-in role can read it; only an
-// admin requesting includeInactive sees deactivated rows, since those exist purely for the
-// admin management screen to restore later.
+
+
+
+
 export async function getCatalogHandler(req, res) {
   const includeInactive = req.profile.role === 'admin' && req.query.includeInactive === 'true';
   res.json(await getCatalog({ includeInactive }));
 }
 
-// ---- Categories -------------------------------------------------------------------------
+
 
 export async function createCategory(req, res) {
   const name = String(req.body.name || '').trim();
@@ -48,8 +48,8 @@ export async function updateCategory(req, res) {
   res.json({ id: data.id, name: data.name, sortOrder: data.sort_order, isActive: data.is_active });
 }
 
-// Hard delete — safe because products.category is plain text, never a foreign key to this
-// table, so removing a category can't orphan or break an existing product listing.
+
+
 export async function deleteCategory(req, res) {
   const { error } = await supabaseAdmin.from('categories').delete().eq('id', req.params.categoryId);
   if (error) throw new ApiError(error.message, 400);
@@ -58,7 +58,7 @@ export async function deleteCategory(req, res) {
   res.status(204).end();
 }
 
-// ---- Units (master list) -------------------------------------------------------------------
+
 
 export async function createUnit(req, res) {
   const name = String(req.body.name || '').trim();
@@ -85,7 +85,7 @@ export async function updateUnit(req, res) {
   res.json({ id: data.id, name: data.name, abbreviation: data.abbreviation, value: unitStorageValue(data) });
 }
 
-// Safe the same way deleteCategory is — products.unit is plain text, never a foreign key.
+
 export async function deleteUnit(req, res) {
   const { error } = await supabaseAdmin.from('units').delete().eq('id', req.params.unitId);
   if (error) throw new ApiError(error.message, 400);

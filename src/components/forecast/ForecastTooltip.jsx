@@ -11,10 +11,10 @@ function formatVolume(value) {
   return Number(value).toLocaleString('en-PH', { maximumFractionDigits: 2 });
 }
 
-// Shared tooltip content for both ForecastChart (price) and DemandChart (demand). `data` is
-// the full merged historical+forecast series (see buildMergedSeries in each chart) so the
-// hovered point's diff/percent-change can be computed against whichever real point actually
-// came right before it, not an assumption. `mode` picks the value field/unit/formatter.
+
+
+
+
 export default function ForecastTooltip({
   active, payload, data, mode = 'price', unit, todayIso,
 }) {

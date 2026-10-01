@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 
-// Secure helper for encrypting pending registration secrets.
-// Behavior:
-// - In production, `PENDING_REGISTRATION_SECRET` must be provided and be exactly 32 bytes.
-// - In development (non-production), if the env var is missing or not 32 bytes, a
-//   non-persistent fallback key is derived so the server can run locally without secrets.
+
+
+
+
+
 
 const { PENDING_REGISTRATION_SECRET } = process.env;
 const isProd = process.env.NODE_ENV === 'production';
@@ -14,8 +14,8 @@ if (!PENDING_REGISTRATION_SECRET) {
   if (isProd) {
     throw new Error('PENDING_REGISTRATION_SECRET must be set in the backend environment.');
   }
-  // Development fallback: generate a random key per-process so developers can run locally
-  // without setting env vars. This key is ephemeral and not suitable for production.
+
+
   console.warn('PENDING_REGISTRATION_SECRET not set — generating temporary in-memory key for development.');
   keyBuffer = crypto.randomBytes(32);
 } else {
@@ -25,7 +25,7 @@ if (!PENDING_REGISTRATION_SECRET) {
   } else if (isProd) {
     throw new Error('PENDING_REGISTRATION_SECRET must be exactly 32 bytes long.');
   } else {
-    // In dev, derive a stable 32-byte key from the provided string via SHA-256.
+
     console.warn('PENDING_REGISTRATION_SECRET is not 32 bytes — deriving 32-byte key with SHA-256 (development only).');
     keyBuffer = crypto.createHash('sha256').update(PENDING_REGISTRATION_SECRET).digest();
   }

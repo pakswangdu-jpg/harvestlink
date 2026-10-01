@@ -1,8 +1,19 @@
 import { supabase } from '../lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL;
-// Render's free service can take about a minute to start before processing a request.
+
 const REQUEST_TIMEOUT_MS = 90000;
+const GET_CACHE_TTL_MS = 10000;
+const LIVE_GET_CACHE_TTL_MS = 1500;
+const GET_CACHE_LIMIT = 100;
+const getCache = new Map();
+let cacheGeneration = 0;
+
+function getCacheTtl(path) {
+  return ['/deliveries', '/messages', '/notifications', '/orders', '/profiles?role=', '/profiles/nearby-map'].some((prefix) => path.startsWith(prefix))
+    ? LIVE_GET_CACHE_TTL_MS
+    : GET_CACHE_TTL_MS;
+}
 
 if (!API_URL) {
   throw new Error('VITE_API_URL must be set — see .env.example.');
@@ -11,6 +22,20 @@ if (!API_URL) {
 async function request(path, { method = 'GET', body } = {}) {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
+  const isGet = method === 'GET';
+  const cacheKey = `${session?.user?.id || 'anonymous'}:${path}`;
+  const cached = isGet ? getCache.get(cacheKey) : null;
+  if (cached && (cached.expiresAt > Date.now() || globalThis.document?.visibilityState === 'hidden')) {
+    return cached.value;
+  }
+  if (cached) getCache.delete(cacheKey);
+
+  if (!isGet) {
+    cacheGeneration += 1;
+    getCache.clear();
+  }
+
+  const requestGeneration = cacheGeneration;
   const headers = { 'Content-Type': 'application/json' };
   if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
   const controller = new AbortController();
@@ -27,9 +52,9 @@ async function request(path, { method = 'GET', body } = {}) {
       signal: controller.signal,
     });
 
-    // 204 No Content has no body to parse.
+
     const payload = response.status === 204 ? null : await response.json().catch((error) => {
-      // A proxy may return an HTML error page; preserve its HTTP status below.
+
       if (!response.ok && error instanceof SyntaxError) return null;
       throw error;
     });
@@ -38,9 +63,13 @@ async function request(path, { method = 'GET', body } = {}) {
       error.status = response.status;
       throw error;
     }
+    if (isGet && requestGeneration === cacheGeneration) {
+      if (getCache.size >= GET_CACHE_LIMIT) getCache.delete(getCache.keys().next().value);
+      getCache.set(cacheKey, { value: payload, expiresAt: Date.now() + getCacheTtl(path) });
+    }
     return payload;
   } catch (error) {
-    // Body reads can report AbortError even when our timer supplied a TimeoutError.
+
     if (error.name === 'AbortError' && controller.signal.aborted) throw controller.signal.reason;
     throw error;
   } finally {
@@ -48,9 +77,9 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 }
 
-// Matches the `try { ... } catch (error) { setErrors({ form: error.message }) }` pattern
-// already used throughout the app's components, so consuming code needs no changes to how
-// it handles failures — only to await the now-async call.
+
+
+
 export const apiClient = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body }),

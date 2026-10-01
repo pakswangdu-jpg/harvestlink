@@ -1,10 +1,10 @@
 import { apiClient } from './apiClient';
 
-// The Category/Unit catalog is admin-editable data in Supabase (see
-// backend/src/controllers/catalog.controller.js and supabase/schema.sql) — this is the only
-// place in the frontend that talks to that endpoint. Everything else (ProductForm,
-// Marketplace, FarmerProducts, FarmerDemandForecast) reads it through
-// src/contexts/CatalogContext.jsx's useCatalog() hook instead of calling this directly.
+
+
+
+
+
 export function getCatalog({ includeInactive = false } = {}) {
   return apiClient.get(`/catalog${includeInactive ? '?includeInactive=true' : ''}`);
 }

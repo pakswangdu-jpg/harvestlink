@@ -5,26 +5,26 @@ import { updateDeliveryStatus } from '../../services/deliveryService';
 import { courierDeliveryStatusLabel } from '../../utils/formatters';
 import Button from '../common/Button';
 
-// The delivery's own timeline, once booked — separate from order.deliveryStatus (which only
-// ever advances via the buyer's own "Got it" confirmation, see orderService.js). Two paths
-// populate this now: the real Lalamove webhook (delivery.lalamoveOrderId set — see
-// backend/src/controllers/webhooks/lalamoveWebhook.controller.js) reports
-// assigning_driver/driver_assigned/picked_up/delivered automatically; an order still on the
-// older manual-entry fallback (no lalamoveOrderId — the farmer booked outside HarvestLink and
-// typed the details in, see deliveries.controller.js's updateDeliveryStatus) has the farmer
-// report waiting_for_pickup/picked_up/delivered by hand instead. Each order only ever takes
-// one path, so only that path's steps are shown — never a merged list with steps that path
-// can't actually reach.
+
+
+
+
+
+
+
+
+
+
 const LALAMOVE_NARRATION_SEQUENCE = ['booked', 'assigning_driver', 'driver_assigned', 'picked_up', 'delivered'];
 const MANUAL_NARRATION_SEQUENCE = ['booked', 'waiting_for_pickup', 'picked_up', 'delivered'];
 
-// The courier (Lalamove) order's own timeline — a different step SET than the generic
-// OrderTracker (which just walks DELIVERY_SEQUENCES literally: Preparing/Packed/Out for
-// delivery/Delivered), since this one calls out the payment-verification, courier-booking,
-// and (once booked) the farmer's own hand-reported pickup/delivery progress. Shown instead of
-// OrderTracker for deliveryMethod === 'courier' orders (see OrderTracking.jsx), reusing the
-// same .tracker/.tracker-step styling as OrderTracker/PaymentProgressTracker for a consistent
-// look rather than introducing a third visual language.
+
+
+
+
+
+
+
 export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onDeliveryUpdate }) {
   const [isAdvancing, setIsAdvancing] = useState(false);
   const [advanceError, setAdvanceError] = useState('');
@@ -34,18 +34,18 @@ export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onD
   const isOrderActive = order.status === 'confirmed' || order.status === 'completed';
   const isRejectedOrCancelled = order.status === 'rejected' || order.status === 'cancelled';
 
-  // COD has no separate verification step (it's collected on delivery, never "verified" in
-  // advance — see payments.controller.js) — so it counts as done the moment the order itself
-  // is confirmed. GCash only counts once the farmer has actually approved the buyer's
-  // submitted payment proof.
+
+
+
+
   const isPaymentVerified = order.paymentMethod === 'cod' ? isOrderActive : order.paymentStatus === 'paid';
   const isPreparingOrLater = isOrderActive && stepIndex >= sequence.indexOf('preparing');
   const isBooked = Boolean(delivery);
   const isCompleted = order.status === 'completed';
 
-  // Real Lalamove booking (delivery.lalamoveOrderId set by createLalamoveDeliveryForOrder /
-  // kept current by the webhook) shows the automatic 5-step path; a delivery still on the
-  // manual-entry fallback shows the original 4-step farmer-narrated one instead.
+
+
+
   const isLalamoveBooked = Boolean(delivery?.lalamoveOrderId);
   const narrationSequence = isLalamoveBooked ? LALAMOVE_NARRATION_SEQUENCE : MANUAL_NARRATION_SEQUENCE;
   const narrationIndex = delivery ? narrationSequence.indexOf(delivery.deliveryStatus) : -1;
@@ -71,14 +71,14 @@ export default function CourierDeliveryTimeline({ order, delivery, isFarmer, onD
     ...narrationSteps,
     { key: 'delivered', label: 'Delivered', done: isDelivered },
   ];
-  // The first not-yet-done step is the "current" one — everything before it is done,
-  // everything after is upcoming; matches how OrderTracker/PaymentProgressTracker compute
-  // 'active' too.
+
+
+
   const activeIndex = steps.findIndex((step) => !step.done);
 
-  // Only offered on the manual-entry fallback path — once a real Lalamove order exists, the
-  // webhook is the sole source of truth for these steps (see handleLalamoveWebhook), and the
-  // buyer frontend/farmer button must not be able to fabricate a status change for it.
+
+
+
   const nextNarrationStatus = !isLalamoveBooked && isBooked && narrationIndex !== -1
     ? narrationSequence[narrationIndex + 1]
     : null;

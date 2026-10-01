@@ -36,9 +36,9 @@ function ReviewQueueBanner({ count, label, to }) {
   );
 }
 
-// A compact label/value pair, smaller than the hero StatCards above — for the two summary
-// widgets (Price Monitoring, Donations) that link out to their own full page rather than
-// trying to be a second copy of it.
+
+
+
 function MiniStat({ label, value, tone }) {
   const TONE_TEXT = {
     green: 'text-[var(--green-700)]',
@@ -104,9 +104,9 @@ export default function AdminOverview() {
   const totalRevenue = orders ? getTotalRevenue(orders) : 0;
   const completedDonations = donations ? donations.filter((donation) => donation.status === 'completed').length : 0;
 
-  // Same real counts the Price Monitoring page itself shows (see AdminPriceMonitoring.jsx) —
-  // computed directly from data this page already fetches, not the expensive per-commodity
-  // PSA-price hook that page uses for its full table.
+
+
+
   const farmerListingsCount = useMemo(
     () => (products ? products.filter((product) => product.status === 'active' && matchCommodity(product.name)).length : 0),
     [products]

@@ -2,10 +2,10 @@ import { MapPin, Package, User } from 'lucide-react';
 import { isLowStock } from '../../utils/constants';
 import { formatCurrency, formatDate, formatQuantity, titleCase } from '../../utils/formatters';
 
-// What am I buying? — the first thing on the checkout page, scannable in one glance instead
-// of a flat label/value table where "Listed" reads with the same weight as "Price". Farmer/
-// location/listed date are deliberately smaller and grouped below the price+stock, which are
-// the two facts that actually drive the quantity decision below this card.
+
+
+
+
 export default function CheckoutProductCard({ product }) {
   const isDiscounted = Boolean(product.discountPercent);
 

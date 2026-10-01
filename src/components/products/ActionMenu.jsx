@@ -2,20 +2,20 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { EllipsisVertical } from 'lucide-react';
 
-const MENU_WIDTH = 208; // w-52
+const MENU_WIDTH = 208;
 const VIEWPORT_MARGIN = 8;
 
-// `items` is an ordered list of { label, icon, onClick, danger, dividerBefore, hidden }.
-//
-// Rendered through a portal into document.body, positioned with `fixed` coordinates computed
-// from the trigger button's own bounding rect — not a plain `absolute` child of the button.
-// ProductTable.jsx's rows live inside .table-wrap, which sets overflow-x: auto; per the CSS
-// overflow spec, a container with only one axis set to something other than visible forces
-// the OTHER axis to behave as auto too, so that table was silently clipping this menu
-// vertically as well — a row near the bottom needed the whole table scrolled to see the
-// dropdown. A portal escapes that ancestor entirely. Flips above the button (and clamps
-// horizontally) when there isn't enough room below/right, measured after the menu actually
-// mounts so the flip is based on its real height, not a guess.
+
+
+
+
+
+
+
+
+
+
+
 export default function ActionMenu({ items }) {
   const buttonRef = useRef(null);
   const menuRef = useRef(null);
@@ -26,13 +26,13 @@ export default function ActionMenu({ items }) {
 
   const openMenu = () => {
     const rect = buttonRef.current.getBoundingClientRect();
-    // Provisional — flush against the button, refined once the menu's real height is known.
+
     setPosition({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
     setIsOpen(true);
   };
 
-  // Runs after the menu mounts but before the browser paints, so any flip/clamp below is
-  // invisible to the user — never a visible jump from "below" to "above."
+
+
   useLayoutEffect(() => {
     if (!isOpen || !buttonRef.current || !menuRef.current) return;
     const buttonRect = buttonRef.current.getBoundingClientRect();
@@ -54,9 +54,9 @@ export default function ActionMenu({ items }) {
       if (buttonRef.current?.contains(event.target) || menuRef.current?.contains(event.target)) return;
       setIsOpen(false);
     };
-    // A scroll anywhere (the table's own overflow-x: auto container included) invalidates the
-    // fixed coordinates computed above — closing is simpler and more predictable than
-    // continuously re-tracking the button's position while scrolling.
+
+
+
     const handleScroll = () => setIsOpen(false);
     document.addEventListener('mousedown', handleClickOutside);
     window.addEventListener('scroll', handleScroll, true);

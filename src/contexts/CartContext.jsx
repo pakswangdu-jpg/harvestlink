@@ -2,11 +2,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../features/auth/AuthContext';
 
-// Only productId + quantity are persisted — never a price/farmer/stock snapshot — so the
-// cart can never go stale against a listing that changed after it was added. CartPage.jsx
-// re-fetches the real product for every item on load, the same way ProductDetails.jsx
-// already does for a single product. Nothing here is sensitive, so localStorage (not a
-// server table) is an appropriate, low-risk place for it.
+
+
+
+
+
 function storageKeyFor(userId) {
   return `harvestlink_cart_${userId}`;
 }
@@ -30,11 +30,11 @@ export function CartProvider({ children }) {
   const { currentUser } = useAuth();
   const userId = currentUser?.id || null;
   const [items, setItems] = useState(() => readCart(userId));
-  // Tracks which user's cart `items` currently holds — compared against `userId` on every
-  // render so a login/logout swap reloads the new account's own cart. Adjusting state during
-  // render (React's own documented pattern for "derived state that resets when a prop
-  // changes") instead of an effect, since resetting a whole account's cart is a synchronous
-  // reaction to userId changing, not a side effect that needs to run after paint.
+
+
+
+
+
   const [loadedUserId, setLoadedUserId] = useState(userId);
   if (userId !== loadedUserId) {
     setLoadedUserId(userId);

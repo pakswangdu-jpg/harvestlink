@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { MessageCircle, MessagesSquare } from 'lucide-react';
 
-// Shown inside an open (real, non-empty-inbox) thread that simply has no messages yet —
-// distinct from ConversationList's own "no conversations at all" empty state.
+
+
 export function StartConversationState({ name }) {
   return (
     <div className="messages-empty-state flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
@@ -22,7 +22,7 @@ export function StartConversationState({ name }) {
   );
 }
 
-// Desktop-only: shown in the chat pane when no conversation is selected yet.
+
 export function NoConversationSelectedState() {
   return (
     <div className="messages-empty-state hidden flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:flex">

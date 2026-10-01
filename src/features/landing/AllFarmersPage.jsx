@@ -26,9 +26,9 @@ function sortFarmers(farmers, sort) {
   return sorted.sort((a, b) => b.avgRating - a.avgRating || b.completedOrders - a.completedOrders || b.ratingCount - a.ratingCount);
 }
 
-// Public, no login required — reached via the landing page's "View All Farmers" button.
-// A dedicated, more premium chrome than PublicFarmerProfile.jsx's shared nav — this page
-// gets its own sticky/blurred header rather than reusing the legacy .landing-nav classes.
+
+
+
 export default function AllFarmersPage() {
   const [farmers, setFarmers] = useState(null);
   const [search, setSearch] = useState('');

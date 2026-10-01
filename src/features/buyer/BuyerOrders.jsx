@@ -16,11 +16,11 @@ import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
 import { formatCurrency, formatDate, getInitials, shortOrderId } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
-// A buyer's own read of the order lifecycle — distinct from the farmer's version
-// (FarmerOrders.jsx's getOrderStage), because "delivered but not yet confirmed by the buyer"
-// is a stage the farmer has nothing left to do in (so that page collapses it into
-// "completed"), while the buyer still has one thing to do: confirm receipt. Collapsing it
-// the same way here would hide the "Confirm Received" action this exact stage needs.
+
+
+
+
+
 function getBuyerOrderStage(order) {
   if (order.status === 'pending') return 'pending';
   if (order.status === 'rejected') return 'rejected';
@@ -66,9 +66,9 @@ const PAYMENT_FILTER_OPTIONS = [
 
 const ORDERS_PER_PAGE = 10;
 
-// A GCash order already awaiting the farmer's verification of a submitted receipt has no
-// "pay again" step — showing Pay Now here would let the buyer try to submit a second,
-// conflicting payment for the same order. Mirrors OrderTracking.jsx's own gate exactly.
+
+
+
 function canPayNow(order) {
   return order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) && !order.paymentVerificationStatus;
 }
@@ -143,45 +143,54 @@ function PaymentCell({ order }) {
   );
 }
 
-// Every action here maps directly to a real, already-secured backend endpoint — Track/View
-// Details both open the same full order page (OrderTracking.jsx), which already has its own
-// ownership check, live tracking map, payment/delivery breakdown, and rating flow; there is
-// nothing this list page needs to duplicate. Exactly one action set per stage, matching the
-// brief's own state table, never every button at once.
+
+
+
+
+
+function OrderActionButton({ to, variant = 'secondary', icon: Icon, children, ...props }) {
+  const content = <><Icon size={16} aria-hidden="true" /><span>{children}</span></>;
+  return to ? (
+    <Link to={to} className={`btn btn-${variant} order-action-button`} {...props}>{content}</Link>
+  ) : (
+    <Button variant={variant} className="order-action-button" {...props}>{content}</Button>
+  );
+}
+
 function OrderActions({ order, onCancel, onConfirmReceived }) {
   const stage = getBuyerOrderStage(order);
 
   if (stage === 'cancelled' || stage === 'rejected') {
-    return <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}><Eye size={14} /> View Details</Link>;
+    return <div className="order-actions"><OrderActionButton to={`/orders/${order.id}`} icon={Eye}>View Details</OrderActionButton></div>;
   }
 
   if (stage === 'completed') {
     return (
-      <div className="table-actions">
-        <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}><Eye size={14} /> View Details</Link>
-        <Link className="btn btn-primary btn-sm" to={`/products/${order.productId}`}><RotateCcw size={14} /> Buy Again</Link>
+      <div className="order-actions">
+        <OrderActionButton to={`/orders/${order.id}`} icon={Eye}>View Details</OrderActionButton>
+        <OrderActionButton variant="ghost" to={`/products/${order.productId}`} icon={RotateCcw}>Buy Again</OrderActionButton>
       </div>
     );
   }
 
   if (stage === 'delivered') {
     return (
-      <div className="table-actions">
-        <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}><MapPin size={14} /> Track</Link>
-        <Button size="sm" onClick={() => onConfirmReceived(order)}><CheckCircle2 size={14} /> Confirm Received</Button>
+      <div className="order-actions">
+        <OrderActionButton to={`/orders/${order.id}`} icon={MapPin}>Track</OrderActionButton>
+        <OrderActionButton variant="primary" icon={CheckCircle2} onClick={() => onConfirmReceived(order)}>Confirm Received</OrderActionButton>
       </div>
     );
   }
 
-  // pending / confirmed / preparing / ready_for_pickup / out_for_delivery
+
   return (
-    <div className="table-actions">
-      <Link className="btn btn-secondary btn-sm" to={`/orders/${order.id}`}><MapPin size={14} /> Track</Link>
+    <div className="order-actions">
+      <OrderActionButton to={`/orders/${order.id}`} icon={MapPin}>Track</OrderActionButton>
       {canPayNow(order) ? (
-        <Link className="btn btn-primary btn-sm" to={`/orders/${order.id}/pay/gcash`}><CreditCard size={14} /> Pay Now</Link>
+        <OrderActionButton variant="primary" to={`/orders/${order.id}/pay/gcash`} icon={CreditCard}>Pay Now</OrderActionButton>
       ) : null}
       {isCancellable(order) ? (
-        <Button size="sm" variant="danger" onClick={() => onCancel(order)}><X size={14} /> Cancel</Button>
+        <OrderActionButton variant="danger" icon={X} onClick={() => onCancel(order)}>Cancel</OrderActionButton>
       ) : null}
     </div>
   );
@@ -197,9 +206,15 @@ export default function BuyerOrders() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [copiedOrderId, setCopiedOrderId] = useState(null);
 
-  const [activeStage, setActiveStage] = useState('all');
+  const requestedStage = location.state?.stage;
+  const requestedPaymentFilter = location.state?.paymentFilter;
+  const [activeStage, setActiveStage] = useState(
+    STAGE_TABS.some((tab) => tab.key === requestedStage) ? requestedStage : 'all'
+  );
   const [search, setSearch] = useState('');
-  const [paymentFilter, setPaymentFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState(
+    PAYMENT_FILTER_OPTIONS.some((option) => option.value === requestedPaymentFilter) ? requestedPaymentFilter : 'all'
+  );
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);

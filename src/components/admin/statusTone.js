@@ -1,7 +1,7 @@
-// Real domain logic, not decoration — every function here just says which of the 4 given
-// tones (neutral/success/danger/warning) a genuinely-existing status value means, reusing
-// the same label resolvers every other page already relies on (src/utils/formatters.js) so
-// the actual wording never diverges from the rest of the app.
+
+
+
+
 export {
   paymentStatusLabel, verificationStatusLabel, donationStatusLabel, deliveryStepLabel, paymentLabel,
 } from '../../utils/formatters';
@@ -9,7 +9,7 @@ export {
 export function verificationTone(value) {
   if (value === 'verified') return 'success';
   if (value === 'rejected') return 'danger';
-  return 'warning'; // pending
+  return 'warning';
 }
 
 export function accountTone(accountStatus) {
@@ -19,14 +19,14 @@ export function accountTone(accountStatus) {
 export function orderStatusTone(status) {
   if (status === 'completed' || status === 'confirmed') return 'success';
   if (status === 'rejected' || status === 'cancelled') return 'danger';
-  return 'warning'; // pending
+  return 'warning';
 }
 
 export function paymentStatusTone(status) {
   if (status === 'paid') return 'success';
   if (status === 'failed') return 'danger';
   if (status === 'refunded') return 'neutral';
-  return 'warning'; // pending
+  return 'warning';
 }
 
 export function deliveryStatusTone(status) {

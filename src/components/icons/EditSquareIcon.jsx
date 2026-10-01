@@ -1,9 +1,9 @@
-// A two-tone variant of lucide's SquarePen — the library only exposes one uniform stroke
-// color per icon, but the requested reference is explicitly two-color: a dark square frame
-// with a solid green pen crossing its open corner. Same two path shapes as lucide's own
-// square-pen.svg (see node_modules/lucide-react/dist/esm/icons/square-pen.mjs), just given
-// independent colors/fill instead of one shared currentColor stroke — the same approach
-// SecureShieldIcon.jsx already uses for a two-tone trust badge.
+
+
+
+
+
+
 export default function EditSquareIcon({ size = 20, frameColor = 'var(--text-strong)', penColor = 'var(--green-600)' }) {
   return (
     <svg

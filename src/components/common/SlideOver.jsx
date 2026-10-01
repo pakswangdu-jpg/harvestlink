@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
-// Generic right-side slide-over — same shell as ProductDrawer (backdrop, slide from right,
-// ESC/outside-click/close-button to dismiss) but with no form footer, for panels that just
-// show details/actions rather than collect input.
+
+
+
 export default function SlideOver({ open, onClose, eyebrow, title, children }) {
   useEffect(() => {
     if (!open) return undefined;

@@ -4,7 +4,7 @@ import NotificationBadge from '../common/NotificationBadge';
 
 const itemVariants = { hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0 } };
 
-// A slightly stronger-than-default Lucide stroke keeps navigation icons legible at 20px.
+
 export const SIDEBAR_ICON_STROKE = 3;
 
 export default function SidebarNavItem({ to, label, icon: Icon, badge, isCollapsed = false, iconStrokeWidth = SIDEBAR_ICON_STROKE }) {

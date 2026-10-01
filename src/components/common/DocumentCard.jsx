@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { AlertCircle, CheckCircle2, ExternalLink, FileText } from 'lucide-react';
 import Button from './Button';
 
-// A simpler, "here's the document, go view it" card — distinct from FilePreviewCard (shared
-// with the farmer/buyer/stakeholder's own Profile page, which also handles inline image
-// zoom/lightbox); this one is scoped to the admin's read-only document review.
+
+
+
 export default function DocumentCard({ label, file, resolveUrl }) {
   const [isResolving, setIsResolving] = useState(false);
   const [error, setError] = useState('');
@@ -19,14 +19,14 @@ export default function DocumentCard({ label, file, resolveUrl }) {
     if (!resolveUrl) return;
     setError('');
     setIsResolving(true);
-    // Opened blank, synchronously, in the same tick as the click — then redirected once the
-    // signed URL resolves. Mobile Safari/Chrome block a window.open() that happens after an
-    // await (crossing an async boundary drops it from the "trusted user gesture" the popup
-    // blocker requires), which is exactly why "View Document" silently did nothing on mobile
-    // for any private file needing a signed URL first — the fast direct-URL path above never
-    // hit this since it has no await before the open.
+
+
+
+
+
+
     const newTab = window.open('', '_blank');
-    if (newTab) newTab.opener = null; // same tabnabbing guard 'noreferrer' gives, without losing the reference this needs
+    if (newTab) newTab.opener = null;
     try {
       const url = await resolveUrl();
       if (!url) throw new Error('File unavailable.');

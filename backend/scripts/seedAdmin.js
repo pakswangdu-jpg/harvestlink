@@ -1,11 +1,11 @@
-// One-off, idempotent admin bootstrap — replaces the old hardcoded
-// admin@harvestlink.com / admin plaintext login with a real Supabase Auth user.
-//
-// Usage (run once, locally, against the target Supabase project):
-//   ADMIN_EMAIL=admin@harvestlink.com ADMIN_PASSWORD=<a-strong-password> \
-//     SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run seed:admin
-//
-// Never commit the real admin password anywhere.
+
+
+
+
+
+
+
+
 
 import 'dotenv/config';
 import { supabaseAdmin } from '../src/lib/supabaseClient.js';

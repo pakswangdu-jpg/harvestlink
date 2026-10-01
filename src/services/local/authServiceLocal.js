@@ -1,24 +1,24 @@
-// Frozen, localStorage-backed snapshot of the pre-migration authService.js — kept only so
-// donationService.js (not yet migrated to the backend) still has a synchronous
-// getStakeholders() to call. Do not add new features here; this file exists purely to
-// avoid breaking donations while auth/products/orders move to the real backend.
+
+
+
+
 import { STORAGE_KEYS } from '../../utils/constants';
 import { createId, readSession, readStorage, removeSession, writeSession, writeStorage } from '../storageService';
 import { createNotification } from './notificationServiceLocal';
 
-// Accounts registered before verification review existed have no verificationStatus
-// at all, and accounts registered before account suspension existed have no
-// accountStatus at all. Rather than a one-time migration, default both here on every
-// read so older records behave the same as new ones — the real value gets persisted
-// the first time an admin actually acts on the account. verificationAcknowledged
-// defaults to true for any pre-existing record too, so this "you were just approved"
-// banner never surprises an account that was already verified before it existed.
+
+
+
+
+
+
+
 export function getUsers() {
   const users = readStorage(STORAGE_KEYS.users, []);
   return users.map((user) => {
-    // Stakeholders no longer go through admin verification review at all — strip any
-    // verification fields a record may still carry (including legacy pending/rejected
-    // accounts saved before this changed) so none of them stay gated by leftover data.
+
+
+
     if (user.role === 'stakeholder') {
       const rest = { ...user };
       delete rest.verificationStatus;
@@ -40,10 +40,10 @@ export function getUsers() {
   });
 }
 
-// The logged-in session lives in sessionStorage (per-tab) rather than localStorage
-// (shared across tabs) so a farmer tab and a buyer tab can stay logged in as different
-// users side by side in the same browser — localStorage is still used for the shared
-// data (products/orders/donations/messages) all sessions read and write.
+
+
+
+
 export function getCurrentUser() {
   return readSession(STORAGE_KEYS.currentUser, null);
 }
@@ -54,11 +54,11 @@ export function setCurrentUser(user) {
   return writeSession(STORAGE_KEYS.currentUser, sessionUser);
 }
 
-// The session snapshot is written once at login and never touched again, so it goes
-// stale the moment another tab changes the shared user record (e.g. an admin approving
-// verification) — re-sync it from the live localStorage record by id. If an admin
-// suspends this account from another tab, this is also what signs them out live —
-// AuthContext polls refreshCurrentUser() every few seconds for any logged-in session.
+
+
+
+
+
 export function refreshCurrentUser() {
   const sessionUser = getCurrentUser();
   if (!sessionUser || sessionUser.role === 'admin') return sessionUser;
@@ -84,9 +84,9 @@ export function registerUser(values) {
     throw new Error('An account with this email already exists.');
   }
 
-  // Captured as separate fields at registration, but every other screen in the app
-  // (greetings, order/notification records, map popups) displays a single name — so
-  // that combined form is still stored as `name`, alongside the parts for later editing.
+
+
+
   const firstName = values.firstName.trim();
   const middleName = values.middleName?.trim() || '';
   const lastName = values.lastName.trim();
@@ -137,29 +137,29 @@ export function getUserById(id) {
   return getUsers().find((user) => user.id === id) || null;
 }
 
-// Only DTI-approved farmers are traceable on the map — pending/rejected accounts aren't
-// confirmed real yet, and a suspended account (even a previously-verified one) shouldn't
-// stay publicly discoverable either.
+
+
+
 export function getVerifiedFarmers() {
   return getUsers().filter((user) => user.role === 'farmer' && user.verificationStatus === 'verified' && user.accountStatus !== 'suspended');
 }
 
-// Stakeholders have no admin verification review (unlike farmers) — every registered
-// partner organization is eligible to be alerted about new surplus donations right away,
-// same as getBuyers()' equally verification-free filtering.
+
+
+
 export function getStakeholders() {
   return getUsers().filter((user) => user.role === 'stakeholder' && user.accountStatus !== 'suspended');
 }
 
-// Buyers have no DTI verification workflow (only farmers/stakeholders do), so every
-// registered buyer account is traceable — there's no pending/rejected state to filter on.
+
+
 export function getBuyers() {
   return getUsers().filter((user) => user.role === 'buyer' && user.accountStatus !== 'suspended');
 }
 
-// Editable self-service fields only — email is the login identifier (uniqueness is only
-// checked at registration) and role/verificationStatus/accountStatus are controlled
-// through their own dedicated actions, so none of those are touched here.
+
+
+
 function buildProfilePatch(target, values) {
   const patch = {
     name: values.name.trim(),
@@ -223,9 +223,9 @@ export function setUserVerification(id, status) {
   return updated.find((user) => user.id === id) || null;
 }
 
-// Called by the farmer/stakeholder themselves once they've seen the "your account was
-// approved" banner, so it shows exactly once per verification decision instead of on
-// every dashboard visit. Always the logged-in user acknowledging their own record.
+
+
+
 export function acknowledgeVerification(id) {
   const users = getUsers();
   const updated = users.map((user) => (user.id === id ? { ...user, verificationAcknowledged: true } : user));
@@ -233,10 +233,10 @@ export function acknowledgeVerification(id) {
   return setCurrentUser(updated.find((user) => user.id === id));
 }
 
-// Separate from verificationStatus (pending/verified/rejected, which is about approving
-// a new account) — this is about suspending/reinstating an existing account at any time,
-// e.g. for a policy violation. A suspended account can't log in, and if already logged
-// in elsewhere, refreshCurrentUser()'s polling signs them out within a few seconds.
+
+
+
+
 export function setAccountStatus(id, status) {
   const users = getUsers();
   const updated = users.map((user) => (user.id === id ? { ...user, accountStatus: status } : user));

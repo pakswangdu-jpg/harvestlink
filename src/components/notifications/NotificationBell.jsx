@@ -29,17 +29,17 @@ export default function NotificationBell({ userId }) {
 
   useEffect(() => {
     refresh();
-    // Realtime (below) delivers new notifications instantly in the common case — this poll
-    // stays as the resilient baseline, same "layered, not replaced" reasoning as
-    // OrderTracking.jsx's own live-GPS realtime + poll combination.
+
+
+
     const interval = setInterval(refresh, 4000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  // Instant bell update the moment the backend creates a notification, instead of waiting up
-  // to 4s for the next poll — also what "shows an in-app notification" while the tab is open
-  // actually means here: a subtle chime plus the bell/badge updating immediately.
+
+
+
   useNotificationsRealtime(userId, (notification) => {
     setNotifications((previous) => (
       previous.some((existing) => existing.id === notification.id) ? previous : [notification, ...previous]

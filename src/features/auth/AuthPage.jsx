@@ -12,6 +12,7 @@ import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
 import { setAuthPersistence } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
+import { getProfileLocationFromPlace } from '../../utils/profileLocation';
 import { reverseGeocode } from '../../services/geocodeService';
 import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
@@ -21,28 +22,28 @@ import logo from '../../assets/logo.png';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
-// Convenience only — re-fills the email field on a later visit, never the session itself.
-// Kept separate from the real login() call so the login logic itself stays untouched.
+
+
 const REMEMBERED_EMAIL_KEY = 'harvestlink:rememberedEmail';
 
-// In-progress registration draft — survives clicking Terms of Service/Privacy Policy (see
-// LegalPageLayout.jsx's returnTo), Home, Back, or any other accidental navigation away and
-// back, instead of losing everything already typed. sessionStorage, not localStorage: scoped
-// to this one tab's lifetime, which is exactly the "quick trip elsewhere, then come back" case
-// this exists for, not something that should still be sitting there weeks later on a shared
-// computer — doubly so now that it can also hold a photo of a government ID.
+
+
+
+
+
+
 const REGISTER_DRAFT_KEY = 'harvestlink:registerDraft';
-// Never persisted as plain fields: password/confirmPassword (no reason for a typed password to
-// sit in Web Storage a moment longer than necessary — a deliberate choice, not an oversight)
-// and govIdFile/accreditationFile, which are handled separately below (as base64, under their
-// own `files` key) since a live File object can't survive JSON.stringify at all.
+
+
+
+
 const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile'];
 const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile'];
-// sessionStorage's per-origin quota (roughly 5-10MB depending on browser) has to fit the
-// file's base64 form (~33% larger than its raw bytes) alongside everything else in the draft —
-// a file above this just doesn't get persisted. The live selection still works fine for the
-// rest of this tab session either way; only an actual navigate-away-and-back trip would lose
-// one that large, which is the "if possible" the brief for this feature already allowed for.
+
+
+
+
+
 const MAX_PERSISTED_FILE_BYTES = 4 * 1024 * 1024;
 const DRAFT_SAVE_DEBOUNCE_MS = 400;
 const SAVED_NOTICE_VISIBLE_MS = 2000;
@@ -62,14 +63,14 @@ function writeRegisterDraft(form, agreedToTerms, files) {
   try {
     sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files }));
   } catch {
-    // Most likely a large file's base64 payload pushed this over sessionStorage's quota —
-    // retry without the file data so the far more important lightweight fields (name, email,
-    // address, ...) still survive the round trip instead of losing everything.
+
+
+
     try {
       sessionStorage.setItem(REGISTER_DRAFT_KEY, JSON.stringify({ form: draftForm, agreedToTerms, files: null }));
     } catch {
-      // Storage unavailable entirely (private browsing, disabled) — best-effort only, never
-      // something registration itself depends on.
+
+
     }
   }
 }
@@ -78,7 +79,7 @@ function clearRegisterDraft() {
   try {
     sessionStorage.removeItem(REGISTER_DRAFT_KEY);
   } catch {
-    // no-op
+
   }
 }
 
@@ -91,10 +92,10 @@ function readFileAsDataUrl(file) {
   });
 }
 
-// The inverse of readFileAsDataUrl — reconstructs a real File the moment a draft is restored,
-// so govIdFile/accreditationFile behave identically to a freshly-picked file everywhere else in
-// this component (validators.js's instanceof File check, the upload step, the preview UI)
-// instead of needing a separate "restored file" shape threaded through all of them.
+
+
+
+
 function dataUrlToFile(entry) {
   const [, base64] = entry.dataUrl.split(',');
   const byteChars = atob(base64);
@@ -111,23 +112,23 @@ const PASSWORD_REQUIREMENTS = [
   { key: 'special', label: 'One special character (!@#$%^&*)', test: (value) => /[!@#$%^&*]/.test(value) },
 ];
 
-// Weak (0-2 of 5 met) / Medium (3-4) / Strong (all 5) — a graduated read instead of a single
-// all-or-nothing "Strong password" line, so a buyer typing a partially-decent password sees
-// their progress rather than nothing at all until every box is checked.
+
+
+
 const PASSWORD_STRENGTH_TIERS = [
   { minMet: 0, key: 'weak', label: 'Weak password', icon: AlertTriangle },
   { minMet: 3, key: 'medium', label: 'Medium password', icon: ShieldCheck },
   { minMet: 5, key: 'strong', label: 'Strong password', icon: CheckCircle },
 ];
 
-// Shown only once the farmer/buyer/stakeholder starts typing a password during
-// registration — login's password field just needs an existing password, not a strength
-// checklist, so this is never rendered there.
+
+
+
 function PasswordRequirements({ password }) {
   if (!password) return null;
   const results = PASSWORD_REQUIREMENTS.map((requirement) => ({ ...requirement, met: requirement.test(password) }));
   const metCount = results.filter((requirement) => requirement.met).length;
-  // Highest tier whose minMet threshold the current count actually clears.
+
   const strength = [...PASSWORD_STRENGTH_TIERS].reverse().find((tier) => metCount >= tier.minMet);
 
   return (
@@ -147,9 +148,9 @@ function PasswordRequirements({ password }) {
   );
 }
 
-// Supabase's raw error strings are written for a developer, not the person hitting them —
-// this only swaps display copy for the ones users can actually run into here; it doesn't
-// change what gets thrown or how the app reacts to it.
+
+
+
 function formatAlertMessage(message) {
   if (message && /rate limit/i.test(message)) {
     return 'Email verification limit reached. Please wait a few minutes before requesting another verification email.';
@@ -157,12 +158,12 @@ function formatAlertMessage(message) {
   return message;
 }
 
-// Maps the backend's raw verification notice/error strings (auth.controller.js — see
-// verifyRegistrationCode/resendRegistrationCode) to the standardized {title, message} pairs
-// the verification screen's alerts display. The backend's own response text isn't changing —
-// this only splits the same sentence it already sends into a short title plus the fuller
-// message for FormAlert.jsx's two-line layout. Anything not explicitly listed here still
-// displays fine, under a generic fallback title.
+
+
+
+
+
+
 const KNOWN_VERIFICATION_ALERTS = {
   'Please wait a moment before requesting a new verification code.': {
     title: 'Please wait',
@@ -196,14 +197,14 @@ function mapVerificationAlert(raw, fallbackTitle) {
 }
 
 const OTP_LENGTH = 6;
-// Matches the backend's own RESEND_COOLDOWN_MS (auth.controller.js) — showing a shorter
-// countdown here would let the farmer/buyer click "Resend code" while it's still within the
-// backend's real cooldown window, just to get a 429 back.
+
+
+
 const RESEND_COOLDOWN_SECONDS = 60;
 
-// One box per digit — the standard OTP input pattern (Gmail, banking apps, etc.): numeric
-// keypad on mobile (inputMode), digit-only filtering, auto-advances to the next box as you
-// type and back on backspace, and accepts a full pasted code in one go.
+
+
+
 function OtpInput({ value, onChange, disabled }) {
   const inputRefs = useRef([]);
   const digits = Array.from({ length: OTP_LENGTH }, (_, index) => value[index] || '');
@@ -234,8 +235,8 @@ function OtpInput({ value, onChange, disabled }) {
     <div className="otp-input-group" onPaste={handlePaste}>
       {digits.map((digit, index) => (
         <input
-          // Fixed-length, position-addressed boxes that are never reordered — array index
-          // is a safe, stable key here.
+
+
           key={index}
           ref={(element) => { inputRefs.current[index] = element; }}
           type="text"
@@ -255,9 +256,9 @@ function OtpInput({ value, onChange, disabled }) {
   );
 }
 
-// Visual replacement for the raw OS file-picker button — the real <input type="file">
-// still sits on top (see .file-upload-input in globals.css), so selection, accept
-// filtering, and the onChange handler passed in are completely unchanged.
+
+
+
 function FileUploadField({ id, accept, file, onChange }) {
   const fileName = file instanceof File ? file.name : '';
   return (
@@ -273,12 +274,12 @@ function FileUploadField({ id, accept, file, onChange }) {
   );
 }
 
-// Live PH mobile format/prefix feedback as the farmer/buyer/stakeholder types (✓ Valid
-// Philippine mobile number / ⚠ Please enter a valid Philippine mobile number.), plus a green/
-// red input border the moment there's something to validate — errors.contactNumber (the
-// required-field message, or the async duplicate-number check) always wins over the plain
-// live-format message when both would otherwise apply, so only one message ever shows at
-// once. The static note underneath is always shown, independent of validity, per the brief.
+
+
+
+
+
+
 function PhoneNumberInput({ id, value, onChange, onBlur, error, isChecking }) {
   const hasValue = value.trim().length > 0;
   const isFormatValid = isValidPhilippineMobile(value);
@@ -332,18 +333,18 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Drag-and-drop replacement for the "Proof of accreditation" file field — same underlying
-// accreditationFile state key and accreditation_file_url backend column as before (see
-// authService.registerUser / buildRoleFields), just a richer picker: real drag-and-drop,
-// an image thumbnail or PDF icon once a file is chosen, and inline type/size validation
-// instead of only finding out a file was rejected after trying to submit.
+
+
+
+
+
 function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidationError, onRemove }) {
   const [isDragging, setIsDragging] = useState(false);
   const replaceInputRef = useRef(null);
   const isImage = file instanceof File && file.type.startsWith('image/');
 
-  // Computed synchronously during render (not via setState-in-effect) — the effect below
-  // only handles revoking it again, a legitimate external-resource cleanup.
+
+
   const previewUrl = useMemo(() => (isImage ? URL.createObjectURL(file) : ''), [file, isImage]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
@@ -421,13 +422,13 @@ function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidatio
   );
 }
 
-// Dedicated, more elaborate layout for the "Partner Organization Registration" experience
-// (role === 'stakeholder') — same form state, change handlers, blur validation, and submit
-// button as every other role; this only organizes the exact same fields into labeled
-// sections instead of one flat list. Note "Position / Role" below is still backed by the
-// same contactPerson key/column as before — just re-labeled, since firstName/lastName
-// already capture the representative's name, so this slot is free to describe their title
-// within the organization instead of duplicating it.
+
+
+
+
+
+
+
 function StakeholderRegisterFields({
   form,
   errors,
@@ -436,6 +437,7 @@ function StakeholderRegisterFields({
   isLocating,
   locationNotice,
   handleUseMyLocation,
+  handlePlaceSelection,
   setFieldError,
   handleContactNumberBlur,
   isCheckingPhone,
@@ -632,6 +634,7 @@ function StakeholderRegisterFields({
             id="address"
             value={form.address}
             onChange={(next) => updateField('address', next)}
+            onSelect={handlePlaceSelection}
             onBlur={() => handleBlur('address')}
             error={errors.address}
             placeholder="House/Unit No., Street"
@@ -709,6 +712,8 @@ function buildEmptyForm(preselectedRole) {
     municipality: CEBU_MUNICIPALITIES[0],
     barangay: '',
     address: '',
+    latitude: null,
+    longitude: null,
     zipCode: '',
     partnershipDescription: '',
     accreditationFile: '',
@@ -729,11 +734,11 @@ export default function AuthPage({ mode }) {
     const base = buildEmptyForm(searchParams.get('role'));
     const rememberedEmail = !isRegister && localStorage.getItem(REMEMBERED_EMAIL_KEY);
     if (rememberedEmail) base.email = rememberedEmail;
-    // Restores whatever was already typed (and, where it fit, any selected file) if this
-    // mount is a "came back from Terms of Service/Privacy Policy, Home, Back, or anywhere
-    // else" return trip (see LegalPageLayout.jsx's returnTo) rather than a genuinely fresh
-    // visit. Password is never in here to begin with (see REGISTER_DRAFT_EXCLUDED_FIELDS), so
-    // it stays exactly as fresh/empty as buildEmptyForm already left it.
+
+
+
+
+
     if (isRegister) {
       const draft = readRegisterDraft();
       if (draft?.form) {
@@ -744,8 +749,8 @@ export default function AuthPage({ mode }) {
           try {
             restored[field] = dataUrlToFile(entry);
           } catch {
-            // Corrupted/unreadable entry — leave just that one field empty rather than fail
-            // the whole restore.
+
+
           }
         });
         return restored;
@@ -759,28 +764,28 @@ export default function AuthPage({ mode }) {
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
   const [rememberMe, setRememberMe] = useState(() => !isRegister && Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY)));
-  // Partner-organization registration only (see StakeholderRegisterFields) — a client-side
-  // gate on the submit button, not sent anywhere; farmer/buyer registration is unaffected.
+
+
   const [agreedToTerms, setAgreedToTerms] = useState(() => isRegister && Boolean(readRegisterDraft()?.agreedToTerms));
   const isStakeholderRegister = isRegister && form.role === 'stakeholder';
-  // In-flight state for the async "is this number already registered?" check fired from
-  // PhoneNumberInput's onBlur — see handleContactNumberBlur below.
+
+
   const [isCheckingPhone, setIsCheckingPhone] = useState(false);
-  // "✓ Your progress is automatically saved." — briefly shown right after a debounced draft
-  // write actually happens (see the effect below), then faded back out.
+
+
   const [showSavedNotice, setShowSavedNotice] = useState(false);
-  // Per-field { file, entry } cache so a debounced write that fires while some OTHER field
-  // changed doesn't re-read+re-encode a file that hasn't actually changed since last time.
+
+
   const fileDataUrlCacheRef = useRef({});
-  // Skips writing to sessionStorage again when the serialized draft is identical to what's
-  // already stored there — "save only modified values" in practice, given the draft is one
-  // JSON blob rather than individually-addressable storage keys.
+
+
+
   const lastSavedSnapshotRef = useRef('');
   const savedNoticeTimeoutRef = useRef(null);
 
-  // 'otp' covers two entry points: right after registering (always required now — see
-  // authService.registerUser), and a returning-but-never-verified user hitting "Email not
-  // confirmed" on the login page (see handleSubmit's catch block below).
+
+
+
   const [authStage, setAuthStage] = useState('form');
   const [otpEmail, setOtpEmail] = useState('');
   const [otpValue, setOtpValue] = useState('');
@@ -796,11 +801,11 @@ export default function AuthPage({ mode }) {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Keeps the draft in sync with every keystroke, so whichever moment the farmer actually
-  // clicks away (Terms of Service, Privacy Policy, Home, Back, or anywhere else) is always
-  // covered — there's no separate "save" action to remember to call first. Debounced
-  // (300-500ms) so a fast typist doesn't hit sessionStorage on every keystroke, and the
-  // eventual write is skipped entirely if nothing actually changed since the last one.
+
+
+
+
+
   useEffect(() => {
     if (!isRegister) return undefined;
     const timeoutId = window.setTimeout(async () => {
@@ -819,7 +824,7 @@ export default function AuthPage({ mode }) {
           fileDataUrlCacheRef.current[field] = { file: value, entry };
           files[field] = entry;
         } catch {
-          // Couldn't read this one file — the rest of the draft still saves fine below.
+
         }
       }));
 
@@ -836,49 +841,61 @@ export default function AuthPage({ mode }) {
     return () => window.clearTimeout(timeoutId);
   }, [isRegister, form, agreedToTerms]);
 
-  // Cleans up the "saved" notice's own timer on unmount only — a plain teardown, not tied to
-  // any particular value changing.
+
+
   useEffect(() => () => window.clearTimeout(savedNoticeTimeoutRef.current), []);
 
-  // authStage 'submitted' is the Partner Organization Registration confirmation screen shown
-  // right after a stakeholder finishes OTP verification (see handleVerifyOtp below) — the
-  // account is real and currentUser is already set at that point, so without this guard the
-  // redirect below would fire immediately and the confirmation screen would never render.
+
+
+
+
   if (!authLoading && currentUser && authStage !== 'submitted') {
     return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
   }
 
   const updateField = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
+    setForm((previous) => ({
+      ...previous,
+      [field]: value,
+      ...(field === 'address' ? { latitude: null, longitude: null, zipCode: '' } : {}),
+      ...(field === 'municipality' || field === 'barangay' ? { latitude: null, longitude: null } : {}),
+    }));
     setErrors((previous) => {
       const next = { ...previous, [field]: undefined, form: undefined };
-      // A stale "passwords don't match" error on the other field would otherwise
-      // linger until that field is blurred again.
+
+
       if (field === 'password' || field === 'confirmPassword') next.confirmPassword = undefined;
       return next;
     });
     setMessage('');
   };
 
-  // Validates a single field as soon as the user leaves it, so a missing/invalid
-  // field is flagged immediately instead of only surfacing on submit.
+  const handlePlaceSelection = (details) => {
+    setForm((previous) => ({
+      ...previous,
+      ...getProfileLocationFromPlace(details, previous),
+    }));
+    setErrors((previous) => ({ ...previous, address: undefined }));
+  };
+
+
   const handleBlur = (field) => {
     if (!isRegister && field !== 'email' && field !== 'password') return;
     const nextErrors = validateAuthForm(form, mode);
     setErrors((previous) => ({ ...previous, [field]: nextErrors[field] }));
   };
 
-  // For validation that can't be expressed as a simple required()/format check in
-  // validateAuthForm — e.g. VerificationDocumentUpload rejecting a file for its type or
-  // size the moment it's dropped, rather than waiting for submit.
+
+
+
   const setFieldError = (field, message) => setErrors((previous) => ({ ...previous, [field]: message }));
 
-  // Runs the normal required/format check first (same as handleBlur), then — only once the
-  // number is actually a well-formed Philippine mobile number — asks the backend whether it's
-  // already registered, so a duplicate is caught right after typing it rather than only after
-  // submitting the whole form. Fails open on a network error: register() itself is still the
-  // real, unbypassable enforcement (see auth.controller.js), so the worst case here is just
-  // finding out at submit time instead of on blur.
+
+
+
+
+
+
   const handleContactNumberBlur = async () => {
     const nextErrors = validateAuthForm(form, mode);
     setErrors((previous) => ({ ...previous, contactNumber: nextErrors.contactNumber }));
@@ -891,24 +908,24 @@ export default function AuthPage({ mode }) {
         setFieldError('contactNumber', 'This mobile number is already associated with an existing HarvestLink account.');
       }
     } catch {
-      // no-op — see comment above.
+
     } finally {
       setIsCheckingPhone(false);
     }
   };
 
-  // The actual upload happens later, in handleSubmit (via authService.registerUser) —
-  // Storage's bucket policy requires an authenticated session to write into a user's own
-  // folder, and there's no session yet while the form is still being filled in. This just
-  // holds onto the picked File until then.
+
+
+
+
   const handleFileChange = (field) => (event) => {
     const file = event.target.files?.[0];
     if (file) updateField(field, file);
   };
 
-  // Shared by farmer, buyer, and partner-organization registration. Only an exact
-  // reverse-geocoder municipality match is accepted; nearest-city fallback would misrepresent
-  // a real GPS point outside that municipality.
+
+
+
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLocationNotice('Location access is not supported on this device.');
@@ -932,6 +949,8 @@ export default function AuthPage({ mode }) {
             updateField('address', reverse.address);
           }
           if (reverse?.zipCode) updateField('zipCode', reverse.zipCode);
+          updateField('latitude', latitude);
+          updateField('longitude', longitude);
 
           const accuracyText = Number.isFinite(accuracy)
             ? ` Location accuracy is about ${Math.round(accuracy)} m.`
@@ -977,9 +996,9 @@ export default function AuthPage({ mode }) {
     }
 
     setIsSubmitting(true);
-    // Whatever shape the farmer/buyer/stakeholder actually typed (09.../+639.../639...) is
-    // normalized to the one canonical storage form right before it's sent — validateAuthForm
-    // above already confirmed it's a valid Philippine mobile number, so this can't return null.
+
+
+
     const submitForm = isRegister
       ? {
           ...form,
@@ -1009,8 +1028,8 @@ export default function AuthPage({ mode }) {
       const fallback = ROLE_DASHBOARDS[result.role];
       navigate(location.state?.from || fallback, { replace: true });
     } catch (error) {
-      // When an existing account is not yet verified, send the visitor to the
-      // email verification screen instead of showing a dead-end error.
+
+
       if (!isRegister && error.code === 'email_not_confirmed') {
         const email = form.email.trim().toLowerCase();
         setOtpEmail(email);
@@ -1043,10 +1062,10 @@ export default function AuthPage({ mode }) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, otpEmail);
         else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
       }
-      // A partner organization's account now exists, but a real person still needs to review
-      // its Partnership Details before it can act on the marketplace — land on a dedicated
-      // confirmation screen instead of dropping straight into the dashboard (see the top-level
-      // currentUser guard above, which lets this render instead of auto-redirecting).
+
+
+
+
       if (isStakeholderRegister) {
         setAuthStage('submitted');
         setIsVerifyingOtp(false);
@@ -1081,11 +1100,11 @@ export default function AuthPage({ mode }) {
     setResendCooldown(0);
   };
 
-  // Gates "Create account" itself, not just a submit-time error after clicking it — valid
-  // mobile number, valid email, every password requirement met, and Terms accepted. Every
-  // other register-only field (address, municipality, farm name, accreditation document, ...)
-  // is still enforced the moment they actually click it, by the full validateAuthForm check
-  // at the top of handleSubmit above — this only covers the 4 conditions asked for here.
+
+
+
+
+
   const isRegisterFormReady = !isRegister || (
     isValidPhilippineMobile(form.contactNumber)
     && isValidEmail(form.email)
@@ -1093,8 +1112,8 @@ export default function AuthPage({ mode }) {
     && agreedToTerms
   );
 
-  // Drives both the in-button spinner and aria-busy — the submit button is shared by the
-  // credential form and the OTP step, which track their in-flight state separately.
+
+
   const isBusy = authStage === 'otp' ? isVerifyingOtp : isSubmitting;
 
   const otpNoticeAlert = mapVerificationAlert(otpNotice, 'Verification code sent');
@@ -1215,6 +1234,7 @@ export default function AuthPage({ mode }) {
                   isLocating={isLocating}
                   locationNotice={locationNotice}
                   handleUseMyLocation={handleUseMyLocation}
+                  handlePlaceSelection={handlePlaceSelection}
                   setFieldError={setFieldError}
                   handleContactNumberBlur={handleContactNumberBlur}
                   isCheckingPhone={isCheckingPhone}
@@ -1344,7 +1364,7 @@ export default function AuthPage({ mode }) {
                             id="address"
                             value={form.address}
                             onChange={(next) => updateField('address', next)}
-                            onSelect={(details) => { if (details.zipCode) updateField('zipCode', details.zipCode); }}
+                            onSelect={handlePlaceSelection}
                             onBlur={() => handleBlur('address')}
                             error={errors.address}
                             placeholder="House/Unit No., Street, Barangay"
@@ -1378,9 +1398,9 @@ export default function AuthPage({ mode }) {
                       />
                     </div>
                   </FormField>
-                  {/* Full width, not side-by-side in a form-grid — the requirements checklist
-                      only appears under Password, so a shared row would leave Confirm Password
-                      stranded next to a much taller cell with a lot of dead space beneath it. */}
+                  {
+
+                                                                                                 }
                   <FormField label="Password" name="password" error={errors.password}>
                     <PasswordInput
                       id="password"
@@ -1451,12 +1471,12 @@ export default function AuthPage({ mode }) {
               />
               <span>
                 I agree to the{' '}
-                {/* Same-tab, not target="_blank" — a new tab doesn't inherit this tab's
-                    sessionStorage (browsers only copy it over when an opener relationship
-                    exists, which rel="noreferrer" deliberately severs for tabnabbing safety),
-                    so the draft saved here would be invisible to that second tab's own copy
-                    of /register. Same-tab navigation means Back always lands back in the
-                    exact tab/storage the draft was written to. */}
+                {
+
+
+
+
+                                                                  }
                 <Link to="/terms-of-service?returnTo=/register"><strong>Terms of Service</strong></Link>
                 {' '}and{' '}
                 <Link to="/privacy-policy?returnTo=/register"><strong>Privacy Policy</strong></Link>.

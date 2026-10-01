@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
-// A compact, curated grid rather than a full Unicode emoji library — keeps this dependency-
-// free (no new package) while covering what a marketplace chat actually needs: reactions,
-// farm/produce, and everyday chat emoji.
+
+
+
 const EMOJI_GROUPS = [
   { label: 'Frequently used', emoji: ['👍', '🙏', '😊', '😂', '❤️', '🔥', '👌', '🎉'] },
   { label: 'Farm & produce', emoji: ['🌾', '🥬', '🍅', '🥕', '🌽', '🍌', '🥭', '🍉', '🐓', '🚜'] },

@@ -16,15 +16,15 @@ function memberSinceLabel(createdAt) {
   return years < 1 ? 'New this year' : `${years} yr${years === 1 ? '' : 's'} selling`;
 }
 
-// The "All Verified Farmers" directory's card — deliberately its own component rather than
-// a reuse of FarmerDirectoryCard (the landing page carousel's compact card): this one carries
-// more information (category chips, tenure, a Message action) than fits a marketing carousel
-// slide. Memoized since the grid can re-render on every search/sort/filter keystroke.
-//
-// Every row below reserves its height even when its content is absent (a blank farm name
-// renders a non-breaking space, a missing tenure keeps its grid cell) — that's what keeps the
-// rating/meta/chip rows landing at the same y-position on every card in a row, not just the
-// outer card height matching (which the grid's own row-stretch already guarantees).
+
+
+
+
+
+
+
+
+
 export const FarmerCard = memo(function FarmerCard({ farmer }) {
   const tenure = memberSinceLabel(farmer.createdAt);
 

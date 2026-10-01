@@ -3,11 +3,11 @@ import { motion } from 'framer-motion';
 import { Percent, Tag } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 
-// How long to wait after the farmer stops typing before the discount is actually saved —
-// long enough that fast typing (e.g. "1" then "2" then "0" while typing "20") only ever
-// fires one real save, short enough that it still feels instant. Every number ON SCREEN
-// (discount amount, final price, profit, buyer savings) updates on every keystroke —
-// only the network save itself is debounced.
+
+
+
+
+
 const SAVE_DEBOUNCE_MS = 600;
 
 function round2(value) {
@@ -26,27 +26,27 @@ function SummaryRow({ label, value, tone }) {
   );
 }
 
-// Replaces the old "type a percent, click Apply Discount" control — every figure a farmer
-// would want (discount amount, final price, their own profit, what the buyer sees/saves)
-// now recalculates instantly on every keystroke, Shopee/Lazada-style, with no button: a
-// valid percent just saves itself (debounced) in the background, and 0 removes the discount
-// the same way a percent above 0 sets one, so there's no separate "applied" view to manage.
+
+
+
+
+
 export default function DiscountCalculator({
   product, costPrice, onApplyDiscount, onRemoveDiscount,
 }) {
   const [percent, setPercent] = useState(product.discountPercent != null ? String(product.discountPercent) : '');
-  // Keyed to the exact percent it resulted from, so an old error/"saved" naturally stops
-  // applying the instant the farmer types a different value — no explicit reset needed.
+
+
   const [saveResult, setSaveResult] = useState({ percent: null, status: 'idle', error: '' });
 
   const trimmed = percent.trim();
   const numericPercent = trimmed === '' ? 0 : Number(trimmed);
   const isValidNumber = trimmed === '' || Number.isFinite(numericPercent);
   const isInRange = isValidNumber && numericPercent >= 0 && numericPercent <= 100;
-  // Whether the typed percent already matches what's actually persisted — derived from props/
-  // state on every render rather than tracked as its own "saving" flag set inside the effect
-  // below, so there's no synchronous setState in the effect body: a pending save is simply
-  // "in range but not yet synced," true for the whole debounce window with no state of its own.
+
+
+
+
   const persisted = product.discountPercent || 0;
   const isSynced = isInRange && numericPercent === persisted;
   const hasError = saveResult.status === 'error' && saveResult.percent === numericPercent;

@@ -1,9 +1,9 @@
-// `onRowClick`/`selectedId` are opt-in — every existing caller that omits them keeps
-// rendering plain, non-interactive rows. `column.width` (any CSS width value, e.g. "140px")
-// and `column.truncate` (ellipsis + a title tooltip carrying the untruncated value) are also
-// opt-in — a caller that omits them keeps the previous auto-width/no-wrap behavior.
-// `emptyMessage` accepts either a plain string (unchanged) or `{ title, message }` for a
-// two-line empty state.
+
+
+
+
+
+
 export default function DataTable({ columns, rows, emptyMessage, onRowClick, selectedId }) {
   if (!rows.length) {
     if (emptyMessage && typeof emptyMessage === 'object') {

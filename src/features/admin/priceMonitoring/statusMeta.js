@@ -1,7 +1,7 @@
-// Deviation thresholds mirror the REAL fair-pricing rule already enforced server-side
-// (backend/src/lib/priceReview.js's PRICE_DEVIATION_THRESHOLD_PERCENT = 20, which actually
-// puts a farmer's listing into DTI review) — "Overpriced" here fires at the same 20% a
-// listing would already have been flagged at, rather than an invented, disconnected number.
+
+
+
+
 const SLIGHTLY_ABOVE_THRESHOLD = 10;
 const OVERPRICED_THRESHOLD = 20;
 const UNDERPRICED_THRESHOLD = -10;
@@ -16,11 +16,11 @@ export const STATUS_META = {
   overridden: { label: 'Overridden', tone: 'info' },
 };
 
-// hasOverride wins over any price comparison (an override IS the current reference — it's
-// not "wrong", it's authoritative), hasPendingReview wins over a plain deviation number (a
-// human is already actively looking at that specific listing), and only then does the raw
-// average-vs-PSA math decide. `referencePrice` is whatever's authoritative right now (PSA or
-// override) — the caller resolves that before calling this.
+
+
+
+
+
 export function resolveCommodityStatus({
   referencePrice, avgFarmerPrice, hasOverride, hasPendingReview,
 }) {

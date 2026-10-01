@@ -5,10 +5,10 @@ import {
 
 const FOG_CONDITIONS = new Set(['Mist', 'Smoke', 'Haze', 'Dust', 'Fog', 'Sand', 'Ash', 'Squall', 'Tornado']);
 
-// OpenWeatherMap's real `condition.main` decides the badge's icon/label; `main` alone can't
-// tell "light" from "heavy" rain, so intensity comes from the same real rainfallProbability
-// already used everywhere else on this page (see priceForecastEngine.js's
-// computeWeatherImpact) — never from parsing OpenWeatherMap's free-text description.
+
+
+
+
 function getConditionBadge(condition, rainfallProbability) {
   const main = condition?.main || '';
   if (main === 'Thunderstorm') return { label: 'Storm', icon: CloudLightning, className: 'bg-[var(--red-100)] text-[var(--red-700)]' };
@@ -24,9 +24,9 @@ function getConditionBadge(condition, rainfallProbability) {
   return { label: condition?.description || 'Unknown', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
 }
 
-// Same real rainfall-probability tiers computeWeatherImpact() already uses elsewhere on this
-// page — this just expands that one real signal into short, actionable guidance instead of a
-// single flat sentence. Nothing here is a new data source; it's the same number, re-worded.
+
+
+
 function getWeatherGuidance(rainfallProbability) {
   if (rainfallProbability == null) {
     return { tone: 'neutral', headline: 'Weather data is currently unavailable.', tips: [] };
@@ -93,9 +93,9 @@ function WeatherSkeleton() {
   );
 }
 
-// Every field here is real OpenWeatherMap data from backend/src/lib/weatherService.js — this
-// component only re-presents it: a condition badge, five compact stat cards, and a plain-
-// language "what should I do about it" card. No API/backend change, presentation only.
+
+
+
 export default function WeatherPanel({ weather, isLoading }) {
   if (isLoading) return <WeatherSkeleton />;
 

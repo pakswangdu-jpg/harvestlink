@@ -27,7 +27,7 @@ beforeEach((t) => {
   t.mock.method(console, 'error', () => {});
 });
 
-// Advance a virtual clock for backoff without waiting or contacting Google.
+
 function mockClock(t) {
   let now = 0;
   const delays = [];

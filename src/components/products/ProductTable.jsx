@@ -96,8 +96,8 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
 
 const SKELETON_WIDTHS = ['70%', '45%', '35%', '55%', '50%', '40%'];
 
-// Column-shaped loading rows — a farmer opening this page mid-fetch should see "this is still
-// loading," not a flash of "No products yet" (see FarmerProducts.jsx's isLoading branch).
+
+
 export function ProductTableSkeleton({ rows = 4 }) {
   return (
     <div className="table-wrap">

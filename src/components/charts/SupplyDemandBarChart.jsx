@@ -12,9 +12,9 @@ const STATUS_STYLE = {
   Balanced: 'text-[var(--amber-700)]',
 };
 
-// A crop's own demand (real order count) vs. its own supply (real active-listing count) —
-// both counts, same unit, so "higher bar" always means "more" in a way that's directly
-// comparable. Same calculation as before this redesign — only the presentation changed.
+
+
+
 function computeStatus(demand, supply) {
   if (demand > supply) return 'High Demand';
   if (demand < supply) return 'Low Demand';
@@ -50,9 +50,9 @@ function ChartTooltip({ active, payload }) {
   );
 }
 
-// Alternating light backdrop behind every other crop's bar group — same visual aid as the
-// reference chart's zebra striping, just driven by the real category index Recharts already
-// passes to a custom `background` renderer, not a hand-placed overlay.
+
+
+
 function AlternatingBackground({ x, y, width, height, index }) {
   if (index % 2 !== 0) return null;
   return <rect x={x} y={y} width={width} height={height} fill="var(--soft)" rx={6} />;
@@ -69,11 +69,11 @@ function SummaryCard({ icon: Icon, label, children }) {
   );
 }
 
-// Grouped bars, real orderCount vs. real activeListings per crop (see
-// backend/src/controllers/forecast.controller.js and FarmerDemandForecast.jsx's
-// supplyDemandData) — no calculation changed here, only a leaner presentation: fewer
-// summary cards, no axis-label clutter, one plain-language recommendation instead of four
-// separate stat cards.
+
+
+
+
+
 export default function SupplyDemandBarChart({ data }) {
   const hasMeaningfulData = data.some((entry) => entry.demand > 0 || entry.supply > 0);
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Minimal trigger+menu dropdown — kept generic (renders whatever `items` describe) so any
-// page needing a compact action menu reuses this instead of hand-rolling another one.
+
+
 export default function Dropdown({ trigger, items }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);

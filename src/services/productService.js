@@ -1,9 +1,9 @@
 import { apiClient } from './apiClient';
 
-// Every function here now talks to the real backend instead of localStorage — see
-// backend/src/routes/products.routes.js for the matching API surface. The DTI
-// fair-pricing check (buildPriceReview) now runs server-side (backend/src/lib/priceReview.js)
-// since a client could otherwise submit any price with a forged marketReference to dodge it.
+
+
+
+
 
 export async function getProducts() {
   return apiClient.get('/products');
@@ -21,22 +21,22 @@ export async function getProductsByFarmer(farmerId) {
   return apiClient.get(`/products?farmerId=${farmerId}`);
 }
 
-// GET /products/public is public (no auth) — backs the signed-out "view farmer" page
-// linked from the landing page's 5-star showcase.
+
+
 export async function getPublicFarmerProducts(farmerId) {
   return apiClient.get(`/products/public?farmerId=${farmerId}`);
 }
 
-// `farmer` is no longer needed — the backend infers the owner from the authenticated
-// session — but the parameter is kept so call sites don't need to change.
+
+
 export async function createProduct(values) {
   return apiClient.post('/products', values);
 }
 
-// Third pricing tier for ProductForm.jsx's price-analysis panel — only ever called once PSA
-// has already come back with no reference for this product name. Returns
-// `{ matched: false }` when there isn't enough real transaction history either (see
-// backend/src/lib/historicalPriceService.js) — never a fabricated fallback.
+
+
+
+
 export async function getHistoricalPriceAnalysis(name, unit) {
   return apiClient.get(`/products/historical-price?name=${encodeURIComponent(name)}&unit=${encodeURIComponent(unit)}`);
 }

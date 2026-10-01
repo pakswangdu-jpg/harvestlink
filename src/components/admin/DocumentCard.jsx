@@ -3,10 +3,10 @@ import { AlertCircle, CheckCircle2, ExternalLink, FileText } from 'lucide-react'
 import Button from './Button';
 import Badge from './Badge';
 
-// Admin-scoped equivalent of src/components/common/DocumentCard.jsx (kept separate so this
-// section's flatter styling never affects that component's other caller, Profile.jsx) — same
-// resolveUrl/isDirectUrl behavior: open a direct URL immediately, or resolve a signed one
-// first for a private-bucket file.
+
+
+
+
 export default function DocumentCard({ label, file, resolveUrl }) {
   const [isResolving, setIsResolving] = useState(false);
   const [error, setError] = useState('');
@@ -20,14 +20,14 @@ export default function DocumentCard({ label, file, resolveUrl }) {
     if (!resolveUrl) return;
     setError('');
     setIsResolving(true);
-    // Opened blank, synchronously, in the same tick as the click — then redirected once the
-    // signed URL resolves. Mobile Safari/Chrome block a window.open() that happens after an
-    // await (crossing an async boundary drops it from the "trusted user gesture" the popup
-    // blocker requires), which is exactly why "View" silently did nothing on mobile for any
-    // private file needing a signed URL first — the fast direct-URL path above never hit
-    // this since it has no await before the open.
+
+
+
+
+
+
     const newTab = window.open('', '_blank');
-    if (newTab) newTab.opener = null; // same tabnabbing guard 'noreferrer' gives, without losing the reference this needs
+    if (newTab) newTab.opener = null;
     try {
       const url = await resolveUrl();
       if (!url) throw new Error('File unavailable.');

@@ -16,9 +16,9 @@ export function writeStorage(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
-    // Product/ID/avatar images are stored as data URLs directly in localStorage for this
-    // prototype, so a long testing session can genuinely fill the browser's quota — this
-    // used to fail completely silently (nothing saved, no feedback) wherever it happened.
+
+
+
     if (error?.name === 'QuotaExceededError' || error?.code === 22) {
       throw new Error('Local storage is full. Try removing old product images or clearing this site\'s browser data, then try again.', { cause: error });
     }
@@ -92,10 +92,10 @@ export function migrateLegacyOrders() {
     return existingOrders;
   }
 
-  // Resolve each legacy request against the current products/users stores so migrated
-  // orders carry the same fields createOrder() always sets — without this, every order
-  // detail/tracking view (which assumes productName/unit/unitPrice/farmerName/totalAmount
-  // always exist) renders "undefined" and "₱0.00" for these rows.
+
+
+
+
   const products = readStorage(STORAGE_KEYS.products, []);
   const users = readStorage(STORAGE_KEYS.users, []);
 

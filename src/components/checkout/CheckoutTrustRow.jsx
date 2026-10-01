@@ -7,8 +7,8 @@ const TRUST_ITEMS = [
   { icon: LifeBuoy, title: 'Need help?', text: 'Contact our support anytime' },
 ];
 
-// Four small facts, not a marketing banner — sits at the very bottom of checkout, below both
-// the form and the order summary (see CheckoutForm.jsx), spanning the full width.
+
+
 export default function CheckoutTrustRow() {
   return (
     <div className="panel checkout-trust-row">

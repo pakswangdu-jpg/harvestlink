@@ -30,12 +30,12 @@ import CommodityTable from './priceMonitoring/CommodityTable';
 import OverrideModal from './priceMonitoring/OverrideModal';
 import BulkUpdateModal from './priceMonitoring/BulkUpdateModal';
 
-// Same color-mix technique as components/admin/StatCard.jsx (the Reports page's summary
-// cards) — one tone token pair per card, background/border both derived from it, so the two
-// admin "tinted stat card" systems read as one family instead of two different designs.
-// Tone is fixed per card identity (not swapped to red/danger when a count is nonzero) — a
-// value like "2 price alerts" is communicated by the number and hint text, not by flipping the
-// whole card to an alarming color; see the zero-state hints below for how "0" reads as calm.
+
+
+
+
+
+
 const SUMMARY_TONES = {
   green: { base: 'var(--green-100)', accent: 'var(--green-700)' },
   blue: { base: 'var(--blue-100)', accent: 'var(--blue-700)' },
@@ -85,7 +85,7 @@ export default function AdminPriceMonitoring() {
   const reloadDeclined = () => getDeclinedPriceReviews().then(setDeclined);
   useEffect(() => { reloadDeclined(); }, []);
 
-  // Filters / search / sort
+
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
@@ -93,7 +93,7 @@ export default function AdminPriceMonitoring() {
   const [sortState, setSortState] = useState('newest');
   const [pageSize, setPageSize] = useState(10);
 
-  // Selection / expansion / drafts
+
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedId, setExpandedId] = useState(null);
   const [drafts, setDrafts] = useState({});
@@ -101,7 +101,7 @@ export default function AdminPriceMonitoring() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkNonce, setBulkNonce] = useState(0);
 
-  // Dismissible alert banners
+
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
 
   const availableYears = useMemo(
@@ -126,9 +126,9 @@ export default function AdminPriceMonitoring() {
   } = usePagination(sortedRows, pageSize);
 
   const noPsaCount = rows.filter((row) => row.status === 'no-psa').length;
-  // The real count of listings PSA-deviation-flagged for DTI review (see priceReview.js) —
-  // more literal to "listings exceed the recommended price" than re-deriving a commodity-
-  // level status, and it's data the hook already fetches for the table's own status column.
+
+
+
   const flaggedListingsCount = (reviews || []).length;
   const overriddenTodayCount = rows.filter((row) => row.isOverride && isToday(row.override?.updatedAt)).length;
   const overriddenCount = rows.filter((row) => row.isOverride).length;
@@ -240,16 +240,16 @@ export default function AdminPriceMonitoring() {
         </div>
       ) : null}
 
-      {/* shadow-[...] is a one-off, scoped to this card only — not added to the shared Card
-          component, which every other admin page also renders and deliberately stays flat/
-          shadow-free. Same value as the app's own --shadow token (0 1px 2px), just applied
-          locally rather than changing that shared definition's blast radius. */}
+      {
+
+
+                                                                                }
       <Card className="mb-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
         <CardHeader eyebrow="DTI oversight" title="Commodity price monitoring" />
 
-        {/* Search and the filter cluster are two visually separate groups (gap-4 between them)
-            instead of one undifferentiated row of controls (gap-2 within each group) — makes
-            "search" read as the primary action and the four selects as secondary refinements. */}
+        {
+
+                                                                                                 }
         <div className="mb-3 flex flex-wrap items-center gap-4">
           <div className="relative min-w-[240px] flex-1">
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
@@ -401,9 +401,9 @@ export default function AdminPriceMonitoring() {
   );
 }
 
-// Presentational only — reviews come from useCommodityMonitoring (which already fetches them
-// for status/alert aggregation), so this doesn't re-fetch the same list a second time. Real
-// DTI review-queue logic, unchanged from before this redesign.
+
+
+
 function PendingReviews({ reviews, onNotice, onError, onReload }) {
   const handleApprove = async (product) => {
     await approvePriceReview(product.id);
@@ -450,8 +450,8 @@ function PendingReviews({ reviews, onNotice, onError, onReload }) {
   );
 }
 
-// Presentational only — products come from useCommodityMonitoring, avoiding a second
-// full-catalog fetch on top of the one the hook already makes for commodity aggregation.
+
+
 function MarketplaceListings({ products }) {
   return (
     <Card>

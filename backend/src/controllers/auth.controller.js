@@ -1,3 +1,4 @@
+import { profileLocationFields } from '../lib/profileLocation.js';
 import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
@@ -9,14 +10,14 @@ import { encryptText, decryptText } from '../lib/security.js';
 import { sendVerificationCodeEmail } from '../lib/email.js';
 
 const VERIFICATION_CODE_LENGTH = 6;
-const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes — matches the email copy in email.js
-const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
-const MAX_RESENDS_PER_WINDOW = 3; // maximum resends
-const RESEND_WINDOW_MS = 60 * 60 * 1000; // 1 hour window
-const MAX_FAILED_ATTEMPTS = 5; // lock after this many failed verification attempts
+const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_RESENDS_PER_WINDOW = 3;
+const RESEND_WINDOW_MS = 60 * 60 * 1000;
+const MAX_FAILED_ATTEMPTS = 5;
 
-// crypto.randomInt, not Math.random() — a cryptographically secure code, not merely
-// unpredictable-looking.
+
+
 function generateVerificationCode() {
   return String(randomInt(100000, 1000000));
 }
@@ -41,6 +42,7 @@ function buildPendingRegistrationData(values) {
     lastName: values.lastName || '',
     name: values.name || getFullName(values),
     contactNumber: values.contactNumber || '',
+    ...profileLocationFields(values),
     address: values.address || '',
     zipCode: values.zipCode || '',
     municipality: values.municipality || null,
@@ -84,8 +86,8 @@ export async function register(req, res) {
   const email = String(rawEmail || '').trim().toLowerCase();
   if (!email) throw new ApiError('Enter your email address.', 400);
 
-  // TEMPORARY, DEVELOPMENT-ONLY DEBUGGING — see email.js's matching trace log. Never logs the
-  // password, the verification code, or any secret.
+
+
   if (!isProduction) console.info(`[dev-email-trace] Registration email received: ${email}`);
 
   if (!isValidPhilippineMobile(rawContactNumber)) {
@@ -129,13 +131,13 @@ export async function register(req, res) {
   const pendingData = buildPendingRegistrationData(req.body);
   const expiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
 
-  // Send BEFORE persisting anything — Resend's own response is what actually determines
-  // whether this request succeeded. A rejected send must never leave behind a pending
-  // registration (or tell the frontend "code sent") for a code that was never delivered
-  // anywhere. sendVerificationCodeEmail throws on any failure — including Resend's sandbox
-  // restriction, which is a real rejection, not a special case — so this is never silently
-  // swallowed; the raw reason is captured for the dev-only trace log, and the user gets a
-  // clean, honest message instead of either a lie or a leaked Resend error string.
+
+
+
+
+
+
+
   try {
     await sendVerificationCodeEmail(email, code);
   } catch (sendError) {
@@ -184,7 +186,7 @@ export async function verifyRegistrationCode(req, res) {
     throw new ApiError('Your verification code has expired. Please request a new verification code.', 400);
   }
 
-  // Prevent brute-force by tracking failed attempts
+
   const failedAttempts = pending.attempt_count || 0;
   if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
     throw new ApiError('Too many verification attempts. Please request a new verification code.', 429);
@@ -235,7 +237,7 @@ export async function resendRegistrationCode(req, res) {
   const email = String(rawEmail || '').trim().toLowerCase();
   if (!email) throw new ApiError('Enter your email address.', 400);
 
-  // TEMPORARY, DEVELOPMENT-ONLY DEBUGGING — see email.js's matching trace log.
+
   if (!isProduction) console.info(`[dev-email-trace] Resend Code requested for: ${email}`);
 
   const { data: pending } = await supabaseAdmin.from('pending_registrations').select('*').eq('email', email).maybeSingle();
@@ -259,9 +261,9 @@ export async function resendRegistrationCode(req, res) {
   const codeHash = await hashVerificationCode(code);
   const expiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
 
-  // Send BEFORE persisting the new code — same reasoning as register() above. If the send
-  // fails, the user's PREVIOUS code (already delivered, still unexpired) must stay valid
-  // rather than being silently overwritten by a new one that never reached them.
+
+
+
   try {
     await sendVerificationCodeEmail(email, code);
   } catch (sendError) {

@@ -34,15 +34,15 @@ function HistoryChartTooltip({ active, payload, label }) {
   );
 }
 
-// The audit-log table below already covers the full detail (who, why, exact previous/new
-// price) — this just gives the same history an at-a-glance shape, same idea as the PSA
-// trend chart above it. Distinct blue (matches the "Overridden" status badge elsewhere on
-// this page) rather than the trend chart's green, so the two are never visually confused.
+
+
+
+
 function PriceHistoryChart({ history }) {
-  // A single point has no line to draw — recharts still renders it as one dot floating in the
-  // middle of an arbitrarily-padded Y axis, which reads as a broken/misaligned chart rather
-  // than "not enough data yet" (see PriceTrendChart's identical guard below). The table right
-  // underneath already shows this one entry in full, so skip the chart entirely here.
+
+
+
+
   if (history.length < 2) return null;
   const points = [...history].reverse().map((entry) => ({
     date: formatDate(entry.createdAt),
@@ -117,9 +117,9 @@ function PriceTrendChart({ points }) {
   );
 }
 
-// Mounted only while its row is expanded (see AdminPriceMonitoring.jsx) — fetches this one
-// commodity's override history on demand rather than every row prefetching history nobody
-// looks at.
+
+
+
 export default function CommodityDetailPanel({ row }) {
   const [history, setHistory] = useState(null);
 

@@ -21,9 +21,9 @@ export function AuthProvider({ children }) {
       const profile = await apiClient.get('/profiles/me');
       setCurrentUserState(profile);
     } catch (error) {
-      // Only an explicit auth failure means the Supabase session is no longer usable.
-      // Network failures, a temporary API outage, and server errors must not log out a
-      // user whose valid session can still be refreshed.
+
+
+
       if (error.status === 401 || error.status === 403) {
         await supabase.auth.signOut();
         setCurrentUserState(null);
@@ -32,18 +32,6 @@ export function AuthProvider({ children }) {
       console.error('Unable to refresh the current profile:', error);
     }
   };
-
-  // React.StrictMode (main.jsx) intentionally double-invokes effects in dev — mount,
-  // clean up, mount again — to surface exactly this kind of bug. A shared ref-based
-  // "skip if already running" guard here previously caused the SECOND (real) invocation
-  // to no-op while the FIRST invocation's fetch was still in flight, so `loading` flipped
-  // to false with `currentUser` still null. ProtectedRoute then briefly redirected to
-  // /login, which immediately bounced an already-authenticated user to their role's
-  // default dashboard (AuthPage's own "already logged in" redirect) instead of the
-  // deep-linked page they actually requested — e.g. a hard refresh on /farmer-products
-  // always landing back on /farmer-dashboard. Using a per-invocation `cancelled` flag
-  // instead (the standard React pattern) fixes it: only the still-current invocation is
-  // ever allowed to call setLoading(false), so a superseded run can't act on stale state.
   useEffect(() => {
     let cancelled = false;
 
@@ -53,8 +41,8 @@ export function AuthProvider({ children }) {
         if (cancelled) return;
         if (session) await hydrateProfile();
       } catch (error) {
-        // A failed session read must not leave ProtectedRoute rendering a blank screen
-        // forever. Supabase will retry token refresh when it becomes available again.
+
+
         console.error('Unable to restore the saved session:', error);
         if (!cancelled) setCurrentUserState(null);
       } finally {
@@ -81,9 +69,9 @@ export function AuthProvider({ children }) {
     },
     async register(values) {
       const result = await registerUser(values);
-      // A pending-verification result isn't a logged-in user yet (see registerUser's own
-      // comment) — AuthPage.jsx reads pendingVerification and switches to the OTP screen
-      // instead of navigating away, so there's nothing to hydrate into currentUser here.
+
+
+
       if (result.pendingVerification) return result;
       setCurrentUserState(result);
       return result;
@@ -109,9 +97,7 @@ export function AuthProvider({ children }) {
     },
   }), [currentUser, loading]);
 
-  // Keeps this tab's session in sync with account changes made elsewhere (e.g. an admin
-  // approving/rejecting verification, or suspending the account) — a real network poll
-  // now, not a synchronous localStorage read, so it runs less often than before.
+
   useEffect(() => {
     if (!currentUser || currentUser.role === 'admin') return undefined;
     const interval = setInterval(hydrateProfile, 20000);
