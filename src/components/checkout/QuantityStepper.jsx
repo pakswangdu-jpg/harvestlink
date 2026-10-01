@@ -1,10 +1,10 @@
 import { Minus, Plus } from 'lucide-react';
 
-// A bounded +/- stepper instead of a bare number input — the +/- buttons can never push past
-// [min, max], so the only way to type an out-of-range value is by hand in the input itself
-// (still allowed, so a buyer can type "2" directly instead of clicking + twice) — the caller
-// is responsible for surfacing that as a validation message (see CheckoutForm.jsx, which shows
-// it live, not just on submit).
+
+
+
+
+
 export default function QuantityStepper({
   id, value, onChange, min = 0, max, step = 1, unit, disabled = false,
 }) {

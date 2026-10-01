@@ -1,8 +1,8 @@
-// A delivery-truck glyph with motion lines and a package seam — lucide-react's own Truck icon
-// is plainer (no sense of movement, no cargo detail), which is why this exists as a one-off
-// custom icon rather than reusing it here. Same stroke conventions as every lucide icon in the
-// app (24x24 viewBox, currentColor, 2px round-cap/round-join strokes) so it sits next to them
-// without looking like a different icon set.
+
+
+
+
+
 export default function DeliveryTruckIcon({ size = 16, strokeWidth = 2, className = '' }) {
   return (
     <svg

@@ -13,7 +13,7 @@ import { useCatalog } from '../../contexts/CatalogContext';
 import { getCropForecastDetail, getDemandForecast } from '../../services/demandForecastService';
 import { farmerNavItems } from './farmerNav';
 
-// A plain, transparent bucketing of OpenWeatherMap's real rainfall-probability percentage.
+
 function rainRiskLevel(rainfallProbability) {
   if (rainfallProbability == null) return 'Low';
   if (rainfallProbability >= 60) return 'High';
@@ -31,12 +31,12 @@ export default function FarmerDemandForecast() {
   const [customDate, setCustomDate] = useState('');
   const [selectedCropOverride, setSelectedCropOverride] = useState('');
 
-  // List fetch — same effect this page has always run (category/municipality/period), now
-  // also re-triggered by the header's Refresh button via `refreshToken`, and tracking its
-  // own request key so a refresh never blanks out the previously-loaded dashboard while
-  // the new response is in flight. Waits for a real customDate before firing once "Custom
-  // Date" is selected — the backend rejects an empty one, so there's nothing useful to fetch
-  // until the date picker actually has a value.
+
+
+
+
+
+
   const [listResult, setListResult] = useState({ key: '', data: null, error: '' });
   const [refreshToken, setRefreshToken] = useState(0);
   const isAwaitingCustomDate = period === 'custom' && !customDate;
@@ -67,8 +67,8 @@ export default function FarmerDemandForecast() {
   const periodLabel = data?.periodLabel || '';
   const weatherRiskLevel = weather ? rainRiskLevel(weather.rainfallProbability) : 'Low';
 
-  // Same backward-compat reasoning as Marketplace/FarmerProducts — a crop whose product row
-  // still carries a renamed/deactivated category shouldn't become impossible to isolate here.
+
+
   const categoryOptions = useMemo(() => {
     const extra = crops.map((entry) => entry.category).filter((value) => value && !categoryNames.includes(value));
     return [...categoryNames, ...new Set(extra)];
@@ -81,10 +81,10 @@ export default function FarmerDemandForecast() {
   const highDemandCrops = filtered.filter((entry) => entry.signal === 'opportunity');
   const featured = highDemandCrops[0] || filtered[0] || null;
 
-  // Derived, not synced via an effect: the user's clicked-row/card override wins as long as
-  // it's still present in the currently filtered list; otherwise falls back to the
-  // featured/top crop, so a filter change that makes the old selection disappear
-  // re-anchors for free.
+
+
+
+
   const selectedCrop = filtered.some((entry) => entry.crop === selectedCropOverride)
     ? selectedCropOverride
     : (featured?.crop || filtered[0]?.crop || '');
@@ -109,15 +109,15 @@ export default function FarmerDemandForecast() {
     ? Math.round(filtered.reduce((sum, entry) => sum + (entry.confidence || 0), 0) / filtered.length)
     : null;
 
-  // Both sides are real COUNTS (number of orders vs. number of active listings) — not
-  // order count vs. total quantity ordered, which would compare two different units and
-  // make the bars meaningless next to each other (see SupplyDemandBarChart.jsx).
+
+
+
   const supplyDemandData = filtered.slice(0, 8).map((entry) => ({
     crop: entry.crop, supply: entry.activeListings, demand: entry.orderCount,
   }));
 
-  // Crop-detail drill-down — same "track the key it was fetched for" derived-loading
-  // pattern already used by this page (and originally the retired Price Forecast page).
+
+
   const [detailResult, setDetailResult] = useState({ key: '', detail: null, error: '' });
   const detailRequestKey = `${selectedCrop}:${period}:${municipality}:${customDate}`;
   const isDetailLoading = Boolean(selectedCrop) && !isAwaitingCustomDate && detailResult.key !== detailRequestKey;

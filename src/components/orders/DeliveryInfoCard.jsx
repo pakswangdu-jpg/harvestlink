@@ -10,15 +10,15 @@ import { formatCurrency } from '../../utils/formatters';
 
 const LALAMOVE_URL = 'https://www.lalamove.com/philippines';
 
-// The courier order's persistent "Delivery Information" card — always shown once the order is
-// trackable and courier-delivered, in one of two states: not yet booked (Courier/Status/
-// Tracking all show placeholder values, with a "Book with Lalamove" button for the farmer once
-// the order is ready) or booked (the details the farmer entered after booking on Lalamove's
-// own site — see LinkLalamoveDeliveryDialog.jsx). HarvestLink never books the delivery itself
-// or talks to any Lalamove API; "Track Delivery" just opens Lalamove's own official tracking
-// page in a new tab.
+
+
+
+
+
+
+
 export default function DeliveryInfoCard({ order, delivery, isFarmer, canBook, onBooked }) {
-  const [dialogMode, setDialogMode] = useState(null); // null | 'book' | 'edit'
+  const [dialogMode, setDialogMode] = useState(null);
 
   const handleStartBooking = () => {
     window.open(LALAMOVE_URL, '_blank', 'noreferrer');

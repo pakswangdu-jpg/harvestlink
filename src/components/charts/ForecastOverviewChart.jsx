@@ -19,9 +19,9 @@ function ChartTooltip({ active, payload }) {
   );
 }
 
-// Ranks crops by their forecasted price-change % for whichever period is currently
-// selected (see backend/src/controllers/forecast.controller.js's expectedChangePercent) —
-// every bar re-renders with a fresh value on every period switch, never a static snapshot.
+
+
+
 export default function ForecastOverviewChart({ data, periodLabel }) {
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-7 shadow-sm">

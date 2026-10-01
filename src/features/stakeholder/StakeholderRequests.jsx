@@ -11,11 +11,11 @@ import { createRating } from '../../services/ratingService';
 import { STORAGE_KEYS } from '../../utils/constants';
 import { stakeholderNavItems } from './stakeholderNav';
 
-// Donations have no backend order behind them (see donationService.js), so a rating from
-// here has no orderId — it's anchored only to the farmer and the rating stakeholder.
-// Submits immediately on star click rather than a separate confirm step, since a card
-// footer is too tight for a full form; "already rated" is tracked on the local donation
-// record itself via markDonationRated.
+
+
+
+
+
 function DonationRatingPrompt({ donation, onRated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');

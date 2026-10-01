@@ -7,13 +7,13 @@ import { getRatingsForFarmer } from '../../services/ratingService';
 import { MESSAGE_TRANSLATION_LANGUAGES } from '../../services/translateService';
 import { formatRelativeTime, getInitials, isRecentlyActive } from '../../utils/formatters';
 
-// Real average — fetched and computed from this farmer's actual ratings, never a fabricated
-// or placeholder number. Silently shows nothing if there are no ratings yet or the other
-// party isn't a farmer, rather than a fake "New" badge or a made-up score.
+
+
+
 function useFarmerRating(farmerId) {
-  // Keyed on which farmerId the loaded summary is actually for, rather than resetting state
-  // synchronously inside the effect — a stale summary from a previous farmer never leaks
-  // into view while a new one loads (or when there's no farmer at all).
+
+
+
   const [state, setState] = useState({ farmerId: null, summary: null });
   useEffect(() => {
     if (!farmerId) return undefined;

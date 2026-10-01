@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 
-// `iconClassName` is opt-in (e.g. dropping the icon's badge box for one specific card) — every
-// existing caller that omits it keeps the icon in its default muted/soft badge, unchanged.
+
+
 export default function StatCard({
   label, value, icon, hint, tone = 'neutral', iconClassName = '',
 }) {

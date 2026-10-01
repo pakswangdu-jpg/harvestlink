@@ -15,8 +15,8 @@ import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import logo from '../../assets/logo.png';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
 
-// Non-permanent — reverts on its own so the button stays clickable if the buyer wants to
-// copy again, matching the same pattern ProductCard.jsx uses for "Added to Cart".
+
+
 const COPIED_FEEDBACK_MS = 1500;
 
 const PAYMENT_STEPS = [
@@ -27,19 +27,19 @@ const PAYMENT_STEPS = [
   'Upload your payment receipt.',
 ];
 
-// Reached from checkout (src/components/forms/CheckoutForm.jsx -> ProductDetails.jsx) once
-// an order already exists in Supabase with paymentMethod: 'gcash' and paymentStatus:
-// 'pending'. Shows the farmer's own real GCash account name/number/QR (stored on their
-// profile — see Profile.jsx's Payment Information card) so the buyer can pay in their own
-// GCash app, then hands off to ConfirmGcashPaymentPage to collect proof of payment (receipt
-// + reference number) once they've actually paid. No GCash API integration of any kind —
-// see backend/src/controllers/payments.controller.js.
-//
-// Deliberately doesn't use AppShell — a payment step leaves the merchant's own app chrome
-// (sidebar, breadcrumb, page header) behind, rendering as its own full-page experience
-// instead. It still mounts MobileBottomNav directly, though: without it, a mobile buyer who
-// backgrounds the GCash app mid-payment and comes back had no way to navigate anywhere
-// except the explicit "Back to Order"/"Back to marketplace" links.
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function GcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -47,16 +47,16 @@ export default function GcashPaymentPage() {
   const { currentUser } = useAuth();
   const navItems = getNavItemsForRole(currentUser.role);
 
-  // 'loading' | 'ready' | 'error'
+
   const [stage, setStage] = useState('loading');
   const [checkout, setCheckout] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  // Bumped by "Try Again" to force the effect below to refetch — the farmer setting up
-  // GCash (Profile.jsx) doesn't push anything to an already-open checkout tab, so without
-  // this a buyer who hit the "not set up yet" error has no way back except abandoning the
-  // order via "Back to marketplace" and restarting checkout from scratch.
+
+
+
+
   const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
@@ -69,9 +69,9 @@ export default function GcashPaymentPage() {
       })
       .catch((error) => {
         if (cancelled) return;
-        // "Already paid" isn't really an error — it happens if a buyer navigates back to
-        // this URL after already completing payment (e.g. via the browser back button).
-        // Send them straight to tracking instead of showing a scary error screen for it.
+
+
+
         if (error.message?.toLowerCase().includes('already been paid')) {
           navigate(`/orders/${id}`, { replace: true });
           return;

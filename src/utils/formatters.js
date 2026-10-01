@@ -9,15 +9,15 @@ export function formatCurrency(value) {
   }).format(number);
 }
 
-// The backend title-cases product names on save (see products.controller.js), but listings
-// created before that normalization existed may still have raw casing — this keeps them
-// displaying consistently everywhere without needing a data migration.
+
+
+
 export function titleCase(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-// Turns the engine's real `bestTimeToSell` ISO date into a plain-language window — still
-// just that same real date, phrased relative to today instead of a bare calendar string.
+
+
 export function sellWindowLabel(bestSellingDateIso) {
   if (!bestSellingDateIso) return 'Not available';
   const today = new Date();
@@ -30,14 +30,14 @@ export function sellWindowLabel(bestSellingDateIso) {
   return `Sell by ${formatDate(bestSellingDateIso)}`;
 }
 
-// A single Sell/Hold/Plant/Harvest badge distilled from three already-computed real signals
-// (demand-vs-supply signal, harvest season state, market trend) — same priority a farmer
-// would reason through by hand: an actual supply shortage matters most (Plant), then
-// whether harvest is literally happening right now (Harvest), then the real price
-// direction decides whether waiting (rising price) or acting now (flat/falling price) pays
-// off more — matching the same logic priceForecastEngine.js's computeBestSellingDate
-// already uses (increasing trend -> wait for the end of the window; decreasing -> sell
-// tomorrow). Never a new signal, just a compact label for signals already on the row.
+
+
+
+
+
+
+
+
 export function cropActionRecommendation({ signal, harvestSeason, marketTrend }) {
   if (signal === 'opportunity' && harvestSeason !== 'Active') return 'Plant';
   if (harvestSeason === 'Active') return 'Harvest';
@@ -45,8 +45,8 @@ export function cropActionRecommendation({ signal, harvestSeason, marketTrend })
   return 'Sell';
 }
 
-// The engine's real `bestTimeToHarvest` is already a plain-language string (e.g. "Now —
-// harvest season is active") — this extracts just the short action verb for a compact badge.
+
+
 export function harvestActionLabel(bestTimeToHarvest) {
   if (!bestTimeToHarvest) return 'Hold';
   if (bestTimeToHarvest.startsWith('Now')) return 'Harvest Now';
@@ -75,8 +75,8 @@ export function formatRelativeTime(value) {
   return formatDate(value);
 }
 
-// Duration, not a timestamp — "~2h 15m" / "~45 mins" — used for the upfront "estimated
-// delivery" figure (see getLiveTransitProgress's estimatedTotalMinutes).
+
+
 export function formatDurationMinutes(minutes) {
   const rounded = Math.max(1, Math.round(minutes));
   if (rounded < 60) return `${rounded} min${rounded === 1 ? '' : 's'}`;
@@ -85,11 +85,11 @@ export function formatDurationMinutes(minutes) {
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
-// "Online" here means "the backend saw an authenticated request from this account within
-// the last ONLINE_THRESHOLD_MINUTES" (see backend/src/middleware/requireAuth.js, which
-// touches last_active_at on every authenticated request, throttled to ~once/minute). Set
-// a little above that throttle window so a genuinely-active account doesn't flicker
-// offline between writes.
+
+
+
+
+
 const ONLINE_THRESHOLD_MINUTES = 2;
 
 export function isRecentlyActive(lastActiveAt) {
@@ -107,19 +107,19 @@ export function getFirstName(name = '') {
   return String(name).trim().split(/\s+/)[0] || name;
 }
 
-// A full UUID is correct but unwieldy to read/quote aloud on a receipt or tracking page —
-// the first 8 characters (uppercased) are unique enough for a human-facing reference, while
-// every link/API call still uses the full id underneath.
+
+
+
 export function shortOrderId(id) {
   return String(id).slice(0, 8).toUpperCase();
 }
 
-// A raw stock quantity (e.g. 1.03, from a kg/L-priced product) rounded to at most 1 decimal
-// place for quick-glance UI like the low-stock badge — "1.03" reads like an odd, very
-// specific inventory count; "1" (or "1.5" when it's genuinely a half-unit) reads like a
-// normal stock figure. Never rounds UP past the real remaining amount (Math.round on a
-// single decimal digit can't inflate 1.03 into "2"), so it stays an honest quantity, just a
-// less noisy one. Whole numbers (5, 10, 48) pass through unchanged either way.
+
+
+
+
+
+
 export function formatQuantity(value) {
   const rounded = Math.round(Number(value) * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
@@ -224,8 +224,8 @@ const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 
 const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked', 'assigning_driver'];
 const STATUS_TONE_CRITICAL = ['rejected', 'inactive', 'failed', 'cancelled', 'refunded', 'declined', 'suspended'];
 
-// Mirrors the .badge-* color groups in globals.css, so a report chart's bar color
-// always agrees with what that same status looks like as a badge elsewhere in the app.
+
+
 export function statusTone(value) {
   if (STATUS_TONE_GOOD.includes(value)) return 'good';
   if (STATUS_TONE_WARNING.includes(value)) return 'warning';

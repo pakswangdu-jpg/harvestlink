@@ -42,11 +42,11 @@ function priceChangeCell(value) {
   return <span className={value >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'}>{sign}{value}%</span>;
 }
 
-// The full comparison table — search/sort/filter added client-side over already-fetched
-// `crops` (same pattern as ProductFilters.jsx + sortProducts() in FarmerProducts.jsx). No
-// new requests: every row here is a crop object the page already has. Category/demand-level
-// filters live here rather than the page header, keeping the header itself minimal without
-// dropping either filter's functionality.
+
+
+
+
+
 export default function ForecastTable({
   crops, selectedCrop, onSelectCrop, category, onCategoryChange, categoryOptions, demandLevel, onDemandLevelChange,
 }) {
@@ -110,11 +110,11 @@ export default function ForecastTable({
               >
                 <td className="whitespace-nowrap rounded-l-xl px-4 py-3.5 text-[14px] font-bold text-[var(--text)]">{entry.crop}</td>
                 <td className="whitespace-nowrap px-4 py-3.5 text-[14px] text-[var(--text-secondary)]">
-                  {/* referencePrice falls back from a live active listing to this crop's real
-                      historical order average, then to a farmer's own last-listed price (see
-                      forecast.controller.js) — the "~" flags when it isn't a live listing, so
-                      the table still shows a real number instead of a bare dash whenever any
-                      real price signal exists. */}
+                  {
+
+
+
+                                                  }
                   {entry.referencePrice != null ? (
                     <>
                       {entry.priceBasis !== 'listing' ? <span className="text-[var(--muted)]">~</span> : null}

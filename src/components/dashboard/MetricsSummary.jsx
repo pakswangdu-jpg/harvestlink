@@ -1,13 +1,13 @@
 import { ArrowRight, ClipboardList, Package, TrendingUp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// Same flat .product-stats-bar/.product-stats-item pattern BuyerOrders.jsx and
-// FarmerOrders.jsx already use for their own summary bars — one shared visual language for
-// "row of stat cards" across the app instead of this page keeping its own heavier,
-// boxed-icon/top-border/tooltip treatment. Products and Orders keep their extra secondary
-// stat line, and Orders keeps its "View orders" link, since those carry real information the
-// simpler cards don't need — everything else (the tooltip, the colored icon badge, the
-// all-caps tracked label) was decoration, not data, so it's gone.
+
+
+
+
+
+
+
 export default function MetricsSummary({ financialMetrics, productMetrics, orderMetrics }) {
   const cards = [
     { title: 'Total income', metric: financialMetrics[0], icon: TrendingUp, tone: 'income' },
@@ -38,9 +38,9 @@ export default function MetricsSummary({ financialMetrics, productMetrics, order
   );
 }
 
-// Profit is the only card with genuine good/bad framing (a positive figure vs. a loss);
-// Orders is pending work waiting on the farmer. Total income and Products are plain counts —
-// no accent, same as "Total Orders" gets no accent on BuyerOrders.jsx's own stats bar.
+
+
+
 const ACCENT_BY_TONE = {
   profit: 'success',
   orders: 'warning',

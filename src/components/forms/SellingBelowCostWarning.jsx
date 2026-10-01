@@ -11,12 +11,12 @@ function Row({ label, value, tone }) {
   );
 }
 
-// Replaces the normal AI-recommendation card entirely (PSA or historical — see
-// marketPriceLabel below) whenever THAT tier's own recommended price would sell at or below
-// the farmer's stated cost. General Rule: "never recommend selling below production cost" —
-// the AI simply refuses to hand over a losing number, full stop, rather than presenting it
-// with a caveat. `recommendedPrice` is trusted to already satisfy price <= costPrice; the
-// caller (ProductForm.jsx) decides when this renders instead of re-checking here.
+
+
+
+
+
+
 export default function SellingBelowCostWarning({
   costPrice, unit, marketPriceLabel, marketPriceValue, marketPriceUnit, recommendedPrice, currentPrice,
 }) {
@@ -44,11 +44,11 @@ export default function SellingBelowCostWarning({
         </Button>
       </div>
 
-      {/* "recalculate the profit instantly" — reflects whatever the farmer has actually
-          typed into the Price field above, independent of the (rejected) AI figure. This is
-          the "explicit override" the general rule allows: the AI still won't suggest a
-          losing price itself, but the farmer setting their own profitable price is honored
-          immediately, not blocked. */}
+      {
+
+
+
+                                      }
       {hasCurrentPrice ? (
         <div className="price-breakdown">
           <Row

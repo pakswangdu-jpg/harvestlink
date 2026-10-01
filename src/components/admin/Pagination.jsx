@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// Client-side pagination — the admin tables already fetch their full dataset into state (no
-// backend paging endpoint exists), so this just slices what's already loaded. Introduced
-// fresh for this redesign (no prior pagination existed anywhere in the app to preserve).
+
+
+
 export default function Pagination({ page, pageSize, total, onPageChange }) {
   if (total <= pageSize) return null;
   const totalPages = Math.ceil(total / pageSize);

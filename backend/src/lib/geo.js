@@ -1,8 +1,8 @@
 import { CEBU_MUNICIPALITIES, DEFAULT_MUNICIPALITY, getMunicipalityCoords } from '../utils/constants.js';
 
-// Ported verbatim from src/utils/constants.js's matchMunicipality — resolves a product's
-// free-ish location text to one of the known municipality strings, used when an order is
-// created to derive originMunicipality from the product's location.
+
+
+
 export function matchMunicipality(freeText) {
   const normalized = String(freeText || '').toLowerCase();
   const match = CEBU_MUNICIPALITIES.find(
@@ -11,8 +11,8 @@ export function matchMunicipality(freeText) {
   return match || DEFAULT_MUNICIPALITY;
 }
 
-// Ported verbatim from src/utils/geo.js's haversineKm — used server-side to compute the
-// distance-based delivery fee at order creation (see lib/deliveryFee.js).
+
+
 export function haversineKm(a, b) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -40,10 +40,10 @@ function jitterPoint(point, seed) {
   };
 }
 
-// Ported verbatim from src/utils/geo.js's resolveRoutePoints (destination side only) — lets
-// the real-time GPS handler (realtime/orderTracking.js) know where the buyer pin actually
-// renders, including the same same-municipality jitter, so the "near destination" proximity
-// check fires at the same point the buyer's map actually shows.
+
+
+
+
 export function resolveDeliveryDestination({ id, originMunicipality, destinationMunicipality }) {
   const destination = getMunicipalityCoords(destinationMunicipality);
   return originMunicipality === destinationMunicipality ? jitterPoint(destination, id) : destination;

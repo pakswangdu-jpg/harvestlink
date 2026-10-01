@@ -5,10 +5,10 @@ import { getCatalog } from '../services/catalogService';
 
 const CatalogContext = createContext(null);
 
-// Fetches the admin-editable Category -> Product -> Unit catalog (see backend/src/
-// controllers/catalog.controller.js) once per signed-in session and shares it app-wide — the
-// single source of truth that replaced the old hardcoded PRODUCT_CATEGORIES array, and
-// before that the flat crop_categories/crops tables.
+
+
+
+
 export function CatalogProvider({ children }) {
   const { currentUser } = useAuth();
   const [categories, setCategories] = useState([]);
@@ -30,10 +30,10 @@ export function CatalogProvider({ children }) {
     }
   }, []);
 
-  // Depends on currentUser?.id (a stable primitive), not the currentUser object itself —
-  // AuthProvider hands out a brand-new object on every ~20s presence-poll hydrate (see
-  // AuthContext.jsx), so depending on the whole object here would needlessly refetch the
-  // catalog on that same cadence instead of only on an actual login/logout.
+
+
+
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -62,16 +62,16 @@ export function CatalogProvider({ children }) {
       loading,
       error,
       refresh,
-      // A product created before its category was renamed/deactivated can still hold a
-      // value no longer in `categoryNames` — appending it here keeps that value selectable
-      // (and visibly correct) instead of silently defaulting away the moment an old listing
-      // is opened for editing. Same reasoning for getUnitOptions below.
+
+
+
+
       getCategoryOptions(currentValue) {
         if (!currentValue || categoryNames.includes(currentValue)) return categoryNames;
         return [...categoryNames, currentValue];
       },
-      // The product NAME is free text (see ProductForm.jsx) — units are the flat master
-      // list for every product, not scoped per-product.
+
+
       getUnitOptions(currentValue) {
         const values = units.map((unit) => unit.value);
         if (!currentValue || values.includes(currentValue)) return values;

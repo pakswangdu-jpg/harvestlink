@@ -1,6 +1,6 @@
-// Compares treating null/undefined as "always last" regardless of direction — a commodity
-// with no PSA data or no farmer listings shouldn't clutter the top of a "highest price"/
-// "most listings" sort just because null happens to compare oddly with numbers.
+
+
+
 function compareNullsLast(a, b, direction) {
   if (a == null && b == null) return 0;
   if (a == null) return 1;

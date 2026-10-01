@@ -3,9 +3,9 @@ import { ArrowRight, MapPin, Sprout, Trash2, User } from 'lucide-react';
 import QuantityStepper from '../checkout/QuantityStepper';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
 
-// `product` is the live listing fetched fresh from the backend (see CartPage.jsx) — never a
-// stale snapshot saved at add-to-cart time, so price/stock/status here are always current.
-// `product` is null when the listing was deleted or deactivated since it was added.
+
+
+
 export default function CartItemRow({ quantity, product, onUpdateQuantity, onRemove }) {
   if (!product) {
     return (

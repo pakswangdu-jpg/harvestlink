@@ -1,6 +1,6 @@
-// Frozen, localStorage-backed snapshot of the pre-migration notificationService.js — kept
-// only so donationService.js (not yet migrated to the backend) still has a synchronous
-// createNotification() to call. Do not add new features here.
+
+
+
 import { STORAGE_KEYS } from '../../utils/constants';
 import { createId, readStorage, writeStorage } from '../storageService';
 

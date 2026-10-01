@@ -7,8 +7,8 @@ import ForecastTooltip from './ForecastTooltip';
 import { formatCurrency } from '../../utils/formatters';
 
 const CHART_HEIGHT = 280;
-// Below this, a "trend line" is really just 1-2 dots — the empty state is more honest and
-// more useful than a chart that looks broken.
+
+
 const MIN_HISTORICAL_POINTS = 3;
 
 function formatAxisDate(dateIso, todayIso) {
@@ -18,9 +18,9 @@ function formatAxisDate(dateIso, todayIso) {
   return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// A plain solid dot, no glow/pulse — this report's visual language deliberately avoids
-// glowing or floating decoration (see MarketAnalysisReport.jsx); the dashed reference line
-// plus this marker is enough to place "today" without drawing extra attention to itself.
+
+
+
 function TodayDot({ cx, cy }) {
   if (cx == null || cy == null) return null;
   return <circle cx={cx} cy={cy} r={4} fill="var(--amber-700)" stroke="var(--panel)" strokeWidth={2} />;
@@ -42,22 +42,22 @@ function EmptyHistoryState() {
   );
 }
 
-// Merges two independently-sourced series onto one shared date axis: `historicalChart` (real
-// past order prices — plus real PSA annual reference points when order history is thin, see
-// forecast.controller.js, marked source: 'psa') and `forecastCurve` (the engine's real
-// confidence-banded projection, see priceForecastEngine.js). Historical stays solid green,
-// forecast stays a plain blue line — no fill, no gradient, never blended into one line, so
-// it's always visually clear which numbers are real recorded sales and which are the model's
-// projection. The confidence band is the one shaded region on the chart, drawn as two
-// stacked flat-color areas (an invisible one up to `lower`, a visible one spanning
-// `upper - lower`) — informational (a real uncertainty range), not decorative.
+
+
+
+
+
+
+
+
+
 export default function ForecastChart({ historicalChart, forecastCurve, unit }) {
   const todayIso = forecastCurve?.[0]?.date || null;
-  // forecastCurve[0] is always today's real baseline value (see priceForecastEngine.js's
-  // buildForecastSeries — dayOffset 0 is never projected/noised), so it's a reliable "Today"
-  // anchor the moment there's a forecast at all. A LINE/band, though, needs at least 2 points
-  // to mean anything — a period like "Today" (0 days ahead) legitimately produces just that
-  // one point, which is real but isn't a trend to draw.
+
+
+
+
+
   const hasForecastAnchor = (forecastCurve?.length || 0) >= 1;
   const hasForecastTrend = (forecastCurve?.length || 0) >= 2;
 
@@ -89,14 +89,14 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
       byDate.set(point.date, existing);
     });
 
-    // Bridge the two lines at "today" — historicalPrice and forecastPrice are different
-    // dataKeys, so connectNulls (which only skips gaps within one series) can't span the
-    // handoff between them on its own. Without a shared point, the green line stops at
-    // whatever date the last real order happened to land on and the blue line only picks up
-    // several ticks later at the Today marker, leaving a visible gap on the (common) days
-    // with no order dated today. Seeding today's row with the forecast's own day-0 value
-    // (already real, never a same-day coincidence — see the comment below) as the
-    // historical point too makes both lines pass through the same coordinate.
+
+
+
+
+
+
+
+
     const bridgeDateIso = forecastCurve?.[0]?.date;
     if (bridgeDateIso) {
       const bridgeRow = byDate.get(bridgeDateIso);
@@ -108,18 +108,18 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
     return [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [historicalChart, forecastCurve]);
 
-  // Nothing meaningful to plot at all — neither a real historical trend nor a real forecast
-  // trend, just at most a stray dot or two. Showing the honest empty state beats a chart
-  // that looks broken.
+
+
+
   const showEmptyState = (historicalChart?.length || 0) < MIN_HISTORICAL_POINTS && !hasForecastTrend;
 
   if (showEmptyState) return <EmptyHistoryState />;
 
   const todayRow = data.find((row) => row.date === todayIso);
-  // Prefer the forecast's own day-0 value (always real, always present whenever there's a
-  // forecast at all) over a same-day historical order, which is coincidental and often just
-  // won't exist — anchoring the "Today" marker to it meant the marker silently failed to
-  // render on the (common) days without a completed order dated today.
+
+
+
+
   const todayValue = todayRow?.forecastPrice ?? todayRow?.historicalPrice ?? null;
 
   return (

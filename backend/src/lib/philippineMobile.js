@@ -1,8 +1,8 @@
-// Mirrors src/utils/philippineMobile.js — duplicated, not imported, same reason as
-// priceReview.js's own server-side twin of MAX_PLAUSIBLE_PRICE_PER_KG: Render only builds/
-// deploys backend/ in isolation, so this file can't reach across to src/. The frontend already
-// blocks an invalid/duplicate number in the form, but that's advisory only — this is the check
-// that actually can't be bypassed by calling the API directly. Keep both copies in sync by hand.
+
+
+
+
+
 
 export const PH_MOBILE_PREFIXES = [
   '0905', '0906', '0907', '0908', '0909',

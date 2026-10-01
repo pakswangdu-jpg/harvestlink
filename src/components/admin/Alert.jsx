@@ -15,12 +15,12 @@ const TONE = {
   },
 };
 
-// Replaces the ad hoc `<div className="form-alert success/error">` every admin section used
-// to hand-roll individually — one component, same look everywhere it's needed. Same visual
-// language (subtle border, restrained radius, moderate weight) as the app-wide .form-alert
-// system, just in this section's own flatter/denser sizing — kept as its own component
-// rather than merged into .form-alert since the admin UI is deliberately its own scoped
-// design system (see Button.jsx/Table.jsx/Modal.jsx here).
+
+
+
+
+
+
 export default function Alert({ tone = 'success', children }) {
   const { bg, text, border, Icon } = TONE[tone] || TONE.success;
   return (

@@ -5,9 +5,9 @@ const DEFAULT_ITEMS = [
   { key: 'confidence', label: 'Confidence Band', swatchClass: 'bg-[var(--green-100)]' },
 ];
 
-// Small color-key row shared by ForecastChart and DemandChart — kept as its own component
-// since both charts render an identical legend and the historical-only "Historical" tab view
-// needs to drop the forecast/today/confidence entries.
+
+
+
 export default function ForecastLegend({ showForecast = true }) {
   const items = showForecast ? DEFAULT_ITEMS : DEFAULT_ITEMS.filter((item) => item.key === 'historical');
   return (

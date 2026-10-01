@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
-// Admin-scoped slide-over — same mechanics as src/components/common/SlideOver.jsx (ESC/
-// backdrop/close-button to dismiss) but compact per this section's own spacing/typography
-// scale, kept separate so it never affects SlideOver's other caller (Profile.jsx).
+
+
+
 export default function Modal({ open, onClose, eyebrow, title, children }) {
   useEffect(() => {
     if (!open) return undefined;

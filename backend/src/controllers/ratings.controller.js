@@ -2,10 +2,10 @@ import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeRating } from '../lib/serialize.js';
 import { ApiError } from '../lib/ApiError.js';
 
-// GET /api/ratings?farmerId= or ?orderId= — public to any authenticated account for the
-// farmerId form, since ratings are a trust signal meant to be visible to everyone deciding
-// whether to buy from this farmer. The orderId form is just used to check "has this specific
-// order already been rated" before showing a rating prompt.
+
+
+
+
 export async function listRatings(req, res) {
   const { farmerId, orderId } = req.query;
   if (!farmerId && !orderId) throw new ApiError('farmerId or orderId is required.', 400);
@@ -19,12 +19,12 @@ export async function listRatings(req, res) {
   res.json(data.map(serializeRating));
 }
 
-// POST /api/ratings — body { farmerId, orderId?, rating, comment? }.
-//
-// Buyers rate a specific completed order (one rating per order, enforced by both this check
-// and a DB unique index — see supabase/schema.sql). Stakeholders rate a farmer after
-// confirming receipt of a donation, which isn't a backend record (see
-// src/services/donationService.js), so their rating has no order_id to anchor to.
+
+
+
+
+
+
 export async function createRating(req, res) {
   const { farmerId, orderId, comment } = req.body;
   const rating = Number(req.body.rating);

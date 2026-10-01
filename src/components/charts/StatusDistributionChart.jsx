@@ -6,10 +6,10 @@ import EmptyState from '../admin/EmptyState';
 const CHART_HEIGHT = 220;
 const ALL_TIME = 'all';
 
-// Centralized so "Orders by status" and "Donations by status" (the only two charts driving
-// this component today) always render the same status in the same color, even though each
-// pulls from a different status vocabulary (order vs. donation lifecycle). Muted rather than
-// saturated — distinct enough to read, not a rainbow.
+
+
+
+
 const STATUS_COLORS = {
   completed: 'var(--green-700)',
   pending: 'var(--amber-700)',
@@ -68,8 +68,8 @@ function buildMonthOptions(records, dateKey) {
   return [...seen.values()].sort((a, b) => (a.year === b.year ? b.month - a.month : b.year - a.year));
 }
 
-// Content only — no card wrapper of its own; the caller wraps this in the shared admin
-// Card/CardHeader so every panel on the page shares identical chrome.
+
+
 export default function StatusDistributionChart({ records, dateKey = 'createdAt', computeBreakdown }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(ALL_TIME);

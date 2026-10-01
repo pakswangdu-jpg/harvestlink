@@ -11,6 +11,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
   const isLoading = result.commodityId !== commodityId;
   const points = isLoading ? null : result.points;
   const error = isLoading ? '' : result.error;
+  const isBuyer = perspective === 'buyer';
 
   useEffect(() => {
     let cancelled = false;
@@ -35,11 +36,12 @@ export default function MarketPricePanel({ commodityId, perspective }) {
   const isFavorable = change == null ? null : perspective === 'farmer' ? change >= 0 : change <= 0;
 
   return (
-    <section className="panel market-panel">
+    <section className={`panel market-panel${isBuyer ? ' buyer-market-insight' : ''}`}>
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Market insights</p>
-          <h2>{commodity.label} — Farmgate Price</h2>
+          <p className="eyebrow">Market price insight</p>
+          <h2>{commodity.label}</h2>
+          {isBuyer ? <p className="market-reference-label">Regional farmgate reference<br />{MARKET_REGION_LABEL}</p> : null}
         </div>
         <Link className="btn btn-secondary btn-md" to="/market-insights">
           <TrendingUp size={16} /> View trends
@@ -47,7 +49,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
       </div>
 
       {error ? <p className="muted">{error}</p> : null}
-      {!error && !points ? <p className="muted">Loading PSA market data…</p> : null}
+      {!error && !points ? <p className="muted">Loading PSA market data...</p> : null}
 
       {!error && points ? (
         latest ? (
@@ -57,7 +59,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
                 {formatCurrency(latest.price)}<small>/kg</small>
               </strong>
               {latest.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
-              <p className="muted">{MARKET_REGION_LABEL} • {latest.year} annual average</p>
+              <p className="muted">{isBuyer ? `${latest.year} annual average` : `${MARKET_REGION_LABEL} / ${latest.year} annual average`}</p>
               {change != null ? (
                 <span className={`market-delta ${isFavorable ? 'good' : 'bad'}`}>
                   {change >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
@@ -72,6 +74,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
         )
       ) : null}
 
+      {isBuyer ? <p className="market-reference-note">Reference data may differ from individual farmer selling prices.</p> : null}
       <p className="market-source">Source: Philippine Statistics Authority (PSA) OpenStat.</p>
     </section>
   );

@@ -13,8 +13,8 @@ import { adminNavItems } from './adminNav';
 
 export default function AdminDonations() {
   const { currentUser } = useAuth();
-  // Still localStorage-backed (see donationService.js), a synchronous read — no loading state
-  // needed, matching the original AdminDashboard.jsx's own handling of it.
+
+
   const donations = getDonations();
   const { page, setPage, pageRows, pageSize, total } = usePagination(donations, 15);
 

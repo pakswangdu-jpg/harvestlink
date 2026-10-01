@@ -45,8 +45,8 @@ async function hydrateFarmerProfiles(orders) {
 async function fetchOrderOr404(id) {
   const { data, error } = await supabaseAdmin.from('orders').select('*').eq('id', id).single();
   if (error || !data) throw new ApiError('Order was not found.', 404);
-  // Keep older orders usable when their snapshot image is empty by resolving the current
-  // product image, just like the orders list endpoint does.
+
+
   const [hydratedOrder] = await hydrateFarmerProfiles([data]);
   return hydratedOrder;
 }
@@ -59,8 +59,8 @@ function assertParty(req, order) {
   return { isAdmin, isBuyer, isFarmer };
 }
 
-// GET /api/orders?buyerId=&farmerId= — non-admin callers are server-forced to their own
-// orders (as buyer OR farmer) regardless of query params; only an admin gets everything.
+
+
 export async function listOrders(req, res) {
   let query = supabaseAdmin.from('orders').select('*').order('created_at', { ascending: false });
 
@@ -80,9 +80,9 @@ export async function getOrder(req, res) {
   const order = await fetchOrderOr404(req.params.id);
   assertParty(req, order);
 
-  // Powers the status timeline (see CourierDeliveryTimeline.jsx and the equivalent for
-  // farmer_delivery/buyer_pickup) — applies to every delivery method, not just courier, so it
-  // lives on the single-order fetch rather than the courier-only GET /api/deliveries/:orderId.
+
+
+
   const { data: events } = await supabaseAdmin
     .from('order_delivery_events')
     .select('*')
@@ -92,10 +92,10 @@ export async function getOrder(req, res) {
   res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
 }
 
-// POST /api/orders — mirrors createOrder(): resolves the product, snapshots
-// farmer/buyer names + unit price, derives municipalities, inserts, notifies the farmer.
-// Any authenticated non-admin role may place an order (a stakeholder checking out through
-// the marketplace is a "buyer" by ID ownership, same as a buyer-role account).
+
+
+
+
 export async function createOrder(req, res) {
   if (req.profile.role === 'admin') throw new ApiError('Admin accounts cannot place orders.', 403);
 
@@ -108,8 +108,8 @@ export async function createOrder(req, res) {
   if (productError || !product) throw new ApiError('Product was not found.', 404);
   if (product.farmer_id === req.profile.id) throw new ApiError('You cannot order your own product.', 400);
   if (product.status !== 'active') throw new ApiError('This product is no longer available.', 400);
-  // Not shown in the marketplace while its price is under DTI review (see listProducts) —
-  // block ordering it directly too, e.g. via a stale link, not just hide it from browsing.
+
+
   if (product.price_review?.status === 'pending') {
     throw new ApiError('This product is awaiting DTI price review and cannot be ordered yet.', 400);
   }
@@ -121,15 +121,18 @@ export async function createOrder(req, res) {
 
   const { data: farmer } = await supabaseAdmin
     .from('profiles')
-    .select('name, avatar_url, farm_name, verification_status')
+    .select('name, avatar_url, farm_name, verification_status, gcash_account_name, gcash_qr_url')
     .eq('id', product.farmer_id)
     .single();
+  if (values.paymentMethod === 'gcash' && (!farmer?.gcash_account_name || !farmer?.gcash_qr_url)) {
+    throw new ApiError('This farmer has not finished setting up GCash payments. Please choose COD.', 400);
+  }
 
   const originMunicipality = matchMunicipality(product.location);
   const deliveryMunicipality = values.deliveryMethod === 'buyer_pickup' ? originMunicipality : values.deliveryMunicipality;
-  // Computed server-side, never trusted from the client — a buyer could otherwise submit
-  // any fee they like alongside a real distance. See lib/deliveryFee.js for the actual
-  // road-distance + configurable-tier calculation.
+
+
+
   const {
     fee: deliveryFee,
     distanceKm: deliveryDistanceKm,
@@ -144,8 +147,8 @@ export async function createOrder(req, res) {
     product_image_url: product.image_url || null,
     unit: product.unit,
     unit_price: Number(product.price),
-    // Snapshotted so profit stays accurate for this order even if the farmer later edits
-    // or removes their recorded cost (see reportService.js's getTotalProfit).
+
+
     unit_cost_price: product.cost_price == null ? null : Number(product.cost_price),
     farmer_id: product.farmer_id,
     farmer_name: farmer?.name || 'Local farmer',
@@ -157,18 +160,18 @@ export async function createOrder(req, res) {
     buyer_avatar_url: req.profile.avatar_url || null,
     quantity,
     delivery_fee: deliveryFee,
-    // Snapshotted alongside the fee itself — see the Smart Distance-Based Delivery Fee
-    // System (lib/deliveryFee.js) — so a placed order's breakdown stays exactly reproducible
-    // even if the road distance or pricing tiers change later.
+
+
+
     delivery_distance_km: deliveryDistanceKm,
     delivery_duration_minutes: deliveryDurationMinutes,
     delivery_fee_tier: deliveryFeeTier,
     total_amount: quantity * Number(product.price) + deliveryFee,
     message: values.message?.trim() || '',
     payment_method: values.paymentMethod,
-    // GCash starts pending too, same as COD — it only becomes 'paid' once the buyer
-    // completes the demo GCash payment flow (see payments.controller.js), not automatically
-    // here at order creation.
+
+
+
     payment_status: 'pending',
     delivery_method: values.deliveryMethod,
     delivery_status: 'pending',
@@ -201,7 +204,7 @@ export async function createOrder(req, res) {
   res.status(201).json(serializeOrder(order));
 }
 
-// PATCH /api/orders/:id/status — body { status: 'confirmed' | 'rejected' }.
+
 export async function updateOrderStatus(req, res) {
   const existing = await fetchOrderOr404(req.params.id);
   if (req.profile.id !== existing.farmer_id) throw new ApiError('You do not have permission to modify this order.', 403);
@@ -232,11 +235,11 @@ export async function updateOrderStatus(req, res) {
     link: `/orders/${order.id}`,
   });
 
-  // Confirming a courier-method order is the moment a courier becomes the actual plan for
-  // this delivery — the same trigger point used before the real Lalamove integration existed
-  // (it just sent a notification). Now it also books the real Lalamove order. A failed
-  // booking never undoes the order confirmation above — it leaves the farmer's existing
-  // manual "Book with Lalamove" flow (LinkLalamoveDeliveryDialog.jsx) as the fallback.
+
+
+
+
+
   if (status === 'confirmed' && order.delivery_method === 'courier') {
     const bookingResult = await createLalamoveDeliveryForOrder(order);
     await createNotification({
@@ -284,15 +287,15 @@ export async function advanceDelivery(req, res) {
 
   const sequence = getDeliverySequence(existing.delivery_method);
   const isFinalStep = nextStatus === sequence[sequence.length - 1];
-  // Buyer pickup has no delivery leg — the buyer travels there on their own schedule, so
-  // there's no live-location step to anchor (see getLiveTransitProgress on the frontend,
-  // which excludes buyer_pickup from "in transit" the same way).
+
+
+
   const isTransitStep = existing.delivery_method !== 'buyer_pickup' && nextStatus === sequence[sequence.length - 2];
 
-  // The final step (delivered/picked up) is confirmed by the BUYER via "Got it" — only they
-  // know the moment they actually receive it in hand. Every earlier step is the FARMER
-  // reporting their own prep/shipping progress. See OrderTracking.jsx for the matching
-  // frontend gate that decides which role even sees a button for this action.
+
+
+
+
   if (isFinalStep && !isBuyer) throw new ApiError('Only the buyer can confirm the order was received.', 403);
   if (!isFinalStep && !isFarmer) throw new ApiError('Only the farmer can update delivery progress.', 403);
 
@@ -301,17 +304,17 @@ export async function advanceDelivery(req, res) {
     status: isFinalStep ? 'completed' : existing.status,
     payment_status: isFinalStep && existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
     ...(isTransitStep ? { transit_started_at: new Date().toISOString() } : null),
-    // The live GPS dot only makes sense while the order is actually in transit — clear it
-    // once delivered so a stale position never lingers on a finished order.
+
+
     ...(isFinalStep ? { current_lat: null, current_lng: null, location_updated_at: null } : null),
   };
 
   const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id).select().single();
   if (error) throw new ApiError(error.message, 400);
 
-  // One delivery_events row per real transition — same DELIVERY_SEQUENCES step this endpoint
-  // already advances, just also recorded as buyer-facing history (see
-  // CourierDeliveryTimeline.jsx and the order-details timeline for farmer_delivery/buyer_pickup).
+
+
+
   await supabaseAdmin.from('order_delivery_events').insert({
     order_id: order.id,
     status: nextStatus,
@@ -368,8 +371,8 @@ export async function advanceDelivery(req, res) {
         : `Your order from ${order.farmer_name} has been delivered.`,
       link: `/orders/${order.id}`,
     });
-    // The farmer only learns their delivery actually completed once the BUYER confirms
-    // receipt (see the isFinalStep comment above) — this is that closing-the-loop notice.
+
+
     await createNotification({
       userId: order.farmer_id,
       type: 'order',
@@ -391,10 +394,10 @@ export async function advanceDelivery(req, res) {
   res.json(serializeOrder(order));
 }
 
-// PATCH /api/orders/:id/location — body { lat, lng }. Farmer-only, and only while the order
-// is actually out for delivery — this is what lets the buyer's map plot the farmer's real
-// device position instead of the time-estimated one (see getLiveTransitProgress and
-// useLiveLocationSharing.js on the frontend).
+
+
+
+
 export async function updateOrderLocation(req, res) {
   const existing = await fetchOrderOr404(req.params.id);
   if (req.profile.id !== existing.farmer_id) throw new ApiError('You do not have permission to update this order.', 403);

@@ -1,11 +1,11 @@
 import { apiClient } from './apiClient';
 import { parseAnnualMetricCsv, postPxwebQueryOnce } from '../utils/pxwebCsv';
 
-// PSA moved this table from DB/2E/CS (Agriculture > Crops) to DB/2M/NFG (Prices > Farmgate
-// Prices (New Series)) — confirmed live against PSA's own folder listing after the old path
-// started 404ing; same table code, same Commodity/Geolocation/Year/Period dimensions/values,
-// only the folder changed. If this ever 404s again, GET
-// https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/ to see PSA's current listing there.
+
+
+
+
+
 const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
@@ -13,26 +13,26 @@ const TABLE_MIN_YEAR = 2010;
 const CACHE_PREFIX = 'harvestlink_psa_price_';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
-// How long a fetched overrides map is trusted before re-fetching — short enough that an
-// admin's change shows up for other users within a minute, long enough that a page showing
-// many commodities at once (Admin Price Monitoring's ~43-row table, MarketInsights) doesn't
-// fire a request per commodity.
+
+
+
+
 const OVERRIDES_CACHE_TTL_MS = 60 * 1000;
 
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
 export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 
-// All 43 commodities PSA actually publishes farmgate PRICES for, in this exact table
-// (0142M4EFGP0 — "Major Crops: Farmgate Prices"). PSA's OpenStat DB/2E/CS collection has ~17
-// tables in total, but the other ones (Volume of Production, Area Planted/Harvested, Number
-// of Bearing Trees, Fertilizer Use, Stocks Inventory) are production/agricultural statistics
-// with no price dimension at all — hundreds more crop names live there, but there's no price
-// series behind any of them, so they can't feed this list. This IS the full, complete set of
-// commodities this feature can ever show a real PSA price for.
-//
-// Ordered so a specific variety (e.g. "Mango Piko") is checked before the generic,
-// more-common fallback of the same crop family (e.g. "Mango" -> Carabao) — matchCommodity
-// returns the first hit, so the more specific keyword must come first in the array.
+
+
+
+
+
+
+
+
+
+
+
 export const MARKET_COMMODITIES = [
   { id: '28', label: 'Cabbage', keywords: ['cabbage'] },
   { id: '41', label: 'Tomato', keywords: ['tomato'] },
@@ -88,42 +88,42 @@ export function getCommodityById(id) {
   return MARKET_COMMODITIES.find((commodity) => commodity.id === id) || MARKET_COMMODITIES[0];
 }
 
-// PSA's figure is the farmgate price — what a trader/middleman pays the farmer, not what
-// a buyer pays. Selling direct through HarvestLink already skips that middleman, but the
-// farmer still has real harvesting, packing, and delivery costs to cover. Local wholesale
-// and retail markups over farmgate commonly run 40-60%+ once a trader is involved, so a
-// modest markup here keeps the farmer clearly profitable while the listing still undercuts
-// typical retail — a real selling point for buyers browsing the marketplace.
+
+
+
+
+
+
 export const RECOMMENDED_MARGIN_PERCENT = 15;
 
-// `referencePrice` is whatever value the caller wants marked up — a raw per-kg PSA figure,
-// or (see ProductForm.jsx) that same figure already converted into the farmer's selling unit.
-// Converting to the selling unit BEFORE calling this, rather than marking up the per-kg price
-// and converting after, matters: multiplying commutes, but rounding doesn't — converting
-// first and rounding once here avoids compounding two separate roundings into a different
-// final price than the one this function's own math actually implies.
+
+
+
+
+
+
 export function getRecommendedPrice(referencePrice) {
   if (!referencePrice || referencePrice <= 0) return null;
   const raw = referencePrice * (1 + RECOMMENDED_MARGIN_PERCENT / 100);
-  // Rounded UP to the nearest centavo so the margin is never quietly shaved by rounding down.
+
   const price = Math.ceil(raw * 100) / 100;
   return { price, marginPercent: RECOMMENDED_MARGIN_PERCENT, referencePrice };
 }
 
-// DTI/admin-set reference prices that take precedence over the live PSA figure — used to
-// correct a stale/wrong PSA number or fill in the current year before PSA has published it.
-// Server-side (see backend/src/controllers/marketPriceOverrides.controller.js), not
-// localStorage — an override an admin sets must be visible to every farmer/buyer on their
-// own device, not just the browser the admin happened to set it from.
+
+
+
+
+
 let overridesCache = null;
 let overridesCacheAt = 0;
 
-// Never throws — every one of this function's callers ultimately feeds fetchAnnualPriceTrend,
-// which every consumer (ProductForm, MarketInsights, MarketPricePanel, Admin Price
-// Monitoring) uses for the underlying PSA price itself, not just overrides. A transient
-// failure fetching overrides (network hiccup, or simply no overrides ever having been set)
-// must never take down the whole PSA price lookup — it should just mean "no override known
-// right now," same as the old localStorage version returning {} when nothing was stored.
+
+
+
+
+
+
 async function getOverridesMap() {
   if (overridesCache && Date.now() - overridesCacheAt < OVERRIDES_CACHE_TTL_MS) return overridesCache;
   try {
@@ -140,12 +140,12 @@ function invalidateOverridesCache() {
   overridesCache = null;
 }
 
-// One cached request for every override at once — for a summary count/list (the admin
-// dashboard's Price Monitoring widget), not a per-commodity price lookup. Deliberately NOT
-// useCommodityMonitoring.js's rows: that hook fetches all ~43 commodities' PSA prices
-// individually, paced 350ms apart specifically to avoid PSA's rate limiter, which is the
-// right cost for the actual Price Monitoring table but far too slow just to show "2
-// overridden" on the dashboard.
+
+
+
+
+
+
 export async function getAllPriceOverrides() {
   const overrides = await getOverridesMap();
   return Object.values(overrides);
@@ -156,18 +156,18 @@ export async function getPriceOverride(commodityId) {
   return overrides[commodityId] || null;
 }
 
-// baseline (the real PSA year/price at the moment this override was set) is what lets
-// applyOverride later tell "PSA still hasn't changed" apart from "PSA has since published/
-// updated this year's figure", so a stale override can stand down on its own instead of
-// permanently masking new PSA data.
-//
-// Deliberately takes that baseline as a parameter rather than re-fetching PSA internally —
-// the caller (Admin Price Monitoring) already has it on screen, it's exactly the "Reference
-// price" column the admin is looking at while typing an override. Re-fetching here used to
-// mean a Save could silently fail with no error shown at all whenever that extra PSA request
-// got rate-limited (see AdminPriceMonitoring.jsx's own comment on how easily ~43 sequential
-// requests trips PSA's limiter) — a save should never depend on a fresh network round trip
-// for data the page already has in front of the admin.
+
+
+
+
+
+
+
+
+
+
+
+
 export async function setPriceOverride(commodityId, referencePrice, baseline = {}) {
   const commodity = getCommodityById(commodityId);
   const override = await apiClient.patch(`/market-price-overrides/${commodityId}`, {
@@ -186,10 +186,10 @@ export async function clearPriceOverride(commodityId) {
   invalidateOverridesCache();
 }
 
-// Price Monitoring's expandable "Price History" panel — newest first, straight from the
-// server (see market_price_override_history in supabase/schema.sql). Never cached: an admin
-// checking history right after saving an override needs the row they just wrote, not a
-// minute-old snapshot.
+
+
+
+
 export async function getOverrideHistory(commodityId) {
   return apiClient.get(`/market-price-overrides/${commodityId}/history`);
 }
@@ -210,15 +210,15 @@ function writeCache(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify({ value, cachedAt: Date.now() }));
   } catch {
-    // Storage full or unavailable — cache is best-effort only.
+
   }
 }
 
-// Applied after every fetch (cached or live) rather than baked into the cached value,
-// so an admin override takes effect immediately instead of waiting out the 12h cache TTL.
-// Also self-heals: if PSA now shows a different figure for the override's year than it
-// did when the override was set, PSA has since published/updated real data, so the
-// override's reason (missing/wrong data) no longer holds — drop it and let PSA win.
+
+
+
+
+
 async function applyOverride(commodityId, points) {
   const override = await getPriceOverride(commodityId);
   if (!override) return points;
@@ -231,10 +231,10 @@ async function applyOverride(commodityId, points) {
     return points;
   }
 
-  // isOverride marks exactly the one point this override replaced/injected — every other
-  // point in the array is untouched real PSA data — so a caller showing "the latest price"
-  // to a farmer (ProductForm, MarketPricePanel, MarketInsights) can tell whether that figure
-  // is a live PSA number or one an admin set by hand, instead of presenting both identically.
+
+
+
+
   if (index === -1) {
     return [...points, { year: override.referenceYear, price: override.referencePrice, isOverride: true }]
       .sort((a, b) => a.year - b.year);
@@ -245,8 +245,8 @@ async function applyOverride(commodityId, points) {
   return next;
 }
 
-// See utils/pxwebCsv.js for why the request is sent as text/plain (dodges a CORS preflight
-// PXWeb's server doesn't handle) and how the CSV response is parsed.
+
+
 async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   const endYear = new Date().getFullYear();
   const startYear = Math.max(TABLE_MIN_YEAR, endYear - yearsBack + 1);
@@ -270,11 +270,11 @@ async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   };
 
   let response = await postPxwebQueryOnce(PSA_TABLE_URL, query, FETCH_TIMEOUT_MS);
-  // PSA's Cloudflare-fronted endpoint 429s a real fraction of requests under any kind of
-  // burst (confirmed live: pages that load many commodities in a row, like Admin Price
-  // Monitoring, start seeing this after roughly a dozen requests even spaced out) — one
-  // retry after a short backoff recovers the vast majority of these, rather than every
-  // caller seeing a transient rate limit as "PSA has no data for this commodity."
+
+
+
+
+
   if (response.status === 429) {
     await new Promise((resolve) => setTimeout(resolve, 900));
     response = await postPxwebQueryOnce(PSA_TABLE_URL, query, FETCH_TIMEOUT_MS);

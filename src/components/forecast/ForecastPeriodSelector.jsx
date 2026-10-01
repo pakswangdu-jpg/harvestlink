@@ -1,5 +1,5 @@
-// A segmented pill control for the 7 forecast periods — selecting one re-triggers the
-// parent's fetch (see FarmerPriceForecast.jsx), refreshing every displayed field.
+
+
 export default function ForecastPeriodSelector({ periods, value, onChange }) {
   return (
     <div className="flex flex-wrap gap-2">

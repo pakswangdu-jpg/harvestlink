@@ -13,11 +13,11 @@ import { getPublicFarmerProducts } from '../../services/productService';
 import { getInitials } from '../../utils/formatters';
 import logo from '../../assets/logo.png';
 
-// Public, no login required — reached by clicking a farmer card in the landing page's
-// 5-star showcase. Browsing is open to everyone; ProductCard's "View" link points at
-// /products/:id, which IS behind ProtectedRoute, so an anonymous visitor who tries to
-// actually order gets bounced to /login (and back here after signing in) automatically —
-// no custom auth-gating needed on this page itself.
+
+
+
+
+
 export default function PublicFarmerProfile() {
   const { id } = useParams();
   const [farmer, setFarmer] = useState(null);
@@ -88,9 +88,9 @@ export default function PublicFarmerProfile() {
               <div className="public-farmer-info">
                 <div className="public-farmer-name-row">
                   <h1>{farmer.name}</h1>
-                  {/* Every profile reachable on this page is already verification_status ===
-                      'verified' server-side (see getPublicFarmerProfile) — no new field,
-                      just finally surfacing what the backend already guarantees. */}
+                  {
+
+                                                                                    }
                   <span className="public-farmer-verified"><img src={verifiedIcon} alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" /> Verified</span>
                 </div>
                 {farmer.farmName ? <p className="public-farmer-farm">{farmer.farmName}</p> : null}

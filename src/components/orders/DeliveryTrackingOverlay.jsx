@@ -1,23 +1,23 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
 
-// A presentation-only wrapper: it renders whatever tracking UI it is handed, and controls
-// nothing but WHERE that UI appears. No tracking state, props, calculations or API calls pass
-// through here — OrderTracking.jsx still owns all of it and passes the same JSX it used to
-// render inline.
-//
-// Deliberately NOT conditionally rendered, and deliberately NOT using AnimatePresence like the
-// app's other overlays: the children must stay mounted at all times. LiveDeliveryMap reports
-// its Google Directions ETA/distance up to OrderTracking via onRouteUpdate, and that number
-// feeds the "Estimated delivery" row in the order details panel that stays on the page behind
-// this overlay (see the `liveRoute` comment in OrderTracking.jsx). Mounting the map only while
-// the overlay is open would drop that page back to the coarser OSRM fallback until the user
-// happened to open tracking, and would re-initialise the map on every open.
-//
-// Hidden with visibility (not display: none) for the same reason: visibility keeps the
-// element's layout box and dimensions, so the Google map inside still measures a real
-// width/height and initialises correctly, instead of the zero-size container a display: none
-// parent would give it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export default function DeliveryTrackingOverlay({ open, title, onClose, children }) {
   useEffect(() => {
     if (!open) return undefined;

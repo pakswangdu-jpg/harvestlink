@@ -158,3 +158,20 @@ test('authenticated writes keep their method, token, payload and 204 response be
   }, async () => ({ data: { session: { access_token: 'test-token' } }, error: null }));
   assert.equal(await client.post('/orders', { quantity: 2 }), null);
 });
+
+test('reuses recent GET responses and invalidates them after a write', async (t) => {
+  let productFetches = 0;
+  const client = await loadClient(t, async (url, options) => {
+    if (options.method === 'POST') return new Response(null, { status: 204 });
+    productFetches += 1;
+    return Response.json([{ id: productFetches }]);
+  });
+
+  assert.deepEqual(await client.get('/products'), [{ id: 1 }]);
+  assert.deepEqual(await client.get('/products'), [{ id: 1 }]);
+  assert.equal(productFetches, 1);
+
+  await client.post('/orders', { quantity: 1 });
+  assert.deepEqual(await client.get('/products'), [{ id: 2 }]);
+  assert.equal(productFetches, 2);
+});

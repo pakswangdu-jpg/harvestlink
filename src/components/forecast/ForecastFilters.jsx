@@ -4,10 +4,10 @@ import { CEBU_MUNICIPALITIES } from '../../utils/constants';
 
 const selectClass = 'h-10 rounded-lg border border-[var(--line)] bg-[var(--input-bg)] pl-9 pr-3 text-[14px] font-medium text-[var(--text-secondary)] outline-none transition-colors duration-200 focus:border-[var(--green-600)] appearance-none';
 
-// Replaces the old ForecastHeader — same municipality/refresh controls, plus the fuller
-// period list (Today through Custom Date) and a date input that appears once "Custom Date"
-// is selected. Changing any control here re-triggers both getDemandForecast and
-// getCropForecastDetail in FarmerDemandForecast.jsx — there's no separate "apply" step.
+
+
+
+
 export default function ForecastFilters({
   municipality, onMunicipalityChange, period, periods, onPeriodChange,
   customDate, onCustomDateChange, onRefresh, isRefreshing,

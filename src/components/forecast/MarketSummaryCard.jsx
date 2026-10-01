@@ -1,9 +1,9 @@
 import { Sparkles } from 'lucide-react';
 
-// The forecast price/trend/etc. above this card always comes from the real trend-projection
-// engine — this card only ever explains those already-computed numbers in plain language.
-// If GEMINI_API_KEY isn't configured on the backend, `summary` is null and that's stated
-// honestly here rather than a fabricated explanation standing in for it.
+
+
+
+
 export default function MarketSummaryCard({ summary }) {
   return (
     <div className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">

@@ -6,10 +6,10 @@ export default function ProtectedRoute({ allowedRoles }) {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
 
-  // Session restore is async now (a real request to Supabase + our API, not a synchronous
-  // localStorage read) — render nothing while it's in flight rather than redirecting to
-  // /login before it's had a chance to resolve, which would flash-redirect a logged-in
-  // user on every hard refresh of a protected route.
+
+
+
+
   if (loading) {
     return (
       <main

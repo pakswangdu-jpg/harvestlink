@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 
-// Drop-in replacement for a plain <input type="password">, used everywhere the auth pages
-// (login, register, partner-org register) collect a password — a leading lock icon plus a
-// trailing show/hide toggle, matching the icon-adorned field style used across the redesigned
-// auth pages. Purely presentational: id/value/onChange/onBlur/placeholder behave exactly like
-// the bare input it replaces, so no calling FormField/validation code needs to change.
+
+
+
+
+
 export default function PasswordInput({
   id, value, onChange, onBlur, placeholder,
 }) {

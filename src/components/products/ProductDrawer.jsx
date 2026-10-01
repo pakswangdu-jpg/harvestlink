@@ -6,9 +6,9 @@ import Button from '../common/Button';
 
 const FORM_ID = 'product-drawer-form';
 
-// Right-side slide-over — the background page stays mounted and visible behind a
-// translucent backdrop (never a full-page navigation), per the "no permanently visible
-// form" redesign: Add/Edit both open this same drawer instead of a separate route.
+
+
+
 export default function ProductDrawer({
   open, product, currentUser, onSubmit, onClose, onApplyDiscount, onRemoveDiscount,
 }) {

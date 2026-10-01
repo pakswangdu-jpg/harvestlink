@@ -1,7 +1,7 @@
-// A short, subtle two-tone chime for a new in-app notification — synthesized with the Web
-// Audio API rather than an external sound file, so there's nothing to fetch/bundle. Kept
-// deliberately quiet and brief (two ~90ms tones), matching the spec's "(optional)" / subtle
-// framing rather than a loud alert sound.
+
+
+
+
 export function playNotificationSound() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -25,7 +25,7 @@ export function playNotificationSound() {
 
     setTimeout(() => ctx.close().catch(() => {}), 400);
   } catch {
-    // Audio isn't available/allowed (e.g. autoplay policy before any user gesture) — silently
-    // skip, this is explicitly an optional nicety, never something to surface as an error.
+
+
   }
 }

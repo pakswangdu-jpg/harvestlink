@@ -38,9 +38,9 @@ import surplusDonationIcon from '../../assets/icons/feature-surplus-donation.png
 import adminOversightIcon from '../../assets/icons/feature-admin-oversight.png';
 import kathrynBernardoPhoto from '../../assets/kathryn-bernardo.jpg';
 
-// Custom illustration for "Role-based dashboards" — three role avatars (farmer/buyer/admin)
-// feeding into one dashboard panel, matching the reference the client supplied rather than
-// the plain LayoutDashboard glyph or the old feature-role-dashboards.png artwork.
+
+
+
 function RoleDashboardsIcon({ size = 44 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
@@ -52,7 +52,7 @@ function RoleDashboardsIcon({ size = 44 }) {
       </defs>
       <rect x="3" y="3" width="58" height="58" rx="18" fill="url(#role-dash-bg)" />
 
-      {/* Settings gear, top-right */}
+      {                              }
       <g fill="#22c55e">
         <circle cx="50" cy="13" r="5" />
         <circle cx="50" cy="13" r="2" fill="#f4fdf6" />
@@ -61,10 +61,10 @@ function RoleDashboardsIcon({ size = 44 }) {
         ))}
       </g>
 
-      {/* Dashboard panel, a 2x2 widget grid */}
+      {                                        }
       <rect x="25" y="10" width="34" height="45" rx="7" fill="#ffffff" stroke="#bfe7cc" strokeWidth="1.5" />
 
-      {/* Cart widget */}
+      {                 }
       <rect x="29" y="14" width="12.5" height="14" rx="3" fill="#e8faec" />
       <g transform="translate(31.5, 17.5)" stroke="#16a34a" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none">
         <path d="M0 0h1.4l1.2 6.4h5.6l1.1-4.6H1.9" />
@@ -72,24 +72,24 @@ function RoleDashboardsIcon({ size = 44 }) {
         <circle cx="7.2" cy="8.2" r="0.9" fill="#16a34a" stroke="none" />
       </g>
 
-      {/* Trend widget */}
+      {                  }
       <rect x="43" y="14" width="12.5" height="14" rx="3" fill="#fef3e2" />
       <path d="M45.5 25 L48.5 20.5 L51 22.5 L54.5 16.5" fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="54.5" cy="16.5" r="1.5" fill="#f59e0b" />
 
-      {/* Stat-grid widget */}
+      {                      }
       <rect x="29" y="30" width="12.5" height="14" rx="3" fill="#eaf2ff" />
       <rect x="31.5" y="32.5" width="3.4" height="3.4" rx="1" fill="#2563eb" />
       <rect x="36.2" y="32.5" width="3.4" height="3.4" rx="1" fill="#93c5fd" />
       <rect x="31.5" y="37.2" width="3.4" height="3.4" rx="1" fill="#93c5fd" />
       <rect x="36.2" y="37.2" width="3.4" height="3.4" rx="1" fill="#2563eb" />
 
-      {/* Donut widget */}
+      {                  }
       <rect x="43" y="30" width="12.5" height="14" rx="3" fill="#e8faec" />
       <circle cx="49.3" cy="37" r="4.3" fill="none" stroke="#bbf0cc" strokeWidth="2.4" />
       <path d="M49.3 32.7a4.3 4.3 0 0 1 3.7 6.5" fill="none" stroke="#16a34a" strokeWidth="2.4" strokeLinecap="round" />
 
-      {/* Role avatars, stacked on the left edge, each linked to the panel by a small dot */}
+      {                                                                                     }
       {[
         { y: 15, fill: '#16a34a' },
         { y: 31, fill: '#f59e0b' },
@@ -168,8 +168,8 @@ export default function LandingPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobileMenuOpen]);
 
-  // Drives both the sticky navbar's glass-blur transition and the floating back-to-top
-  // button's visibility — one scroll listener instead of two identical ones.
+
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 24);
     handleScroll();
@@ -177,8 +177,8 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Scrollspy — highlights whichever nav section is currently most visible, so the active
-  // indicator tracks scroll position instead of only updating on click.
+
+
   useEffect(() => {
     const sections = NAV_LINKS.map((link) => document.getElementById(link.id)).filter(Boolean);
     if (!sections.length) return undefined;

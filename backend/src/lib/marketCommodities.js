@@ -1,13 +1,13 @@
-// Server-side twin of src/services/marketPriceService.js's commodity list — duplicated
-// (not imported across the frontend/backend boundary) because Render only builds and
-// deploys the backend/ directory in isolation (see render.yaml's rootDir), so backend code
-// must be fully self-contained. Keep this list in sync with the frontend one if either
-// changes.
-//
-// All 43 commodities PSA actually publishes farmgate PRICES for (table 0142M4EFGP0) — see
-// the frontend copy's own comment for why the other ~16 PSA OpenStat tables (production
-// volume, area planted/harvested, tree counts, fertilizer use, stocks) can't feed this list:
-// they have no price dimension at all.
+
+
+
+
+
+
+
+
+
+
 export const MARKET_COMMODITIES = [
   { id: '28', label: 'Cabbage', keywords: ['cabbage'] },
   { id: '41', label: 'Tomato', keywords: ['tomato'] },

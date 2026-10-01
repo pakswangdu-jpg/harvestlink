@@ -43,11 +43,11 @@ import {
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
-// Real vector icons, not emoji — a platform emoji font renders as a small, multi-colored,
-// inconsistent-weight glyph next to bold badge text, which is exactly the "looks generated,
-// not designed" mismatch this was flagged for. strokeWidth is bumped above the app's usual 2
-// specifically for these — at 12-13px badge size, a 2px stroke reads thin; 2.5 keeps the icon
-// visually as bold as the text sitting next to it.
+
+
+
+
+
 const TRACKING_STATUS_ICON = {
   pending: Clock3,
   confirmed: Check,
@@ -96,11 +96,11 @@ export default function OrderTracking() {
         })
         .catch(() => {
           if (cancelled) return;
-          // Only the very first load failing should redirect away (the order genuinely
-          // doesn't exist / isn't accessible) — a later poll failing (e.g. a dropped network
-          // connection) is transient and shouldn't evict the user from a page that already
-          // loaded successfully; the next successful poll or the Realtime subscription below
-          // resyncs it once connectivity returns.
+
+
+
+
+
           if (!hasLoadedOnce) {
             setOrder(null);
             setLoadedId(id);
@@ -115,11 +115,11 @@ export default function OrderTracking() {
     };
   }, [id]);
 
-  // Supabase Realtime pushes location/status updates for this order the instant they happen
-  // (see the orders_select_own RLS policy + supabase_realtime publication in schema.sql),
-  // layered on top of the 4s poll above rather than replacing it — the poll stays as the
-  // resilient baseline (survives a dropped realtime connection), while this gives the
-  // near-instant "live" feel for the common case.
+
+
+
+
+
   useEffect(() => {
     const channel = supabase
       .channel(`order-tracking-${id}`)
@@ -132,11 +132,11 @@ export default function OrderTracking() {
     };
   }, [id]);
 
-  // For a pickup order, the destination pin is where the BUYER starts from, not the farm
-  // itself — the farmer viewing this page needs that buyer's municipality resolved
-  // separately (the buyer viewing their own order already has it via currentUser). Only
-  // relevant when isPickup && !isBuyer below, so a stale value from a previously-viewed
-  // order sitting in state harmlessly goes unread the rest of the time.
+
+
+
+
+
   const needsPickupBuyerLookup = Boolean(order) && order.deliveryMethod === 'buyer_pickup' && currentUser.id !== order.buyerId;
   useEffect(() => {
     if (!needsPickupBuyerLookup) return undefined;
@@ -153,10 +153,10 @@ export default function OrderTracking() {
     };
   }, [needsPickupBuyerLookup, order?.buyerId]);
 
-  // Courier (Lalamove) booking details — polled the same 4s cadence as the order itself,
-  // since a farmer booking one (see DeliveryInfoCard.jsx) happens in this same page for
-  // them, but the BUYER's copy of this page only finds out via this poll. null until a
-  // courier has actually been booked, which is a normal state, not an error.
+
+
+
+
   const needsDeliveryLookup = Boolean(order) && order.deliveryMethod === 'courier';
   useEffect(() => {
     if (!needsDeliveryLookup) return undefined;
@@ -172,14 +172,14 @@ export default function OrderTracking() {
     };
   }, [needsDeliveryLookup, order?.id]);
 
-  // "Buyer" here means "the account that placed this order" — a partner organization
-  // checking out through the marketplace is just as much the buyer as a buyer-role
-  // account is, so this checks id ownership, not the literal account role.
+
+
+
   const isBuyer = Boolean(order) && currentUser.id === order.buyerId;
   const isFarmer = Boolean(order) && currentUser.role === 'farmer' && currentUser.id === order.farmerId;
 
-  // Only relevant once the order is actually completed (the buyer clicked "Got it") — checks
-  // whether this specific order already has a rating so the prompt doesn't show twice.
+
+
   const needsRatingCheck = isBuyer && order?.status === 'completed';
   useEffect(() => {
     if (!needsRatingCheck) return undefined;
@@ -189,9 +189,9 @@ export default function OrderTracking() {
         if (!cancelled) setExistingRating(result);
       })
       .catch(() => {
-        // Fails open — if the check itself can't be made, showing the rating form (rather
-        // than silently hiding it) is the safer default; a genuine duplicate submit is
-        // still rejected server-side either way.
+
+
+
       });
     return () => {
       cancelled = true;
@@ -201,18 +201,18 @@ export default function OrderTracking() {
   const transit = order ? getLiveTransitProgress(order) : null;
   const { etaMinutes = null, estimatedTotalMinutes = null, isInTransit = false, isLiveGps = false } = transit || {};
 
-  // GPS sharing itself is handled globally (see useFarmerActiveDeliverySharing, mounted in
-  // AppShell) — it starts the instant ANY of this farmer's orders goes out for delivery, not
-  // just while this specific page happens to be open, so it isn't tied to this component.
 
-  // LiveDeliveryMap (below) computes its own real, traffic-aware ETA/distance/speed from
-  // Google Directions — reported up here so every figure on this page (not just the map's own
-  // cards) reflects that same real number instead of the coarser OSRM-based `transit` estimate
-  // above. Starts null and fills in a moment after the map mounts and its route resolves; the
-  // OSRM-based figures remain the fallback for that brief gap (and for any error case where
-  // Directions never resolves at all).
+
+
+
+
+
+
+
+
+
   const [liveRoute, setLiveRoute] = useState(null);
-  // Presentation only — whether the (always-mounted) tracking overlay is visible.
+
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
   if (loadedId !== id) return null;
@@ -229,8 +229,8 @@ export default function OrderTracking() {
       setOrderIdCopied(true);
       window.setTimeout(() => setOrderIdCopied(false), 1800);
     } catch {
-      // Clipboard access can be denied (permissions/insecure context) — the ID is already
-      // visible on screen either way, so there's nothing further to recover here.
+
+
     }
   };
 
@@ -266,22 +266,22 @@ export default function OrderTracking() {
   const nextStep = getNextDeliveryStatus(order);
   const isTrackable = order.status === 'confirmed' || order.status === 'completed';
   const deliverySequence = getDeliverySequence(order.deliveryMethod);
-  // The last step in the sequence (delivered/picked up) is confirmed by the buyer via
-  // "Got it" rather than the farmer, since the farmer has no way to know the moment the
-  // buyer actually receives it in hand.
+
+
+
   const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
   const { remainingKm, isNearDestination } = transit;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
   const TrackingStatusIcon = TRACKING_STATUS_ICON[trackingStatus.key];
-  // Whether the farmer can click "Book with Lalamove" right now — the order must be packed
-  // and ready (the courier order's own "packed -> out for delivery" step), same gate the
-  // backend itself enforces in deliveries.controller.js's bookDelivery.
+
+
+
   const canBookCourier = isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery' && !isFinalNextStep;
 
-  // The real Google-based numbers once available, falling back to the OSRM-based estimate
-  // above until they are — see the comment on `liveRoute` for why these exist.
+
+
   const displayEtaMinutes = liveRoute?.etaMinutes ?? etaMinutes;
   const displayEstimatedTotalMinutes = liveRoute?.etaMinutes ?? estimatedTotalMinutes;
   const displayRemainingKm = liveRoute?.isInTransit ? (liveRoute.remainingKm ?? remainingKm) : remainingKm;
@@ -367,7 +367,7 @@ export default function OrderTracking() {
                 <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
                 <div className="ot-detail-row ot-detail-row-farmer">
                   <span>Farmer</span>
-                  <Link to={`/farmers/${order.farmerId}`} className="ot-farmer-profile">
+                  <div className="ot-farmer-profile">
                     <span className="farmer-list-avatar">
                       {order.farmerAvatarUrl ? <img src={order.farmerAvatarUrl} alt="" /> : getInitials(order.farmerName)}
                     </span>
@@ -379,7 +379,7 @@ export default function OrderTracking() {
                       {order.farmerFarmName ? <span className="ot-farmer-farm">{order.farmerFarmName}</span> : null}
                       {order.originMunicipality ? <span className="ot-farmer-location"><MapPin size={11} /> {order.originMunicipality}</span> : null}
                     </span>
-                  </Link>
+                  </div>
                 </div>
               </div>
 
@@ -526,10 +526,10 @@ export default function OrderTracking() {
           </section>
         ) : null}
 
-        {/* Same three tracking sections as before, unchanged — only their placement moved,
-            from inline below the order details into the overlay opened by "View tracking".
-            The overlay keeps them mounted at all times (see its own comment), so the map's
-            Google ETA keeps feeding displayEtaMinutes above exactly as it did inline. */}
+        {
+
+
+                                                                                         }
         <DeliveryTrackingOverlay
           open={isTrackingOpen}
           onClose={() => setIsTrackingOpen(false)}

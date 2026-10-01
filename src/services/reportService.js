@@ -9,19 +9,19 @@ export function getTotalRevenue(orders) {
     .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
 }
 
-// Profit only sums orders whose product had a recorded cost at checkout time
-// (order.unitCostPrice — see backend's createOrder, which snapshots products.cost_price).
-// An order with no recorded cost is excluded entirely rather than assumed to be 100% profit,
-// since a farmer who's never filled in "cost per unit" would otherwise see a profit figure
-// that's really just their income restated, silently overstating margin.
+
+
+
+
+
 export function getTotalProfit(orders) {
   return orders
     .filter((order) => order.paymentStatus === PAID_STATUS && order.unitCostPrice != null)
     .reduce((sum, order) => sum + (Number(order.unitPrice) - Number(order.unitCostPrice)) * Number(order.quantity), 0);
 }
 
-// Last `monthsBack` calendar months (oldest first, current month included) — each
-// point sums paid-order revenue for orders actually created in that month.
+
+
 export function getMonthlyRevenue(orders, monthsBack = 6) {
   const now = new Date();
   const months = [];
@@ -59,8 +59,8 @@ export function getUserRoleBreakdown(users) {
   return USER_ROLES.map((role) => ({ role, count: users.filter((user) => user.role === role).length }));
 }
 
-// Ranks products by revenue from paid orders — keyed by productId (not name), since two
-// different farmers could otherwise coincidentally list identically-named produce.
+
+
 export function getTopProducts(orders, limit = 5) {
   const byProduct = new Map();
 

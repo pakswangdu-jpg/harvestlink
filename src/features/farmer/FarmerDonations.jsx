@@ -34,8 +34,8 @@ const HISTORY_STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-// Newest-first feed of real status changes — no synthetic/sample data, just each donation's
-// current lifecycle state turned into a sentence and sorted by when it last changed.
+
+
 function buildRecentActivity(donations) {
   return donations
     .map((donation) => {
@@ -57,10 +57,10 @@ function buildRecentActivity(donations) {
     .slice(0, 6);
 }
 
-// A dense list row (thumbnail + name + one line of meta + inline actions), not the full
-// storefront-style DonationCard — that component's fixed 190px image block is right for a
-// marketplace grid but reads as exactly the oversized, low-density card this redesign is
-// meant to get away from once it's sitting in a half-width dashboard panel.
+
+
+
+
 function DonationRow({ donation, meta, badge, actions }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-[var(--line)] px-3 py-2.5">

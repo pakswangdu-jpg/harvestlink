@@ -10,9 +10,9 @@ function BubbleTimestamp({ message, isMine, showStatus }) {
     <div className={`messages-bubble-timestamp mt-1 flex items-center justify-end gap-1 text-[11px] ${isMine ? 'text-emerald-100' : 'text-[var(--muted)]'}`}>
       {message.edited ? <span className="italic">Edited</span> : null}
       <span className="whitespace-nowrap">{time}</span>
-      {/* Seen/Sent are real states derived from the same `read` flag the inbox unread badge
-          already uses — "Delivered" would need a live socket layer to mean anything real,
-          so it's deliberately not shown here yet (see the fast-follow plan). */}
+      {
+
+                                                                                }
       {isMine && showStatus ? (
         message.read ? <CheckCheck size={13} className="text-sky-200" /> : <Check size={13} />
       ) : null}
@@ -109,9 +109,9 @@ export default function MessageBubble({
           <BubbleTimestamp message={message} isMine={isMine} showStatus={showStatus} />
         </div>
 
-        {/* Hover action menu — reply/copy/forward always available; translate only on the
-            other party's text messages; edit/delete only on own text messages, matching the
-            backend's own edit/delete scope. */}
+        {
+
+                                               }
         <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${isMine ? '-left-8' : '-right-8'}`}>
           <button
             type="button"

@@ -7,45 +7,45 @@ import { createAutocompleteSessionToken, getPlaceDetails, searchAddressSuggestio
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 300;
 
-// Google-Maps/Grab-style address search — drop-in replacement for a plain
-// <input value/onChange/onBlur/placeholder>, so every existing call site (FormField wraps
-// it exactly like the bare input it replaces) needs no other change. `onChange(text)` fires
-// on every keystroke AND once more on selection (with the picked suggestion's text) — a
-// caller that only cares about the address string can keep using onChange alone, unchanged
-// from before this component existed. `onSelect({ placeId, formattedAddress, lat, lng, zipCode })`
-// is purely additive, for a caller that also wants coordinates and/or the postal code.
+
+
+
+
+
+
+
 export default function AddressAutocomplete({
   id, name, value, onChange, onSelect, onBlur, placeholder, disabled = false, error,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
-  // idle (nothing typed yet / too short) | loading | success | empty | error
+
   const [status, setStatus] = useState('idle');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [announcement, setAnnouncement] = useState('');
 
   const containerRef = useRef(null);
   const debounceTimerRef = useRef(null);
-  // Every search bumps this; a response only gets applied if it's still the most recent
-  // one requested — the new Places API has no AbortController to cancel an in-flight
-  // fetch, so this is how "cancel previous requests when the user keeps typing" is done:
-  // the stale response is simply discarded on arrival instead of being applied over newer
-  // (or empty) results.
+
+
+
+
+
   const requestIdRef = useRef(0);
-  // Lazily minted on first search of an editing "session" and spent (reset to null) the
-  // moment a Place Details fetch actually uses it — see placesService.js's session-token
-  // comment for why (one Places-API billing session per search-then-pick sequence).
+
+
+
   const sessionTokenRef = useRef(null);
 
   const listboxId = useId();
 
-  // Cancels whatever search is currently pending — a scheduled-but-not-yet-fired debounce
-  // timer (clearTimeout stops it from ever calling runSearch) AND an already-in-flight fetch
-  // (bumping requestIdRef makes runSearch discard that response as stale once it resolves,
-  // same mechanism as a superseded keystroke). Every path that dismisses the dropdown
-  // (select / Escape / click outside) needs this — without it, a search kicked off just
-  // before the user dismissed the field still lands ~300ms later and pops the dropdown back
-  // open with results for text the user has already moved past.
+
+
+
+
+
+
+
   const cancelPendingSearch = () => {
     clearTimeout(debounceTimerRef.current);
     requestIdRef.current += 1;
@@ -63,9 +63,9 @@ export default function AddressAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Keeps the arrow-key-highlighted option visible — up to 8 rows can exceed the dropdown's
-  // capped max-height (see .address-autocomplete-dropdown), so without this, arrowing past
-  // the visible area highlights an option the user can no longer see.
+
+
+
   useEffect(() => {
     if (highlightedIndex < 0) return;
     document.getElementById(`${listboxId}-option-${highlightedIndex}`)?.scrollIntoView({ block: 'nearest' });
@@ -83,7 +83,7 @@ export default function AddressAutocomplete({
     try {
       const token = await getSessionToken();
       const results = await searchAddressSuggestions(query, { sessionToken: token });
-      if (requestIdRef.current !== requestId) return; // superseded by a newer keystroke
+      if (requestIdRef.current !== requestId) return;
       setSuggestions(results);
       setHighlightedIndex(-1);
       setStatus(results.length ? 'success' : 'empty');
@@ -98,15 +98,18 @@ export default function AddressAutocomplete({
     }
   };
 
-  // Cleanup-only — cancels a pending debounced search if the field unmounts mid-wait (e.g.
-  // the user navigates away right after typing).
-  useEffect(() => () => clearTimeout(debounceTimerRef.current), []);
 
-  // The debounce is a direct response to the user's own keystroke, not a reaction to some
-  // external state change — so it belongs in the change handler itself, not in a useEffect
-  // watching `value` (which would set state synchronously inside an effect body for the
-  // "too short, reset" branch below, and re-fire redundantly if `value` is ever changed by
-  // something other than typing, e.g. selectSuggestion's own onChange call).
+
+  useEffect(() => () => {
+    clearTimeout(debounceTimerRef.current);
+    requestIdRef.current += 1;
+  }, []);
+
+
+
+
+
+
   const handleInputChange = (event) => {
     const nextValue = event.target.value;
     onChange(nextValue);
@@ -124,29 +127,32 @@ export default function AddressAutocomplete({
 
   const selectSuggestion = async (suggestion) => {
     cancelPendingSearch();
+    const selectionId = requestIdRef.current;
     setIsOpen(false);
     setSuggestions([]);
     setStatus('idle');
     setHighlightedIndex(-1);
     onChange(suggestion.description);
 
-    // A caller that doesn't want coordinates (onSelect not passed — e.g. AuthPage.jsx/
-    // Profile.jsx today, which only fill the address text) shouldn't pay for a Place Details
-    // fetch whose result would just be thrown away. The address text above is already filled
-    // from the free suggestion data, so skipping this costs nothing functionally.
+
+
+
+
     if (!onSelect) {
       sessionTokenRef.current = null;
       return;
     }
 
     const token = await getSessionToken();
-    sessionTokenRef.current = null; // spent — the next search starts a fresh session
+    sessionTokenRef.current = null;
     try {
       const details = await getPlaceDetails(suggestion.placeId, { sessionToken: token });
+      if (selectionId !== requestIdRef.current) return;
       onSelect(details);
     } catch {
-      // The address text is already filled in above — only the lat/lng/zipCode enrichment is
-      // missing, so the field is still fully usable.
+      if (selectionId !== requestIdRef.current) return;
+
+
       onSelect({
         placeId: suggestion.placeId, formattedAddress: suggestion.description, lat: null, lng: null, zipCode: '',
       });
@@ -179,14 +185,14 @@ export default function AddressAutocomplete({
     }
   };
 
-  // Tabbing to the next field (or otherwise moving focus away without clicking inside the
-  // dropdown) doesn't fire the click-outside listener above — that only listens for a
-  // mousedown outside the container, which a keyboard-driven focus change never triggers.
-  // Without this, the dropdown stayed visually open, floating over whatever the user tabbed
-  // to next. Safe to close unconditionally on blur (no delay/race to guard against): every
-  // option already calls event.preventDefault() on its own onMouseDown specifically so
-  // clicking one never blurs the input in the first place, so a real blur here only ever
-  // means focus is genuinely leaving the field.
+
+
+
+
+
+
+
+
   const handleInputBlur = (event) => {
     cancelPendingSearch();
     setIsOpen(false);

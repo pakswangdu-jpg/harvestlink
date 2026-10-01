@@ -6,25 +6,25 @@ import Button from '../common/Button';
 import SecureShieldIcon from '../icons/SecureShieldIcon';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
 
-// Same per-method icon choice as the picker this summary reflects (CheckoutForm.jsx's
-// DELIVERY_METHOD_ICONS) — farmer delivery keeps a plain lucide icon, buyer pickup and courier
-// get their own logo images, so a buyer sees the same mark here that they just clicked on.
+
+
+
 const DELIVERY_METHOD_LOGOS = {
   buyer_pickup: buyerPickupIcon,
   courier: lalamoveLogo,
 };
 
-// The sticky right-column summary — the one place a buyer should be able to look to answer
-// "what am I actually paying?" Replaces the old DeliveryFeeSummary.jsx (this was its only
-// caller): same live fee-estimate data/branching, now folded into one panel alongside the
-// product line item and the submit button instead of being its own disconnected card.
-//
-// `estimate` is `{ fee, distanceKm, durationMinutes, tierLabel, source }` (see
-// backend/src/lib/deliveryFee.js) once loaded — `source: 'straight-line'` means the live
-// backend call failed and the caller substituted a client-side fallback so checkout still
-// shows a sensible total. For pickup, `estimate.distanceKm` is the real road distance from the
-// buyer's own live location (not a fee — pickup is always free) — `locationStatus`/
-// `locationNotice`/`onRetryLocation` cover the states before that location is available.
+
+
+
+
+
+
+
+
+
+
+
 export default function OrderSummaryPanel({
   product, quantity, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
@@ -87,9 +87,9 @@ export default function OrderSummaryPanel({
           ) : estimate && estimate.distanceKm > 0 ? (
             <div className="checkout-summary-line muted">
               <span><MapPinned size={13} aria-hidden="true" /> {estimate.distanceKm.toFixed(1)} km</span>
-              {/* Pickup is on the buyer's own schedule — a travel-time estimate isn't
-                  actionable the way it is for a delivery they're waiting on, so only
-                  distance shows here. Farmer delivery/Lalamove both keep it. */}
+              {
+
+                                                                                }
               {!isPickup && estimate.durationMinutes != null ? (
                 <span><Clock3 size={13} aria-hidden="true" /> ~{Math.round(estimate.durationMinutes)} min</span>
               ) : null}

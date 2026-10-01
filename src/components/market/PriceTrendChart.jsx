@@ -12,15 +12,15 @@ function niceTicks(min, max, count = 4) {
   if (min === max) return [min];
   const step = (max - min) / (count - 1);
   const rounded = Array.from({ length: count }, (_, index) => Math.round(min + step * index));
-  // A narrow min/max range can round two distinct steps to the same integer —
-  // de-dupe so two gridlines/labels never render on top of each other with the same key.
+
+
   return [...new Set(rounded)];
 }
 
-// valueKey/formatValue let this same chart render a different PXWeb-sourced annual series
-// (see MarketInsights.jsx's Supply & Production section, which reuses this for production
-// volume) without duplicating the axis/path/tooltip math — every prop below defaults to the
-// original farmgate-price behavior, so the existing price-trend call site is unaffected.
+
+
+
+
 export default function PriceTrendChart({
   points,
   valueKey = 'price',

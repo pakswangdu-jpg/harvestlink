@@ -30,16 +30,16 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// A local datetime string ("2026-07-29T14:30") suitable for an <input type="datetime-local">
-// default value — the buyer's own clock, not UTC, so it reads as "right now" to them.
+
+
 function nowForDatetimeLocal() {
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   return now.toISOString().slice(0, 16);
 }
 
-// Same drag-and-drop pattern as AuthPage.jsx's VerificationDocumentUpload — kept local here
-// since the accepted types/labels are payment-receipt specific.
+
+
 function ReceiptDropzone({ file, error, onFileSelect, onValidationError, onRemove }) {
   const [isDragging, setIsDragging] = useState(false);
   const isImage = file instanceof File && file.type.startsWith('image/');
@@ -108,21 +108,21 @@ function ReceiptDropzone({ file, error, onFileSelect, onValidationError, onRemov
   );
 }
 
-// Step 2 (Confirm Your Payment) and Step 3 (Payment Submitted Successfully) of the GCash
-// flow — reached from GcashPaymentPage once the buyer says they've paid in their own GCash
-// app. Collects proof of payment and hands it to submitPaymentProof, which puts the order
-// into paymentVerificationStatus: 'pending' for the farmer to approve/reject (see
-// FarmerOrders.jsx's Payment Verification panel).
-//
-// No AppShell here either (see GcashPaymentPage's own comment) — same reasoning, same
-// MobileBottomNav mount so mobile buyers aren't stranded mid-flow.
+
+
+
+
+
+
+
+
 export default function ConfirmGcashPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const navItems = getNavItemsForRole(currentUser.role);
 
-  // 'loading' | 'form' | 'submitting' | 'success' | 'error'
+
   const [stage, setStage] = useState('loading');
   const [checkout, setCheckout] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -256,7 +256,7 @@ export default function ConfirmGcashPaymentPage() {
                     }}
                     inputMode="numeric"
                     autoComplete="off"
-                    // 13 digits plus the 3 spaces GCash's own grouping uses.
+
                     maxLength={16}
                     placeholder="e.g. 1234 5678 9012"
                   />

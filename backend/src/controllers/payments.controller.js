@@ -3,25 +3,25 @@ import { serializeOrder } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
 import { ApiError } from '../lib/ApiError.js';
 
-// ============================================================================
-// GCash payment module.
-//
-// There is no GCash Merchant API integration here, by design — the farmer simply stores
-// their own GCash account name, number, and QR code image on their profile (see
-// profiles.controller.js's buildRoleFields), and a buyer paying via GCash sees exactly
-// that: the farmer's real account details and QR, scans it in their own GCash app, then
-// submits proof of payment (a receipt screenshot plus the reference number, sender name,
-// and payment time). That submission does NOT mark the order paid by itself — it puts the
-// order into payment_verification_status: 'pending', and the farmer must explicitly
-// approve or reject it (see approvePaymentVerification / rejectPaymentVerification below)
-// before payment_status ever becomes 'paid'. A rejection leaves the order payable again so
-// the buyer can correct and resubmit.
-// ============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const MERCHANT_NAME = 'HarvestLink';
 
-// The persisted identifier for a completed payment — generated once the farmer approves
-// the buyer's submitted proof (see approvePaymentVerification below).
+
+
 function generateTransactionId() {
   const random = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `GC${Date.now().toString(36).toUpperCase()}${random}`;
@@ -41,10 +41,10 @@ function assertFarmer(req, order) {
   if (req.profile.id !== order.farmer_id) throw new ApiError('You do not have permission to review this payment.', 403);
 }
 
-// GET /api/payments/gcash/:orderId — the order plus the farmer's own real GCash account
-// details (account name, number, QR code image) for the checkout page to display. 404s
-// A QR code plus the account name is sufficient for a buyer to pay. The phone number is
-// helpful for manual payment, but it is optional when the farmer has provided a scannable QR.
+
+
+
+
 export async function getGcashCheckout(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertBuyer(req, order);
@@ -72,14 +72,14 @@ export async function getGcashCheckout(req, res) {
   });
 }
 
-// POST /api/payments/gcash/:orderId/confirm — called once the buyer has uploaded their
-// payment receipt and filled in the reference number/sender name/payment time (see
-// src/features/payments/ConfirmGcashPaymentPage.jsx). Puts the order into
-// payment_verification_status: 'pending' — it does NOT mark the order paid; only the
-// farmer's approval does that (see approvePaymentVerification below). `receiptUrl` is a
-// public URL in the payment-receipts bucket, uploaded from the browser beforehand (see
-// uploadService.js's uploadPaymentReceipt) — this route only ever receives the resulting
-// URL, never the file itself.
+
+
+
+
+
+
+
+
 export async function submitPaymentProof(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertBuyer(req, order);
@@ -131,8 +131,8 @@ export async function submitPaymentProof(req, res) {
   res.json(serializeOrder(updated));
 }
 
-// PATCH /api/payments/gcash/:orderId/approve — farmer-only. Marks the order paid and
-// generates the real, persisted transaction_id — this is the only place that happens.
+
+
 export async function approvePaymentVerification(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertFarmer(req, order);
@@ -173,8 +173,8 @@ export async function approvePaymentVerification(req, res) {
   res.json(serializeOrder(updated));
 }
 
-// PATCH /api/payments/gcash/:orderId/reject — farmer-only, requires a reason. Leaves
-// payment_status as 'pending' so the buyer can correct the details and resubmit.
+
+
 export async function rejectPaymentVerification(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertFarmer(req, order);

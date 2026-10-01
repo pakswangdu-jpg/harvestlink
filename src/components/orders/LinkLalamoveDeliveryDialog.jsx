@@ -18,12 +18,12 @@ function buildInitialForm(delivery) {
   };
 }
 
-// The "professional dialog" the farmer sees after returning from booking on Lalamove's own
-// website (or when editing what they already entered) — reuses the same centered-modal shell
-// as LiveTrackingModal.jsx (.tracking-modal*) so it matches the app's one existing dialog
-// pattern instead of inventing a second. HarvestLink never talks to the Lalamove API; this
-// just records what the farmer read off Lalamove's own confirmation screen — see
-// deliveries.controller.js.
+
+
+
+
+
+
 export default function LinkLalamoveDeliveryDialog({ order, delivery, mode = 'book', onClose, onSaved }) {
   const [form, setForm] = useState(() => buildInitialForm(delivery));
   const [errors, setErrors] = useState({});

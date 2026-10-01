@@ -33,10 +33,10 @@ function InfoField({ icon: Icon, label, value }) {
   );
 }
 
-// Read-only — reuses CourierDeliveryTimeline.jsx exactly as the farmer/buyer see it on
-// OrderTracking.jsx (isFarmer=false hides its manual "Mark as" advance control), so admin
-// sees the same Courier/Booking Reference/Tracking Status/Tracking URL/Delivery Timeline the
-// buyer relies on, without a second, drifting implementation of the same data.
+
+
+
+
 function DeliveryDetail({ order, delivery }) {
   if (!delivery) {
     return <p className="text-[13px] text-[var(--muted)]">No courier has been booked for this order yet.</p>;

@@ -1,20 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapPin, MapPinOff, MessageCircle, Package, Phone, Search, Store, UserSearch, Users } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
+import RegisteredLocationNotice from '../../components/map/RegisteredLocationNotice';
+import { getRegisteredCoordinates, sortByRegisteredDistance, formatNearbyDistance } from '../../utils/geo';
 import FarmerMap from '../../components/map/FarmerMap';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
+import {
+  getBuyers, getNearbyMapProfiles, getStakeholders, getVerifiedFarmers,
+} from '../../services/authService';
 import { getActiveProducts } from '../../services/productService';
 import { getInitials, isRecentlyActive } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
-// Matches the ~4s live-refresh cadence used everywhere else in the app (orders, messages,
-// notifications) — keeps presence dots current while the map is left open.
+
+
 const REFRESH_MS = 4000;
 
-// One row style shared by all three directory groups (farmers/buyers/stakeholders) instead
-// of three near-identical blocks — same markup/behavior as before, just consolidated.
+function getMapProfilesForRole(profiles, directoryProfiles, role, query, visible, searchFields) {
+  if (!visible) return [];
+  const directoryById = new Map(directoryProfiles.map((profile) => [profile.id, profile]));
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return profiles
+    .filter((profile) => profile.role === role)
+    .map((profile) => ({ ...profile, ...directoryById.get(profile.id) }))
+    .filter((profile) => !normalizedQuery || searchFields
+      .map((field) => profile[field] || '')
+      .join(' ')
+      .toLowerCase()
+      .includes(normalizedQuery));
+}
+
+
+
 function DirectoryGroup({
   label, avatarClass, items, selectedId, onSelect, currentUserId, emptyMessage, itemRefs,
 }) {
@@ -39,6 +58,7 @@ function DirectoryGroup({
               <span className="farmer-list-text">
                 <strong>{item.displayName}{item.id === currentUserId ? ' (You)' : ''}</strong>
                 <span className="muted"><MapPin size={13} /> {item.municipality}</span>
+                {item.id !== currentUserId ? <span className="muted">{formatNearbyDistance(item.distanceKm)}</span> : null}
               </span>
             </button>
           ))}
@@ -57,31 +77,54 @@ function DirectoryGroup({
 
 export default function FarmerMapPage() {
   const { currentUser } = useAuth();
+  const viewerCoords = useMemo(() => getRegisteredCoordinates(currentUser), [currentUser]);
   const navItems = getNavItemsForRole(currentUser.role);
   const [query, setQuery] = useState('');
-  // Lets someone jump straight to just the group they care about instead of scrolling past
-  // the other two directories to find it — 'all' keeps today's combined view as the default.
+
+
   const [typeFilter, setTypeFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [farmers, setFarmers] = useState([]);
   const [buyers, setBuyers] = useState([]);
   const [stakeholders, setStakeholders] = useState([]);
+  const [nearbyMapProfiles, setNearbyMapProfiles] = useState([]);
   const [farmersWithProducts, setFarmersWithProducts] = useState(() => new Set());
   const directoryItemRefs = useRef({});
   const selectedLocationRef = useRef(null);
 
   useEffect(() => {
-    const reload = () => {
-      getVerifiedFarmers().then(setFarmers);
-      getBuyers().then(setBuyers);
-      getStakeholders().then(setStakeholders);
-      getActiveProducts().then((products) => {
+    let cancelled = false;
+    let requestInProgress = false;
+
+    const reload = async () => {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      try {
+        const [nextFarmers, nextBuyers, nextStakeholders, nextMapProfiles, products] = await Promise.all([
+          getVerifiedFarmers(),
+          getBuyers(),
+          getStakeholders(),
+          getNearbyMapProfiles(),
+          getActiveProducts(),
+        ]);
+        if (cancelled) return;
+        setFarmers(nextFarmers);
+        setBuyers(nextBuyers);
+        setStakeholders(nextStakeholders);
+        setNearbyMapProfiles(nextMapProfiles);
         setFarmersWithProducts(new Set(products.map((product) => product.farmerId)));
-      });
+      } catch (error) {
+        if (!cancelled) console.error('Unable to refresh Nearby profiles:', error);
+      } finally {
+        requestInProgress = false;
+      }
     };
-    reload();
+    void reload();
     const interval = setInterval(reload, REFRESH_MS);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const showFarmers = typeFilter === 'all' || typeFilter === 'farmer';
@@ -96,10 +139,10 @@ export default function FarmerMapPage() {
       : farmers.filter((farmer) =>
         [farmer.name, farmer.farmName, farmer.municipality].join(' ').toLowerCase().includes(normalized)
       );
-    return base.map((farmer) => (
+    return sortByRegisteredDistance(viewerCoords, base).map((farmer) => (
       { ...farmer, displayName: farmer.farmName || farmer.name, avatarSeed: farmer.name, role: 'farmer' }
     ));
-  }, [farmers, query, showFarmers]);
+  }, [farmers, query, showFarmers, viewerCoords]);
 
   const filteredBuyers = useMemo(() => {
     if (!showBuyers) return [];
@@ -107,8 +150,8 @@ export default function FarmerMapPage() {
     const base = !normalized
       ? buyers
       : buyers.filter((buyer) => [buyer.name, buyer.municipality].join(' ').toLowerCase().includes(normalized));
-    return base.map((buyer) => ({ ...buyer, displayName: buyer.name, avatarSeed: buyer.name, role: 'buyer' }));
-  }, [buyers, query, showBuyers]);
+    return sortByRegisteredDistance(viewerCoords, base).map((buyer) => ({ ...buyer, displayName: buyer.name, avatarSeed: buyer.name, role: 'buyer' }));
+  }, [buyers, query, showBuyers, viewerCoords]);
 
   const filteredStakeholders = useMemo(() => {
     if (!showStakeholders) return [];
@@ -118,32 +161,51 @@ export default function FarmerMapPage() {
       : stakeholders.filter((stakeholder) =>
         [stakeholder.organizationName, stakeholder.name, stakeholder.municipality].join(' ').toLowerCase().includes(normalized)
       );
-    return base.map((stakeholder) => {
+    return sortByRegisteredDistance(viewerCoords, base).map((stakeholder) => {
       const displayName = stakeholder.organizationName || stakeholder.name;
       return { ...stakeholder, displayName, avatarSeed: displayName, role: 'stakeholder' };
     });
-  }, [stakeholders, query, showStakeholders]);
+  }, [stakeholders, query, showStakeholders, viewerCoords]);
 
-  const hasAnyAccounts = farmers.length > 0 || buyers.length > 0 || stakeholders.length > 0;
+  const mapFarmers = useMemo(
+    () => getMapProfilesForRole(nearbyMapProfiles, farmers, 'farmer', query, showFarmers, ['name', 'farmName', 'municipality']),
+    [nearbyMapProfiles, farmers, query, showFarmers],
+  );
+  const mapBuyers = useMemo(
+    () => getMapProfilesForRole(nearbyMapProfiles, buyers, 'buyer', query, showBuyers, ['name', 'municipality']),
+    [nearbyMapProfiles, buyers, query, showBuyers],
+  );
+  const mapStakeholders = useMemo(
+    () => getMapProfilesForRole(nearbyMapProfiles, stakeholders, 'stakeholder', query, showStakeholders, ['organizationName', 'name', 'municipality']),
+    [nearbyMapProfiles, stakeholders, query, showStakeholders],
+  );
 
-  // The one record the currently selected marker/directory row refers to, if any — looked
-  // up across all three already-filtered lists rather than the raw farmers/buyers/
-  // stakeholders state, so "select a marker, then narrow the search" still resolves to the
-  // same visible record instead of one that's now hidden.
+  const hasAnyAccounts = farmers.length > 0
+    || buyers.length > 0
+    || stakeholders.length > 0
+    || nearbyMapProfiles.length > 0;
+
+
+
+
+
   const selected = useMemo(() => {
     if (!selectedId) return null;
     return filteredFarmers.find((item) => item.id === selectedId)
       || filteredBuyers.find((item) => item.id === selectedId)
       || filteredStakeholders.find((item) => item.id === selectedId)
+      || mapFarmers.find((item) => item.id === selectedId)
+      || mapBuyers.find((item) => item.id === selectedId)
+      || mapStakeholders.find((item) => item.id === selectedId)
       || null;
-  }, [selectedId, filteredFarmers, filteredBuyers, filteredStakeholders]);
+  }, [selectedId, filteredFarmers, filteredBuyers, filteredStakeholders, mapFarmers, mapBuyers, mapStakeholders]);
 
-  // Selecting a marker on the map should surface the matching row in the directory list even
-  // if it's currently scrolled out of view — the directory is meant to work as a navigation
-  // panel, not just a static list. Same reasoning for the "Selected location" detail panel
-  // below the map/directory split — it starts out of view on most screens, so clicking a pin
-  // or a directory row should bring the details into view too, instead of leaving the farmer/
-  // buyer/stakeholder to scroll down and find it themselves.
+
+
+
+
+
+
   useEffect(() => {
     if (!selectedId) return;
     directoryItemRefs.current[selectedId]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -155,7 +217,7 @@ export default function FarmerMapPage() {
   const selectedHasProducts = selected?.role === 'farmer' && farmersWithProducts.has(selected.id);
   const avatarClassByRole = { farmer: '', buyer: 'buyer', stakeholder: 'stakeholder' };
   const roleLabel = { farmer: 'Farmer', buyer: 'Buyer', stakeholder: 'Stakeholder' };
-  const legendDotByRole = { farmer: 'origin', buyer: 'destination', stakeholder: 'stakeholder' };
+  const legendDotByRole = { farmer: 'farmer', buyer: 'buyer', stakeholder: 'stakeholder' };
 
   return (
     <AppShell
@@ -165,7 +227,8 @@ export default function FarmerMapPage() {
       subtitle="Find nearby verified farmers and buyers across Cebu."
       wide
     >
-      {hasAnyAccounts ? (
+      <RegisteredLocationNotice hasLocation={Boolean(viewerCoords)} />
+      {hasAnyAccounts || viewerCoords ? (
         <>
           <section className="panel marketplace-toolbar">
             <div className="marketplace-filters">
@@ -193,18 +256,22 @@ export default function FarmerMapPage() {
           <section className="content-grid two map-directory-split">
             <div className="panel map-panel-fill">
               <p className="map-legend">
-                <span className="legend-dot origin" /> Farmer
-                <span className="legend-dot destination" /> Buyer
-                <span className="legend-dot stakeholder" /> Stakeholder
+                <span><span className="legend-dot viewer" /> Your location</span>
+                <span><span className="legend-dot farmer" /> Farmer</span>
+                <span><span className="legend-dot buyer" /> Buyer</span>
+                <span><span className="legend-dot stakeholder" /> Stakeholder</span>
               </p>
               <FarmerMap
-                farmers={filteredFarmers}
-                buyers={filteredBuyers}
-                stakeholders={filteredStakeholders}
+                nearbyView
+                farmers={mapFarmers}
+                buyers={mapBuyers}
+                stakeholders={mapStakeholders}
                 selectedId={selectedId}
                 onSelectPin={setSelectedId}
                 farmersWithProducts={farmersWithProducts}
                 currentUserId={currentUser.id}
+                viewerCoords={viewerCoords}
+                viewerAddress={currentUser.address || currentUser.municipality || ''}
               />
             </div>
 

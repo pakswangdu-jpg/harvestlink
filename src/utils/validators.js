@@ -18,19 +18,19 @@ export function isValidZipCode(value) {
   return /^\d{4}$/.test(String(value || '').trim());
 }
 
-// Far above any real farmgate/retail produce price in this marketplace — exists only to
-// catch a typo (an extra digit, or the total cost of a whole harvest typed into a per-unit
-// field) before it reaches the marketplace, never to constrain a genuine price. Mirrored
-// server-side in backend/src/lib/priceReview.js since this file is never bundled into the
-// backend (see that file's own comment) and a client-side-only check can be bypassed by
-// calling the API directly.
+
+
+
+
+
+
 export const MAX_PLAUSIBLE_PRICE_PER_KG = 5000;
 
-// Only resolvable when the unit has a universal weight (kg/g/t/L/mL) or the farmer has
-// already filled in "how many kg is 1 X" — returns null otherwise rather than guessing,
-// since a wrong guess here (e.g. defaulting to 1kg for a sack) could wrongly flag, or fail
-// to flag, a price that's actually fine. The missing-conversion case already has its own
-// required-field error a few lines below; this check simply sits out until that's resolved.
+
+
+
+
+
 function resolvableKgPerUnit(unit, kgPerUnitInput) {
   const fixed = getFixedKgPerUnit(unit);
   if (fixed != null) return fixed;
@@ -38,8 +38,8 @@ function resolvableKgPerUnit(unit, kgPerUnitInput) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-// Shared by both the cost and price checks below — same ceiling, same per-kg normalization,
-// so a sack-priced and a kg-priced listing are held to the same real-world bar.
+
+
 function implausiblePerKgMessage(label, amount, kgPerUnit) {
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0 || !kgPerUnit) return null;
@@ -48,10 +48,10 @@ function implausiblePerKgMessage(label, amount, kgPerUnit) {
   return `${label} works out to ₱${perKg.toFixed(2)}/kg, which is unrealistically high for produce — please double-check this value.`;
 }
 
-// Registration only (see AuthPage.jsx's PhoneNumberInput, which also runs this live as the
-// farmer/buyer/stakeholder types) — Profile.jsx's own edit form still just requires a
-// non-empty value, unchanged, since re-validating every existing account's already-saved
-// number was never part of this.
+
+
+
+
 function validateContactNumber(values, errors) {
   if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
   else if (!isValidPhilippineMobile(values.contactNumber)) errors.contactNumber = 'Please enter a valid Philippine mobile number.';
@@ -71,9 +71,9 @@ export function validateAuthForm(values, mode) {
   if (mode === 'register' && !['farmer', 'buyer', 'stakeholder'].includes(values.role)) {
     errors.role = 'Choose an account type.';
   }
-  // Stakeholder registration collects its own, simpler Location section (Municipality/
-  // Barangay required, Street/Address optional, no zip code at all — see
-  // StakeholderRegisterFields in AuthPage.jsx) rather than farmer/buyer's full address+zip.
+
+
+
   if (mode === 'register' && ['farmer', 'buyer'].includes(values.role)) {
     if (!required(values.address)) errors.address = 'Enter your complete address.';
     if (!isValidZipCode(values.zipCode)) errors.zipCode = 'Enter a valid 4-digit zip code.';
@@ -85,9 +85,9 @@ export function validateAuthForm(values, mode) {
       errors.organizationType = 'Enter your organization type.';
     }
     if (!required(values.organizationDescription)) errors.organizationDescription = 'Briefly describe your organization.';
-    // contactPerson is labeled "Position / Role" on the registration form (see
-    // StakeholderRegisterFields in AuthPage.jsx) — same field/column, just describing the
-    // representative's title instead of duplicating their name (already firstName/lastName).
+
+
+
     if (!required(values.contactPerson)) errors.contactPerson = 'Enter your position or role in the organization.';
     validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose a municipality.';
@@ -95,9 +95,9 @@ export function validateAuthForm(values, mode) {
     if (!required(values.partnershipDescription)) {
       errors.partnershipDescription = 'Tell us why your organization wants to partner with HarvestLink.';
     }
-    // Type/size are validated inline as soon as a file is picked (see
-    // VerificationDocumentUpload in AuthPage.jsx) — this only catches never having picked
-    // one at all. The supporting document is optional, so it has no such check here.
+
+
+
     if (!(values.accreditationFile instanceof File)) {
       errors.accreditationFile = 'Upload a verification document to continue.';
     }
@@ -115,10 +115,10 @@ export function validateAuthForm(values, mode) {
   return errors;
 }
 
-// `availableUnits` is the caller's own live, product-scoped unit list (see CatalogContext's
-// getUnitOptions) rather than something this module looks up itself — the catalog is
-// admin-editable data in Supabase now, not a static import, so the caller (which already has
-// it via useCatalog()) is the one source of truth for what counts as valid here.
+
+
+
+
 export function validateProductForm(values, availableUnits) {
   const errors = {};
   if (!required(values.name)) errors.name = 'Choose or specify a product.';
@@ -127,11 +127,11 @@ export function validateProductForm(values, availableUnits) {
   if (!values.isDonation) {
     if (!['retail', 'wholesale'].includes(values.sellingType)) errors.sellingType = 'Choose a sales type.';
     if (toPositiveNumber(values.price) === null) errors.price = 'Enter a positive price.';
-    // Required (not just validated-if-present) — a listing with no recorded cost gets silently
-    // excluded from the farmer's own Profit total forever once an order is placed against it
-    // (see reportService.js's getTotalProfit), since the app won't guess a margin. Requiring
-    // it up front is the only way to actually prevent that gap, since cost is snapshotted onto
-    // the order at checkout and can't be fixed retroactively after the fact.
+
+
+
+
+
     if (toPositiveNumber(values.costPrice) === null) {
       errors.costPrice = 'Enter your cost per unit so your profit can be calculated for this sale.';
     }
@@ -222,18 +222,18 @@ export function validateProfileForm(values, role) {
   return errors;
 }
 
-// A GCash transaction "Ref. No." is all digits — buyers commonly copy it across in the
-// spaced grouping GCash itself displays ("1234 5678 9012 3"), so spaces are accepted on the
-// way in and stripped here rather than rejected.
+
+
+
 export function normalizeGcashReference(value) {
   return String(value ?? '').replace(/\D/g, '');
 }
 
-// Deliberately a 12-13 digit RANGE, not a single fixed length: GCash receipts in the wild
-// carry both (13 is the common Express Send/transaction length, 12 shows up too — the app's
-// own placeholder was written against a 12-digit example). Pinning this to one exact length
-// would block a buyer holding a perfectly valid receipt from submitting proof of a payment
-// they've already made, which is a far worse failure here than accepting one digit of slack.
+
+
+
+
+
 export const GCASH_REFERENCE_MIN_DIGITS = 12;
 export const GCASH_REFERENCE_MAX_DIGITS = 13;
 
@@ -242,20 +242,20 @@ export function isValidGcashReference(value) {
   return digits.length >= GCASH_REFERENCE_MIN_DIGITS && digits.length <= GCASH_REFERENCE_MAX_DIGITS;
 }
 
-// Letters only — but "letters" has to mean Filipino names as actually written: Ñ/ñ and
-// accented characters (Muñoz, José), the periods in "Ma. Cristina" and "Jr.", hyphenated
-// surnames (Dela Cruz-Santos), and apostrophes. Only digits and other symbols are rejected.
-// \p{L} with the u flag covers the accented/Ñ cases that a bare A-Z class would wrongly strip.
+
+
+
+
 const NAME_ALLOWED_PATTERN = /^[\p{L} .'-]+$/u;
 
 export function isValidPersonName(value) {
   const trimmed = String(value ?? '').trim();
-  // At least two actual letters, so ".." or "-" alone can't pass the pattern above.
+
   return NAME_ALLOWED_PATTERN.test(trimmed) && (trimmed.match(/\p{L}/gu) || []).length >= 2;
 }
 
-// Live input filters — applied as the buyer types so an invalid character never lands in the
-// field in the first place, instead of only being reported after they hit Submit.
+
+
 export function filterGcashReferenceInput(value) {
   return String(value ?? '').replace(/[^\d ]/g, '');
 }
@@ -281,8 +281,8 @@ export function validatePasswordForm(values) {
 }
 
 export function hasErrors(errors) {
-  // Fields get cleared via `{ ...previous, [field]: undefined }` rather than deleting
-  // the key, so a plain key-count check would stay "true" forever after the first typo
-  // — even once every value is undefined. Check for an actual truthy message instead.
+
+
+
   return Object.values(errors).some(Boolean);
 }

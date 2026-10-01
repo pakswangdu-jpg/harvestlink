@@ -10,9 +10,9 @@ import { getInitials } from '../../utils/formatters';
 
 const STAR_LEVELS = [5, 4, 3, 2, 1];
 
-// Currently only consumed by TopRatedFarmersCarousel. Memoized so the carousel's continuous
-// autoplay (a fresh scroll/select cycle every ~4s) never re-renders cards that aren't the ones
-// mounting/unmounting at the loop boundary.
+
+
+
 export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer }) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -20,11 +20,11 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
     <motion.article
       whileHover={shouldReduceMotion ? undefined : { y: -8 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      // relative + hover:z-10: lifting a card makes its shadow extend past its own box into
-      // the neighboring card's space — without this, the next card (painted later in DOM
-      // order) rendered on top and clipped the hovered card's shadow/edge instead of the
-      // hovered card rising above it, which is what showed up as a stray gray sliver peeking
-      // out from behind the hovered card.
+
+
+
+
+
       className="group relative z-0 flex h-full flex-col rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-shadow duration-300 hover:z-10 hover:shadow-[0_20px_40px_rgba(16,24,40,0.14)]"
     >
       <div className="flex items-center gap-3">
@@ -42,9 +42,9 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-1.5">
-            {/* line-clamp-2, not truncate — a one-line ellipsis was cutting real (often
-                multi-word Filipino) names down to "John Domi…", which read as broken rather
-                than just compact. Two lines fits virtually every name in full. */}
+            {
+
+                                                                                  }
             <h3 title={farmer.name} className="line-clamp-2 text-[15px] font-bold leading-snug text-[var(--text)]">
               {farmer.name}
             </h3>
@@ -80,8 +80,8 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
         )}
       </div>
 
-      {/* 5/4/3/2/1 broken out into their own rows (rather than just the one averaged score
-          above) so a visitor can see, e.g., a 4.6 that's mostly 5s vs. mostly 4s-with-a-few-1s. */}
+      {
+                                                                                                   }
       {farmer.ratingCount > 0 ? (
         <div className="mt-3 space-y-1" aria-label="Rating breakdown">
           {STAR_LEVELS.map((star) => {

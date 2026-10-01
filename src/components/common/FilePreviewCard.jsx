@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, FileText, X, ZoomIn } from 'lucide-react';
 
-// `file` is either:
-//  - a directly-usable value: a data: URL (legacy pre-migration records) or a full
-//    http(s):// URL (e.g. a public-bucket product image) — rendered/linked immediately.
-//  - a private Storage bucket path (e.g. "userId/govid-xxx.jpg") — has no directly-fetchable
-//    URL at all, so `resolveUrl` (an async () => signedUrl callback the caller provides —
-//    see Profile.jsx / AdminDashboard.jsx) is called on demand, only when the user actually
-//    clicks to view it, to fetch a short-lived signed URL first.
+
+
+
+
+
+
+
 export default function FilePreviewCard({ label, file, resolveUrl, large = false }) {
   const [isZoomed, setIsZoomed] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
@@ -33,14 +33,14 @@ export default function FilePreviewCard({ label, file, resolveUrl, large = false
     if (!resolveUrl) return;
     setResolveError('');
     setIsResolving(true);
-    // Opened blank, synchronously, in the same tick as the click — then redirected once the
-    // signed URL resolves. Mobile Safari/Chrome block a window.open() that happens after an
-    // await (crossing an async boundary drops it from the "trusted user gesture" the popup
-    // blocker requires), which is exactly why "View file" silently did nothing on mobile for
-    // any private file needing a signed URL first (govId, accreditation, ...) — the fast
-    // direct-URL path above never hit this since it has no await before the open.
+
+
+
+
+
+
     const newTab = window.open('', '_blank');
-    if (newTab) newTab.opener = null; // same tabnabbing guard 'noreferrer' gives, without losing the reference this needs
+    if (newTab) newTab.opener = null;
     try {
       const url = await resolveUrl();
       if (!url) throw new Error('File unavailable.');

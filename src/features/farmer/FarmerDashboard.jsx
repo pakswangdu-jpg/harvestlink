@@ -73,9 +73,9 @@ export default function FarmerDashboard() {
       ]);
       if (cancelled) return;
 
-      // Nearest-first and capped, not every registered account nationwide — the dashboard's
-      // map is a small "who's around me" widget, not the full directory (that's what View
-      // Map/Marketplace are for).
+
+
+
       setState({
         products,
         orders,
@@ -101,12 +101,12 @@ export default function FarmerDashboard() {
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
-  // Sums every paid order to date (COD counts once the buyer confirms delivery — see
-  // advanceDelivery on the backend), same "paid orders" definition the admin dashboard's
-  // own revenue figure uses, just scoped to this farmer's own orders.
+
+
+
   const totalIncome = getTotalRevenue(orders);
-  // Profit = income minus recorded cost, but only for orders whose product had a cost on
-  // file at checkout (see reportService.js).
+
+
   const totalProfit = getTotalProfit(orders);
   const activeListings = products.filter((product) => product.status === 'active').length;
   const monthlyRevenue = getMonthlyRevenue(orders, 6);

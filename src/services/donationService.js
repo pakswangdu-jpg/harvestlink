@@ -1,8 +1,8 @@
 import { STORAGE_KEYS } from '../utils/constants';
 import { createId, readStorage, writeStorage } from './storageService';
-// Donations haven't moved to the backend yet — repointed at frozen localStorage-backed
-// copies so this file keeps working unchanged while auth/products/orders migrate.
-// See src/services/local/*Local.js for why these exist.
+
+
+
 import { restoreProductQuantity, updateProduct } from './local/productServiceLocal';
 import { createNotification } from './local/notificationServiceLocal';
 import { getStakeholders } from './local/authServiceLocal';
@@ -57,8 +57,8 @@ export function createDonation(product, farmer) {
   saveDonations([donation, ...getDonations()]);
   updateProduct(product.id, { ...product, quantity: 0, status: 'inactive' });
 
-  // Every partner org gets alerted — donations go to whoever requests them first, so all
-  // of them need to see it appear, not just whichever one happens to check back.
+
+
   getStakeholders().forEach((stakeholder) => {
     createNotification({
       userId: stakeholder.id,
@@ -143,8 +143,8 @@ export function confirmReceipt(id) {
   return updated.find((donation) => donation.id === id);
 }
 
-// Donations are local-only (no backend order behind one — see ratingService.js), so
-// "already rated" has nowhere authoritative to live except the donation record itself.
+
+
 export function markDonationRated(id) {
   const updated = getDonations().map((donation) =>
     donation.id === id ? { ...donation, rated: true } : donation
@@ -159,7 +159,7 @@ export function cancelDonation(id) {
   if (!target) throw new Error('Donation was not found.');
   if (['completed', 'cancelled'].includes(target.status)) throw new Error('This donation can no longer be cancelled.');
 
-  // The farmer is withdrawing the offer entirely — give the stock back so it can be resold.
+
   restoreProductQuantity(target.productId, target.quantity);
 
   const updated = donations.map((donation) =>

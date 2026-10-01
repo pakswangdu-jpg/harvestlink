@@ -4,11 +4,11 @@ import { getPendingPriceReviews } from '../services/productService';
 
 const POLL_INTERVAL_MS = 6000;
 
-// Same "mounted at the app-shell level, not one page component" reasoning as
-// useFarmerNavBadges/useBuyerNavBadges/useStakeholderNavBadges — the admin sidebar's two
-// approval-queue badges (accounts awaiting verification, price reviews awaiting a decision)
-// now stay accurate no matter which admin page is open, not just while a single monolithic
-// dashboard component happened to be mounted.
+
+
+
+
+
 export function useAdminNavBadges(isAdmin) {
   const [usersBadge, setUsersBadge] = useState(0);
   const [priceMonitoringBadge, setPriceMonitoringBadge] = useState(0);

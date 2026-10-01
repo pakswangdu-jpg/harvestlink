@@ -1,12 +1,12 @@
-// Mirrors the small, stable value lists from the frontend's src/utils/constants.js that
-// the backend needs for validation/derivation. Kept manually in sync (not imported across
-// the frontend/backend boundary — they're two separate deployable projects) since these
-// lists change rarely. If you add/rename a municipality or payment/delivery value on the
-// frontend, mirror the change here too.
-//
-// Crop categories/units used to live here as a hardcoded PRODUCT_CATEGORIES array — they're
-// now admin-editable data in Supabase (public.crop_categories / public.crops), read via
-// lib/catalogRepo.js instead (see supabase/schema.sql for why).
+
+
+
+
+
+
+
+
+
 
 export const CEBU_MUNICIPALITIES = [
   'Alcantara', 'Alcoy', 'Alegria', 'Aloguinsan', 'Argao', 'Asturias', 'Badian', 'Balamban',
@@ -21,9 +21,9 @@ export const CEBU_MUNICIPALITIES = [
 
 export const DEFAULT_MUNICIPALITY = 'Cebu City';
 
-// Ported verbatim from src/utils/constants.js's CEBU_MUNICIPALITY_COORDS — used server-side
-// to compute the distance-based delivery fee at order creation (see lib/deliveryFee.js).
-// Keep in sync with the frontend copy (used there for map pin placement/ETA estimates).
+
+
+
 export const CEBU_MUNICIPALITY_COORDS = {
   Alcantara: { lat: 9.9500, lng: 123.4167 },
   Alcoy: { lat: 9.6833, lng: 123.5000 },
@@ -84,8 +84,8 @@ export function getMunicipalityCoords(municipality) {
   return CEBU_MUNICIPALITY_COORDS[municipality] || CEBU_MUNICIPALITY_COORDS[DEFAULT_MUNICIPALITY];
 }
 
-// Only GCash (via the demo payment module — see payments.controller.js) and Cash on
-// Delivery are offered.
+
+
 export const PAYMENT_METHODS = ['cod', 'gcash'];
 
 export const DELIVERY_METHODS = ['farmer_delivery', 'buyer_pickup', 'courier'];
@@ -96,8 +96,8 @@ export const DELIVERY_SEQUENCES = {
   buyer_pickup: ['pending', 'preparing', 'ready_for_pickup', 'picked_up'],
 };
 
-// Ported verbatim from src/utils/constants.js — used server-side for order_delivery_events
-// row titles (see advanceDelivery in orders.controller.js).
+
+
 export const DELIVERY_STEP_LABELS = {
   pending: 'Order confirmed',
   preparing: 'Preparing',

@@ -10,8 +10,8 @@ import logo from '../../assets/logo.png';
 
 function getPasswordRecoveryRedirect() {
   const url = new URL('/reset-password', window.location.origin);
-  // Supabase redirect allowlists commonly include localhost, while Vite may be opened
-  // through its equivalent loopback hostname.
+
+
   if (url.hostname === '127.0.0.1') url.hostname = 'localhost';
   return url.toString();
 }
@@ -58,9 +58,9 @@ export default function ForgotPasswordPage() {
       return;
     }
     setIsSubmitting(false);
-    // Always show the same success state regardless of whether the email actually exists —
-    // confirming/denying an email's existence here would let anyone probe which addresses
-    // are registered.
+
+
+
     if (resetError) {
       setError(getResetErrorMessage(resetError));
       return;

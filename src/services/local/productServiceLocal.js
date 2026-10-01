@@ -1,18 +1,18 @@
-// Frozen, localStorage-backed snapshot of the pre-migration productService.js — kept only
-// so donationService.js and demandForecastService.js (not yet migrated to the backend)
-// still have synchronous product functions to call. Do not add new features here.
+
+
+
 import { getExpiryStatus, STORAGE_KEYS } from '../../utils/constants';
 import { createId, migrateLegacyProducts, readStorage, writeStorage } from '../storageService';
 
-// A farmer's price more than this far above the PSA regional reference gets
-// flagged for DTI review instead of auto-approved.
+
+
 const PRICE_DEVIATION_THRESHOLD_PERCENT = 20;
 
-// PSA's reference is always ₱/kg, but a farmer can list by sack/bundle/piece/crate — so the
-// deviation check normalizes the listed price to a per-kg figure via kgPerUnit before
-// comparing. kgPerUnit defaults to 1 (i.e. no conversion) for kg-unit listings. farmerPrice
-// itself stays the raw, as-listed price (what the admin review table shows per row.unit) —
-// only the internal comparison is unit-normalized, not the stored/displayed value.
+
+
+
+
+
 function buildPriceReview(marketReference, price, previousReview, kgPerUnit = 1) {
   if (!marketReference || !marketReference.referencePrice) return null;
 
@@ -23,7 +23,7 @@ function buildPriceReview(marketReference, price, previousReview, kgPerUnit = 1)
 
   if (deviationPct <= PRICE_DEVIATION_THRESHOLD_PERCENT) return null;
 
-  // Re-flagging after an edit starts a fresh review rather than keeping a stale decision.
+
   if (previousReview && previousReview.farmerPrice === farmerPrice && previousReview.referencePrice === referencePrice) {
     return previousReview;
   }
@@ -69,9 +69,9 @@ export function getProductsByFarmer(farmerId) {
   return getProducts().filter((product) => product.farmerId === farmerId);
 }
 
-// Defaults to 1 (no conversion) for kg-unit listings, or a missing/invalid figure — the
-// latter shouldn't happen once validateProductForm requires it for non-kg units, but this
-// keeps the deviation math from ever dividing by zero/NaN if it somehow does.
+
+
+
 function resolveKgPerUnit(values) {
   if (values.unit === 'kg') return 1;
   const parsed = Number(values.kgPerUnit);
@@ -202,9 +202,9 @@ export function declinePriceReview(id) {
   });
 }
 
-// Reverses a decline: unlike approvePriceReview (which never touched status because a
-// pending review never deactivated the listing), this also has to restore the listing
-// itself, since declinePriceReview forced it inactive.
+
+
+
 export function reactivatePriceReview(id) {
   const product = getProductById(id);
   if (!product) throw new Error('Product was not found.');
@@ -232,9 +232,9 @@ export function reduceProductQuantity(id, quantity) {
   });
 }
 
-// Adds stock back after a cancelled order or withdrawn donation. Only reverses the
-// automatic zero-stock deactivation from reduceProductQuantity/createDonation — a
-// product the farmer deliberately hid, or one DTI declined, stays exactly as it was.
+
+
+
 export function restoreProductQuantity(id, quantity) {
   const product = getProductById(id);
   if (!product) return null;

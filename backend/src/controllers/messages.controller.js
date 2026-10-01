@@ -12,9 +12,9 @@ async function assertDirectRecipient(recipientId, senderId) {
   if (data.role === 'admin') throw new ApiError('You cannot message an admin account.', 400);
 }
 
-// Every order id shared between exactly these two accounts (either direction) — a
-// buyer/farmer pair only ever has ONE conversation, so any order-scoped messages between
-// them merge into the same thread as their direct messages, never split out per order.
+
+
+
 async function sharedOrderIds(userIdA, userIdB) {
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -24,10 +24,10 @@ async function sharedOrderIds(userIdA, userIdB) {
   return data.map((order) => order.id);
 }
 
-// GET /api/messages?otherUserId=&before=&limit= — the ONE merged conversation with that
-// person: their direct messages plus any order-scoped messages from orders between exactly
-// this pair, all in one continuous, cursor-paginated thread. `before` is a message's
-// created_at ISO timestamp; omit it for the most recent page.
+
+
+
+
 export async function listMessages(req, res) {
   const { otherUserId, before, limit } = req.query;
   if (!otherUserId) throw new ApiError('otherUserId is required.', 400);
@@ -47,10 +47,10 @@ export async function listMessages(req, res) {
   res.json({ messages: data.reverse().map(serializeMessage), hasMore: data.length === pageSize });
 }
 
-// GET /api/messages/direct-threads — every conversation the caller is part of, one row per
-// counterpart, newest activity first. A counterpart's row merges their direct messages AND
-// any order-scoped messages between exactly this pair — the inbox always shows ONE entry
-// per person, never one per order.
+
+
+
+
 export async function listDirectThreads(req, res) {
   const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
@@ -82,7 +82,7 @@ export async function listDirectThreads(req, res) {
     const partnerId = row.order_id
       ? counterpartByOrderId.get(row.order_id)
       : (row.sender_id === req.profile.id ? row.recipient_id : row.sender_id);
-    if (!partnerId) return; // an order/message this account no longer has visibility into
+    if (!partnerId) return;
     if (!rowsByPartnerId.has(partnerId)) rowsByPartnerId.set(partnerId, []);
     rowsByPartnerId.get(partnerId).push(row);
   });
@@ -97,13 +97,13 @@ export async function listDirectThreads(req, res) {
   const partnerById = new Map((partners || []).map((partner) => [partner.id, partner]));
 
   const threads = partnerIds.map((partnerId) => {
-    const rows = rowsByPartnerId.get(partnerId); // already newest-first
+    const rows = rowsByPartnerId.get(partnerId);
     const partner = partnerById.get(partnerId);
     const unreadCount = rows.filter((row) => row.sender_id !== req.profile.id && !row.read).length;
     return {
       otherUserId: partnerId,
-      // Deactivated/deleted accounts can still have message history — fall back to a
-      // plain label instead of leaving a blank name.
+
+
       otherUserName: partner ? (partner.organization_name || partner.farm_name || partner.name) : 'Former user',
       otherUserAvatarUrl: partner?.avatar_url || null,
       otherUserLastActiveAt: partner?.last_active_at || null,
@@ -117,13 +117,13 @@ export async function listDirectThreads(req, res) {
   res.json(threads);
 }
 
-// POST /api/messages — body { recipientId, text } for a plain text message, or the same
-// plus { messageType: 'image'|'file', imageUrl, fileUrl, fileName, replyToId } for an
-// attachment/reply. Every new message is sent as a direct (order_id null) row — the ONE
-// conversation with that person keeps going regardless of which (if any) order it's about;
-// past order-scoped rows still merge into the same thread via listMessages/listDirectThreads
-// above. sender_name/sender_role are snapshotted from the authenticated caller's own
-// profile, never taken from the request body.
+
+
+
+
+
+
+
 export async function sendMessage(req, res) {
   const {
     recipientId, text, messageType, imageUrl, fileUrl, fileName, replyToId,
@@ -151,8 +151,8 @@ export async function sendMessage(req, res) {
   }).select().single();
   if (error) throw new ApiError(error.message, 400);
 
-  // A short, honest preview of what was actually sent — never the full message body for a
-  // long text (matches every other push/notification preview convention in the app).
+
+
   const preview = type === 'image'
     ? 'Sent a photo'
     : type === 'file'
@@ -177,8 +177,8 @@ async function fetchOwnMessageOr404(messageId, senderId) {
   return data;
 }
 
-// PATCH /api/messages/message/:messageId — body { text }. Text messages only (an image/file
-// caption isn't editable here, matching most messengers' own "edit" scope).
+
+
 export async function editMessage(req, res) {
   const message = await fetchOwnMessageOr404(req.params.messageId, req.profile.id);
   if (message.message_type !== 'text') throw new ApiError('Only text messages can be edited.', 400);
@@ -195,9 +195,9 @@ export async function editMessage(req, res) {
   res.json(serializeMessage(data));
 }
 
-// DELETE /api/messages/message/:messageId — soft delete: clears the content but keeps the
-// row (and its id) in place, so the thread can render "This message was deleted" instead of
-// a silent gap, and anything replying to it still resolves.
+
+
+
 export async function deleteMessage(req, res) {
   const message = await fetchOwnMessageOr404(req.params.messageId, req.profile.id);
 
@@ -213,9 +213,9 @@ export async function deleteMessage(req, res) {
   res.json(serializeMessage(data));
 }
 
-// PATCH /api/messages/direct/:otherUserId/read — marks every message in the ONE merged
-// conversation with that person (direct + any shared orders' messages) NOT sent by the
-// caller as read ("I've seen the other party's messages").
+
+
+
 export async function markDirectThreadRead(req, res) {
   const { otherUserId } = req.params;
   const orderIds = await sharedOrderIds(req.profile.id, otherUserId);

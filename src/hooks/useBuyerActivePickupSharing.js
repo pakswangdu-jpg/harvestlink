@@ -5,7 +5,7 @@ import { getOrdersByBuyer } from '../services/orderService';
 import { haversineKm } from '../utils/geo';
 
 const POLL_INTERVAL_MS = 6000;
-// Same cadence as useFarmerActiveDeliverySharing.js — see that file for why.
+
 const MIN_SEND_INTERVAL_MS = 4000;
 const MIN_SEND_MOVE_KM = 0.01;
 
@@ -13,7 +13,7 @@ function isActivePickupOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'ready_for_pickup' && order.deliveryMethod === 'buyer_pickup';
 }
 
-// See the matching helper in useFarmerActiveDeliverySharing.js — same reasoning.
+
 function isValidCoordinate(lat, lng) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
@@ -21,14 +21,14 @@ function isValidCoordinate(lat, lng) {
   return true;
 }
 
-// The buyer_pickup mirror of useFarmerActiveDeliverySharing.js — same shape, same reasoning
-// (mounted once at the app shell level so sharing starts/stops based on whether the signed-in
-// account HAS an active pickup at all, regardless of which page they're looking at), just the
-// other direction: the BUYER shares their own live position while they're the one traveling
-// (to the farm, once it's ready_for_pickup — buyer_pickup's equivalent of out_for_delivery),
-// over the 'buyer-location' socket event (see backend/src/realtime/orderTracking.js). Lets
-// LiveDeliveryMap.jsx show the exact same rotating-arrow live-navigation view for a pickup
-// trip as it already does for a real delivery — just tracking the buyer instead of the farmer.
+
+
+
+
+
+
+
+
 export function useBuyerActivePickupSharing(buyerId) {
   const [activeOrderIds, setActiveOrderIds] = useState([]);
   const [error, setError] = useState('');
@@ -55,8 +55,8 @@ export function useBuyerActivePickupSharing(buyerId) {
           setActiveOrderIds(ids);
         })
         .catch(() => {
-          // A transient failure here just skips this tick — the next poll retries, and
-          // whatever watch is already running keeps sharing to the last known order list.
+
+
         });
     };
     poll();
@@ -81,8 +81,8 @@ export function useBuyerActivePickupSharing(buyerId) {
     return joined;
   };
 
-  // See the matching, more fully-commented version of this in
-  // useFarmerActiveDeliverySharing.js — same reasoning throughout.
+
+
   const refreshConnectionStatus = () => {
     const next = !isOnlineRef.current
       ? 'offline'
@@ -157,8 +157,8 @@ export function useBuyerActivePickupSharing(buyerId) {
       (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        // See the matching check in useFarmerActiveDeliverySharing.js — never worth sending,
-        // never worth counting as "the GPS is healthy again" below.
+
+
         if (!isValidCoordinate(lat, lng)) return;
 
         if (hasGpsErrorRef.current) {

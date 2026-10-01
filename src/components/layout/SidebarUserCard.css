@@ -1,0 +1,118 @@
+.sidebar-user-card {
+  --profile-role-color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.sidebar-general > .sidebar-user-card {
+  height: auto;
+  border-radius: 6px;
+}
+
+.sidebar-general > p:has(+ .sidebar-user-card) {
+  margin-bottom: 3px;
+  color: color-mix(in srgb, var(--text) 60%, var(--sidebar-bg)) !important;
+}
+
+.sidebar-user-card.is-collapsed {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.sidebar-user-card .sidebar-user-avatar-slot {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+}
+
+.sidebar-user-details {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.sidebar-user-card[data-role='farmer'] {
+  --profile-role-color: #087443;
+}
+
+.sidebar-user-card[data-role='admin'] {
+  --profile-role-color: #946200;
+}
+
+.sidebar-user-card[data-role='buyer'] {
+  --profile-role-color: #2563eb;
+}
+
+.sidebar-user-card[data-role='stakeholder'] {
+  --profile-role-color: #7e22ce;
+}
+
+.sidebar-user-role {
+  display: inline-flex;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--profile-role-color);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.sidebar-user-role-verified {
+  gap: 3px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in srgb, var(--profile-role-color) 30%, transparent);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.sidebar-user-role-verified > svg {
+  width: 11px;
+  height: 11px;
+}
+
+.sidebar-user-card .sidebar-user-avatar {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: var(--surface-elevated);
+  color: var(--text);
+}
+
+[data-theme='dark'] .sidebar-user-card[data-role='farmer'] {
+  --profile-role-color: #78cc98;
+}
+
+[data-theme='dark'] .sidebar-user-card[data-role='admin'] {
+  --profile-role-color: #fbbf24;
+}
+
+[data-theme='dark'] .sidebar-user-card[data-role='buyer'] {
+  --profile-role-color: #60a5fa;
+}
+
+[data-theme='dark'] .sidebar-user-card[data-role='stakeholder'] {
+  --profile-role-color: #c084fc;
+}
+
+[data-theme='dark'] .sidebar-user-card .sidebar-user-name {
+  color: #ffffff;
+}

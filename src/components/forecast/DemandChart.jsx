@@ -20,8 +20,8 @@ function formatAxisDate(dateIso, todayIso) {
   return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// A plain solid dot, no glow/pulse — matches ForecastChart.jsx's deliberately unadorned
-// "today" marker.
+
+
 function TodayDot({ cx, cy }) {
   if (cx == null || cy == null) return null;
   return <circle cx={cx} cy={cy} r={4} fill="var(--amber-700)" stroke="var(--panel)" strokeWidth={2} />;
@@ -43,16 +43,16 @@ function EmptyHistoryState() {
   );
 }
 
-// Same merge-onto-one-date-axis + stacked-band approach as ForecastChart.jsx, applied to
-// order VOLUME instead of price: `historicalChart` is real recorded weekly order volume,
-// `forecastCurve` is the demand engine's real confidence-banded projected daily rate (see
-// priceForecastEngine.js). Historical stays solid green, forecast stays a plain dashed blue
-// line — no fill, no gradient — with the confidence band as the one shaded (flat-color,
-// informational) region on the chart.
+
+
+
+
+
+
 export default function DemandChart({ historicalChart, forecastCurve, unit = 'unit' }) {
   const todayIso = forecastCurve?.[0]?.date || null;
-  // Same reasoning as ForecastChart.jsx: forecastCurve[0] is always today's real baseline
-  // rate, a reliable "Today" anchor on its own — a LINE/band needs at least 2 points.
+
+
   const hasForecastAnchor = (forecastCurve?.length || 0) >= 1;
   const hasForecastTrend = (forecastCurve?.length || 0) >= 2;
 
@@ -75,8 +75,8 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
       byDate.set(point.date, existing);
     });
 
-    // Bridge the two lines at "today" — see ForecastChart.jsx's identical fix for why
-    // connectNulls alone can't span the historicalVolume -> forecastVolume handoff.
+
+
     const bridgeDateIso = forecastCurve?.[0]?.date;
     if (bridgeDateIso) {
       const bridgeRow = byDate.get(bridgeDateIso);

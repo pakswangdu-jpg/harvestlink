@@ -1,5 +1,5 @@
 import {
-  Handshake, LayoutGrid, LineChart, TrendingUp, UserRound,
+  Handshake, LayoutGrid, LineChart, TrendingUp, UserRound, MapPin, Store, MessageSquare, Package, PackagePlus,
 } from 'lucide-react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
@@ -14,22 +14,22 @@ const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
 const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 const ProductsNavIcon = createMaskNavIcon(productsNavIcon);
 
-// `group` drives the sidebar's section headings (Main/Sales/Market/Community) — see
-// AppShell.jsx's grouping logic. Roles whose nav items have no `group` field (stakeholder,
-// admin) fall back to a single unlabeled "Menu" section, so this is additive and doesn't
-// change anything for them.
-//
-// Every icon here follows currentColor, so SidebarNavItem can color them via the
-// --icon-muted/--green-700 tokens (light AND dark) — the lucide ones natively, and the
-// supplied PNG artwork through createMaskNavIcon, which masks rather than paints for exactly
-// that reason.
+
+
+
+
+
+
+
+
+
 export const farmerNavItems = [
   { to: '/farmer-dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
-  { to: '/farmer-products', label: 'Products', icon: ProductsNavIcon, group: 'Sales' },
-  { to: '/farmer-orders', label: 'Orders', icon: OrdersNavIcon, group: 'Sales' },
-  { to: '/messages', label: 'Messages', icon: MessagesNavIcon, group: 'Sales' },
-  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, group: 'Market' },
-  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, group: 'Market' },
+  { to: '/farmer-products', label: 'Products', icon: ProductsNavIcon, bottomIcon: PackagePlus, group: 'Sales' },
+  { to: '/farmer-orders', label: 'Orders', icon: OrdersNavIcon, bottomIcon: Package, group: 'Sales' },
+  { to: '/messages', label: 'Messages', icon: MessagesNavIcon, bottomIcon: MessageSquare, group: 'Sales' },
+  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, bottomIcon: Store, group: 'Market' },
+  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, bottomIcon: MapPin, group: 'Market' },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp, group: 'Market' },
   { to: '/demand-forecast', label: 'Demand Forecast', icon: LineChart, group: 'Market' },
   { to: '/farmer-donations', label: 'Donations', icon: Handshake, group: 'Community' },

@@ -17,11 +17,11 @@ function Row({ label, value, emphasize }) {
   );
 }
 
-// Green, same "AI Market Recommendation" tier as the PSA card — the recommendation here is
-// still grounded in real, verified sales (see historicalPriceService.js: platform-wide paid
-// orders for this exact product name + unit, requires at least 3 to even reach this card),
-// just from HarvestLink's own transaction history instead of PSA's, for a product PSA
-// doesn't track. Only ever rendered when PSA itself has nothing for this product.
+
+
+
+
+
 export default function HistoricalMarketAnalysisCard({ analysis, unit, onUsePrice }) {
   const {
     averagePrice, lowestPrice, highestPrice, trend, confidence, recommendedPrice, orderCount,

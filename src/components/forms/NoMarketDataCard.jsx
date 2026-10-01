@@ -1,9 +1,9 @@
-// Shown once ProductForm.jsx has confirmed BOTH PSA and historical-transaction data have
-// nothing for this product (see PriceAnalysisPanel.jsx's tier cascade) and the farmer hasn't
-// entered a cost yet — the honest "we genuinely have nothing" state. Deliberately shows no
-// price, profit, markup, "Use this price" button, or confidence score of any kind — a
-// production-grade market recommendation must never be fabricated from nothing just to
-// avoid an empty state.
+
+
+
+
+
+
 export default function NoMarketDataCard() {
   return (
     <div className="price-analysis-card">

@@ -25,22 +25,22 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { formatRelativeTime } from '../../utils/formatters';
 import Button from '../common/Button';
 
-// This modal is the Grab/Uber-Eats/Lalamove-style live tracking experience — a new,
-// self-contained addition alongside the already-working delivery map/ETA on
-// OrderTracking.jsx (untouched). It intentionally shares no code with DeliveryMap.jsx so
-// nothing here can ever regress that component: its own map instance, its own marker
-// animation, its own Google Directions-based route line (see googleDirectionsService.js),
-// fed by the new Socket.IO broadcast layer (see backend/src/realtime/orderTracking.js) for
-// sub-second position pushes instead of the 4s poll the rest of the app uses.
 
-// "Near destination" for this view specifically — tighter than the generic 1km used
-// elsewhere (see orderService.js), matching this feature's ~300-500m ask.
+
+
+
+
+
+
+
+
+
 const NEAR_DESTINATION_KM_THRESHOLD = 0.4;
 const MARKER_ANIMATION_DURATION_MS = 1200;
 const ROUTE_LINE_COLOR = '#1a73e8';
-// Throttle for re-fetching the Google Directions route as the farmer moves — Directions is
-// a billed API, so this deliberately doesn't call it on every single 3-5s GPS tick (same
-// discipline already applied to the OSRM caller in DeliveryMap.jsx).
+
+
+
 const ROUTE_REFRESH_MIN_INTERVAL_MS = 20000;
 const ROUTE_REFRESH_MIN_MOVE_KM = 0.05;
 const ROUTE_DEVIATION_KM = 0.08;
@@ -60,10 +60,10 @@ function getTimelineStageIndex(order, isInTransit, isNearDestination) {
   return 0;
 }
 
-// Backgrounds/foregrounds reference the app's own badge-color tokens (see globals.css's
-// :root / .app-shell dark-mode blocks) instead of hardcoded hex, so these pills re-theme for
-// dark mode along with every other pastel status badge in the app instead of staying stuck
-// on light-mode-only pastels.
+
+
+
+
 const STATUS_BADGE_STYLES = {
   confirmed: { bg: 'var(--blue-100)', fg: 'var(--blue-700)', label: 'Confirmed' },
   preparing: { bg: 'var(--amber-100)', fg: 'var(--amber-700)', label: 'Farmer Preparing' },
@@ -134,9 +134,9 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     deliveryMethod: order.deliveryMethod,
   });
 
-  // The socket delivers a fresher fix than `order` itself (which only updates on the 4s
-  // poll/Realtime tick) — preferring it here is what makes distance/ETA feel instant rather
-  // than capped at that poll cadence.
+
+
+
   const currentPosition = livePosition || transit.currentPosition;
   const remainingKm = currentPosition ? haversineKm(currentPosition, destination) : null;
   const averageSpeedKmh = googleRoute?.distanceKm && googleRoute?.durationMinutes
@@ -151,17 +151,17 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const nextStep = getNextDeliveryStatus(order);
   const isDelivered = order.status === 'completed';
 
-  // Once delivered, getLiveTransitProgress correctly stops returning live ETA/distance/speed
-  // (there's no more live position to derive them from) — but showing blank dashes on a
-  // "successfully delivered" screen looks broken, not finished. Show a real trip summary
-  // instead: distance covered, and a genuine average speed computed from the actual elapsed
-  // transit time (transitStartedAt -> updatedAt, both already on the order — no new data).
+
+
+
+
+
   const tripDistanceKm = googleRoute?.distanceKm ?? haversineKm(origin, destination);
   const tripElapsedMinutes = order.transitStartedAt && order.updatedAt
     ? (new Date(order.updatedAt).getTime() - new Date(order.transitStartedAt).getTime()) / 60000
     : null;
-  // Below ~30s, elapsed time is too noisy to divide by — dividing a real trip distance by a
-  // near-zero duration produces a nonsense speed rather than a merely imprecise one.
+
+
   const completedAverageSpeedKmh = tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
     ? tripDistanceKm / (tripElapsedMinutes / 60)
     : null;
@@ -172,8 +172,8 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h avg` : '—')
     : (averageSpeedKmh != null && transit.isInTransit ? `${averageSpeedKmh.toFixed(0)} km/h` : '—');
 
-  // Stop sharing once there's nothing left to share for (order left "out for delivery") —
-  // mirrors the same safeguard the REST-based hook already has on OrderTracking.jsx.
+
+
   useEffect(() => {
     if (!transit.isInTransit) stopSharing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,16 +202,16 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-styles the already-created map in place when the theme changes — Google's base tiles
-  // have no swappable "dark tile URL" the way a Leaflet map would, so a `styles` array is the
-  // Maps-JS-native equivalent.
+
+
+
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
     mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
   }, [effectiveTheme, mapReady]);
 
-  // Fetches (and throttles refetching) the actual Google driving route once a live position
-  // exists — see the ROUTE_REFRESH_* constants above for the cost-control reasoning.
+
+
   useEffect(() => {
     if (!currentPosition || isPickup) return undefined;
     let cancelled = false;
@@ -236,8 +236,8 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPosition?.lat, currentPosition?.lng, isPickup]);
 
-  // Renders/updates markers + the blue route polyline every time the position or route data
-  // changes — the truck marker is persisted (not recreated) so it can animate smoothly.
+
+
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;

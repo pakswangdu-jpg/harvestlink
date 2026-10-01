@@ -7,8 +7,8 @@ const dotTransition = (delay) => ({
   delay,
 });
 
-// Real — only ever rendered while the other party's browser is actually emitting typing
-// events over the socket (see useChatTyping.js), never a simulated/decorative animation.
+
+
 export default function TypingIndicator({ name }) {
   return (
     <motion.div

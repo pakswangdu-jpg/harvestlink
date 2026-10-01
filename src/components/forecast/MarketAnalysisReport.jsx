@@ -20,17 +20,17 @@ const fadeIn = {
   transition: { duration: 0.25 },
 };
 
-// Breaks a narrative (Gemini's real aiSummary, or our own deterministic fallback below) into
-// short standalone sentences — "do not use a long paragraph," per the design brief. A plain
-// sentence-boundary split, not a rewrite: every word shown is still exactly what was written.
+
+
+
 function splitIntoSentences(text) {
   if (!text) return [];
   return text.split(/(?<=[.!?])\s+/).map((sentence) => sentence.trim()).filter(Boolean);
 }
 
-// The narrative fallback when Gemini's aiSummary isn't available (no GEMINI_API_KEY, or the
-// call failed) — every line traces to a real, already-computed forecast field, nothing
-// invented for the occasion (same contract as buildRecommendation in forecastEngine.js).
+
+
+
 function buildDeterministicSummary(forecast) {
   const {
     crop, referencePrice, priceBasis, unit, expectedChangePercent, marketTrend,
@@ -71,9 +71,9 @@ function buildRecommendationChips(forecast) {
   return [...new Set(chips)];
 }
 
-// What / Why / Expected benefit / When — every clause built from a forecast field that's
-// already real and already computed elsewhere on this page, not a separate invented
-// explanation (same reasoning as priceForecastEngine.js's own per-point reason text).
+
+
+
 function buildRecommendationDetails(forecast) {
   const {
     recommendation, seasonalImpact, weatherImpact, expectedProfit, expectedChangePercent, unit, bestTimeToSell,
@@ -132,10 +132,10 @@ function InfoRow({ label, value }) {
   );
 }
 
-// Only ever rendered next to text that's actually Gemini's own writing (aiSummary/
-// aiRecommendation) — never next to the deterministic fallback narrative, which is real
-// computed data but not something Gemini wrote, so labeling it "Powered by Gemini" would be
-// dishonest the same way a fabricated number would be.
+
+
+
+
 function GeminiBadge() {
   return (
     <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--muted)]">
@@ -144,11 +144,11 @@ function GeminiBadge() {
   );
 }
 
-// Replaces the old fragmented arrangement (AiRecommendationHero + InteractiveForecastChart +
-// CropDetailPanel + ForecastSummary + ForecastAnalysis) with one continuous report: Summary
-// -> Key Metrics -> Price Forecast -> Recommendation -> Supporting Information. Every number
-// still traces to the same real forecast.controller.js/priceForecastEngine.js output as
-// before — this only changes how it's organized and presented.
+
+
+
+
+
 export default function MarketAnalysisReport({ detail, municipality, periodLabel }) {
   const [chartTab, setChartTab] = useState('price');
   if (!detail) return null;
@@ -171,7 +171,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
 
   return (
     <div className="flex flex-col gap-8">
-      {/* AI Summary */}
+      {                }
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
@@ -194,7 +194,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         {aiSummary ? <div className="mt-3"><GeminiBadge /></div> : null}
       </motion.section>
 
-      {/* Key Metrics */}
+      {                 }
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <p className={SECTION_TITLE_CLASS}>Key Metrics</p>
         <div className="mt-5 grid grid-cols-2 gap-6 lg:grid-cols-4">
@@ -211,15 +211,15 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         </div>
       </motion.section>
 
-      {/* Price Forecast */}
+      {                    }
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={SECTION_TITLE_CLASS}>Price Forecast</p>
-          {/* No outer border on the group, and forced-color-adjust-none on each button:
-              Windows "Contrast themes" otherwise draws its own ButtonBorder around every
-              <button> and remaps the authored gray, which is what turned this segmented
-              control into stacked black outlines. Same opt-out .btn already uses — the
-              selected tab's gray background still marks the active tab on its own. */}
+          {
+
+
+
+                                                                                      }
           <div className="flex gap-1 rounded-lg p-0.5">
             {[{ value: 'price', label: 'Price' }, { value: 'demand', label: 'Demand' }].map((option) => (
               <button
@@ -260,7 +260,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         </div>
       </motion.section>
 
-      {/* AI Recommendation */}
+      {                       }
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <div className="flex items-start gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
@@ -304,7 +304,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         </div>
       </motion.section>
 
-      {/* Supporting Information */}
+      {                            }
       <motion.section {...fadeIn} className={SECTION_CLASS}>
         <p className={SECTION_TITLE_CLASS}>Supporting Information</p>
         <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2">

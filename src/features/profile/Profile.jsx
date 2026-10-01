@@ -14,6 +14,8 @@ import { getSignedDocumentUrl, uploadAvatar, uploadPaymentQr } from '../../servi
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
+import { getProfileLocationFromPlace } from '../../utils/profileLocation';
+import { getRegisteredCoordinates } from '../../utils/geo';
 import { hasErrors, validateGcashForm, validatePasswordForm, validateProfileForm } from '../../utils/validators';
 import { farmerNavItems } from '../farmer/farmerNav';
 import { buyerNavItems } from '../buyer/buyerNav';
@@ -32,9 +34,9 @@ export default function Profile() {
   const navItems = NAV_ITEMS_BY_ROLE[currentUser.role];
   const isFarmer = currentUser.role === 'farmer';
   const isStakeholder = currentUser.role === 'stakeholder';
-  // Roles without a verification workflow (e.g. buyers) have no verificationStatus at all —
-  // that's an "Active" account, same good-standing state as an explicitly verified one.
-  // Only 'pending'/'rejected' should read as anything less than good.
+
+
+
   const isAccountVerified = !currentUser.verificationStatus || currentUser.verificationStatus === 'verified';
 
   const [isEditing, setIsEditing] = useState(false);
@@ -57,7 +59,7 @@ export default function Profile() {
   const avatarMenuRef = useRef(null);
   const avatarInputRef = useRef(null);
 
-  // Same click-outside-to-close pattern as NotificationBell.
+
   useEffect(() => {
     if (!isAvatarMenuOpen) return undefined;
     const handleClickOutside = (event) => {
@@ -139,7 +141,7 @@ export default function Profile() {
     }
   };
 
-  // GCash payment info (farmer-only) uses a view-then-edit flow; QR uploads remain independent.
+
   const [gcashDraft, setGcashDraft] = useState({
     gcashAccountName: currentUser.gcashAccountName || '',
     gcashNumber: currentUser.gcashNumber || '',
@@ -153,12 +155,12 @@ export default function Profile() {
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrError, setQrError] = useState('');
 
-  // The account-name/number form and the QR upload save independently (see handleQrChange —
-  // it persists itself the moment a file is picked, same as the avatar photo) — a farmer can
-  // easily upload just the QR and think they're done, since nothing else on this page says
-  // otherwise. The backend requires BOTH before a buyer can pay this farmer via GCash (see
-  // getGcashCheckout in payments.controller.js) — this banner is what actually tells the
-  // farmer which half is still missing, instead of only surfacing as a buyer-side error later.
+
+
+
+
+
+
   const hasGcashAccountName = Boolean(currentUser.gcashAccountName);
   const hasGcashQr = Boolean(currentUser.gcashQrUrl);
   const isGcashSetupComplete = hasGcashAccountName && hasGcashQr;
@@ -179,9 +181,9 @@ export default function Profile() {
     setIsSavingGcash(true);
     try {
       const updatedProfile = await updateUserProfile(currentUser.id, gcashDraft);
-      // The API returns the persisted profile (including the backend's trimmed values). Keep
-      // the form in sync immediately, then refresh the shared auth profile so every header,
-      // checkout, and payment surface sees the update without a reload.
+
+
+
       setGcashDraft({
         gcashAccountName: updatedProfile?.gcashAccountName ?? gcashDraft.gcashAccountName.trim(),
         gcashNumber: updatedProfile?.gcashNumber ?? gcashDraft.gcashNumber.trim(),
@@ -220,7 +222,12 @@ export default function Profile() {
   };
 
   const updateProfileField = (field, value) => {
-    setProfileDraft((previous) => ({ ...previous, [field]: value }));
+    setProfileDraft((previous) => ({
+      ...previous,
+      [field]: value,
+      ...(field === 'address' ? { latitude: null, longitude: null, zipCode: '' } : {}),
+      ...(field === 'municipality' ? { latitude: null, longitude: null } : {}),
+    }));
     setProfileErrors((previous) => ({ ...previous, [field]: undefined }));
   };
 
@@ -238,19 +245,56 @@ export default function Profile() {
       setProfileErrors(nextErrors);
       return;
     }
+    const originalDraft = buildProfileDraft(currentUser);
+    const locationFields = ['address', 'municipality', 'zipCode', 'latitude', 'longitude'];
+    const locationChanged = locationFields.some((field) => profileDraft[field] !== originalDraft[field]);
+    if (locationChanged && profileDraft.address.trim() && !getRegisteredCoordinates(profileDraft)) {
+      setProfileErrors({
+        address: 'Select your address from the suggestions to save its map location.',
+      });
+      return;
+    }
     try {
-      const payload = profileDraft.organizationType === 'Other'
-        ? { ...profileDraft, organizationType: profileDraft.organizationTypeOther.trim() }
-        : profileDraft;
+      const editableFields = [
+        'name',
+        'contactNumber',
+        'municipality',
+        'address',
+        'latitude',
+        'longitude',
+        'zipCode',
+        'birthday',
+        'farmName',
+        'organizationName',
+        'organizationType',
+        'contactPerson',
+      ];
+      const payload = Object.fromEntries(
+        editableFields
+          .filter((field) => profileDraft[field] !== originalDraft[field])
+          .map((field) => [field, profileDraft[field]]),
+      );
+      if (
+        profileDraft.organizationType === 'Other'
+        && profileDraft.organizationTypeOther !== originalDraft.organizationTypeOther
+      ) {
+        payload.organizationType = profileDraft.organizationTypeOther.trim();
+      }
+      if (!Object.keys(payload).length) {
+        setIsEditing(false);
+        return;
+      }
       const updatedProfile = await updateUserProfile(currentUser.id, payload);
-      // Use the persisted response (the backend trims/normalizes values) so the form and the
-      // rest of the page immediately show exactly what was saved, without a manual reload.
+
       setProfileDraft(buildProfileDraft(updatedProfile || profileDraft));
       await refreshUser();
       setIsEditing(false);
       setProfileNotice('Profile updated.');
     } catch (error) {
-      setProfileErrors({ name: error.message });
+      console.error('Profile update failed:', error);
+      setProfileErrors(locationChanged
+        ? { address: "We couldn't save your location. Please try again." }
+        : { name: "We couldn't save your profile changes. Please try again." });
     }
   };
 
@@ -499,13 +543,19 @@ export default function Profile() {
                 </FormField>
               ) : null}
 
+              <p className="muted">Select your registered address from the suggestions to save its map location for nearby sorting.</p>
               <div className="form-grid address-row">
                 <FormField label="Complete address" name="address" error={profileErrors.address}>
                   <AddressAutocomplete
                     id="address"
                     value={profileDraft.address}
                     onChange={(next) => updateProfileField('address', next)}
-                    onSelect={(details) => { if (details.zipCode) updateProfileField('zipCode', details.zipCode); }}
+                    onSelect={(details) => {
+                      setProfileDraft((previous) => ({
+                        ...previous,
+                        ...getProfileLocationFromPlace(details, previous),
+                      }));
+                    }}
                     error={profileErrors.address}
                     placeholder="House/Unit No., Street, Barangay"
                   />

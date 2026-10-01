@@ -5,9 +5,9 @@ import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '..
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 
-// The product name is free text (see ProductForm.jsx) — title-casing it here keeps listings
-// consistent ("Cabbage" not "cabbage") regardless of how the farmer typed it, matching the
-// same normalization already used for crop names in forecast.controller.js.
+
+
+
 function titleCaseName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -29,17 +29,17 @@ function isExpiredDate(value) {
   return !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) || expirationDate < todayInCebu();
 }
 
-// Validates category/unit against the live categories/units tables (see
-// supabase/schema.sql) — the source of truth that replaced the old hardcoded
-// PRODUCT_CATEGORIES array. The product NAME itself is free text (see ProductForm.jsx),
-// not picked from a catalog, so there's nothing to validate it against here. Units are the
-// flat master list, not scoped per-product (products_catalog/product_units were removed).
-//
-// `existing` (an in-flight update's current row) is optional: when present, a category/unit
-// that matches what's ALREADY saved on this product is always accepted even if that
-// category has since been renamed/deactivated, so editing an unrelated field (price,
-// quantity, description) on an older listing never breaks — only actually CHANGING to a new
-// category/unit is checked against the current catalog.
+
+
+
+
+
+
+
+
+
+
+
 async function assertValidCategoryAndUnit(values, existing) {
   const catalog = await getCatalog();
   const category = catalog.categories.find((entry) => entry.name === values.category);
@@ -53,16 +53,16 @@ async function assertValidCategoryAndUnit(values, existing) {
   }
 }
 
-// Batch-resolves farmer name/verification/rating for a list of products in two queries,
-// instead of joining — keeps products a lean table (see supabase/schema.sql) while still
-// returning the flat farmerName/farmerVerified/farmerRating fields every frontend product
-// card expects (see ProductCard.jsx's "Verified Farmer" status row and rating display).
+
+
+
+
 async function withFarmerNames(rows) {
   const farmerIds = [...new Set(rows.map((row) => row.farmer_id))];
   if (!farmerIds.length) return rows.map((row) => serializeProduct(row));
 
   const [{ data: farmers }, { data: ratings }] = await Promise.all([
-    supabaseAdmin.from('profiles').select('id, name, verification_status').in('id', farmerIds),
+    supabaseAdmin.from('profiles').select('id, name, verification_status, gcash_account_name, gcash_qr_url').in('id', farmerIds),
     supabaseAdmin.from('ratings').select('farmer_id, rating').in('farmer_id', farmerIds),
   ]);
 
@@ -81,6 +81,7 @@ async function withFarmerNames(rows) {
     return serializeProduct(row, {
       farmerName: farmer?.name || null,
       farmerVerified: farmer?.verification_status === 'verified',
+      farmerGcashEnabled: Boolean(farmer?.gcash_account_name && farmer?.gcash_qr_url),
       farmerRating: ratingSummary ? Math.round((ratingSummary.total / ratingSummary.count) * 10) / 10 : null,
       farmerRatingCount: ratingSummary ? ratingSummary.count : 0,
     });
@@ -105,9 +106,9 @@ export async function listProducts(req, res) {
   if (req.query.farmerId) query = query.eq('farmer_id', req.query.farmerId);
   if (req.query.activeOnly === 'true') {
     query = query.eq('status', 'active').gt('quantity', 0);
-    // A flagged price (see buildPriceReview) leaves status as 'active' so the farmer can
-    // still see/manage the listing while it's under review — but it must stay invisible to
-    // buyers until DTI/admin actually approves it, not just because the record is "active".
+
+
+
     query = query.or('price_review.is.null,price_review->>status.eq.approved');
     query = query.or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`);
   }
@@ -117,12 +118,12 @@ export async function listProducts(req, res) {
   res.json(await withFarmerNames(data));
 }
 
-// GET /api/products/public?farmerId=... — public, no auth. Backs the same signed-out
-// "view farmer" page as getPublicFarmerProfile — only that farmer's active, in-stock,
-// non-flagged listings (same activeOnly gate listProducts applies for logged-in buyers),
-// with cost_price/price_review stripped out. The authenticated marketplace already returns
-// those two to any logged-in buyer, but there's no reason to hand a farmer's cost basis and
-// DTI review state to an anonymous visitor who isn't even a customer yet.
+
+
+
+
+
+
 export async function listPublicProducts(req, res) {
   const { farmerId } = req.query;
   if (!farmerId) throw new ApiError('farmerId is required.', 400);
@@ -139,8 +140,8 @@ export async function listPublicProducts(req, res) {
   if (error) throw new ApiError(error.message, 400);
 
   const serialized = await withFarmerNames(data);
-  // An allowlist, not a denylist — costPrice/priceReview are simply never picked, so a
-  // future field added to serializeProduct doesn't leak here by default.
+
+
   res.json(serialized.map((product) => ({
     id: product.id,
     farmerId: product.farmerId,
@@ -178,26 +179,26 @@ export async function getProduct(req, res) {
   res.json(serialized);
 }
 
-// GET /api/products/historical-price?name=...&unit=... — the third pricing tier
-// ProductForm.jsx falls back to once it already knows PSA has no reference for this
-// product (see historicalPriceService.js). Farmer-only, matching createProduct — this only
-// ever backs the "what should I charge?" UI on the listing form.
+
+
+
+
 export async function getHistoricalPriceAnalysis(req, res) {
   const analysis = await computeHistoricalPriceAnalysis(req.query.name, req.query.unit);
   res.json(analysis);
 }
 
-// What makes two listings "the same product" for the restock-merge below. Deliberately
-// includes selling_type, so the same crop offered retail AND wholesale stays two separate
-// listings (they carry different prices and a wholesale-only MOQ) — that's the "same
-// category but different type" case. Excludes price: a farmer restocking at a new price is
-// still restocking the same product, so the newly submitted price wins rather than splitting
-// the stock across two rows.
+
+
+
+
+
+
 const MERGE_KEY_COLUMNS = ['name', 'category', 'grade', 'unit', 'selling_type'];
 
-// Finds this farmer's existing listing for the same product, or null. Most recently updated
-// first, so an account that already accumulated duplicates before this merge existed keeps
-// consolidating into one row rather than reviving the oldest.
+
+
+
 async function findMergeTarget(farmerId, row) {
   let query = supabaseAdmin.from('products').select('*').eq('farmer_id', farmerId);
   MERGE_KEY_COLUMNS.forEach((column) => { query = query.eq(column, row[column]); });
@@ -212,20 +213,20 @@ export async function createProduct(req, res) {
   await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
-  // Catches a typo (an extra digit, or the total cost of a whole harvest typed into a
-  // per-unit field) before it reaches the marketplace — the frontend already blocks this in
-  // the form, but this is the check that actually can't be bypassed by calling the API
-  // directly. Skipped for a donation, which is deliberately priced at 0.
+
+
+
+
   if (!values.isDonation) {
     assertPlausiblePricePerKg('Cost per unit', values.costPrice, kgPerUnit);
     assertPlausiblePricePerKg('Price', values.price, kgPerUnit);
   }
 
-  // Optional discount set while creating the listing, instead of requiring a separate
-  // apply-discount call once the product already exists — same math and the same 0-100 bound
-  // as the standalone endpoint below, just folded into the initial insert. An empty/zero
-  // percent (the common case) leaves original_price/discount_percent null, identical to a
-  // listing that never had a discount.
+
+
+
+
+
   let price = Number(values.price);
   let originalPrice = null;
   let discountPercent = null;
@@ -267,11 +268,11 @@ export async function createProduct(req, res) {
     updated_at: now,
   };
 
-  // Restocking the same product folds into the existing listing instead of creating a second
-  // identical row, so a farmer's list doesn't fill up with duplicate "Cabbage" entries.
-  // `allowDuplicate` opts out for the two callers that legitimately need a brand-new row: the
-  // explicit "Duplicate" action, and donation listings (which post price 0 — merging one into
-  // a real listing would silently zero out that listing's price).
+
+
+
+
+
   const mergeTarget = values.allowDuplicate ? null : await findMergeTarget(req.profile.id, row);
 
   if (mergeTarget) {
@@ -280,9 +281,9 @@ export async function createProduct(req, res) {
       .from('products')
       .update({
         quantity: mergedQuantity,
-        // The rest of the submitted details win — the farmer just typed them, so they're the
-        // current truth for this product. Only the image falls back to what's already saved,
-        // since leaving the upload empty means "keep the existing photo", not "remove it".
+
+
+
         price: row.price,
         moq: row.moq,
         kg_per_unit: row.kg_per_unit,
@@ -290,15 +291,15 @@ export async function createProduct(req, res) {
         description: row.description,
         image_url: row.image_url || mergeTarget.image_url,
         cost_price: row.cost_price,
-        // The rest of the submitted details win, so the discount does too — restocking with
-        // no discount typed clears any discount the existing listing had, exactly like
-        // resubmitting a plain price would; typing a fresh one replaces the old one outright.
+
+
+
         original_price: row.original_price,
         discount_percent: row.discount_percent,
         expiration_date: row.expiration_date,
         price_review: buildPriceReview(values.marketReference, values.price, mergeTarget.price_review, kgPerUnit),
-        // Adding stock to a sold-out/archived listing puts it back on the marketplace —
-        // otherwise the quantity would go up while the listing stayed invisible to buyers.
+
+
         status: 'active',
         updated_at: now,
       })
@@ -308,8 +309,8 @@ export async function createProduct(req, res) {
     if (error) throw new ApiError(error.message, 400);
 
     const [serialized] = await withFarmerNames([data]);
-    // `merged`/`addedQuantity` are response-only (never columns) — they let the farmer's UI
-    // say "added 50 kg to your existing listing" instead of the misleading "product added".
+
+
     res.json({ ...serialized, merged: true, addedQuantity: Number(values.quantity) });
     return;
   }
@@ -335,9 +336,9 @@ export async function updateProduct(req, res) {
   const sellingType = values.sellingType ?? existing.selling_type;
   const costPrice = values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price;
 
-  // Only checked when this request actually touches that field — an update that only
-  // changes, say, the description shouldn't get blocked by a price/cost that predates this
-  // check (or that was already fine and simply isn't part of this edit).
+
+
+
   if (values.price !== undefined) assertPlausiblePricePerKg('Price', price, kgPerUnit);
   if (values.costPrice !== undefined) assertPlausiblePricePerKg('Cost per unit', costPrice, kgPerUnit);
 
@@ -400,8 +401,8 @@ export async function applyDiscount(req, res) {
   const existing = await fetchProductOr404(req.params.id);
   assertOwnership(req, existing);
   const percent = Number(req.body.percent);
-  // 100 is allowed (a free giveaway through a regular listing, price -> ₱0.00) — a discount
-  // still can't exceed 100, which would make the listing cost less than nothing.
+
+
   if (!Number.isFinite(percent) || percent <= 0 || percent > 100) {
     throw new ApiError('Discount percent must be between 1 and 100.', 400);
   }
@@ -439,9 +440,9 @@ export async function removeDiscount(req, res) {
   res.json(serialized);
 }
 
-// Internal helpers (not routes) — called directly by orders.controller.js when an order
-// is confirmed/cancelled, exactly mirroring how the old orderService.js called
-// reduceProductQuantity/restoreProductQuantity from productService.js in-process.
+
+
+
 export async function reduceProductQuantity(id, quantity) {
   const product = await fetchProductOr404(id);
   const nextQuantity = Number(product.quantity) - Number(quantity);

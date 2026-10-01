@@ -19,7 +19,7 @@ function isOriginAllowed(origin) {
   const normalizedOrigin = normalizeOrigin(origin);
   return allowedOriginPatterns.some((pattern) => {
     if (!pattern.includes('*')) return pattern === normalizedOrigin;
-    // Escape every regex metacharacter EXCEPT `*`, then let `*` mean "any run of characters".
+
     const source = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
     return new RegExp(`^${source}$`).test(normalizedOrigin);
   });
@@ -27,7 +27,7 @@ function isOriginAllowed(origin) {
 
 app.use(cors({
   origin(origin, callback) {
-  
+
     if (!origin || isOriginAllowed(origin)) {
       callback(null, true);
       return;

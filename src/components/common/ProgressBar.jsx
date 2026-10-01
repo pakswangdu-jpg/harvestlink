@@ -6,8 +6,8 @@ const TONE_COLOR = {
   red: 'var(--red-700)',
 };
 
-// `value` is a 0-100 percentage the caller already computed from real data (e.g. a
-// confidence score) — this component only ever renders it, never derives or rounds it.
+
+
 export default function ProgressBar({ value, tone = 'green', label }) {
   const clamped = Math.max(0, Math.min(100, value));
   const color = TONE_COLOR[tone] || TONE_COLOR.green;

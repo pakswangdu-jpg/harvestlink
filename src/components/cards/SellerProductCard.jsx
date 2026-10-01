@@ -3,11 +3,11 @@ import ZoomableImage from '../common/ZoomableImage';
 import { formatCurrency, titleCase } from '../../utils/formatters';
 import { getProductStatusInfo } from '../../utils/constants';
 
-// The mobile counterpart to ProductTable.jsx's row — same six facts (thumbnail/name/grade,
-// price, stock, status), restacked into a compact card instead of a table row, plus the same
-// Edit + "..." actions. Deliberately drops the extra badges (category, wholesale, discount %,
-// expiry) a farmer would previously see here — those still surface via Edit; this list's job
-// is fast scanning, not showing everything at once.
+
+
+
+
+
 export default function SellerProductCard({ product, actions }) {
   const { value: statusValue, label: statusLabel } = getProductStatusInfo(product);
 

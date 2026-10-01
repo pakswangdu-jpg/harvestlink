@@ -16,14 +16,51 @@ export function buildPresenceMarkup(person) {
   return `<span class="presence-dot ${online ? 'online' : 'offline'}"></span>${online ? 'Online' : 'Offline'}`;
 }
 
+function escapeAttribute(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function getDirectionsUrl({ coords, address, barangay, municipality }) {
+  const lat = Number(coords?.lat);
+  const lng = Number(coords?.lng);
+  const hasCoordinates = Number.isFinite(lat)
+    && Number.isFinite(lng)
+    && lat >= -90
+    && lat <= 90
+    && lng >= -180
+    && lng <= 180;
+
+  const registeredLocation = [address, barangay, municipality]
+    .map((part) => String(part || '').trim())
+    .filter((part, index, parts) => part && parts.indexOf(part) === index);
+  const destination = hasCoordinates
+    ? `${lat},${lng}`
+    : registeredLocation.length
+      ? [...registeredLocation, 'Cebu, Philippines'].join(', ')
+      : '';
+
+  if (!destination) return '';
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+}
+
 export function buildMapPopup({
-  name, person, municipality, contactNumber, presence, precision, products, links = [],
+  name, person, municipality, address, barangay, coords, contactNumber, presence, precision, products, links = [],
 }) {
+  const locationLabel = municipality || address || 'Location unavailable';
+  const directionsUrl = getDirectionsUrl({ coords, address, barangay, municipality });
+  const locationMarkup = directionsUrl
+    ? `<a class="map-popup-row map-popup-location map-popup-location-link" href="${escapeAttribute(directionsUrl)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps" aria-label="Open ${escapeAttribute(locationLabel)} in Google Maps">${popupIcon('location')}${locationLabel}</a>`
+    : `<span class="map-popup-row map-popup-location map-popup-location-disabled" aria-disabled="true">${popupIcon('location')}${locationLabel}</span>`;
+
   return (
     `<div class="map-popup">` +
     `<strong class="map-popup-name">${name}</strong>` +
     (person ? `<span class="map-popup-person">${person}</span>` : '') +
-    `<span class="map-popup-row map-popup-location">${popupIcon('location')}${municipality}</span>` +
+    locationMarkup +
     (contactNumber ? `<span class="map-popup-row map-popup-phone">${popupIcon('phone')}${contactNumber}</span>` : '') +
     (presence ? `<span class="map-popup-row map-popup-presence">${presence}</span>` : '') +
     `<small class="map-popup-meta">${precision}</small>` +

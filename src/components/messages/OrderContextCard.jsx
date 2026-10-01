@@ -9,9 +9,9 @@ const TONE_CLASSES = {
   neutral: 'bg-[var(--soft)] text-[var(--muted)]',
 };
 
-// Pinned above the message list whenever this thread was opened from a specific order —
-// every field here is that same real order the thread is scoped to (see MessagesPage.jsx),
-// never a separate/derived summary.
+
+
+
 export default function OrderContextCard({ order }) {
   if (!order) return null;
   const tone = TONE_CLASSES[statusTone(order.status)] || TONE_CLASSES.neutral;

@@ -7,10 +7,10 @@ import { getProducts, getPendingPriceReviews } from '../../../services/productSe
 import { getCommodityCategory } from './commodityCategories';
 import { resolveCommodityStatus } from './statusMeta';
 
-// Same "one at a time, short pause between" pacing the old ReferencePrices used — PSA's
-// Cloudflare-fronted endpoint starts 429-ing a real fraction of requests after roughly a
-// dozen back-to-back calls even when spaced out, so ~43 commodities still has to trickle in
-// rather than firing all at once.
+
+
+
+
 const PSA_REQUEST_PACING_MS = 350;
 
 function toPricePerKg(product) {
@@ -54,8 +54,8 @@ export function useCommodityMonitoring() {
         },
       }));
     } catch {
-      // PSA itself is unreachable — an override still has to surface, since "PSA is down" is
-      // exactly when DTI staff rely on it most.
+
+
       const override = await getPriceOverride(commodity.id);
       setPriceData((previous) => ({
         ...previous,

@@ -2,24 +2,24 @@ import { supabaseAdmin } from '../../lib/supabaseClient.js';
 import { LALAMOVE_STATUS_MAP, isForwardProgress } from '../../lib/lalamoveStatusMap.js';
 import { createNotification } from '../../lib/notify.js';
 
-// POST /api/webhooks/lalamove — signature already verified by verifyLalamoveWebhook
-// (webhooks.routes.js) before this runs; nothing here trusts the caller beyond that. Lalamove's
-// own ORDER_STATUS_CHANGED event shape: { eventId, eventType, data: { order: { orderId, status } } }.
-//
-// Always responds 200 once the payload has been read, even for events this function doesn't
-// act on (wrong eventType, unrecognized order, no forward progress) — a non-200 tells
-// Lalamove to retry, which is only correct for an actual failure to process, not "nothing to
-// do here."
+
+
+
+
+
+
+
+
 export async function handleLalamoveWebhook(req, res) {
   const { eventType, data } = req.body || {};
 
-  // DRIVER_ASSIGNED — a separate event type from ORDER_STATUS_CHANGED (the ON_GOING status
-  // change usually arrives alongside it, but driver details are only ever on this one).
-  // NOTE: the exact field names here (data.driver.name/phone/plateNumber) are a best-effort
-  // guess from common Lalamove driver-object conventions — Lalamove's public docs don't spell
-  // out this payload precisely. Log the first real sandbox delivery and correct the field
-  // names below if they don't match; DeliveryInfoCard.jsx already renders these fields only
-  // when present, so a missed field just means "no driver info shown yet," not a crash.
+
+
+
+
+
+
+
   if (eventType === 'DRIVER_ASSIGNED') {
     const lalamoveOrderId = data?.order?.orderId;
     const driver = data?.driver;
@@ -54,13 +54,13 @@ export async function handleLalamoveWebhook(req, res) {
   const { data: delivery, error: deliveryError } = await supabaseAdmin
     .from('deliveries').select('*').eq('lalamove_order_id', lalamoveOrderId).maybeSingle();
   if (deliveryError || !delivery) {
-    // Not one of ours (a different market's webhook hitting the same URL, a sandbox test
-    // event with no matching order, etc.) — still 200 so Lalamove doesn't retry forever.
+
+
     res.status(200).json({ received: true });
     return;
   }
 
-  // The out-of-order/duplicate-safety check (see lalamoveStatusMap.js) — a no-op is still 200.
+
   if (!isForwardProgress(delivery.delivery_status, mapped.deliveryStatus)) {
     res.status(200).json({ received: true });
     return;
@@ -76,8 +76,8 @@ export async function handleLalamoveWebhook(req, res) {
 
   if (order) {
     const orderUpdate = { delivery_status: mapped.deliveryStatus };
-    // Mirrors the buyer's own "Got it" completion in advanceDelivery (orders.controller.js) —
-    // COD is only ever marked paid once the order is actually, verifiably complete.
+
+
     if (mapped.deliveryStatus === 'delivered') {
       orderUpdate.status = 'completed';
       if (order.payment_method === 'cod') orderUpdate.payment_status = 'paid';

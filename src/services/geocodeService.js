@@ -1,10 +1,10 @@
 import { loadGoogleGeocoding } from '../lib/googleMapsLoader';
 
-// Bumped whenever the underlying geocoder changes, so previously-cached results computed
-// by the old provider don't keep being served as if they came from this one.
+
+
 const CACHE_PREFIX = 'harvestlink_geocode_google_v1_';
-// Addresses rarely change, and geocoding is a metered API — cache aggressively rather than
-// re-querying the same place repeatedly.
+
+
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function readCache(key) {
@@ -23,12 +23,12 @@ function writeCache(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify({ value, cachedAt: Date.now() }));
   } catch {
-    // Storage full or unavailable — cache is best-effort only.
+
   }
 }
 
-// One shared Geocoder instance, lazily created on first use (importLibrary() itself already
-// dedupes concurrent script-load calls — see lib/googleMapsLoader.js).
+
+
 let geocoderPromise = null;
 function getGeocoder() {
   if (!geocoderPromise) {
@@ -67,12 +67,12 @@ async function queryMunicipality(municipality) {
   }
 }
 
-// Tries the account's exact registered address first, and only if that genuinely has no
-// match, falls back to a municipality-level geocode instead. Returns null (never a guess)
-// when even that fails, so the caller can fall back to its own static coordinate table
-// rather than ever showing a fabricated position as if it were real. Works for any account
-// with address/municipality fields — farmer or buyer alike, since neither field is
-// role-specific.
+
+
+
+
+
+
 export async function geocodeAccountLocation({ address, municipality }) {
   const cacheKey = `${CACHE_PREFIX}${String(address || '').toLowerCase()}__${String(municipality || '').toLowerCase()}`;
   const cached = readCache(cacheKey);
@@ -96,10 +96,10 @@ function addressComponent(components, type) {
   return components.find((component) => component.types.includes(type))?.long_name || '';
 }
 
-// Turns a raw GPS coordinate (from the browser's Geolocation API) into a street-level
-// address line and postcode, for the registration form's "use my location" button.
-// Coordinates are sent at the precision returned by the device. A reverse-geocoded address is
-// descriptive only; it must never replace the actual GPS coordinates with a guessed municipality.
+
+
+
+
 export async function reverseGeocode({ lat, lng }) {
   const geocoder = await getGeocoder();
   try {
@@ -118,11 +118,11 @@ export async function reverseGeocode({ lat, lng }) {
     const addressLine = [streetLine, barangay].filter(Boolean).join(', ');
     const cityText = addressComponent(components, 'locality') || addressComponent(components, 'administrative_area_level_2');
 
-    // `address` keeps its existing street+barangay combined shape for farmer/buyer, whose
-    // registration form has a single free-text address field with no separate barangay input.
-    // `street`/`barangay` are exposed individually too for the Partner Organization
-    // Registration form, which has barangay broken out as its own required field — see
-    // handleUseMyLocation in AuthPage.jsx.
+
+
+
+
+
     const result = {
       address: addressLine,
       street: streetLine,
