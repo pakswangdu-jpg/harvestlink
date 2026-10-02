@@ -43,6 +43,21 @@
   outline-offset: 2px;
 }
 
+.farmer-order-date {
+  display: grid;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.farmer-order-date > span {
+  color: var(--text);
+}
+
+.farmer-order-date > time {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .farmer-order-actions {
   display: flex;
   flex-wrap: wrap;

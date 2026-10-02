@@ -15,7 +15,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
 import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
-import { formatCurrency, formatDate, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatTime, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
 import './FarmerOrders.css';
 
@@ -630,7 +630,12 @@ export default function FarmerOrders() {
                           <td><PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
                           <td><DeliveryCell order={order} /></td>
                           <td><OrderStageBadge order={order} /></td>
-                          <td><span className="muted">{formatDate(order.createdAt)}</span></td>
+                          <td>
+                            <span className="farmer-order-date">
+                              <span>{formatDate(order.createdAt)}</span>
+                              <time dateTime={order.createdAt}>{formatTime(order.createdAt)}</time>
+                            </span>
+                          </td>
                           <td><OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
                         </tr>
                       ))}
@@ -643,7 +648,9 @@ export default function FarmerOrders() {
                     <div key={order.id} className="order-mobile-card">
                       <div className="order-mobile-card-top">
                         <BuyerCell order={order} />
-                        <span className="order-mobile-card-date">{formatDate(order.createdAt)}</span>
+                        <time className="order-mobile-card-date" dateTime={order.createdAt}>
+                          {formatDate(order.createdAt)} · {formatTime(order.createdAt)}
+                        </time>
                       </div>
 
                       <ProductCell order={order} />
