@@ -195,7 +195,8 @@ export default function DeliveryMap({
         zoom: 10,
         disableDefaultUI: true,
         zoomControl: true,
-        gestureHandling: nearbyView ? 'cooperative' : 'greedy',
+        zoomControlOptions: { position: mapsApi.ControlPosition.LEFT_TOP },
+        gestureHandling: 'greedy',
         clickableIcons: false,
         styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [],
       });
@@ -226,16 +227,25 @@ export default function DeliveryMap({
 
 
   useEffect(() => {
-    if (!mapReady || !containerRef.current) return undefined;
+    if (!mapReady || !containerRef.current || !wrapperRef.current) return undefined;
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
+    let resizeFrame = null;
     const resizeObserver = new ResizeObserver(() => {
-      const center = map.getCenter();
-      mapsApi.event.trigger(map, 'resize');
-      if (center) map.setCenter(center);
+      if (resizeFrame != null) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        const center = map.getCenter();
+        mapsApi.event.trigger(map, 'resize');
+        if (center) map.setCenter(center);
+        resizeFrame = null;
+      });
     });
+    resizeObserver.observe(wrapperRef.current);
     resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      if (resizeFrame != null) cancelAnimationFrame(resizeFrame);
+    };
   }, [mapReady]);
 
   useEffect(() => {

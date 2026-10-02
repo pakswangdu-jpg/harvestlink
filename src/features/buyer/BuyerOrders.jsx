@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BadgeCheck, CalendarDays, CheckCircle2, Clipboard, ClipboardList, CreditCard, Eye, MapPin,
-  Package, RotateCcw, Search, ShoppingBag, X,
+  BadgeCheck, CalendarDays, CheckCircle2, CircleCheck, CircleX, Clipboard, ClipboardList,
+  Clock3, CreditCard, Eye, MapPin, Package, RotateCcw, Search, ShoppingBag, Truck, X,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
@@ -65,6 +65,14 @@ const PAYMENT_FILTER_OPTIONS = [
 ];
 
 const ORDERS_PER_PAGE = 10;
+
+const ORDER_OVERVIEW_FILTERS = [
+  { key: 'all', label: 'Total Orders', hint: 'All purchases', icon: ShoppingBag },
+  { key: 'pending', label: 'Pending', hint: 'Needs confirmation', icon: Clock3 },
+  { key: 'to_receive', label: 'To Receive', hint: 'Orders on the way', icon: Truck },
+  { key: 'completed', label: 'Completed', hint: 'Orders received', icon: CircleCheck },
+  { key: 'cancelled', label: 'Cancelled', hint: 'Cancelled orders', icon: CircleX },
+];
 
 
 
@@ -203,8 +211,10 @@ export default function BuyerOrders() {
   const { showToast } = useToast();
   const navItems = getNavItemsForRole(currentUser.role);
   const [orders, setOrders] = useState([]);
+  const [overviewFilter, setOverviewFilter] = useState('all');
   const [cancelTarget, setCancelTarget] = useState(null);
   const [copiedOrderId, setCopiedOrderId] = useState(null);
+  const orderHistoryRef = useRef(null);
 
   const requestedStage = location.state?.stage;
   const requestedPaymentFilter = location.state?.paymentFilter;
@@ -267,15 +277,27 @@ export default function BuyerOrders() {
     return counts;
   }, [orders]);
 
-  const hasActiveFilters = activeStage !== 'all' || search.trim() || paymentFilter !== 'all' || fromDate || toDate;
+  const hasActiveFilters = overviewFilter !== 'all' || activeStage !== 'all' || search.trim() || paymentFilter !== 'all' || fromDate || toDate;
 
   const clearFilters = () => {
+    setOverviewFilter('all');
     setActiveStage('all');
     setSearch('');
     setPaymentFilter('all');
     setFromDate('');
     setToDate('');
     setCurrentPage(1);
+  };
+
+  const selectOverviewFilter = (filter) => {
+    setOverviewFilter(filter);
+    setActiveStage('all');
+    setSearch('');
+    setPaymentFilter('all');
+    setFromDate('');
+    setToDate('');
+    setCurrentPage(1);
+    orderHistoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const copyOrderId = async (id) => {
@@ -291,6 +313,11 @@ export default function BuyerOrders() {
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
     return orders.filter((order) => {
+      const stage = getBuyerOrderStage(order);
+      if (overviewFilter === 'pending' && stage !== 'pending') return false;
+      if (overviewFilter === 'to_receive' && !['preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered'].includes(stage)) return false;
+      if (overviewFilter === 'completed' && stage !== 'completed') return false;
+      if (overviewFilter === 'cancelled' && !['cancelled', 'rejected'].includes(stage)) return false;
       if (activeStage !== 'all' && getBuyerOrderStage(order) !== activeStage) return false;
       if (paymentFilter !== 'all' && order.paymentStatus !== paymentFilter) return false;
       if (!isWithinDateRange(order, fromDate, toDate)) return false;
@@ -300,7 +327,7 @@ export default function BuyerOrders() {
       }
       return true;
     });
-  }, [orders, activeStage, search, paymentFilter, fromDate, toDate]);
+  }, [orders, overviewFilter, activeStage, search, paymentFilter, fromDate, toDate]);
 
   const pageCount = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
   const visiblePage = Math.min(currentPage, pageCount);
@@ -318,44 +345,40 @@ export default function BuyerOrders() {
       pageClassName="buyer-orders-page"
     >
       {orders.length ? (
-        <div className="product-stats-bar buyer-order-overview">
+        <section className="buyer-order-overview" aria-labelledby="buyer-order-overview-title">
           <div className="buyer-order-overview-heading">
-            <p className="eyebrow">Order overview</p>
-            <p>Your current order activity</p>
+            <p className="eyebrow">ORDER OVERVIEW</p>
+            <h2 id="buyer-order-overview-title">Order Overview</h2>
+            <p>Track and manage your recent orders</p>
           </div>
-          <div className="product-stats-item">
-        <div className="product-stats-label-row"><ShoppingBag size={18} /><p className="product-stats-label">Total Orders</p></div>
-            <p className="product-stats-value">{summary.total}</p>
-            <p className="product-stats-hint">All purchases</p>
+          <div className="product-stats-bar buyer-order-stats" aria-label="Filter orders by overview status">
+            {ORDER_OVERVIEW_FILTERS.map(({ key, label, hint, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                className={`product-stats-item buyer-order-stat buyer-order-stat-${key}${overviewFilter === key ? ' is-selected' : ''}`}
+                aria-pressed={overviewFilter === key}
+                onClick={() => selectOverviewFilter(key)}
+              >
+                <span className="product-stats-label-row">
+                  <Icon size={21} aria-hidden="true" />
+                  <span className="product-stats-label">{label}</span>
+                </span>
+                <span className="product-stats-value">
+                  {key === 'all' ? summary.total : summary[key === 'to_receive' ? 'toReceive' : key]}
+                </span>
+                <span className="product-stats-hint">{hint}</span>
+              </button>
+            ))}
           </div>
-          <div className="product-stats-item accent-warning">
-            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><ClipboardList size={18} /><p className="product-stats-label">Pending</p></div>
-            <p className="product-stats-value">{summary.pending}</p>
-            <p className="product-stats-hint">Awaiting confirmation</p>
-          </div>
-          <div className="product-stats-item accent-info">
-            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><Package size={18} /><p className="product-stats-label">To Receive</p></div>
-            <p className="product-stats-value">{summary.toReceive}</p>
-            <p className="product-stats-hint">On the way</p>
-          </div>
-          <div className="product-stats-item accent-success">
-            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><CheckCircle2 size={18} /><p className="product-stats-label">Completed</p></div>
-            <p className="product-stats-value">{summary.completed}</p>
-            <p className="product-stats-hint">Received orders</p>
-          </div>
-          <div className="product-stats-item accent-danger">
-            <div className="product-stats-label-row"><span className="order-stat-dot" aria-hidden="true" /><X size={18} /><p className="product-stats-label">Cancelled</p></div>
-            <p className="product-stats-value">{summary.cancelled}</p>
-            <p className="product-stats-hint">Not proceeding</p>
-          </div>
-        </div>
+        </section>
       ) : null}
 
-      <section className="panel">
+      <section className="panel buyer-order-history" ref={orderHistoryRef} aria-labelledby="buyer-order-history-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">History</p>
-            <h2>Order history</h2>
+            <h2 id="buyer-order-history-title">Order History</h2>
+            <p>View and manage your previous and current orders.</p>
           </div>
         </div>
 
@@ -367,9 +390,13 @@ export default function BuyerOrders() {
                   key={tab.key}
                   type="button"
                   role="tab"
-                  aria-selected={activeStage === tab.key}
-                  className={`filter-tab ${activeStage === tab.key ? 'active' : ''}`}
-                  onClick={() => setActiveStage(tab.key)}
+                  aria-selected={overviewFilter === 'all' && activeStage === tab.key}
+                  className={`filter-tab ${overviewFilter === 'all' && activeStage === tab.key ? 'active' : ''}`}
+                  onClick={() => {
+                    setOverviewFilter('all');
+                    setActiveStage(tab.key);
+                    setCurrentPage(1);
+                  }}
                 >
                   {tab.label}
                   <span className="filter-tab-count">{stageCounts[tab.key] || 0}</span>
