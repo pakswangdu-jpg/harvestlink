@@ -6,6 +6,7 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-route
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
@@ -81,6 +82,7 @@ export default function OrderTracking() {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
 
   useEffect(() => {
@@ -244,6 +246,14 @@ export default function OrderTracking() {
       setNotice('');
       setError(actionError.message);
     }
+  };
+
+  const handleStartDelivery = (plateNumber) => {
+    setIsStartDeliveryDialogOpen(false);
+    run(
+      () => advanceDelivery(order.id, plateNumber),
+      `Order marked "${DELIVERY_STEP_LABELS.out_for_delivery}".`,
+    );
   };
 
   const handleSubmitRating = async () => {
@@ -410,6 +420,9 @@ export default function OrderTracking() {
               <div className="ot-detail-group">
                 <h4>Delivery</h4>
                 <div className="ot-detail-row"><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+                {order.vehiclePlateNumber ? (
+                  <div className="ot-detail-row"><span>Vehicle plate number</span><strong>{order.vehiclePlateNumber}</strong></div>
+                ) : null}
                 {order.deliveryFee > 0 ? (
                   <div className="ot-detail-row">
                     <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
@@ -458,7 +471,13 @@ export default function OrderTracking() {
               ) : null}
 
               {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep && !(isCourier && nextStep === 'out_for_delivery') ? (
-                <Button onClick={() => run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`)}>
+                <Button onClick={() => {
+                  if (nextStep === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery') {
+                    setIsStartDeliveryDialogOpen(true);
+                    return;
+                  }
+                  run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`);
+                }}>
                   {nextStep === 'out_for_delivery' ? (
                     <><Navigation size={15} /> Start Delivery</>
                   ) : (
@@ -572,6 +591,17 @@ export default function OrderTracking() {
                 </div>
               </div>
             </div>
+            {!isPickup && !isCourier && order.vehiclePlateNumber ? (
+              <div className="ot-tracking-vehicle" aria-label={`Vehicle plate number ${order.vehiclePlateNumber}`}>
+                <span className="ot-tracking-vehicle-label">
+                  <Truck size={16} aria-hidden="true" />
+                  Vehicle plate
+                </span>
+                <span className="ot-tracking-vehicle-number">
+                  <strong>{order.vehiclePlateNumber}</strong>
+                </span>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -644,6 +674,11 @@ export default function OrderTracking() {
         cancelLabel="Keep Order"
         onConfirm={() => { setIsCancelDialogOpen(false); run(() => cancelOrder(order.id), 'Order cancelled.'); }}
         onCancel={() => setIsCancelDialogOpen(false)}
+      />
+      <StartDeliveryDialog
+        open={isStartDeliveryDialogOpen}
+        onConfirm={handleStartDelivery}
+        onCancel={() => setIsStartDeliveryDialogOpen(false)}
       />
     </AppShell>
   );

@@ -1,8 +1,9 @@
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
+import orderConfirmedCheck from '../../assets/icons/order-confirmed-check.png';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import { formatCurrency, formatQuantity, deliveryMethodLabel, shortOrderId } from '../../utils/formatters';
@@ -26,8 +27,10 @@ export default function OrderConfirmationPage() {
           <span>Loading your order…</span>
         </div>
       ) : (
-        <section className="panel checkout-payment-step">
-          <div className="checkout-payment-step-icon success"><CheckCircle2 size={28} /></div>
+        <section className="panel checkout-payment-step order-confirmation-step">
+          <div className="checkout-payment-step-icon success order-confirmation-check">
+            <img src={orderConfirmedCheck} alt="" />
+          </div>
           <h2>Order confirmed</h2>
           <p>
             {order.farmerName

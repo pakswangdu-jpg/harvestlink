@@ -20,7 +20,17 @@ import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { useSocketLocationSharing } from '../../hooks/useSocketLocationSharing';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatRelativeTime, getInitials } from '../../utils/formatters';
+import deliveryTruckIcon from '../../assets/icons/delivery-truck.png';
+import deliveryVanIcon from '../../assets/icons/harvestlink-delivery-van.png?inline';
+import {
+  buildVehicleMarkerSvg,
+  getContinuousVehicleHeading,
+  resolveVehicleHeading,
+  VEHICLE_MARKER_HEIGHT_PX,
+  VEHICLE_MARKER_WIDTH_PX,
+} from '../../utils/vehicleMarker';
 import Button from '../common/Button';
+import StartDeliveryDialog from './StartDeliveryDialog';
 
 
 
@@ -53,14 +63,12 @@ function buildPinIcon(mapsApi, color) {
   };
 }
 
-function buildTruckIcon(mapsApi) {
-  const svg = `<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">` +
-    `<circle cx="16" cy="16" r="15" fill="white" stroke="#16a34a" stroke-width="2.5"/>` +
-    `<text x="16" y="22" font-size="16" text-anchor="middle">🚚</text></svg>`;
+function buildTruckIcon(mapsApi, heading, previousHeading) {
+  const svg = buildVehicleMarkerSvg(deliveryVanIcon, heading, previousHeading);
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(32, 32),
-    anchor: new mapsApi.Point(16, 16),
+    scaledSize: new mapsApi.Size(VEHICLE_MARKER_WIDTH_PX, VEHICLE_MARKER_HEIGHT_PX),
+    anchor: new mapsApi.Point(VEHICLE_MARKER_WIDTH_PX / 2, VEHICLE_MARKER_HEIGHT_PX / 2),
   };
 }
 
@@ -88,11 +96,14 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const mapsApiRef = useRef(null);
   const layerRef = useRef([]);
   const truckEntryRef = useRef(null);
+  const vehicleHeadingRef = useRef(0);
+  const lastVehicleHeadingPositionRef = useRef(null);
   const routeMetaRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
   const [googleRoute, setGoogleRoute] = useState(null);
   const [actionError, setActionError] = useState('');
   const [farmerMarkedComplete, setFarmerMarkedComplete] = useState(false);
+  const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
   const { effectiveTheme } = useTheme();
   const onCloseRef = useRef(onClose);
 
@@ -101,7 +112,13 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   }, [onClose]);
 
   const { livePosition, connectionStatus } = useOrderTrackingSocket(order.id);
-  const { isSharing, error: shareError, start: startSharing, stop: stopSharing } = useSocketLocationSharing(order.id);
+  const {
+    isSharing,
+    error: shareError,
+    start: startSharing,
+    stop: stopSharing,
+    requestOrientationPermission,
+  } = useSocketLocationSharing(order.id);
 
   const transit = getLiveTransitProgress(order);
   const { origin, destination, isPickup } = resolveRoutePoints({
@@ -288,11 +305,28 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     layerRef.current.push(casing, routeLine);
 
     if (currentPosition && !isPickup) {
+      const previousHeading = vehicleHeadingRef.current;
+      const resolvedHeading = resolveVehicleHeading({
+        previousPosition: lastVehicleHeadingPositionRef.current,
+        currentPosition,
+        lastHeading: vehicleHeadingRef.current,
+        deviceHeading: currentPosition.deviceHeading,
+        gpsHeading: currentPosition.heading,
+      });
+      vehicleHeadingRef.current = resolvedHeading.heading;
+      if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+      const renderedHeading = getContinuousVehicleHeading(previousHeading, resolvedHeading.heading);
+
       if (!truckEntryRef.current) {
-        const marker = new mapsApi.Marker({ position: currentPosition, map, icon: buildTruckIcon(mapsApi) });
+        const marker = new mapsApi.Marker({
+          position: currentPosition,
+          map,
+          icon: buildTruckIcon(mapsApi, vehicleHeadingRef.current),
+        });
         truckEntryRef.current = { marker, animationFrameId: null };
       } else {
         truckEntryRef.current.marker.setMap(map);
+        truckEntryRef.current.marker.setIcon(buildTruckIcon(mapsApi, renderedHeading, previousHeading));
         animateMarkerTo(truckEntryRef.current, currentPosition);
       }
     }
@@ -306,15 +340,41 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   }, [mapReady, googleRoute, currentPosition?.lat, currentPosition?.lng]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi || !currentPosition || isPickup || !truckEntryRef.current) return;
+
+    const previousHeading = vehicleHeadingRef.current;
+    const resolvedHeading = resolveVehicleHeading({
+      previousPosition: lastVehicleHeadingPositionRef.current,
+      currentPosition,
+      lastHeading: previousHeading,
+      deviceHeading: currentPosition.deviceHeading,
+      gpsHeading: currentPosition.heading,
+    });
+    vehicleHeadingRef.current = resolvedHeading.heading;
+    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+    const renderedHeading = getContinuousVehicleHeading(previousHeading, resolvedHeading.heading);
+    if (renderedHeading === previousHeading) return;
+    truckEntryRef.current.marker.setIcon(buildTruckIcon(
+      mapsApi,
+      renderedHeading,
+      previousHeading,
+    ));
+  }, [mapReady, currentPosition, currentPosition?.heading, currentPosition?.deviceHeading, isPickup]);
+
+  useEffect(() => {
     return () => {
       if (truckEntryRef.current?.animationFrameId != null) cancelAnimationFrame(truckEntryRef.current.animationFrameId);
     };
   }, []);
 
-  const handleStartDelivery = async () => {
+  const handleStartDelivery = async (plateNumber) => {
+    setIsStartDeliveryDialogOpen(false);
     setActionError('');
+    await requestOrientationPermission();
     try {
-      const updated = await advanceDelivery(order.id);
+      const updated = await advanceDelivery(order.id, plateNumber);
       onOrderUpdate?.(updated);
       await startSharing();
     } catch (error) {
@@ -394,6 +454,13 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
             </div>
           </section>
 
+          {order.deliveryMethod === 'farmer_delivery' && order.vehiclePlateNumber ? (
+            <div className="tracking-vehicle-plate" aria-label={`Vehicle plate ${order.vehiclePlateNumber}`}>
+              <span><img src={deliveryTruckIcon} alt="" aria-hidden="true" />Vehicle plate</span>
+              <strong>{order.vehiclePlateNumber}</strong>
+            </div>
+          ) : null}
+
           <section className="tracking-map-section" aria-labelledby="tracking-route-title">
             <div className="tracking-map-heading">
               <h3 id="tracking-route-title">Delivery Route</h3>
@@ -425,39 +492,32 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
           ) : null}
 
           {isDelivered ? (
-            <section className="tracking-delivery-summary is-complete" aria-label="Delivery completion summary">
-              <div className="tracking-completion-message">
-                <CheckCircle2 size={20} aria-hidden="true" />
-                <div>
-                  <strong>Completed successfully</strong>
-                  <span>Your order has reached its destination.</span>
-                </div>
+            <div className="tracking-completion-message">
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <div>
+                <strong>Completed successfully</strong>
+                <span>Your order has reached its destination.</span>
               </div>
-              <div className="tracking-summary-stat">
-                <span><MapPin size={16} aria-hidden="true" />Distance remaining</span>
-                <strong>{distanceValue}</strong>
-              </div>
-              <div className="tracking-summary-stat">
-                <span><Gauge size={16} aria-hidden="true" />Average speed</span>
-                <strong>{speedValue}</strong>
-              </div>
-            </section>
-          ) : (
-            <section className="tracking-delivery-summary" aria-label="Delivery summary">
-              <div className="tracking-summary-stat">
-                <span><Clock3 size={16} aria-hidden="true" />Estimated arrival</span>
-                <strong>{etaValue}</strong>
-              </div>
-              <div className="tracking-summary-stat">
-                <span><MapPin size={16} aria-hidden="true" />Distance remaining</span>
-                <strong>{distanceValue}</strong>
-              </div>
-              <div className="tracking-summary-stat">
-                <span><Gauge size={16} aria-hidden="true" />Current speed</span>
-                <strong>{speedValue}</strong>
-              </div>
-            </section>
-          )}
+            </div>
+          ) : null}
+          <section className="tracking-delivery-summary" aria-label={isDelivered ? 'Delivery summary' : 'Live delivery summary'}>
+            <div className="tracking-summary-stat">
+              <span><Clock3 size={16} aria-hidden="true" />ETA</span>
+              <strong>{etaValue}</strong>
+            </div>
+            <div className="tracking-summary-stat">
+              <span><MapPin size={16} aria-hidden="true" />Remaining Distance</span>
+              <strong>{distanceValue}</strong>
+            </div>
+            <div className="tracking-summary-stat">
+              <span><Gauge size={16} aria-hidden="true" />{isDelivered ? 'Average Speed' : 'Current Speed'}</span>
+              <strong>{speedValue}</strong>
+            </div>
+            <div className="tracking-summary-stat">
+              <span><Truck size={16} aria-hidden="true" />Delivery Status</span>
+              <strong>{statusLabel}</strong>
+            </div>
+          </section>
 
           {farmerMarkedComplete && order.status !== 'completed' ? (
             <p className="tracking-pending-confirmation">
@@ -471,7 +531,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
           {isFarmer && !isPickup ? (
             <div className="tracking-farmer-actions">
               {nextStep === 'out_for_delivery' ? (
-                <Button onClick={handleStartDelivery}>
+                <Button onClick={() => setIsStartDeliveryDialogOpen(true)}>
                   <Navigation size={15} /> Start Delivery
                 </Button>
               ) : null}
@@ -487,6 +547,11 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
           ) : null}
         </motion.div>
       </motion.div>
+      <StartDeliveryDialog
+        open={isStartDeliveryDialogOpen}
+        onConfirm={handleStartDelivery}
+        onCancel={() => setIsStartDeliveryDialogOpen(false)}
+      />
     </AnimatePresence>
   );
 }

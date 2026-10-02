@@ -292,7 +292,15 @@ export async function advanceDelivery(req, res) {
 
   const isTransitStep = existing.delivery_method !== 'buyer_pickup' && nextStatus === sequence[sequence.length - 2];
 
-
+  let vehiclePlateNumber = null;
+  if (isTransitStep && existing.delivery_method === 'farmer_delivery') {
+    vehiclePlateNumber = typeof req.body?.plateNumber === 'string'
+      ? req.body.plateNumber.trim().toUpperCase()
+      : '';
+    if (!vehiclePlateNumber || vehiclePlateNumber.length > 15 || !/^[A-Z0-9 -]+$/.test(vehiclePlateNumber)) {
+      throw new ApiError('Enter a valid vehicle plate number before starting delivery.', 400);
+    }
+  }
 
 
 
@@ -304,6 +312,7 @@ export async function advanceDelivery(req, res) {
     status: isFinalStep ? 'completed' : existing.status,
     payment_status: isFinalStep && existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
     ...(isTransitStep ? { transit_started_at: new Date().toISOString() } : null),
+    ...(vehiclePlateNumber ? { vehicle_plate_number: vehiclePlateNumber } : null),
 
 
     ...(isFinalStep ? { current_lat: null, current_lng: null, location_updated_at: null } : null),
@@ -324,7 +333,7 @@ export async function advanceDelivery(req, res) {
       : nextStatus === 'ready_for_pickup'
         ? `Your order from ${order.farmer_name} is ready for pickup.`
         : isTransitStep
-          ? `${order.farmer_name} started delivering your order.`
+          ? `${order.farmer_name} started delivering your order${vehiclePlateNumber ? ` with vehicle plate ${vehiclePlateNumber}` : ''}.`
           : isFinalStep
             ? (order.delivery_method === 'buyer_pickup'
               ? `You confirmed picking up your order from ${order.farmer_name}.`

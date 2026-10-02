@@ -1,8 +1,9 @@
-import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import smartphoneCashIcon from '../../assets/icons/smartphone-cash.png';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import { formatCurrency, shortOrderId } from '../../utils/formatters';
@@ -21,19 +22,37 @@ export default function CodPaymentPage() {
   }, [id]);
 
   return (
-    <AppShell user={currentUser} navItems={getNavItemsForRole(currentUser.role)} title="Payment" subtitle="Review your payment method before confirming.">
+    <AppShell
+      user={currentUser}
+      navItems={getNavItemsForRole(currentUser.role)}
+      title="Payment"
+      subtitle="Review your payment method before confirming."
+      pageClassName="cod-payment-page"
+    >
       {!order ? (
         <div className="gcash-payment-status">
           <Loader2 className="animate-spin" size={24} />
           <span>Loading payment details…</span>
         </div>
       ) : (
-        <section className="panel checkout-payment-step">
-          <div className="checkout-payment-step-icon"><CheckCircle2 size={24} /></div>
-          <p className="eyebrow">Cash payment</p>
-          <h2>Pay on delivery</h2>
-          <p>Bring <strong>{formatCurrency(order.totalAmount)}</strong> and pay the farmer when your order arrives.</p>
-          <div className="checkout-payment-order">Order #{shortOrderId(order.id)}</div>
+        <section className="panel checkout-payment-step cod-payment-step">
+          <header className="cod-payment-header">
+            <div className="checkout-payment-step-icon">
+              <img src={smartphoneCashIcon} alt="" />
+            </div>
+            <p className="eyebrow">Cash on Delivery</p>
+            <h2>Pay on delivery</h2>
+            <p>Pay the farmer in cash when your order arrives.</p>
+          </header>
+
+          <div className="cod-payment-details">
+            <div className="cod-payment-amount">
+              <span>Amount to bring</span>
+              <strong>{formatCurrency(order.totalAmount)}</strong>
+            </div>
+            <div className="checkout-payment-order">Order #{shortOrderId(order.id)}</div>
+          </div>
+
           <div className="form-actions">
             <button
               type="button"
@@ -49,6 +68,7 @@ export default function CodPaymentPage() {
               Back to Order
             </button>
           </div>
+
           <p className="checkout-summary-security"><ShieldCheck size={15} /> Secure checkout</p>
         </section>
       )}

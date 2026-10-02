@@ -4,7 +4,9 @@ import lalamoveLogo from '../../assets/icons/lalamove-logo.png';
 import buyerPickupIcon from '../../assets/icons/buyer-pickup-icon.png';
 import Button from '../common/Button';
 import SecureShieldIcon from '../icons/SecureShieldIcon';
-import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
+import {
+  formatCurrency, formatQuantity, paymentLabel, titleCase,
+} from '../../utils/formatters';
 
 
 
@@ -28,7 +30,7 @@ const DELIVERY_METHOD_LOGOS = {
 export default function OrderSummaryPanel({
   product, quantity, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
-  isSubmitting, orderPlaced, isGcash,
+  isSubmitting, orderPlaced, isGcash, paymentMethod,
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
   const total = subtotal + fee;
@@ -100,6 +102,11 @@ export default function OrderSummaryPanel({
             <span>Delivery fee</span>
             <span>{isPickup ? 'Free' : formatCurrency(fee)}</span>
           </div>
+        </div>
+
+        <div className="checkout-summary-total-row checkout-summary-payment-row">
+          <span className="checkout-summary-payment-label">Payment method</span>
+          <strong className="checkout-summary-payment-value">{paymentLabel(paymentMethod)}</strong>
         </div>
 
         <div className="checkout-summary-total-row">

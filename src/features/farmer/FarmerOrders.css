@@ -84,15 +84,20 @@
 }
 
 .farmer-orders-page .farmer-order-action-primary {
-  border-color: #166534;
-  background: #166534;
-  color: #ffffff;
+  border-color: #14532d !important;
+  background: #14532d !important;
+  color: #ffffff !important;
   font-weight: 700;
 }
 
 .farmer-orders-page .farmer-order-action-primary:hover {
-  border-color: #14532d;
-  background: #14532d;
+  border-color: #0f3f22 !important;
+  background: #0f3f22 !important;
+  color: #ffffff !important;
+}
+
+.farmer-orders-page .farmer-order-action-primary svg {
+  color: #ffffff !important;
 }
 
 .farmer-orders-page .farmer-order-action-reject {

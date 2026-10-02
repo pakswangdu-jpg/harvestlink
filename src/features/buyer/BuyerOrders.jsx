@@ -13,7 +13,9 @@ import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, cancelOrder, getOrdersByBuyer, isCancellable } from '../../services/orderService';
 import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
-import { formatCurrency, formatDate, getInitials, shortOrderId } from '../../utils/formatters';
+import {
+  formatCurrency, formatDate, formatTime, getInitials, shortOrderId,
+} from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
 
@@ -464,7 +466,12 @@ export default function BuyerOrders() {
                           <td><OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} /></td>
                           <td><PaymentCell order={order} /></td>
                           <td><OrderStageBadge order={order} /></td>
-                          <td><span className="order-date"><CalendarDays size={14} />{formatDate(order.createdAt)}</span></td>
+                          <td>
+                            <span className="order-date">
+                              <span className="order-date-day"><CalendarDays size={14} />{formatDate(order.createdAt)}</span>
+                              <span className="order-date-time">{formatTime(order.createdAt)}</span>
+                            </span>
+                          </td>
                           <td><strong className="order-total">{formatCurrency(order.totalAmount)}</strong></td>
                           <td>
                             <OrderActions
@@ -484,7 +491,10 @@ export default function BuyerOrders() {
                     <div key={order.id} className="order-mobile-card">
                       <div className="order-mobile-card-top">
                         <FarmerCell order={order} />
-                        <span className="order-mobile-card-date">{formatDate(order.createdAt)}</span>
+                        <span className="order-mobile-card-date">
+                          <span className="order-date-day">{formatDate(order.createdAt)}</span>
+                          <span className="order-date-time">{formatTime(order.createdAt)}</span>
+                        </span>
                       </div>
 
                       <ProductCell order={order} />

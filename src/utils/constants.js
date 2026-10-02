@@ -201,7 +201,7 @@ export function getMunicipalityCoords(municipality) {
 
 export const PAYMENT_METHODS = [
   { value: 'gcash', label: 'GCash' },
-  { value: 'cod', label: 'COD' },
+  { value: 'cod', label: 'Cash on Delivery' },
 ];
 
 export const ONLINE_PAYMENT_METHODS = PAYMENT_METHODS.filter((method) => method.value !== 'cod').map((method) => method.value);
