@@ -434,6 +434,7 @@ export default function CheckoutForm({
         isSubmitting={isSubmitting}
         orderPlaced={orderPlaced}
         isGcash={isGcash}
+        paymentMethod={values.paymentMethod}
       />
 
       <CheckoutTrustRow />

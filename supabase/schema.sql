@@ -296,6 +296,9 @@ notify pgrst, 'reload schema';
     -- also bumped by every location ping while GPS sharing is active (see the trigger below),
     -- which would otherwise reset the elapsed-time estimate on every single GPS update.
     transit_started_at timestamptz,
+    -- Required at the farmer_delivery transition to out_for_delivery so buyers can identify
+    -- the vehicle while tracking. Courier plate details remain sourced from courier updates.
+    vehicle_plate_number text,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
   );
@@ -313,6 +316,7 @@ notify pgrst, 'reload schema';
   alter table public.orders add column if not exists current_accuracy double precision;
   alter table public.orders add column if not exists location_updated_at timestamptz;
   alter table public.orders add column if not exists transit_started_at timestamptz;
+  alter table public.orders add column if not exists vehicle_plate_number text;
   alter table public.orders add column if not exists unit_cost_price numeric(12,2);
   alter table public.orders add column if not exists farmer_avatar_url text;
   alter table public.orders add column if not exists product_image_url text;

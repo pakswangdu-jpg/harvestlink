@@ -90,8 +90,8 @@ export default function ForecastTable({
         </div>
       </div>
 
-      <div className="mt-5 max-h-[520px] overflow-auto rounded-xl border border-[var(--line)]">
-        <table className="w-full border-separate border-spacing-0 text-left">
+      <div className="mt-5 max-h-[520px] min-w-0 overflow-auto rounded-xl border border-[var(--line)]">
+        <table className="w-full min-w-[900px] table-auto border-separate border-spacing-0 text-left">
           <thead className="sticky top-0 z-10 bg-[var(--soft)]">
             <tr>
               {['Crop', 'Current Price', 'Forecast Price', 'Price Change', 'Demand', 'Market Trend', 'Recommendation'].map((label) => (

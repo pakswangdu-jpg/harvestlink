@@ -80,8 +80,17 @@ export default function AdminOrders() {
 
   useEffect(() => {
     let cancelled = false;
-    getOrders().then((result) => { if (!cancelled) setOrders(result); });
-    return () => { cancelled = true; };
+    const refreshOrders = () => {
+      getOrders()
+        .then((result) => { if (!cancelled) setOrders(result); })
+        .catch((error) => { console.error('Failed to refresh admin orders:', error); });
+    };
+    refreshOrders();
+    const interval = setInterval(refreshOrders, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const openDelivery = async (order) => {
@@ -112,6 +121,7 @@ export default function AdminOrders() {
                 { key: 'quantity', label: 'Qty' },
                 { key: 'paymentMethod', label: 'Payment', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
                 { key: 'deliveryStatus', label: 'Delivery', render: (row) => <Badge tone={deliveryStatusTone(row.deliveryStatus)}>{deliveryStepLabel(row.deliveryStatus)}</Badge> },
+                { key: 'vehiclePlateNumber', label: 'Vehicle plate', render: (row) => row.vehiclePlateNumber || '—' },
                 { key: 'status', label: 'Status', render: (row) => <Badge tone={orderStatusTone(row.status)}>{row.status}</Badge> },
                 { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },
                 {

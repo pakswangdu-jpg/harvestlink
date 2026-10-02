@@ -8,6 +8,7 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
+import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
 import OrderStatusSummary from '../../components/orders/OrderStatusSummary';
 import { useAuth } from '../auth/AuthContext';
@@ -84,10 +85,19 @@ const DATE_FILTER_OPTIONS = [
   { value: 'today', label: 'Today' },
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
+  { value: 'exact', label: 'Exact date & time' },
 ];
 
-function isWithinDateFilter(order, dateFilter) {
+function isWithinDateFilter(order, dateFilter, exactDateTime) {
   if (dateFilter === 'all') return true;
+  if (dateFilter === 'exact') {
+    if (!exactDateTime) return true;
+    const createdAt = new Date(order.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return false;
+    const selectedTime = new Date(exactDateTime).getTime();
+    const minuteInMs = 60 * 1000;
+    return createdAt.getTime() >= selectedTime && createdAt.getTime() < selectedTime + minuteInMs;
+  }
   const created = new Date(order.createdAt).getTime();
   const days = dateFilter === 'today' ? 1 : dateFilter === '7d' ? 7 : 30;
   return Date.now() - created <= days * 24 * 60 * 60 * 1000;
@@ -308,6 +318,7 @@ export default function FarmerOrders() {
   const [error, setError] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [startDeliveryOrder, setStartDeliveryOrder] = useState(null);
   const [verifyingOrderId, setVerifyingOrderId] = useState(null);
   const [showAllVerifications, setShowAllVerifications] = useState(false);
   const [copiedOrderId, setCopiedOrderId] = useState(null);
@@ -317,6 +328,7 @@ export default function FarmerOrders() {
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [deliveryFilter, setDeliveryFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [exactDateTime, setExactDateTime] = useState('');
 
   const reload = () => getOrdersByFarmer(currentUser.id).then(setOrders);
 
@@ -348,6 +360,10 @@ export default function FarmerOrders() {
       return;
     }
     if (type === 'advance') {
+      if (action.next === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery') {
+        setStartDeliveryOrder(order);
+        return;
+      }
       if (action.requiresConfirm) {
         setConfirmAction({ order, action });
         return;
@@ -369,6 +385,15 @@ export default function FarmerOrders() {
     setConfirmAction(null);
   };
 
+  const confirmStartDelivery = (plateNumber) => {
+    if (!startDeliveryOrder) return;
+    const target = startDeliveryOrder;
+    setStartDeliveryOrder(null);
+    run(
+      () => advanceDelivery(target.id, plateNumber),
+      'Order marked "Out for Delivery".',
+    );
+  };
 
 
 
@@ -424,6 +449,7 @@ export default function FarmerOrders() {
     setPaymentFilter('all');
     setDeliveryFilter('all');
     setDateFilter('all');
+    setExactDateTime('');
   };
 
   const filteredOrders = useMemo(() => {
@@ -432,14 +458,14 @@ export default function FarmerOrders() {
       if (activeStage !== 'all' && getOrderStage(order) !== activeStage) return false;
       if (paymentFilter !== 'all' && order.paymentStatus !== paymentFilter) return false;
       if (deliveryFilter !== 'all' && order.deliveryMethod !== deliveryFilter) return false;
-      if (!isWithinDateFilter(order, dateFilter)) return false;
+      if (!isWithinDateFilter(order, dateFilter, exactDateTime)) return false;
       if (query) {
         const haystack = `${order.buyerName} ${order.productName}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
     });
-  }, [orders, activeStage, search, paymentFilter, deliveryFilter, dateFilter]);
+  }, [orders, activeStage, search, paymentFilter, deliveryFilter, dateFilter, exactDateTime]);
 
   return (
     <AppShell
@@ -554,13 +580,25 @@ export default function FarmerOrders() {
                 <select
                   className="order-toolbar-select"
                   value={dateFilter}
-                  onChange={(event) => setDateFilter(event.target.value)}
+                  onChange={(event) => {
+                    setDateFilter(event.target.value);
+                    if (event.target.value !== 'exact') setExactDateTime('');
+                  }}
                   aria-label="Filter by date"
                 >
                   {DATE_FILTER_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
+                {dateFilter === 'exact' ? (
+                  <input
+                    className="order-toolbar-select order-toolbar-exact-date"
+                    type="datetime-local"
+                    value={exactDateTime}
+                    onChange={(event) => setExactDateTime(event.target.value)}
+                    aria-label="Choose exact order date and time"
+                  />
+                ) : null}
                 {hasActiveFilters ? (
                   <button type="button" className="order-toolbar-reset" onClick={clearFilters}>Clear filters</button>
                 ) : null}
@@ -672,6 +710,12 @@ export default function FarmerOrders() {
         confirmLabel={confirmAction ? confirmAction.action.label : 'Confirm'}
         onConfirm={confirmAdvance}
         onCancel={() => setConfirmAction(null)}
+      />
+
+      <StartDeliveryDialog
+        open={Boolean(startDeliveryOrder)}
+        onConfirm={confirmStartDelivery}
+        onCancel={() => setStartDeliveryOrder(null)}
       />
 
       <PaymentVerificationDrawer

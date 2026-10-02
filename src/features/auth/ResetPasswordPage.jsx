@@ -21,15 +21,22 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!cancelled) setSessionState(session ? 'ready' : 'invalid');
-    });
-
-
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
-      if (event === 'PASSWORD_RECOVERY' || session) setSessionState('ready');
+      if (event === 'PASSWORD_RECOVERY' && session?.user?.id) setSessionState('ready');
     });
+
+    supabase.auth.getSession()
+      .then(() => {
+        if (!cancelled) setSessionState((current) => (current === 'ready' ? current : 'invalid'));
+      })
+      .catch((sessionError) => {
+        if (cancelled) return;
+        console.error('Unable to verify the password recovery session:', sessionError);
+        setError('Unable to verify this reset link. Please request a new one and try again.');
+        setSessionState('invalid');
+      });
+
     return () => {
       cancelled = true;
       subscription.subscription.unsubscribe();
@@ -49,18 +56,16 @@ export default function ResetPasswordPage() {
 
     setIsSubmitting(true);
     setError('');
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+
+      await refreshUser();
+      navigate('/login', { replace: true });
+    } catch (updateError) {
       setIsSubmitting(false);
-      setError(updateError.message);
-      return;
+      setError(updateError.message || 'Unable to update the password. Please request a new reset link and try again.');
     }
-
-
-
-
-    await refreshUser();
-    navigate('/login', { replace: true });
   };
 
   return (
@@ -92,7 +97,7 @@ export default function ResetPasswordPage() {
         ) : sessionState === 'invalid' ? (
           <>
             <div className="form-alert error">
-              This reset link is invalid or has expired. Request a new one to continue.
+              {error || 'This reset link is invalid or has expired. Request a new one to continue.'}
             </div>
             <Link className="btn btn-primary btn-md full-width" to="/forgot-password">Request a new link</Link>
           </>

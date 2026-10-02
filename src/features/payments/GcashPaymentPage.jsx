@@ -187,7 +187,7 @@ export default function GcashPaymentPage() {
                   <div className="gcash-payment-actions">
                     <button
                       type="button"
-                      className="btn btn-primary btn-md full-width"
+                      className="btn btn-primary btn-md full-width gcash-upload-receipt-button"
                       onClick={() => navigate(`/orders/${id}/pay/gcash/confirm`)}
                     >
                       <CheckCircle2 size={16} /> Payment Completed — Upload Receipt

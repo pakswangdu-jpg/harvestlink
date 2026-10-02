@@ -63,6 +63,14 @@ export function formatDate(value) {
   }).format(new Date(value));
 }
 
+export function formatTime(value) {
+  if (!value) return 'Not available';
+  return new Intl.DateTimeFormat('en-PH', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 export function formatRelativeTime(value) {
   if (!value) return '';
   const diffMinutes = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
@@ -127,7 +135,7 @@ export function formatQuantity(value) {
 
 
 const PAYMENT_METHOD_LABELS = {
-  cod: 'COD',
+  cod: 'Cash on Delivery',
   gcash: 'GCash',
   maya: 'Maya',
   card: 'Card',

@@ -222,8 +222,8 @@ export async function cancelOrder(id) {
   return apiClient.patch(`/orders/${id}/cancel`);
 }
 
-export async function advanceDelivery(id) {
-  return apiClient.patch(`/orders/${id}/advance-delivery`);
+export async function advanceDelivery(id, plateNumber) {
+  return apiClient.patch(`/orders/${id}/advance-delivery`, plateNumber ? { plateNumber } : {});
 }
 
 export async function updateOrderLocation(id, { lat, lng }) {
@@ -268,6 +268,7 @@ export function mapOrderRealtimeRow(row) {
     currentAccuracy: row.current_accuracy == null ? null : Number(row.current_accuracy),
     locationUpdatedAt: row.location_updated_at,
     transitStartedAt: row.transit_started_at,
+    vehiclePlateNumber: row.vehicle_plate_number || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

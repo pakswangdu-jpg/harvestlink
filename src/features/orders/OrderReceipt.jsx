@@ -5,12 +5,14 @@ import AppShell from '../../components/layout/AppShell';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
+import logo from '../../assets/logo.png';
 import { useAuth } from '../auth/AuthContext';
 import { getOrderById } from '../../services/orderService';
 import {
   deliveryMethodLabel,
   formatCurrency,
   formatDate,
+  paymentLabel,
   paymentStatusLabel,
   shortOrderId,
 } from '../../utils/formatters';
@@ -28,6 +30,7 @@ export default function OrderReceipt() {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loadedId, setLoadedId] = useState(null);
+  const [printMessage, setPrintMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -72,21 +75,70 @@ export default function OrderReceipt() {
   const navItems = getNavItemsForRole(currentUser.role);
   const subtotal = order.unitPrice * order.quantity;
 
+  const handlePrintReceipt = async () => {
+    const printWindow = window.open('', '_blank');
+    setPrintMessage('');
+
+    try {
+      const { buildReceiptPdf, receiptPdfFileName } = await import('../../utils/receiptPdf.js');
+      const orderNumber = shortOrderId(order.id);
+      const receiptPdf = buildReceiptPdf({
+        order,
+        orderNumber,
+        orderDate: formatDate(order.createdAt),
+        formattedUnitPrice: formatCurrency(order.unitPrice),
+        formattedSubtotal: formatCurrency(subtotal),
+        formattedDeliveryFee: formatCurrency(order.deliveryFee),
+        formattedTotal: formatCurrency(order.totalAmount),
+        paymentMethod: paymentLabel(order.paymentMethod),
+        paymentStatus: paymentStatusLabel(order.paymentStatus),
+        deliveryMethod: deliveryMethodLabel(order.deliveryMethod),
+        logoImage: document.querySelector('.receipt-brand img'),
+      });
+
+      if (!printWindow) {
+        receiptPdf.save(receiptPdfFileName(orderNumber));
+        setPrintMessage('The receipt PDF was downloaded. Open it to print.');
+        return;
+      }
+
+      receiptPdf.autoPrint();
+      printWindow.location.replace(URL.createObjectURL(receiptPdf.output('blob')));
+      setPrintMessage('The receipt PDF opened for printing.');
+    } catch (error) {
+      printWindow?.close();
+      console.error('Unable to generate the order receipt PDF.', error);
+      setPrintMessage('Could not generate the receipt PDF. Please try again.');
+    }
+  };
+
   return (
-    <AppShell user={currentUser} navItems={navItems} title="Receipt" subtitle={`Order #${shortOrderId(order.id)}`}>
+    <AppShell
+      user={currentUser}
+      navItems={navItems}
+      title="Receipt"
+      subtitle={`Order #${shortOrderId(order.id)}`}
+      pageClassName="receipt-page"
+    >
       <section className="panel receipt-panel">
         <div className="receipt-header">
-          <div>
-            <strong><BrandWordmark /></strong>
-            <p className="muted">Cebu Farm-to-Market</p>
+          <div className="receipt-brand">
+            <img src={logo} alt="" />
+            <div>
+              <strong><BrandWordmark /></strong>
+              <p className="muted">Cebu Farm-to-Market</p>
+            </div>
           </div>
-          <div className="receipt-meta">
-            <p><span>Order #</span><strong>{shortOrderId(order.id)}</strong></p>
-            <p><span>Date</span><strong>{formatDate(order.createdAt)}</strong></p>
+          <div className="receipt-heading-meta">
+            <h2>Receipt</h2>
+            <div className="receipt-meta">
+              <p><span>Order #</span><strong>{shortOrderId(order.id)}</strong></p>
+              <p><span>Date</span><strong>{formatDate(order.createdAt)}</strong></p>
+            </div>
           </div>
         </div>
 
-        <div className="receipt-parties">
+        <div className="receipt-parties receipt-parties-buyer">
           <div><span>Buyer</span><strong>{order.buyerName}</strong></div>
           <div><span>Farmer</span><strong>{order.farmerName}</strong></div>
         </div>
@@ -121,24 +173,30 @@ export default function OrderReceipt() {
           <div className="receipt-total-line"><span>Total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
         </div>
 
-        <div className="receipt-parties">
-          <div><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
-          <div><span>Payment status</span><strong>{paymentStatusLabel(order.paymentStatus)}</strong></div>
-          <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
-          {order.deliveryDistanceKm ? (
-            <div><span>Delivery distance</span><strong>{order.deliveryDistanceKm.toFixed(1)} km</strong></div>
-          ) : null}
-          {order.transactionId ? (
-            <div><span>GCash transaction ID</span><strong>{order.transactionId}</strong></div>
-          ) : null}
-        </div>
+        <section className="receipt-payment-section" aria-label="Payment and delivery details">
+          <h3>Payment &amp; Delivery</h3>
+          <div className="receipt-parties receipt-parties-payment">
+            <div><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
+            <div><span>Payment status</span><strong>{paymentStatusLabel(order.paymentStatus)}</strong></div>
+            <div><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+            {order.deliveryDistanceKm ? (
+              <div><span>Delivery distance</span><strong>{order.deliveryDistanceKm.toFixed(1)} km</strong></div>
+            ) : null}
+            {order.transactionId ? (
+              <div><span>GCash transaction ID</span><strong>{order.transactionId}</strong></div>
+            ) : null}
+          </div>
+        </section>
 
         <p className="receipt-footer muted">Thank you for supporting local Cebu farmers.</p>
 
         <div className="form-actions receipt-actions">
           <Button variant="secondary" onClick={() => navigate(`/orders/${order.id}`)}>Back to order</Button>
-          <Button onClick={() => window.print()}><Printer size={15} /> Print receipt</Button>
+          <Button onClick={handlePrintReceipt}><Printer size={15} /> Print receipt</Button>
         </div>
+        <p className="receipt-print-hint" role="status" aria-live="polite">
+          {printMessage || 'A clean receipt PDF will open for printing.'}
+        </p>
       </section>
     </AppShell>
   );

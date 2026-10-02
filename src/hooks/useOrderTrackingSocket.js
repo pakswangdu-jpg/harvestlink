@@ -35,7 +35,15 @@ export function useOrderTrackingSocket(orderId) {
 
 
       if (payload?.orderId !== orderId) return;
-      setLivePosition({ lat: payload.lat, lng: payload.lng, accuracy: payload.accuracy, locationUpdatedAt: payload.locationUpdatedAt });
+      setLivePosition({
+        lat: payload.lat,
+        lng: payload.lng,
+        accuracy: payload.accuracy,
+        heading: payload.heading,
+        deviceHeading: payload.heading,
+        speed: payload.speed,
+        locationUpdatedAt: payload.locationUpdatedAt,
+      });
     };
     const handleConnect = () => {
       setConnectionStatus('connecting');

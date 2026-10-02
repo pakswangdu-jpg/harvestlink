@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Eye, Leaf, MapPin,
-  Package, PackageSearch, Star, Wallet,
+  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Eye, Leaf, MapPin, Search,
+  Package, Star, Wallet,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import ProductCard from '../../components/cards/ProductCard';
 import StatusBadge from '../../components/common/StatusBadge';
+import Modal from '../../components/admin/Modal';
 import DataTable from '../../components/dashboard/DataTable';
 import EmptyState from '../../components/common/EmptyState';
 import DeliveryMap from '../../components/orders/DeliveryMap';
@@ -23,6 +24,7 @@ import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
+import freshListingsLeaf from '../../assets/icons/fresh-listings-leaf.png';
 
 const NEARBY_FARMERS_LIMIT = 5;
 const EMPTY_STATE = {
@@ -33,11 +35,42 @@ function farmerMarketplacePath(farmer) {
   return `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(farmer.farmName || farmer.name)}`;
 }
 
+function RecommendedFarmerLink({ farmer, onClick }) {
+  return (
+    <Link
+      className="recommended-farm-card"
+      to={farmerMarketplacePath(farmer)}
+      onClick={onClick}
+    >
+      <span className="farmer-list-avatar buyer-recommendation-avatar">
+        {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
+      </span>
+      <span className="farmer-list-text">
+        <strong>{farmer.farmName || farmer.name}</strong>
+        <span className="buyer-recommendation-location"><MapPin size={12} aria-hidden="true" /> {farmer.municipality || 'Location unavailable'}</span>
+        <span className="buyer-recommendation-reason">{farmer.reason}</span>
+      </span>
+      <span
+        className={`buyer-rating${farmer.normalizedRating > 0 ? '' : ' is-new'}`}
+        aria-label={farmer.normalizedRating
+          ? `${farmer.normalizedRating.toFixed(1)} out of 5 stars from ${farmer.normalizedRatingCount} ${farmer.normalizedRatingCount === 1 ? 'rating' : 'ratings'}`
+          : 'Not yet rated'}
+      >
+        {farmer.normalizedRating ? (
+          <><Star size={13} fill="currentColor" aria-hidden="true" /><strong>{farmer.normalizedRating.toFixed(1)}</strong><span>({farmer.normalizedRatingCount})</span></>
+        ) : <span>New farmer</span>}
+      </span>
+      <span className="buyer-recommendation-action">View farm <ArrowRight size={14} aria-hidden="true" /></span>
+    </Link>
+  );
+}
+
 export default function BuyerDashboard() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState(EMPTY_STATE);
-  const [showAllRecommendations, setShowAllRecommendations] = useState(false);
+  const [isRecommendationsOpen, setIsRecommendationsOpen] = useState(false);
+  const [recommendationSearch, setRecommendationSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const nearbyOrigin = getRegisteredCoordinates(currentUser);
@@ -148,9 +181,17 @@ export default function BuyerDashboard() {
     }),
     [recommendedFarmers]
   );
-  const visibleRecommendedFarmers = showAllRecommendations
-    ? sortedRecommendedFarmers
-    : sortedRecommendedFarmers.slice(0, 5);
+  const visibleRecommendedFarmers = sortedRecommendedFarmers.slice(0, 5);
+  const searchedRecommendedFarmers = sortedRecommendedFarmers.filter((farmer) => {
+    const query = recommendationSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [
+      farmer.farmName,
+      farmer.name,
+      farmer.municipality,
+      farmer.reason,
+    ].some((value) => String(value || '').toLowerCase().includes(query));
+  });
   const totalSpend = getTotalRevenue(orders);
   const sortedNearbyFarmers = sortByRegisteredDistance(nearbyOrigin, verifiedFarmers);
   const nearbyFarmersWithDistance = sortedNearbyFarmers
@@ -306,11 +347,12 @@ export default function BuyerDashboard() {
               </div>
             ) : (
               <EmptyState
-                icon={PackageSearch}
+                iconSrc={freshListingsLeaf}
                 title="No fresh listings yet"
                 message="Farmer listings will appear here once products are added."
                 actionLabel="Browse marketplace"
                 onAction={() => navigate('/marketplace')}
+                className="buyer-fresh-listings-empty"
                 compact
               />
             )}
@@ -379,42 +421,16 @@ export default function BuyerDashboard() {
               <button
                 type="button"
                 className="buyer-recommendation-toggle"
-                onClick={() => setShowAllRecommendations((showing) => !showing)}
-                aria-expanded={showAllRecommendations}
+                onClick={() => setIsRecommendationsOpen(true)}
+                aria-haspopup="dialog"
               >
-                {showAllRecommendations ? 'Show less' : <>Show all <ArrowRight size={14} aria-hidden="true" /></>}
+                <>Browse more <ArrowRight size={14} aria-hidden="true" /></>
               </button>
             ) : null}
           </div>
           {sortedRecommendedFarmers.length ? (
             <div className="buyer-recommended-grid">
-              {visibleRecommendedFarmers.map((farmer) => (
-                <Link
-                  key={farmer.id}
-                  className="recommended-farm-card"
-                  to={farmerMarketplacePath(farmer)}
-                >
-                  <span className="farmer-list-avatar buyer-recommendation-avatar">
-                    {farmer.avatarUrl ? <img src={farmer.avatarUrl} alt="" /> : getInitials(farmer.name)}
-                  </span>
-                  <span className="farmer-list-text">
-                    <strong>{farmer.farmName || farmer.name}</strong>
-                    <span className="buyer-recommendation-location"><MapPin size={12} aria-hidden="true" /> {farmer.municipality || 'Location unavailable'}</span>
-                    <span className="buyer-recommendation-reason">{farmer.reason}</span>
-                  </span>
-                  <span
-                    className={`buyer-rating${farmer.normalizedRating > 0 ? '' : ' is-new'}`}
-                    aria-label={farmer.normalizedRating
-                      ? `${farmer.normalizedRating.toFixed(1)} out of 5 stars from ${farmer.normalizedRatingCount} ${farmer.normalizedRatingCount === 1 ? 'rating' : 'ratings'}`
-                      : 'Not yet rated'}
-                  >
-                    {farmer.normalizedRating ? (
-                      <><Star size={13} fill="currentColor" aria-hidden="true" /><strong>{farmer.normalizedRating.toFixed(1)}</strong><span>({farmer.normalizedRatingCount})</span></>
-                    ) : <span>New farmer</span>}
-                  </span>
-                  <span className="buyer-recommendation-action">View farm <ArrowRight size={14} aria-hidden="true" /></span>
-                </Link>
-              ))}
+              {visibleRecommendedFarmers.map((farmer) => <RecommendedFarmerLink key={farmer.id} farmer={farmer} />)}
             </div>
           ) : (
             <div className="buyer-inline-empty buyer-recommendations-empty">
@@ -424,6 +440,48 @@ export default function BuyerDashboard() {
           )}
         </section>
       </section>
+
+      <Modal
+        open={isRecommendationsOpen}
+        onClose={() => {
+          setIsRecommendationsOpen(false);
+          setRecommendationSearch('');
+        }}
+        eyebrow="Recommended for you"
+        title="Browse more farms"
+      >
+        <div className="buyer-recommendations-modal-toolbar">
+          <label className="buyer-recommendations-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              value={recommendationSearch}
+              onChange={(event) => setRecommendationSearch(event.target.value)}
+              placeholder="Search farms or locations"
+              aria-label="Search recommended farms by name or location"
+            />
+          </label>
+          <p role="status">
+            {searchedRecommendedFarmers.length} of {sortedRecommendedFarmers.length} farms
+          </p>
+        </div>
+        <div className="buyer-recommended-grid buyer-recommendations-modal-grid">
+          {searchedRecommendedFarmers.length ? (
+            searchedRecommendedFarmers.map((farmer) => (
+              <RecommendedFarmerLink
+                key={farmer.id}
+                farmer={farmer}
+                onClick={() => {
+                  setIsRecommendationsOpen(false);
+                  setRecommendationSearch('');
+                }}
+              />
+            ))
+          ) : (
+            <p className="buyer-recommendations-no-results">No recommended farms match “{recommendationSearch.trim()}”.</p>
+          )}
+        </div>
+      </Modal>
     </AppShell>
   );
 }

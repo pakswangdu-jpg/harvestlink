@@ -10,6 +10,17 @@ import { getUserById } from '../../services/authService';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { useOrderConnectionStatus } from '../../hooks/useOrderConnectionStatus';
 import { useTheme } from '../../contexts/ThemeContext';
+import deliveryVanIcon from '../../assets/icons/harvestlink-delivery-van.png?inline';
+import {
+  buildVehicleMarkerSvg,
+  computeVehicleBearing,
+  getContinuousVehicleHeading,
+  resolveVehicleHeading,
+  VEHICLE_HEADING_MIN_MOVEMENT_KM,
+  VEHICLE_MARKER_ANIMATION_DURATION_MS,
+  VEHICLE_MARKER_HEIGHT_PX,
+  VEHICLE_MARKER_WIDTH_PX,
+} from '../../utils/vehicleMarker';
 import DriverConnectionBadge from './DriverConnectionBadge';
 
 
@@ -43,12 +54,8 @@ const ROUTE_SHADOW_COLOR = '#4c1d95';
 const ROUTE_ALT_COLOR = '#c7cbd1';
 const SPEED_ROUTE_COLORS = { NORMAL: ROUTE_COLOR, SLOW: ROUTE_SLOW_COLOR, TRAFFIC_JAM: ROUTE_JAM_COLOR };
 
-const MARKER_ANIMATION_DURATION_MS = 1200;
 const ARRIVED_KM_THRESHOLD = 0.03;
 
-
-
-const MIN_HEADING_MOVE_KM = 0.008;
 
 
 const ROUTE_REFRESH_MIN_INTERVAL_MS = 20000;
@@ -84,16 +91,13 @@ function buildDotIcon(mapsApi, color) {
 function buildVehicleMarkerContent() {
   const wrapper = document.createElement('div');
   wrapper.className = 'nav-vehicle-marker';
-  wrapper.innerHTML = `
-    <svg width="38" height="38" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 3 L33 33 L20 25.5 L7 33 Z" fill="${ROUTE_COLOR}" stroke="white" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-    </svg>
-  `;
+  wrapper.innerHTML = buildVehicleMarkerSvg(deliveryVanIcon);
   return wrapper;
 }
 
 function updateVehicleHeading(content, headingDeg) {
-  content.style.transform = `rotate(${headingDeg}deg)`;
+  const vehicleBody = content.querySelector('[data-vehicle-body]');
+  vehicleBody.style.transform = `rotate(${headingDeg}deg)`;
 }
 
 
@@ -102,15 +106,12 @@ function updateVehicleHeading(content, headingDeg) {
 
 
 
-function buildVehicleIcon(mapsApi, headingDeg) {
-  const svg = `<svg width="38" height="38" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">` +
-    `<g transform="rotate(${headingDeg} 20 20)">` +
-    `<path d="M20 3 L33 33 L20 25.5 L7 33 Z" fill="${ROUTE_COLOR}" stroke="white" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>` +
-    `</g></svg>`;
+function buildVehicleIcon(mapsApi, headingDeg, previousHeadingDeg) {
+  const svg = buildVehicleMarkerSvg(deliveryVanIcon, headingDeg, previousHeadingDeg);
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(38, 38),
-    anchor: new mapsApi.Point(19, 19),
+    scaledSize: new mapsApi.Size(VEHICLE_MARKER_WIDTH_PX, VEHICLE_MARKER_HEIGHT_PX),
+    anchor: new mapsApi.Point(VEHICLE_MARKER_WIDTH_PX / 2, VEHICLE_MARKER_HEIGHT_PX / 2),
   };
 }
 
@@ -131,23 +132,13 @@ function setVehicleMarkerPosition(entry, position) {
 }
 
 function setVehicleMarkerHeading(entry, mapsApi, headingDeg) {
-  if (entry.kind === 'advanced') updateVehicleHeading(entry.content, headingDeg);
-  else entry.marker.setIcon(buildVehicleIcon(mapsApi, headingDeg));
+  const currentHeading = entry.renderedHeading ?? headingDeg;
+  const renderedHeading = getContinuousVehicleHeading(currentHeading, headingDeg);
+  entry.renderedHeading = renderedHeading;
+  if (entry.kind === 'advanced') updateVehicleHeading(entry.content, renderedHeading);
+  else entry.marker.setIcon(buildVehicleIcon(mapsApi, renderedHeading, currentHeading));
 }
 
-
-
-
-function computeBearing(from, to) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const toDeg = (rad) => (rad * 180) / Math.PI;
-  const dLng = toRad(to.lng - from.lng);
-  const lat1 = toRad(from.lat);
-  const lat2 = toRad(to.lat);
-  const y = Math.sin(dLng) * Math.cos(lat2);
-  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
 
 
 
@@ -183,7 +174,7 @@ function zoomForSpeed(speedKmh) {
   return 17.5;
 }
 
-function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DURATION_MS) {
+function animateMarkerTo(entry, targetPosition, durationMs = VEHICLE_MARKER_ANIMATION_DURATION_MS) {
   if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
   const start = entry.currentLatLng || targetPosition;
   const startTime = performance.now();
@@ -208,6 +199,8 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   const routeMetaRef = useRef(null);
   const headingRef = useRef(0);
   const lastHeadingPositionRef = useRef(null);
+  const vehicleHeadingRef = useRef(0);
+  const lastVehicleHeadingPositionRef = useRef(null);
   const autoEnabledRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [googleRoute, setGoogleRoute] = useState(null);
@@ -277,10 +270,6 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   const currentSpeedKmh = currentPosition
     ? Math.max(0, (Number.isFinite(currentPosition.speed) ? currentPosition.speed : 0) * 3.6)
     : null;
-
-
-
-
 
   const etaMinutes = googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
   const arrivalLabel = estimatedArrivalLabel(isDelivered ? null : etaMinutes);
@@ -530,11 +519,21 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
           lastHeadingPositionRef.current = currentPosition;
         } else {
           const lastHeadingPosition = lastHeadingPositionRef.current;
-          if (!lastHeadingPosition || haversineKm(lastHeadingPosition, currentPosition) > MIN_HEADING_MOVE_KM) {
-            if (lastHeadingPosition) headingRef.current = computeBearing(lastHeadingPosition, currentPosition);
+          if (!lastHeadingPosition || haversineKm(lastHeadingPosition, currentPosition) > VEHICLE_HEADING_MIN_MOVEMENT_KM) {
+            if (lastHeadingPosition) headingRef.current = computeVehicleBearing(lastHeadingPosition, currentPosition);
             lastHeadingPositionRef.current = currentPosition;
           }
         }
+
+        const vehicleHeading = resolveVehicleHeading({
+          previousPosition: lastVehicleHeadingPositionRef.current,
+          currentPosition,
+          lastHeading: vehicleHeadingRef.current,
+          deviceHeading: currentPosition.deviceHeading,
+          gpsHeading: currentPosition.heading,
+        });
+        vehicleHeadingRef.current = vehicleHeading.heading;
+        if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
 
         if (!carEntryRef.current) {
 
@@ -543,16 +542,36 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
           if (hasVectorMap) {
             const content = buildVehicleMarkerContent();
-            updateVehicleHeading(content, headingRef.current);
-            const marker = new mapsApi.AdvancedMarkerElement({ position: currentPosition, map, content, zIndex: 1000 });
-            carEntryRef.current = { kind: 'advanced', marker, content, currentLatLng: currentPosition, animationFrameId: null };
+            updateVehicleHeading(content, vehicleHeadingRef.current);
+            const marker = new mapsApi.AdvancedMarkerElement({
+              position: currentPosition,
+              map,
+              content,
+              anchorLeft: '-50%',
+              anchorTop: '-50%',
+              zIndex: 1000,
+            });
+            carEntryRef.current = {
+              kind: 'advanced',
+              marker,
+              content,
+              currentLatLng: currentPosition,
+              renderedHeading: vehicleHeadingRef.current,
+              animationFrameId: null,
+            };
           } else {
-            const marker = new mapsApi.Marker({ position: currentPosition, map, icon: buildVehicleIcon(mapsApi, headingRef.current), zIndex: 1000 });
-            carEntryRef.current = { kind: 'classic', marker, currentLatLng: currentPosition, animationFrameId: null };
+            const marker = new mapsApi.Marker({ position: currentPosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
+            carEntryRef.current = {
+              kind: 'classic',
+              marker,
+              currentLatLng: currentPosition,
+              renderedHeading: vehicleHeadingRef.current,
+              animationFrameId: null,
+            };
           }
         } else {
           setVehicleMarkerMap(carEntryRef.current, map);
-          setVehicleMarkerHeading(carEntryRef.current, mapsApi, headingRef.current);
+          setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
           animateMarkerTo(carEntryRef.current, currentPosition);
         }
 
@@ -573,6 +592,25 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, googleRoute, currentPosition?.lat, currentPosition?.lng, origin.lat, origin.lng, destination.lat, destination.lng, autoFollow, deliveryState]);
+
+  useEffect(() => {
+    const entry = carEntryRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!entry || !mapsApi || !currentPosition) return;
+
+    const resolvedHeading = resolveVehicleHeading({
+      previousPosition: lastVehicleHeadingPositionRef.current,
+      currentPosition,
+      lastHeading: vehicleHeadingRef.current,
+      deviceHeading: currentPosition.deviceHeading,
+      gpsHeading: currentPosition.heading,
+    });
+    vehicleHeadingRef.current = resolvedHeading.heading;
+    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+    if (getContinuousVehicleHeading(entry.renderedHeading ?? resolvedHeading.heading, resolvedHeading.heading)
+      === (entry.renderedHeading ?? resolvedHeading.heading)) return;
+    setVehicleMarkerHeading(entry, mapsApi, resolvedHeading.heading);
+  }, [currentPosition, currentPosition?.heading, currentPosition?.deviceHeading]);
 
   useEffect(() => {
     return () => {

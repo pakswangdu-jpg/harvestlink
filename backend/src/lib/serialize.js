@@ -153,6 +153,7 @@ export function serializeOrder(row) {
     currentAccuracy: row.current_accuracy == null ? null : Number(row.current_accuracy),
     locationUpdatedAt: row.location_updated_at,
     transitStartedAt: row.transit_started_at,
+    vehiclePlateNumber: row.vehicle_plate_number || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
