@@ -8,9 +8,6 @@ import {
   Navigation,
   Package,
   Truck,
-  User,
-  Wifi,
-  WifiOff,
   X,
 } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
@@ -22,7 +19,7 @@ import { advanceDelivery, getLiveTransitProgress, getNextDeliveryStatus } from '
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { useSocketLocationSharing } from '../../hooks/useSocketLocationSharing';
 import { useTheme } from '../../contexts/ThemeContext';
-import { formatRelativeTime } from '../../utils/formatters';
+import { formatRelativeTime, getInitials } from '../../utils/formatters';
 import Button from '../common/Button';
 
 
@@ -44,33 +41,6 @@ const ROUTE_LINE_COLOR = '#1a73e8';
 const ROUTE_REFRESH_MIN_INTERVAL_MS = 20000;
 const ROUTE_REFRESH_MIN_MOVE_KM = 0.05;
 const ROUTE_DEVIATION_KM = 0.08;
-
-const TIMELINE_STAGES = [
-  { key: 'confirmed', label: 'Order Confirmed', emoji: '✔️' },
-  { key: 'preparing', label: 'Farmer Preparing', emoji: '🚜' },
-  { key: 'on-the-way', label: 'On the Way', emoji: '🚚' },
-  { key: 'near-destination', label: 'Near Destination', emoji: '📍' },
-  { key: 'delivered', label: 'Delivered', emoji: '✅' },
-];
-
-function getTimelineStageIndex(order, isInTransit, isNearDestination) {
-  if (order.status === 'completed') return 4;
-  if (isInTransit) return isNearDestination ? 3 : 2;
-  if (['preparing', 'packed'].includes(order.deliveryStatus)) return 1;
-  return 0;
-}
-
-
-
-
-
-const STATUS_BADGE_STYLES = {
-  confirmed: { bg: 'var(--blue-100)', fg: 'var(--blue-700)', label: 'Confirmed' },
-  preparing: { bg: 'var(--amber-100)', fg: 'var(--amber-700)', label: 'Farmer Preparing' },
-  'on-the-way': { bg: 'var(--orange-100)', fg: 'var(--orange-700)', label: 'On the Way' },
-  'near-destination': { bg: 'var(--violet-100)', fg: 'var(--violet-700)', label: 'Near Destination' },
-  delivered: { bg: 'var(--green-100)', fg: 'var(--green-800)', label: 'Delivered' },
-};
 
 function buildPinIcon(mapsApi, color) {
   const svg = `<svg width="26" height="34" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
@@ -112,6 +82,8 @@ function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DU
 
 export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpdate }) {
   const containerRef = useRef(null);
+  const modalRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const mapRef = useRef(null);
   const mapsApiRef = useRef(null);
   const layerRef = useRef([]);
@@ -122,6 +94,11 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const [actionError, setActionError] = useState('');
   const [farmerMarkedComplete, setFarmerMarkedComplete] = useState(false);
   const { effectiveTheme } = useTheme();
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const { livePosition, connectionStatus } = useOrderTrackingSocket(order.id);
   const { isSharing, error: shareError, start: startSharing, stop: stopSharing } = useSocketLocationSharing(order.id);
@@ -146,10 +123,17 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     ? Math.max(0, Math.ceil((remainingKm / averageSpeedKmh) * 60))
     : transit.etaMinutes;
   const isNearDestination = remainingKm != null ? remainingKm <= NEAR_DESTINATION_KM_THRESHOLD : transit.isNearDestination;
-  const stageIndex = getTimelineStageIndex(order, transit.isInTransit, isNearDestination);
-  const badgeStyle = STATUS_BADGE_STYLES[TIMELINE_STAGES[stageIndex].key];
   const nextStep = getNextDeliveryStatus(order);
   const isDelivered = order.status === 'completed';
+  const isOutForDelivery = transit.isInTransit || order.deliveryStatus === 'out_for_delivery';
+  const statusLabel = isDelivered
+    ? 'Delivered'
+    : isOutForDelivery
+      ? (isNearDestination ? 'Arriving soon' : 'On the way')
+      : ['packed', 'ready_for_pickup'].includes(order.deliveryStatus)
+        ? 'Ready for delivery'
+        : 'Preparing';
+  const statusClass = isDelivered || isOutForDelivery ? 'is-progress' : 'is-pending';
 
 
 
@@ -166,11 +150,54 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     ? tripDistanceKm / (tripElapsedMinutes / 60)
     : null;
 
-  const etaCardValue = isDelivered ? 'Delivered' : (etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—');
-  const distanceCardValue = isDelivered ? '0.0 km' : (remainingKm != null ? `${remainingKm.toFixed(1)} km` : '—');
-  const speedCardValue = isDelivered
-    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h avg` : '—')
-    : (averageSpeedKmh != null && transit.isInTransit ? `${averageSpeedKmh.toFixed(0)} km/h` : '—');
+  const activeSpeedKmh = livePosition?.speed ?? transit.currentPosition?.speed ?? averageSpeedKmh;
+  const etaValue = etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—';
+  const distanceValue = isDelivered ? '0.0 km' : (remainingKm != null ? `${remainingKm.toFixed(1)} km` : '—');
+  const speedValue = isDelivered
+    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h` : '—')
+    : (activeSpeedKmh != null && isOutForDelivery ? `${activeSpeedKmh.toFixed(0)} km/h` : '—');
+  const lastLocationUpdatedAt = livePosition?.locationUpdatedAt || order.locationUpdatedAt;
+  const mapConnectionLabel = connectionStatus === 'connected'
+    ? 'Live'
+    : lastLocationUpdatedAt
+      ? `Last location received · ${formatRelativeTime(lastLocationUpdatedAt)}`
+      : connectionStatus === 'connecting'
+        ? 'Connecting…'
+        : 'Waiting for connection';
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+
+      const focusableElements = modalRef.current.querySelectorAll(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (!firstElement || !lastElement) return;
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    };
+  }, []);
 
 
 
@@ -300,7 +327,6 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     setFarmerMarkedComplete(true);
   };
 
-  const connectionLabel = connectionStatus === 'connected' ? 'Live' : connectionStatus === 'connecting' ? 'Connecting…' : 'Reconnecting…';
   const gpsAccuracyM = livePosition?.accuracy != null ? Math.round(livePosition.accuracy) : null;
 
   return (
@@ -310,10 +336,18 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
       >
         <motion.div
+          ref={modalRef}
           className="tracking-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tracking-modal-title"
+          aria-describedby="tracking-modal-subtitle"
+          tabIndex={-1}
           initial={{ opacity: 0, y: 24, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -322,100 +356,113 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
         >
           <div className="tracking-modal-header">
             <div>
-              <p className="eyebrow">Live Delivery Tracking</p>
-              <h2>Order #{order.id.slice(0, 8).toUpperCase()}</h2>
+              <h2 id="tracking-modal-title">Delivery Tracking</h2>
+              <p id="tracking-modal-subtitle" className="tracking-modal-subtitle">
+                Live order tracking <span>·</span> Order #{order.id.slice(0, 8).toUpperCase()}
+              </p>
             </div>
-            <button type="button" className="tracking-modal-close" onClick={onClose} aria-label="Close">
+            <button ref={closeButtonRef} type="button" className="tracking-modal-close" onClick={onClose} aria-label="Close delivery tracking">
               <X size={18} />
             </button>
           </div>
 
-          {order.status === 'completed' || farmerMarkedComplete ? (
-            <motion.div
-              className="tracking-complete-banner"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <CheckCircle2 size={28} />
-              <div>
-                <strong>{order.status === 'completed' ? 'Your order has been successfully delivered.' : 'Delivery marked complete.'}</strong>
-                {order.status !== 'completed' ? (
-                  <p>Waiting for {order.buyerName} to confirm they received it.</p>
-                ) : null}
-              </div>
-            </motion.div>
-          ) : null}
+          <section className="tracking-people-status" aria-label="People and delivery status">
+            <div className="tracking-status-summary">
+              <span className="tracking-summary-label">Delivery status</span>
+              <span className={`tracking-status-pill ${statusClass}`}>
+                {isDelivered ? <CheckCircle2 size={18} aria-hidden="true" /> : <Truck size={18} aria-hidden="true" />}
+                {statusLabel}
+              </span>
+            </div>
+            <div className="tracking-person">
+              <span className="tracking-person-role">Farmer</span>
+              <span className="tracking-person-avatar" aria-hidden="true">
+                {order.farmerAvatarUrl
+                  ? <img src={order.farmerAvatarUrl} alt="" />
+                  : getInitials(order.farmerName)}
+              </span>
+              <span className="tracking-person-name">{order.farmerName}</span>
+            </div>
+            <div className="tracking-person">
+              <span className="tracking-person-role">Buyer</span>
+              <span className="tracking-person-avatar" aria-hidden="true">
+                {order.buyerAvatarUrl
+                  ? <img src={order.buyerAvatarUrl} alt="" />
+                  : getInitials(order.buyerName)}
+              </span>
+              <span className="tracking-person-name">{order.buyerName}</span>
+            </div>
+          </section>
 
-          <motion.div
-            className="tracking-info-cards"
-            initial="hidden"
-            animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05 } } }}
-          >
-            {[
-              { icon: <User size={18} />, label: 'Farmer', value: order.farmerName },
-              { icon: <User size={18} />, label: 'Buyer', value: order.buyerName },
-              {
-                icon: <Truck size={18} />,
-                label: 'Status',
-                value: (
-                  <span className="tracking-status-pill" style={{ background: badgeStyle.bg, color: badgeStyle.fg }}>
-                    {TIMELINE_STAGES[stageIndex].emoji} {badgeStyle.label}
-                  </span>
-                ),
-              },
-              { icon: <Clock3 size={18} />, label: 'ETA', value: etaCardValue },
-              { icon: <MapPin size={18} />, label: 'Remaining Distance', value: distanceCardValue },
-              { icon: <Gauge size={18} />, label: 'Average Speed', value: speedCardValue },
-            ].map((card) => (
-              <motion.div
-                key={card.label}
-                className="tracking-info-card"
-                variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-              >
-                <div className="tracking-info-card-icon">{card.icon}</div>
-                <div>
-                  <p>{card.label}</p>
-                  <strong>{card.value}</strong>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <div className="tracking-timeline">
-            {TIMELINE_STAGES.map((stage, index) => (
-              <div key={stage.key} className={`tracking-timeline-step ${index < stageIndex ? 'done' : index === stageIndex ? 'active' : ''}`}>
-                <motion.span
-                  className="tracking-timeline-icon"
-                  animate={index === stageIndex ? { scale: [1, 1.15, 1] } : {}}
-                  transition={{ repeat: index === stageIndex ? Infinity : 0, duration: 1.6 }}
-                >
-                  {stage.emoji}
-                </motion.span>
-                <span>{stage.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div ref={containerRef} className="tracking-modal-map" />
+          <section className="tracking-map-section" aria-labelledby="tracking-route-title">
+            <div className="tracking-map-heading">
+              <h3 id="tracking-route-title">Delivery Route</h3>
+              <span className={`tracking-live-state ${connectionStatus === 'connected' ? 'is-live' : ''}`}>
+                <span aria-hidden="true" />
+                {mapConnectionLabel}
+              </span>
+            </div>
+            <ul className="tracking-map-legend" aria-label="Map markers">
+              <li><span className="is-origin" aria-hidden="true" />Farmer / origin</li>
+              <li><span className="is-destination" aria-hidden="true" />Buyer / destination</li>
+              {currentPosition && !isPickup ? <li><span className="is-driver" aria-hidden="true" />Driver</li> : null}
+              <li><span className="is-route" aria-hidden="true" />Route</li>
+            </ul>
+            <div
+              ref={containerRef}
+              className="tracking-modal-map"
+              role="region"
+              aria-label="Map showing the delivery route"
+            />
+          </section>
 
           {!isPickup ? (
-            <div className="tracking-gps-card">
-              <div>
-                <span>Last GPS update</span>
-                <strong>{order.locationUpdatedAt ? formatRelativeTime(order.locationUpdatedAt) : 'Not shared yet'}</strong>
-              </div>
-              <div>
-                <span>GPS accuracy</span>
-                <strong>{gpsAccuracyM != null ? `±${gpsAccuracyM} m` : '—'}</strong>
-              </div>
-              <div>
-                <span>Connection</span>
-                <strong className="tracking-connection-status">
-                  {connectionStatus === 'connected' ? <Wifi size={14} /> : <WifiOff size={14} />} {connectionLabel}
-                </strong>
-              </div>
+            <div className="tracking-gps-details">
+              <span>GPS accuracy</span>
+              <strong>{gpsAccuracyM != null ? `±${gpsAccuracyM} m` : '—'}</strong>
+              {lastLocationUpdatedAt ? <span>Updated {formatRelativeTime(lastLocationUpdatedAt)}</span> : null}
             </div>
+          ) : null}
+
+          {isDelivered ? (
+            <section className="tracking-delivery-summary is-complete" aria-label="Delivery completion summary">
+              <div className="tracking-completion-message">
+                <CheckCircle2 size={20} aria-hidden="true" />
+                <div>
+                  <strong>Completed successfully</strong>
+                  <span>Your order has reached its destination.</span>
+                </div>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><MapPin size={16} aria-hidden="true" />Distance remaining</span>
+                <strong>{distanceValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><Gauge size={16} aria-hidden="true" />Average speed</span>
+                <strong>{speedValue}</strong>
+              </div>
+            </section>
+          ) : (
+            <section className="tracking-delivery-summary" aria-label="Delivery summary">
+              <div className="tracking-summary-stat">
+                <span><Clock3 size={16} aria-hidden="true" />Estimated arrival</span>
+                <strong>{etaValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><MapPin size={16} aria-hidden="true" />Distance remaining</span>
+                <strong>{distanceValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><Gauge size={16} aria-hidden="true" />Current speed</span>
+                <strong>{speedValue}</strong>
+              </div>
+            </section>
+          )}
+
+          {farmerMarkedComplete && order.status !== 'completed' ? (
+            <p className="tracking-pending-confirmation">
+              Delivery marked complete. Waiting for {order.buyerName} to confirm receipt.
+            </p>
           ) : null}
 
           {actionError ? <div className="form-alert error">{actionError}</div> : null}

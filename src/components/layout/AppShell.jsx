@@ -121,7 +121,7 @@ export default function AppShell({
           </button>
         </div>
 
-        <div className="sidebar-scroll flex flex-col gap-3.5">
+        <div className="sidebar-scroll">
           <nav aria-label="Primary" className="flex flex-col gap-3.5">
             {menuGroups.map((group) => (
               <div key={group.label}>
@@ -143,12 +143,13 @@ export default function AppShell({
               </div>
             ))}
           </nav>
+        </div>
 
+        <div className="sidebar-footer">
           <div className="sidebar-general flex flex-col gap-1">
             {!isSidebarCollapsed ? (
               <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
             ) : null}
-            {profileItem ? <SidebarUserCard user={user} isCollapsed={isSidebarCollapsed} /> : null}
             {profileItem ? (
               <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}
@@ -175,6 +176,10 @@ export default function AppShell({
             </span>
             {!isSidebarCollapsed ? 'Logout' : null}
           </button>
+
+          <div className="sidebar-account">
+            <SidebarUserCard user={user} isCollapsed={isSidebarCollapsed} />
+          </div>
         </div>
       </motion.aside>
 
