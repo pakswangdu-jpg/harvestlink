@@ -1,5 +1,20 @@
 # Registered profile coordinates
 
+## Optional wholesale pricing
+
+Run `20261005_product_wholesale_pricing.sql` before deploying the dual-price API
+to an existing project. New installations use `supabase/schema.sql`.
+The migration adds nullable wholesale price/minimum columns and validates that
+enabled tiers have a positive price below retail and a positive minimum. Existing
+retail prices and wholesale-only listing prices/MOQs are unchanged.
+
+The saved wholesale price applies to every unit in an order when its quantity
+reaches the saved minimum. Retail discounts must leave the retail price above
+the wholesale price. Stock may fall below the minimum after sales without
+removing the tier; new or changed minimums must fit available stock.
+The shared calculation lives in `backend/shared/pricing.js` so it is included
+in the backend's standalone Render deployment and imported by the frontend.
+
 ## Consolidating user profiles
 
 `public.profiles` is the canonical account table. All application account

@@ -28,7 +28,7 @@ const DELIVERY_METHOD_LOGOS = {
 
 
 export default function OrderSummaryPanel({
-  product, quantity, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
+  product, quantity, unitPrice, isWholesalePrice, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
   isSubmitting, orderPlaced, isGcash, paymentMethod,
 }) {
@@ -48,8 +48,11 @@ export default function OrderSummaryPanel({
             <span className="checkout-summary-item-total">{formatCurrency(subtotal)}</span>
           </div>
           <span className="checkout-summary-item-calc">
-            {quantityNumber > 0 ? `${formatQuantity(quantityNumber)} ${product.unit} × ${formatCurrency(product.price)}` : `No quantity entered yet`}
+            {quantityNumber > 0 ? `${formatQuantity(quantityNumber)} ${product.unit} × ${formatCurrency(unitPrice)}` : `No quantity entered yet`}
           </span>
+          {quantityNumber > 0 && isWholesalePrice ? (
+            <span className="checkout-summary-wholesale-note">Wholesale price applied</span>
+          ) : null}
         </div>
 
         <div className="checkout-summary-delivery">

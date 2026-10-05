@@ -9,6 +9,7 @@ import { useCart } from '../../contexts/CartContext';
 import { getProductById } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import { getApplicableUnitPrice } from '../../../backend/shared/pricing.js';
 
 
 
@@ -64,7 +65,10 @@ export default function CartPage() {
     const product = productsById[item.productId];
     return product && product.quantity > 0 && product.status === 'active';
   });
-  const total = availableItems.reduce((sum, item) => sum + Number(productsById[item.productId].price) * item.quantity, 0);
+  const total = availableItems.reduce((sum, item) => {
+    const product = productsById[item.productId];
+    return sum + getApplicableUnitPrice(product, item.quantity) * item.quantity;
+  }, 0);
 
   return (
     <AppShell

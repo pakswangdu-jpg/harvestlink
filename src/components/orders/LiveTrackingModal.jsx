@@ -12,12 +12,15 @@ import {
 } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
-import { haversineKm, resolveRoutePoints } from '../../utils/geo';
-import { distanceToPolylineKm } from '../../services/routingService';
-import { fetchGoogleRoute } from '../../services/googleDirectionsService';
+import {
+  getRegisteredCoordinates,
+  haversineKm,
+} from '../../utils/geo';
+import { useTrafficNavigation } from '../../hooks/useTrafficNavigation';
+import TrafficRouteNotice from './TrafficRouteNotice';
 import { advanceDelivery, getLiveTransitProgress, getNextDeliveryStatus } from '../../services/orderService';
+import { getUserById } from '../../services/authService';
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
-import { useSocketLocationSharing } from '../../hooks/useSocketLocationSharing';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatRelativeTime, getInitials } from '../../utils/formatters';
 import deliveryTruckIcon from '../../assets/icons/delivery-truck.png';
@@ -25,6 +28,7 @@ import deliveryVanIcon from '../../assets/icons/harvestlink-delivery-van.png?inl
 import {
   buildVehicleMarkerSvg,
   getContinuousVehicleHeading,
+  requestDeviceOrientationPermission,
   resolveVehicleHeading,
   VEHICLE_MARKER_HEIGHT_PX,
   VEHICLE_MARKER_WIDTH_PX,
@@ -47,10 +51,6 @@ const MARKER_ANIMATION_DURATION_MS = 1200;
 const ROUTE_LINE_COLOR = '#1a73e8';
 
 
-
-const ROUTE_REFRESH_MIN_INTERVAL_MS = 20000;
-const ROUTE_REFRESH_MIN_MOVE_KM = 0.05;
-const ROUTE_DEVIATION_KM = 0.08;
 
 function buildPinIcon(mapsApi, color) {
   const svg = `<svg width="26" height="34" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
@@ -98,10 +98,11 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const truckEntryRef = useRef(null);
   const vehicleHeadingRef = useRef(0);
   const lastVehicleHeadingPositionRef = useRef(null);
-  const routeMetaRef = useRef(null);
+  const trafficLayerRef = useRef(null);
+  const [trafficEnabled, setTrafficEnabled] = useState(true);
   const [mapReady, setMapReady] = useState(false);
-  const [googleRoute, setGoogleRoute] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [profileLoad, setProfileLoad] = useState(null);
   const [farmerMarkedComplete, setFarmerMarkedComplete] = useState(false);
   const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
   const { effectiveTheme } = useTheme();
@@ -111,34 +112,61 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  const { livePosition, connectionStatus } = useOrderTrackingSocket(order.id);
-  const {
-    isSharing,
-    error: shareError,
-    start: startSharing,
-    stop: stopSharing,
-    requestOrientationPermission,
-  } = useSocketLocationSharing(order.id);
+  const { livePosition, connectionStatus } = useOrderTrackingSocket(order.id, order);
 
-  const transit = getLiveTransitProgress(order);
-  const { origin, destination, isPickup } = resolveRoutePoints({
-    id: order.id,
-    originMunicipality: order.originMunicipality,
-    destinationMunicipality: order.deliveryMunicipality,
-    deliveryMethod: order.deliveryMethod,
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getUserById(order.farmerId), getUserById(order.buyerId)])
+      .then(([farmer, buyer]) => {
+        if (cancelled) return;
+        setProfileLoad({
+          farmerId: order.farmerId,
+          buyerId: order.buyerId,
+          farmer,
+          buyer,
+          error: !getRegisteredCoordinates(farmer) || !getRegisteredCoordinates(buyer)
+            ? 'Saved Farmer and Buyer profile coordinates are required for delivery tracking.'
+            : '',
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setProfileLoad({
+          farmerId: order.farmerId,
+          buyerId: order.buyerId,
+          error: error.message || 'Could not load the saved delivery locations.',
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order.farmerId, order.buyerId]);
+
+  const hasLoadedProfiles = profileLoad?.farmerId === order.farmerId
+    && profileLoad?.buyerId === order.buyerId;
+  const farmerProfile = hasLoadedProfiles ? profileLoad.farmer : null;
+  const buyerProfile = hasLoadedProfiles ? profileLoad.buyer : null;
+  const profileLocationError = hasLoadedProfiles ? profileLoad.error : '';
+  const origin = getRegisteredCoordinates(farmerProfile);
+  const destination = getRegisteredCoordinates(buyerProfile);
+  const isPickup = order.deliveryMethod === 'buyer_pickup';
+  const transit = getLiveTransitProgress(order, { origin, destination });
+  const isSharing = transit.isInTransit;
+  const currentPosition = livePosition;
+  const profileStartPosition = !isPickup && !['completed', 'cancelled'].includes(order.status) ? origin : null;
+  const vehiclePosition = currentPosition || profileStartPosition;
+  const navigation = useTrafficNavigation({
+    orderId: order.id,
+    origin: isPickup ? destination : origin,
+    destination: isPickup ? origin : destination,
+    position: currentPosition,
+    locationUpdatedAt: currentPosition?.locationUpdatedAt,
+    active: transit.isInTransit && !isPickup,
   });
-
-
-
-
-  const currentPosition = livePosition || transit.currentPosition;
-  const remainingKm = currentPosition ? haversineKm(currentPosition, destination) : null;
-  const averageSpeedKmh = googleRoute?.distanceKm && googleRoute?.durationMinutes
-    ? googleRoute.distanceKm / (googleRoute.durationMinutes / 60)
-    : transit.averageSpeedKmh;
-  const etaMinutes = remainingKm != null && averageSpeedKmh
-    ? Math.max(0, Math.ceil((remainingKm / averageSpeedKmh) * 60))
-    : transit.etaMinutes;
+  const googleRoute = navigation.selected;
+  const remainingKm = !navigation.stale ? googleRoute?.distanceKm ?? null : null;
+  const etaMinutes = !navigation.stale && googleRoute?.durationMinutes != null
+    ? Math.max(0, Math.ceil(googleRoute.durationMinutes)) : null;
   const isNearDestination = remainingKm != null ? remainingKm <= NEAR_DESTINATION_KM_THRESHOLD : transit.isNearDestination;
   const nextStep = getNextDeliveryStatus(order);
   const isDelivered = order.status === 'completed';
@@ -157,17 +185,20 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
 
 
 
-  const tripDistanceKm = googleRoute?.distanceKm ?? haversineKm(origin, destination);
+  const tripDistanceKm = origin && destination
+    ? (googleRoute?.distanceKm ?? haversineKm(origin, destination))
+    : null;
   const tripElapsedMinutes = order.transitStartedAt && order.updatedAt
     ? (new Date(order.updatedAt).getTime() - new Date(order.transitStartedAt).getTime()) / 60000
     : null;
 
 
-  const completedAverageSpeedKmh = tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
+  const completedAverageSpeedKmh = tripDistanceKm != null && tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
     ? tripDistanceKm / (tripElapsedMinutes / 60)
     : null;
 
-  const activeSpeedKmh = livePosition?.speed ?? transit.currentPosition?.speed ?? averageSpeedKmh;
+  const gpsSpeed = currentPosition?.speed;
+  const activeSpeedKmh = Number.isFinite(gpsSpeed) ? Math.max(0, gpsSpeed * 3.6) : null;
   const etaValue = etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—';
   const distanceValue = isDelivered ? '0.0 km' : (remainingKm != null ? `${remainingKm.toFixed(1)} km` : '—');
   const speedValue = isDelivered
@@ -219,12 +250,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
 
 
   useEffect(() => {
-    if (!transit.isInTransit) stopSharing();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transit.isInTransit]);
-
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return undefined;
+    if (!containerRef.current || mapRef.current || !origin || !destination) return undefined;
     let cancelled = false;
     loadGoogleMaps().then((mapsApi) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
@@ -238,13 +264,15 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
+      if (typeof mapsApi.TrafficLayer === 'function') trafficLayerRef.current = new mapsApi.TrafficLayer();
       setMapReady(true);
     });
     return () => {
       cancelled = true;
     };
+    // Profile coordinates are intentionally the only map initialization trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng, effectiveTheme]);
 
 
 
@@ -257,35 +285,16 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
 
 
   useEffect(() => {
-    if (!currentPosition || isPickup) return undefined;
-    let cancelled = false;
-    const meta = routeMetaRef.current;
-    const now = Date.now();
+    if (!mapReady || !trafficLayerRef.current) return;
+    trafficLayerRef.current.setMap(trafficEnabled && transit.isInTransit ? mapRef.current : null);
+  }, [mapReady, trafficEnabled, transit.isInTransit]);
 
-    const shouldFetch = !meta || (
-      distanceToPolylineKm(currentPosition, meta.points) > ROUTE_DEVIATION_KM
-        ? now - meta.fetchedAt > 8000
-        : now - meta.fetchedAt > ROUTE_REFRESH_MIN_INTERVAL_MS && haversineKm(meta.fetchedFrom, currentPosition) > ROUTE_REFRESH_MIN_MOVE_KM
-    );
-    if (!shouldFetch) return undefined;
-
-    fetchGoogleRoute(currentPosition, destination).then((result) => {
-      if (cancelled || !result) return;
-      routeMetaRef.current = { fetchedAt: Date.now(), fetchedFrom: currentPosition, points: result.points };
-      setGoogleRoute(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPosition?.lat, currentPosition?.lng, isPickup]);
-
-
+  useEffect(() => () => trafficLayerRef.current?.setMap(null), []);
 
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!mapReady || !map || !mapsApi) return;
+    if (!mapReady || !map || !mapsApi || !origin || !destination) return;
 
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
@@ -294,32 +303,32 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildPinIcon(mapsApi, MAP_COLORS.destination), title: order.buyerName });
     layerRef.current.push(originMarker, destinationMarker);
 
-    const pathPoints = googleRoute?.points?.length > 1
-      ? googleRoute.points
-      : currentPosition
-        ? [currentPosition, destination]
-        : [origin, destination];
+    const pathPoints = googleRoute?.points || [];
+    (navigation.alternatives || []).forEach((route) => {
+      const line = new mapsApi.Polyline({ path: route.points, strokeColor: '#9aa0a6', strokeWeight: 4, strokeOpacity: 0.7, map, zIndex: 1 });
+      layerRef.current.push(line);
+    });
 
-    const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, map });
-    const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_LINE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, map });
+    const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, map, zIndex: 2 });
+    const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_LINE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, map, zIndex: 3 });
     layerRef.current.push(casing, routeLine);
 
-    if (currentPosition && !isPickup) {
+    if (vehiclePosition && !isPickup) {
       const previousHeading = vehicleHeadingRef.current;
       const resolvedHeading = resolveVehicleHeading({
         previousPosition: lastVehicleHeadingPositionRef.current,
-        currentPosition,
+        currentPosition: vehiclePosition,
         lastHeading: vehicleHeadingRef.current,
-        deviceHeading: currentPosition.deviceHeading,
-        gpsHeading: currentPosition.heading,
+        deviceHeading: vehiclePosition.deviceHeading,
+        gpsHeading: vehiclePosition.heading,
       });
       vehicleHeadingRef.current = resolvedHeading.heading;
-      if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+      if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
       const renderedHeading = getContinuousVehicleHeading(previousHeading, resolvedHeading.heading);
 
       if (!truckEntryRef.current) {
         const marker = new mapsApi.Marker({
-          position: currentPosition,
+          position: vehiclePosition,
           map,
           icon: buildTruckIcon(mapsApi, vehicleHeadingRef.current),
         });
@@ -327,33 +336,33 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
       } else {
         truckEntryRef.current.marker.setMap(map);
         truckEntryRef.current.marker.setIcon(buildTruckIcon(mapsApi, renderedHeading, previousHeading));
-        animateMarkerTo(truckEntryRef.current, currentPosition);
+        animateMarkerTo(truckEntryRef.current, vehiclePosition);
       }
     }
 
     const bounds = new mapsApi.LatLngBounds();
     bounds.extend(origin);
     bounds.extend(destination);
-    if (currentPosition) bounds.extend(currentPosition);
+    if (vehiclePosition) bounds.extend(vehiclePosition);
     map.fitBounds(bounds, 48);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, googleRoute, currentPosition?.lat, currentPosition?.lng]);
+  }, [mapReady, googleRoute, navigation.alternatives, currentPosition?.lat, currentPosition?.lng, vehiclePosition?.lat, vehiclePosition?.lng, origin?.lat, origin?.lng, destination?.lat, destination?.lng, isPickup]);
 
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!mapReady || !map || !mapsApi || !currentPosition || isPickup || !truckEntryRef.current) return;
+    if (!mapReady || !map || !mapsApi || !vehiclePosition || isPickup || !truckEntryRef.current) return;
 
     const previousHeading = vehicleHeadingRef.current;
     const resolvedHeading = resolveVehicleHeading({
       previousPosition: lastVehicleHeadingPositionRef.current,
-      currentPosition,
+      currentPosition: vehiclePosition,
       lastHeading: previousHeading,
-      deviceHeading: currentPosition.deviceHeading,
-      gpsHeading: currentPosition.heading,
+      deviceHeading: vehiclePosition.deviceHeading,
+      gpsHeading: vehiclePosition.heading,
     });
     vehicleHeadingRef.current = resolvedHeading.heading;
-    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
     const renderedHeading = getContinuousVehicleHeading(previousHeading, resolvedHeading.heading);
     if (renderedHeading === previousHeading) return;
     truckEntryRef.current.marker.setIcon(buildTruckIcon(
@@ -361,7 +370,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
       renderedHeading,
       previousHeading,
     ));
-  }, [mapReady, currentPosition, currentPosition?.heading, currentPosition?.deviceHeading, isPickup]);
+  }, [mapReady, vehiclePosition, vehiclePosition?.heading, vehiclePosition?.deviceHeading, isPickup]);
 
   useEffect(() => {
     return () => {
@@ -372,18 +381,16 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
   const handleStartDelivery = async (plateNumber) => {
     setIsStartDeliveryDialogOpen(false);
     setActionError('');
-    await requestOrientationPermission();
+    await requestDeviceOrientationPermission();
     try {
       const updated = await advanceDelivery(order.id, plateNumber);
       onOrderUpdate?.(updated);
-      await startSharing();
     } catch (error) {
       setActionError(error.message);
     }
   };
 
   const handleCompleteDelivery = () => {
-    stopSharing();
     setFarmerMarkedComplete(true);
   };
 
@@ -469,10 +476,16 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
                 {mapConnectionLabel}
               </span>
             </div>
+            {transit.isInTransit && mapReady ? (
+              <button type="button" className="btn btn-secondary btn-sm" aria-pressed={trafficEnabled} onClick={() => setTrafficEnabled((value) => !value)}>
+                Google traffic {trafficEnabled ? 'on' : 'off'}
+              </button>
+            ) : null}
+            <TrafficRouteNotice navigation={navigation} allowChoice={isFarmer && transit.isInTransit && !isPickup} />
             <ul className="tracking-map-legend" aria-label="Map markers">
               <li><span className="is-origin" aria-hidden="true" />Farmer / origin</li>
               <li><span className="is-destination" aria-hidden="true" />Buyer / destination</li>
-              {currentPosition && !isPickup ? <li><span className="is-driver" aria-hidden="true" />Driver</li> : null}
+              {vehiclePosition && !isPickup ? <li><span className="is-driver" aria-hidden="true" />Driver</li> : null}
               <li><span className="is-route" aria-hidden="true" />Route</li>
             </ul>
             <div
@@ -525,9 +538,9 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
             </p>
           ) : null}
 
-          {actionError ? <div className="form-alert error">{actionError}</div> : null}
-          {shareError ? <div className="form-alert error">{shareError}</div> : null}
-
+          {actionError || profileLocationError
+            ? <div className="form-alert error">{actionError || profileLocationError}</div>
+            : null}
           {isFarmer && !isPickup ? (
             <div className="tracking-farmer-actions">
               {nextStep === 'out_for_delivery' ? (

@@ -21,7 +21,9 @@ export default function NoMarketDataCard() {
           Historical Prices <span className="badge badge-unavailable">Unavailable</span>
         </span>
       </div>
-      <p className="price-analysis-prompt">Enter your Cost per Unit to generate a Cost-Based Estimate.</p>
+      <p className="price-analysis-prompt">
+        Enter your Cost per Unit to generate a Cost-Based Estimate. You can still enter retail and wholesale prices manually.
+      </p>
     </div>
   );
 }

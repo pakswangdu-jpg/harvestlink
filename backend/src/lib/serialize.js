@@ -79,6 +79,8 @@ export function serializeProduct(row, farmerInfo = {}) {
     sellingType: row.selling_type,
     moq: row.moq == null ? null : Number(row.moq),
     price: Number(row.price),
+    wholesalePrice: row.wholesale_price == null ? null : Number(row.wholesale_price),
+    wholesaleMinQuantity: row.wholesale_min_quantity == null ? null : Number(row.wholesale_min_quantity),
     unit: row.unit,
     kgPerUnit: row.kg_per_unit == null ? null : Number(row.kg_per_unit),
     quantity: Number(row.quantity),

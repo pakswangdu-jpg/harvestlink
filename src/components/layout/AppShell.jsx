@@ -9,6 +9,8 @@ import SidebarNavItem, { SIDEBAR_ICON_STROKE } from './SidebarNavItem';
 import SidebarUserCard from './SidebarUserCard';
 import MobileBottomNav from './MobileBottomNav';
 import ThemeToggle from '../common/ThemeToggle';
+import LocationPermissionNotice from '../common/LocationPermissionNotice';
+import { useLocationPermission } from '../../hooks/useLocationPermission';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { useLogout } from '../../hooks/useLogout';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
@@ -48,15 +50,16 @@ export default function AppShell({
     });
   };
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
+  const locationAccess = useLocationPermission(hasProfile);
 
 
 
-  const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null);
+  const { error: locationSharingError } = useFarmerActiveDeliverySharing(user.role === 'farmer' ? user.id : null, locationAccess.permission);
 
 
 
 
-  const { error: pickupSharingError } = useBuyerActivePickupSharing(['buyer', 'stakeholder'].includes(user.role) ? user.id : null);
+  const { error: pickupSharingError } = useBuyerActivePickupSharing(['buyer', 'stakeholder'].includes(user.role) ? user.id : null, locationAccess.permission);
 
 
   const navItemsWithBadges = useNavItemsWithBadges(user, navItems);
@@ -256,6 +259,7 @@ export default function AppShell({
             </div>
           </header>
         ) : null}
+        {hasProfile ? <LocationPermissionNotice role={user.role} {...locationAccess} /> : null}
         {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}
         {pickupSharingError ? <div className="form-alert error">{pickupSharingError}</div> : null}
         {children}

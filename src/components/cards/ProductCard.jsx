@@ -1,3 +1,4 @@
+import { hasWholesalePricing } from '../../../backend/shared/pricing.js';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -45,7 +46,8 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const inCart = isInCart(product.id);
 
   const handleAddToCart = () => {
-    addItem(product.id, product.quantity, 1);
+    const minimum = product.sellingType === 'wholesale' && product.moq ? Number(product.moq) : 1;
+    addItem(product.id, product.quantity, minimum);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), ADDED_FEEDBACK_MS);
     showToast({
@@ -174,6 +176,12 @@ export default function ProductCard({ product, actions, showStatus = false, clas
               ) : null}
             </div>
           </div>
+
+          {hasWholesalePricing(product) ? (
+            <p className="product-card-wholesale-price">
+              Wholesale available: {formatCurrency(product.wholesalePrice)}/{product.unit} for {formatQuantity(product.wholesaleMinQuantity)}+ {product.unit}
+            </p>
+          ) : null}
 
           {product.sellingType === 'wholesale' && product.moq ? (
             <p className="text-[13px] text-[var(--muted)]">Min. order (MOQ): {formatQuantity(product.moq)} {product.unit}</p>

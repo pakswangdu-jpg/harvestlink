@@ -263,7 +263,7 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
 
 
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'wholesalePrice', 'wholesaleMinQuantity', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 function focusFirstError(errors) {
   const firstField = FIELD_ORDER.find((field) => errors[field]);
@@ -294,6 +294,9 @@ function buildDefaultValues(product, currentUser) {
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
+    wholesaleEnabled: product?.sellingType !== 'wholesale' && product?.wholesalePrice != null,
+    wholesalePrice: product?.wholesalePrice ?? '',
+    wholesaleMinQuantity: product?.wholesaleMinQuantity ?? '',
 
 
     markupPercent: RECOMMENDED_MARGIN_PERCENT,
@@ -449,7 +452,12 @@ export default function ProductForm({
   const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice <= costNum;
 
   const updateField = (field, value) => {
-    setValues((previous) => ({ ...previous, [field]: value }));
+    setValues((previous) => ({
+      ...previous,
+      [field]: value,
+      ...((field === 'sellingType' && value === 'wholesale') || (field === 'isDonation' && value)
+        ? { wholesaleEnabled: false, wholesalePrice: '', wholesaleMinQuantity: '' } : {}),
+    }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
 
@@ -475,7 +483,7 @@ export default function ProductForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const nextErrors = validateProductForm(values, availableUnits);
+    const nextErrors = validateProductForm(values, availableUnits, product);
     if (hasErrors(nextErrors)) {
       setErrors(nextErrors);
       focusFirstError(nextErrors);
@@ -604,6 +612,58 @@ export default function ProductForm({
               placeholder="50"
             />
           </FormField>
+        ) : null}
+
+        {!values.isDonation && !isWholesale ? (
+          <div className="wholesale-pricing-toggle-wrap">
+            <label className="donation-toggle">
+              <input
+                type="checkbox"
+                checked={Boolean(values.wholesaleEnabled)}
+                onChange={(event) => updateField('wholesaleEnabled', event.target.checked)}
+              />
+              <div>
+                <strong>Offer a lower price for bulk orders</strong>
+                <span> Buyers ordering the minimum quantity will receive the saved wholesale price.</span>
+              </div>
+            </label>
+            {values.wholesaleEnabled ? (
+              <div className="form-grid">
+                <FormField
+                  label="Wholesale minimum quantity"
+                  name="wholesaleMinQuantity"
+                  error={errors.wholesaleMinQuantity}
+                  helper={`Must not exceed ${values.quantity || 0} ${values.unit || 'units'} available.`}
+                >
+                  <input
+                    id="wholesaleMinQuantity"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={values.wholesaleMinQuantity}
+                    onChange={(event) => updateField('wholesaleMinQuantity', event.target.value)}
+                    placeholder="10"
+                  />
+                </FormField>
+                <FormField
+                  label="Wholesale price per unit"
+                  name="wholesalePrice"
+                  error={errors.wholesalePrice}
+                  helper={`Applied to orders of at least ${values.wholesaleMinQuantity || 'the minimum'} ${values.unit || 'units'}.`}
+                >
+                  <input
+                    id="wholesalePrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={values.wholesalePrice}
+                    onChange={(event) => updateField('wholesalePrice', event.target.value)}
+                    placeholder="48.00"
+                  />
+                </FormField>
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="form-grid three">
@@ -738,6 +798,7 @@ export default function ProductForm({
               </p>
               {hasKgConversion ? (
                 <PriceRecommendationBreakdown
+                  sellingType={values.sellingType}
                   unit={values.unit}
                   kgPerUnitValue={kgPerUnitValue}
                   referencePrice={marketReference.referencePrice}
@@ -745,6 +806,12 @@ export default function ProductForm({
                   recommendedPrice={recommendedPrice}
                   costPrice={values.costPrice}
                   onUsePrice={(price) => updateField('price', String(price))}
+                  wholesaleEnabled={Boolean(values.wholesaleEnabled)}
+                  availableQuantity={values.quantity}
+                  onUseWholesalePrice={({ price, minimumQuantity }) => {
+                    updateField('wholesalePrice', String(price));
+                    updateField('wholesaleMinQuantity', String(minimumQuantity));
+                  }}
                 />
               ) : (
                 <p className="price-analysis-prompt">
@@ -769,9 +836,17 @@ export default function ProductForm({
             />
           ) : historicalAnalysis ? (
             <HistoricalMarketAnalysisCard
+              sellingType={values.sellingType}
               analysis={historicalAnalysis}
               unit={values.unit}
               onUsePrice={(price) => updateField('price', String(price))}
+              wholesaleEnabled={Boolean(values.wholesaleEnabled)}
+              costPrice={values.costPrice}
+              availableQuantity={values.quantity}
+              onUseWholesalePrice={({ price, minimumQuantity }) => {
+                updateField('wholesalePrice', String(price));
+                updateField('wholesaleMinQuantity', String(minimumQuantity));
+              }}
             />
           ) : costNum > 0 ? (
             <CostBasedEstimateCard
@@ -781,6 +856,12 @@ export default function ProductForm({
               onMarkupChange={(value) => updateField('markupPercent', value)}
               isImplausible={isCostImplausible}
               costPerKg={costPerKg}
+              wholesaleEnabled={Boolean(values.wholesaleEnabled)}
+              availableQuantity={values.quantity}
+              onUseWholesalePrice={({ price, minimumQuantity }) => {
+                updateField('wholesalePrice', String(price));
+                updateField('wholesaleMinQuantity', String(minimumQuantity));
+              }}
             />
           ) : (
             <NoMarketDataCard />

@@ -328,15 +328,17 @@ export default function FarmerDashboard() {
             <Link className="btn btn-secondary btn-md" to="/farmer-orders">Review all</Link>
           </div>
           <DataTable
+            className="farmer-activity-table"
+            responsiveLabels
             columns={[
               { key: 'buyerName', label: 'Buyer', truncate: true },
-              { key: 'productName', label: 'Product', width: '95px', truncate: true },
-              { key: 'paymentMethod', label: 'Payment', width: '112px', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
-              { key: 'status', label: 'Status', width: '84px', render: (row) => <StatusBadge value={row.status} /> },
+              { key: 'productName', label: 'Product', width: '17%', truncate: true },
+              { key: 'paymentMethod', label: 'Payment', width: '22%', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
+              { key: 'status', label: 'Status', width: '16%', render: (row) => <StatusBadge value={row.status} /> },
               {
                 key: 'createdAt',
                 label: 'Date',
-                width: '108px',
+                width: '16%',
                 align: 'right',
                 render: (row) => <span className="muted">{formatDate(row.createdAt)}</span>,
               },

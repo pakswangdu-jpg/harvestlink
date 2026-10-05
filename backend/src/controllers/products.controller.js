@@ -4,6 +4,26 @@ import { assertPlausiblePricePerKg, buildPriceReview, resolveKgPerUnit } from '.
 import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '../lib/historicalPriceService.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
+import { getWholesalePricingErrors } from '../../shared/pricing.js';
+
+function resolveWholesalePricing(values, { price, quantity, unit, sellingType, kgPerUnit }, existing = null) {
+  const enabled = !values.isDonation && sellingType === 'retail'
+    && (values.wholesaleEnabled ?? (existing?.wholesale_price != null));
+  if (!enabled) return { wholesalePrice: null, wholesaleMinQuantity: null };
+
+  const wholesalePrice = Number(values.wholesalePrice !== undefined ? values.wholesalePrice : existing?.wholesale_price);
+  const wholesaleMinQuantity = Number(values.wholesaleMinQuantity !== undefined
+    ? values.wholesaleMinQuantity : existing?.wholesale_min_quantity);
+  const errors = getWholesalePricingErrors({ price, quantity, unit, wholesalePrice, wholesaleMinQuantity }, existing && {
+    price: existing.price,
+    unit: existing.unit,
+    wholesalePrice: existing.wholesale_price,
+    wholesaleMinQuantity: existing.wholesale_min_quantity,
+  });
+  if (Object.keys(errors).length) throw new ApiError(Object.values(errors)[0], 400);
+  assertPlausiblePricePerKg('Wholesale price', wholesalePrice, kgPerUnit);
+  return { wholesalePrice, wholesaleMinQuantity };
+}
 
 
 
@@ -155,6 +175,8 @@ export async function listPublicProducts(req, res) {
     sellingType: product.sellingType,
     moq: product.moq,
     price: product.price,
+    wholesalePrice: product.wholesalePrice,
+    wholesaleMinQuantity: product.wholesaleMinQuantity,
     unit: product.unit,
     kgPerUnit: product.kgPerUnit,
     quantity: product.quantity,
@@ -242,6 +264,10 @@ export async function createProduct(req, res) {
       price = Number((originalPrice * (1 - requestedDiscount / 100)).toFixed(2));
     }
   }
+  const { wholesalePrice, wholesaleMinQuantity } = resolveWholesalePricing(values, {
+    price, quantity: Number(values.quantity), unit: values.unit,
+    sellingType: values.sellingType || 'retail', kgPerUnit,
+  });
 
   const now = new Date().toISOString();
   const row = {
@@ -252,6 +278,8 @@ export async function createProduct(req, res) {
     selling_type: values.sellingType || 'retail',
     moq: values.sellingType === 'wholesale' ? Number(values.moq) : null,
     price,
+    wholesale_price: wholesalePrice,
+    wholesale_min_quantity: wholesaleMinQuantity,
     unit: values.unit,
     kg_per_unit: values.unit === 'kg' ? null : kgPerUnit,
     quantity: Number(values.quantity),
@@ -285,6 +313,8 @@ export async function createProduct(req, res) {
 
 
         price: row.price,
+        wholesale_price: row.wholesale_price,
+        wholesale_min_quantity: row.wholesale_min_quantity,
         moq: row.moq,
         kg_per_unit: row.kg_per_unit,
         location: row.location,
@@ -335,6 +365,9 @@ export async function updateProduct(req, res) {
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
   const sellingType = values.sellingType ?? existing.selling_type;
   const costPrice = values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price;
+  const { wholesalePrice, wholesaleMinQuantity } = resolveWholesalePricing(values, {
+    price, quantity, unit, sellingType, kgPerUnit,
+  }, existing);
 
 
 
@@ -353,6 +386,8 @@ export async function updateProduct(req, res) {
     selling_type: sellingType,
     moq: sellingType === 'wholesale' ? Number(values.moq ?? existing.moq) : null,
     price,
+    wholesale_price: wholesalePrice,
+    wholesale_min_quantity: wholesaleMinQuantity,
     unit,
     kg_per_unit: unit === 'kg' ? null : kgPerUnit,
     quantity,
@@ -409,6 +444,9 @@ export async function applyDiscount(req, res) {
 
   const originalPrice = existing.original_price ?? existing.price;
   const discountedPrice = Number((originalPrice * (1 - percent / 100)).toFixed(2));
+  if (existing.wholesale_price != null && existing.wholesale_price >= discountedPrice) {
+    throw new ApiError('Discount would make the retail price no higher than the wholesale price. Update wholesale pricing first.', 400);
+  }
 
   const { data, error } = await supabaseAdmin
     .from('products')

@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import { DELIVERY_SEQUENCES, getMunicipalityCoords } from '../utils/constants';
 import { haversineKm, resolveRoutePoints } from '../utils/geo';
+import { isFreshLivePosition, positionFromOrder } from '../utils/liveTrackingPosition';
 import { getCachedRoadRoute } from './routingService';
 
 const ASSUMED_TRANSIT_SPEED_KMH = 25;
@@ -9,7 +10,6 @@ const MIN_ESTIMATED_MINUTES = 5;
 
 
 
-const LIVE_LOCATION_FRESHNESS_MS = 3 * 60 * 1000;
 
 
 
@@ -29,7 +29,7 @@ const NEAR_DESTINATION_PROGRESS_THRESHOLD = 0.9;
 
 
 
-export function getLiveTransitProgress(order) {
+export function getLiveTransitProgress(order, registeredRoutePoints = null) {
   const sequence = getDeliverySequence(order.deliveryMethod);
   const stepIndex = Math.max(0, sequence.indexOf(order.deliveryStatus));
   const isFinalStep = stepIndex === sequence.length - 1;
@@ -62,18 +62,23 @@ export function getLiveTransitProgress(order) {
   let destination = null;
   let cachedRoute = null;
   if (isPickup) {
-    origin = getMunicipalityCoords(order.originMunicipality);
+    origin = registeredRoutePoints
+      ? registeredRoutePoints.origin
+      : getMunicipalityCoords(order.originMunicipality);
   } else if (!isCourier) {
-    ({ origin, destination } = resolveRoutePoints({
-      id: order.id,
-      originMunicipality: order.originMunicipality,
-      destinationMunicipality: order.deliveryMunicipality,
-      deliveryMethod: order.deliveryMethod,
-    }));
-    cachedRoute = getCachedRoadRoute(origin, destination);
-    estimatedTotalMinutes = cachedRoute
-      ? Math.max(MIN_ESTIMATED_MINUTES, cachedRoute.durationMinutes)
-      : Math.max(MIN_ESTIMATED_MINUTES, (haversineKm(origin, destination) / ASSUMED_TRANSIT_SPEED_KMH) * 60);
+    const routePoints = registeredRoutePoints || resolveRoutePoints({
+        id: order.id,
+        originMunicipality: order.originMunicipality,
+        destinationMunicipality: order.deliveryMunicipality,
+        deliveryMethod: order.deliveryMethod,
+      });
+    ({ origin, destination } = routePoints);
+    if (origin && destination) {
+      cachedRoute = getCachedRoadRoute(origin, destination);
+      estimatedTotalMinutes = cachedRoute
+        ? Math.max(MIN_ESTIMATED_MINUTES, cachedRoute.durationMinutes)
+        : Math.max(MIN_ESTIMATED_MINUTES, (haversineKm(origin, destination) / ASSUMED_TRANSIT_SPEED_KMH) * 60);
+    }
   }
 
 
@@ -96,14 +101,14 @@ export function getLiveTransitProgress(order) {
   const stepStartProgress = stepIndex / (sequence.length - 1);
   const stepEndProgress = (stepIndex + 1) / (sequence.length - 1);
 
-  const hasFreshGps = order.currentLat != null && order.currentLng != null && order.locationUpdatedAt
-    && Date.now() - new Date(order.locationUpdatedAt).getTime() < LIVE_LOCATION_FRESHNESS_MS;
+  const livePosition = positionFromOrder(order);
+  const hasFreshGps = livePosition && isFreshLivePosition(livePosition);
 
   if (hasFreshGps) {
 
 
 
-    const currentPosition = { lat: order.currentLat, lng: order.currentLng, heading: order.currentHeading, speed: order.currentSpeed };
+    const currentPosition = livePosition;
 
 
 
@@ -112,22 +117,24 @@ export function getLiveTransitProgress(order) {
 
 
     if (isPickup) {
-      const remainingKm = haversineKm(currentPosition, origin);
-      const etaMinutes = Math.max(0, Math.ceil((remainingKm / ASSUMED_TRANSIT_SPEED_KMH) * 60));
-      const isNearDestination = remainingKm <= NEAR_DESTINATION_KM_THRESHOLD;
+      const remainingKm = origin ? haversineKm(currentPosition, origin) : null;
+      const etaMinutes = remainingKm == null
+        ? null
+        : Math.max(0, Math.ceil((remainingKm / ASSUMED_TRANSIT_SPEED_KMH) * 60));
+      const isNearDestination = remainingKm != null && remainingKm <= NEAR_DESTINATION_KM_THRESHOLD;
       return {
         progress: stepStartProgress, etaMinutes, estimatedTotalMinutes, isInTransit: true, currentPosition, isLiveGps: true,
         remainingKm, averageSpeedKmh: ASSUMED_TRANSIT_SPEED_KMH, isNearDestination,
       };
     }
 
-    const remainingKm = haversineKm(currentPosition, destination);
-    const totalKm = cachedRoute?.distanceKm ?? haversineKm(origin, destination);
+    const remainingKm = destination ? haversineKm(currentPosition, destination) : null;
+    const totalKm = cachedRoute?.distanceKm ?? (origin && destination ? haversineKm(origin, destination) : 0);
     const averageSpeedKmh = cachedRoute ? cachedRoute.distanceKm / (cachedRoute.durationMinutes / 60) : ASSUMED_TRANSIT_SPEED_KMH;
-    const transitFraction = totalKm > 0 ? Math.min(1, Math.max(0, 1 - remainingKm / totalKm)) : 1;
-    const etaMinutes = Math.max(0, Math.ceil((remainingKm / averageSpeedKmh) * 60));
+    const transitFraction = remainingKm != null && totalKm > 0 ? Math.min(1, Math.max(0, 1 - remainingKm / totalKm)) : 0;
+    const etaMinutes = remainingKm == null ? null : Math.max(0, Math.ceil((remainingKm / averageSpeedKmh) * 60));
     const progress = stepStartProgress + (stepEndProgress - stepStartProgress) * transitFraction;
-    const isNearDestination = remainingKm <= NEAR_DESTINATION_KM_THRESHOLD;
+    const isNearDestination = remainingKm != null && remainingKm <= NEAR_DESTINATION_KM_THRESHOLD;
     return {
       progress, etaMinutes, estimatedTotalMinutes, isInTransit: true, currentPosition, isLiveGps: true,
       remainingKm, averageSpeedKmh, isNearDestination,
@@ -145,6 +152,12 @@ export function getLiveTransitProgress(order) {
     };
   }
 
+  if (estimatedTotalMinutes == null) {
+    return {
+      progress: stepStartProgress, etaMinutes: null, estimatedTotalMinutes, isInTransit: true, currentPosition: null, isLiveGps: false,
+      remainingKm: null, averageSpeedKmh: null, isNearDestination: false,
+    };
+  }
 
 
 

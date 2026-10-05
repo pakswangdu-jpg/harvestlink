@@ -1,5 +1,6 @@
 import { TriangleAlert } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
+import WholesalePriceRecommendation from './WholesalePriceRecommendation';
 
 function Row({ label, value, emphasize }) {
   return (
@@ -18,6 +19,7 @@ function Row({ label, value, emphasize }) {
 
 export default function CostBasedEstimateCard({
   costPrice, unit, markupPercent, onMarkupChange, isImplausible, costPerKg,
+  wholesaleEnabled, availableQuantity, onUseWholesalePrice,
 }) {
   if (isImplausible) {
     return (
@@ -65,6 +67,15 @@ export default function CostBasedEstimateCard({
             <Row label="Estimated Selling Price" value={`${formatCurrency(sellingPrice)}/${unit}`} emphasize />
             <Row label="Estimated Profit" value={formatCurrency(profit)} emphasize />
             <Row label="Profit Margin" value={`${margin.toFixed(1)}%`} />
+            {wholesaleEnabled ? (
+              <WholesalePriceRecommendation
+                retailPrice={sellingPrice}
+                costPrice={costPrice}
+                availableQuantity={availableQuantity}
+                unit={unit}
+                onUseRecommendation={onUseWholesalePrice}
+              />
+            ) : null}
           </>
         ) : null}
       </div>
