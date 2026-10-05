@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
 import { DARK_MAP_STYLE, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
+import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
+import { isFreshLivePosition } from '../../utils/liveTrackingPosition';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
-import { haversineKm } from '../../utils/geo';
-import { distanceToPolylineKm, nearestIndexOnPath } from '../../services/routingService';
-import { fetchGoogleRoute, fetchNavigationRoute } from '../../services/googleDirectionsService';
+import { haversineKm, validateCoordinates } from '../../utils/geo';
+import { nearestIndexOnPath } from '../../services/routingService';
+import { useTrafficNavigation } from '../../hooks/useTrafficNavigation';
+import TrafficRouteNotice from './TrafficRouteNotice';
 import { getLiveTransitProgress } from '../../services/orderService';
-import { getUserById } from '../../services/authService';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { useOrderConnectionStatus } from '../../hooks/useOrderConnectionStatus';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -46,21 +49,13 @@ import DriverConnectionBadge from './DriverConnectionBadge';
 
 
 const ROUTE_COLOR = '#1a73e8';
-const ROUTE_SLOW_COLOR = '#f59e0b';
-const ROUTE_JAM_COLOR = '#ef4444';
 const ROUTE_TRAVELED_COLOR = '#9aa0a6';
 const ROUTE_DELIVERED_COLOR = '#16a34a';
 const ROUTE_SHADOW_COLOR = '#4c1d95';
 const ROUTE_ALT_COLOR = '#c7cbd1';
-const SPEED_ROUTE_COLORS = { NORMAL: ROUTE_COLOR, SLOW: ROUTE_SLOW_COLOR, TRAFFIC_JAM: ROUTE_JAM_COLOR };
 
 const ARRIVED_KM_THRESHOLD = 0.03;
 
-
-
-const ROUTE_REFRESH_MIN_INTERVAL_MS = 20000;
-const ROUTE_REFRESH_MIN_MOVE_KM = 0.05;
-const ROUTE_DEVIATION_KM = 0.08;
 
 
 
@@ -190,137 +185,132 @@ function animateMarkerTo(entry, targetPosition, durationMs = VEHICLE_MARKER_ANIM
   entry.animationFrameId = requestAnimationFrame(step);
 }
 
-export default function LiveDeliveryMap({ order, destinationMunicipalityOverride, onRouteUpdate, deliveryStatusBadge }) {
+export default function LiveDeliveryMap({
+  order,
+  farmerProfile,
+  buyerProfile,
+  destinationMunicipalityOverride,
+  onRouteUpdate,
+  deliveryStatusBadge,
+  canChooseAlternative = false,
+  navigationEnabled = true,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const mapsApiRef = useRef(null);
+  const trafficLayerRef = useRef(null);
   const layerRef = useRef([]);
   const carEntryRef = useRef(null);
-  const routeMetaRef = useRef(null);
   const headingRef = useRef(0);
   const lastHeadingPositionRef = useRef(null);
   const vehicleHeadingRef = useRef(0);
   const lastVehicleHeadingPositionRef = useRef(null);
   const autoEnabledRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
-  const [googleRoute, setGoogleRoute] = useState(null);
   const [autoFollow, setAutoFollow] = useState(false);
-
-  const [farmerProfile, setFarmerProfile] = useState(null);
-  const [buyerProfile, setBuyerProfile] = useState(null);
+  const [trafficAvailable, setTrafficAvailable] = useState(false);
+  const [trafficControl] = useState(() => {
+    const control = document.createElement('div');
+    control.className = 'nav-map-traffic-control';
+    control.index = -1;
+    return control;
+  });
+  const [trafficOverride, setTrafficOverride] = useState(null);
 
   const hasVectorMap = Boolean(GOOGLE_MAPS_MAP_ID);
   const { effectiveTheme } = useTheme();
 
-  useEffect(() => {
-    let cancelled = false;
-    getUserById(order.farmerId).then((profile) => { if (!cancelled) setFarmerProfile(profile); }).catch(() => {});
-    getUserById(order.buyerId).then((profile) => { if (!cancelled) setBuyerProfile(profile); }).catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [order.farmerId, order.buyerId]);
-
   const destinationMunicipality = destinationMunicipalityOverride || order.deliveryMunicipality;
 
-
-
-
-
-
   const people = useMemo(() => [
-    { id: order.farmerId, address: farmerProfile?.address, municipality: order.originMunicipality },
-    { id: order.buyerId, address: buyerProfile?.address, municipality: destinationMunicipality },
-  ], [order.farmerId, order.buyerId, farmerProfile?.address, buyerProfile?.address, order.originMunicipality, destinationMunicipality]);
-  const coordsById = useMapCoordinates(people);
+    {
+      id: order.farmerId,
+      latitude: farmerProfile?.latitude,
+      longitude: farmerProfile?.longitude,
+      address: farmerProfile?.address,
+      municipality: order.originMunicipality,
+    },
+    {
+      id: order.buyerId,
+      latitude: buyerProfile?.latitude,
+      longitude: buyerProfile?.longitude,
+      address: buyerProfile?.address,
+      municipality: destinationMunicipality,
+    },
+  ], [
+    order.farmerId,
+    order.buyerId,
+    farmerProfile?.latitude,
+    farmerProfile?.longitude,
+    farmerProfile?.address,
+    buyerProfile?.latitude,
+    buyerProfile?.longitude,
+    buyerProfile?.address,
+    order.originMunicipality,
+    destinationMunicipality,
+  ]);
+  const coordsById = useMapCoordinates(people, { registeredOnly: true });
   const origin = coordsById[order.farmerId];
   const destination = coordsById[order.buyerId];
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
-
-
-
-
-
-
   const travelOrigin = isPickup ? destination : origin;
   const travelDestination = isPickup ? origin : destination;
-
-
-
-
   const sharerLabel = isPickup ? 'Buyer' : 'Driver';
-  const connectionStatus = useOrderConnectionStatus(order.id, { active: !isCourier, lastUpdateAt: order.locationUpdatedAt });
+  const { livePosition } = useOrderTrackingSocket(isCourier ? null : order.id, order);
+  const lastLocationUpdatedAt = livePosition?.locationUpdatedAt || order.locationUpdatedAt;
+  const connectionStatus = useOrderConnectionStatus(order.id, { active: !isCourier, lastUpdateAt: lastLocationUpdatedAt });
 
-  const transit = getLiveTransitProgress(order);
-
-
-  const currentPosition = transit.currentPosition;
+  const transit = getLiveTransitProgress(order, { origin, destination });
   const isDelivered = order.status === 'completed';
-
-
-
+  const currentPosition = transit.isInTransit ? livePosition : null;
+  const hasReceivedGpsCoordinates = Boolean(validateCoordinates(order.currentLat, order.currentLng));
+  const vehiclePosition = currentPosition
+    || (isDelivered ? livePosition : null)
+    || (transit.isInTransit && !isPickup && !hasReceivedGpsCoordinates ? origin : null);
 
   const deliveryState = isDelivered ? 'delivered' : (transit.isInTransit ? 'navigating' : 'preview');
-  const remainingKm = currentPosition ? haversineKm(currentPosition, travelDestination) : null;
-
-
-
-
-  const currentSpeedKmh = currentPosition
-    ? Math.max(0, (Number.isFinite(currentPosition.speed) ? currentPosition.speed : 0) * 3.6)
+  const trafficEnabled = trafficOverride ?? (deliveryState === 'navigating');
+  const navigation = useTrafficNavigation({
+    orderId: order.id,
+    origin: travelOrigin,
+    destination: travelDestination,
+    position: currentPosition,
+    locationUpdatedAt: lastLocationUpdatedAt,
+    active: transit.isInTransit,
+    enabled: navigationEnabled,
+  });
+  const googleRoute = navigation.selected;
+  const remainingKm = !navigation.stale ? googleRoute?.distanceKm ?? null : null;
+  const currentSpeedKmh = currentPosition && isFreshLivePosition(currentPosition) && Number.isFinite(currentPosition.speed)
+    ? Math.max(0, currentPosition.speed * 3.6)
     : null;
-
-  const etaMinutes = googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
+  const etaMinutes = !navigation.stale && googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
   const arrivalLabel = estimatedArrivalLabel(isDelivered ? null : etaMinutes);
-
-
-
-  const tripDistanceKm = googleRoute?.distanceKm ?? haversineKm(origin, destination);
+  const tripDistanceKm = origin && destination
+    ? (googleRoute?.distanceKm ?? haversineKm(origin, destination))
+    : null;
   const tripElapsedMinutes = order.transitStartedAt && order.updatedAt
     ? (new Date(order.updatedAt).getTime() - new Date(order.transitStartedAt).getTime()) / 60000
     : null;
-
-
   const completedAverageSpeedKmh = tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
     ? tripDistanceKm / (tripElapsedMinutes / 60)
     : null;
-
-
-
   const isArrived = !isDelivered && remainingKm != null && remainingKm <= ARRIVED_KM_THRESHOLD;
-
   const etaCardValue = isDelivered ? 'Delivered' : isArrived ? 'Arrived' : (etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—');
-
-
-
-
-
   const distanceCardValue = isDelivered
     ? '0.0 km'
     : remainingKm != null
       ? `${remainingKm.toFixed(1)} km`
-      : googleRoute?.distanceKm != null ? `${googleRoute.distanceKm.toFixed(1)} km` : '—';
+      : '—';
   const speedCardValue = isDelivered
     ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h avg` : '—')
     : (currentSpeedKmh != null ? `${currentSpeedKmh.toFixed(0)} km/h` : '—');
 
-
-
-
-
   useEffect(() => {
     if (!isDelivered) onRouteUpdate?.({ etaMinutes, remainingKm, currentSpeedKmh, isInTransit: Boolean(currentPosition) });
-
-
-
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [etaMinutes, remainingKm, currentSpeedKmh, currentPosition?.lat, currentPosition?.lng, isDelivered]);
-
-
-
-
 
   useEffect(() => {
     if (deliveryState === 'navigating' && !autoEnabledRef.current) {
@@ -330,7 +320,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   }, [deliveryState]);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return undefined;
+    if (!containerRef.current || mapRef.current || !origin || !destination) return undefined;
     let cancelled = false;
     loadGoogleMaps().then((mapsApi) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
@@ -351,13 +341,18 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
       });
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
+      if (typeof mapsApi.TrafficLayer === 'function') {
+        trafficLayerRef.current = new mapsApi.TrafficLayer();
+        setTrafficAvailable(true);
+      }
       setMapReady(true);
     });
     return () => {
       cancelled = true;
     };
+    // Profile coordinates are intentionally the only map initialization trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng, effectiveTheme, hasVectorMap]);
 
 
 
@@ -366,46 +361,35 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
     mapRef.current.setOptions({ styles: effectiveTheme === 'dark' ? DARK_MAP_STYLE : [] });
   }, [effectiveTheme, mapReady, hasVectorMap]);
 
-
-
-
-
-
-
-
-
-
-
-
+  useEffect(() => {
+    if (!mapReady || !trafficLayerRef.current) return;
+    trafficLayerRef.current.setMap(trafficEnabled ? mapRef.current : null);
+  }, [mapReady, trafficEnabled]);
 
   useEffect(() => {
-    let cancelled = false;
-    const fromPoint = currentPosition || travelOrigin;
-    const meta = routeMetaRef.current;
-    const now = Date.now();
-
-    const destinationMoved = meta && (meta.destination.lat !== travelDestination.lat || meta.destination.lng !== travelDestination.lng);
-    const shouldFetch = !meta || destinationMoved || (currentPosition && (
-      distanceToPolylineKm(currentPosition, meta.points) > ROUTE_DEVIATION_KM
-        ? now - meta.fetchedAt > 8000
-        : now - meta.fetchedAt > ROUTE_REFRESH_MIN_INTERVAL_MS && haversineKm(meta.fetchedFrom, currentPosition) > ROUTE_REFRESH_MIN_MOVE_KM
-    ));
-    if (!shouldFetch) return undefined;
-
-    (async () => {
-      const navigationResult = await fetchNavigationRoute(fromPoint, travelDestination);
-      const result = navigationResult || await fetchGoogleRoute(fromPoint, travelDestination).then(
-        (legacy) => legacy && { ...legacy, speedIntervals: [], alternativeRoutes: [] },
-      );
-      if (cancelled || !result) return;
-      routeMetaRef.current = { fetchedAt: Date.now(), fetchedFrom: fromPoint, points: result.points, destination: travelDestination };
-      setGoogleRoute(result);
-    })();
+    if (!mapReady || !trafficAvailable) return undefined;
+    // Let Maps reserve space above its native zoom control instead of overlaying it.
+    const controls = mapRef.current.controls[mapsApiRef.current.ControlPosition.RIGHT_TOP];
+    controls.push(trafficControl);
     return () => {
-      cancelled = true;
+      const index = controls.getArray().indexOf(trafficControl);
+      if (index !== -1) controls.removeAt(index);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPosition?.lat, currentPosition?.lng, origin.lat, origin.lng, destination.lat, destination.lng]);
+  }, [mapReady, trafficAvailable, trafficControl]);
+
+  useEffect(() => () => {
+    trafficLayerRef.current?.setMap(null);
+  }, []);
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -413,7 +397,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!mapReady || !map || !mapsApi) return;
+    if (!mapReady || !map || !mapsApi || !origin || !destination) return;
 
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
@@ -422,41 +406,28 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
     const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDotIcon(mapsApi, MAP_COLORS.destination), title: order.buyerName });
     layerRef.current.push(originMarker, destinationMarker);
 
-    const pathPoints = googleRoute?.points?.length > 1 ? googleRoute.points : [origin, destination];
+    const pathPoints = googleRoute?.points || [];
     const fitToBothPins = () => {
       const bounds = new mapsApi.LatLngBounds();
       bounds.extend(origin);
       bounds.extend(destination);
-      if (currentPosition) bounds.extend(currentPosition);
+      if (vehiclePosition) bounds.extend(vehiclePosition);
       map.fitBounds(bounds, 48);
     };
 
     if (deliveryState === 'preview') {
-
-
-
-
-
-
-
-
-
-
-
-      if (isPickup || isCourier) {
-        const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 1 });
-        const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, geodesic: true, map, zIndex: 2 });
-        const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 3 });
-        layerRef.current.push(shadow, casing, routeLine);
-      }
+      const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 90 });
+      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, geodesic: true, map, zIndex: 99 });
+      const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 100 });
+      layerRef.current.push(shadow, casing, routeLine);
       setVehicleMarkerMap(carEntryRef.current, null);
       map.setTilt(0);
       map.setHeading(0);
       fitToBothPins();
     } else if (deliveryState === 'delivered') {
-      const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 1 });
-      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, geodesic: true, map, zIndex: 2 });
-      const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_DELIVERED_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 3 });
+      const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 90 });
+      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, geodesic: true, map, zIndex: 99 });
+      const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_DELIVERED_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 100 });
       layerRef.current.push(shadow, casing, routeLine);
       setVehicleMarkerMap(carEntryRef.current, null);
       map.setTilt(0);
@@ -466,74 +437,75 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
 
 
-      const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 13, strokeOpacity: 0.18, geodesic: true, map, zIndex: 1 });
+      const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 13, strokeOpacity: 0.18, geodesic: true, map, zIndex: 90 });
       layerRef.current.push(shadow);
 
-      (googleRoute?.alternativeRoutes || []).forEach((altPoints) => {
-        const alt = new mapsApi.Polyline({ path: altPoints, strokeColor: ROUTE_ALT_COLOR, strokeWeight: 4, strokeOpacity: 0.85, geodesic: true, map, zIndex: 2 });
+      (navigation.alternatives || []).forEach(({ points: altPoints }) => {
+        const alt = new mapsApi.Polyline({ path: altPoints, strokeColor: ROUTE_ALT_COLOR, strokeWeight: 4, strokeOpacity: 0.85, geodesic: true, map, zIndex: 95 });
         layerRef.current.push(alt);
       });
 
-      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 10, strokeOpacity: 0.95, geodesic: true, map, zIndex: 3 });
+      const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 10, strokeOpacity: 0.95, geodesic: true, map, zIndex: 99 });
       layerRef.current.push(casing);
 
 
 
-      const intervals = googleRoute?.speedIntervals?.length
-        ? googleRoute.speedIntervals
-        : [{ startIndex: 0, endIndex: pathPoints.length - 1, speed: 'NORMAL' }];
-      intervals.forEach(({ startIndex, endIndex, speed }) => {
-        const segment = pathPoints.slice(Math.max(0, startIndex), Math.min(pathPoints.length, endIndex + 1));
-        if (segment.length < 2) return;
-        const segmentLine = new mapsApi.Polyline({ path: segment, strokeColor: SPEED_ROUTE_COLORS[speed] || ROUTE_COLOR, strokeWeight: 7, strokeOpacity: 1, geodesic: true, map, zIndex: 4 });
-        layerRef.current.push(segmentLine);
+      const routeLine = new mapsApi.Polyline({
+        path: pathPoints,
+        strokeColor: ROUTE_COLOR,
+        strokeWeight: 7,
+        strokeOpacity: 1,
+        geodesic: true,
+        map,
+        zIndex: 100,
       });
+      layerRef.current.push(routeLine);
 
 
 
 
       let travelIndex = 0;
-      if (currentPosition) {
-        travelIndex = nearestIndexOnPath(currentPosition, pathPoints);
+      if (vehiclePosition) {
+        travelIndex = nearestIndexOnPath(vehiclePosition, pathPoints);
         if (travelIndex > 0) {
-          const traveled = [...pathPoints.slice(0, travelIndex + 1), currentPosition];
-          const traveledLine = new mapsApi.Polyline({ path: traveled, strokeColor: ROUTE_TRAVELED_COLOR, strokeWeight: 7, strokeOpacity: 0.9, geodesic: true, map, zIndex: 5 });
+          const traveled = pathPoints.slice(0, travelIndex + 1);
+          const traveledLine = new mapsApi.Polyline({ path: traveled, strokeColor: ROUTE_TRAVELED_COLOR, strokeWeight: 7, strokeOpacity: 0.9, geodesic: true, map, zIndex: 101 });
           layerRef.current.push(traveledLine);
         }
       }
 
-
-      const startCap = new mapsApi.Circle({ center: pathPoints[0], radius: 5, strokeWeight: 0, fillColor: ROUTE_TRAVELED_COLOR, fillOpacity: 0.9, map, zIndex: 5, clickable: false });
-      const lastInterval = intervals[intervals.length - 1];
-      const endCapColor = travelIndex >= pathPoints.length - 1 ? ROUTE_TRAVELED_COLOR : (SPEED_ROUTE_COLORS[lastInterval?.speed] || ROUTE_COLOR);
-      const endCap = new mapsApi.Circle({ center: pathPoints[pathPoints.length - 1], radius: 5, strokeWeight: 0, fillColor: endCapColor, fillOpacity: 1, map, zIndex: 4, clickable: false });
+      if (pathPoints.length > 1) {
+      const startCap = new mapsApi.Circle({ center: pathPoints[0], radius: 5, strokeWeight: 0, fillColor: ROUTE_TRAVELED_COLOR, fillOpacity: 0.9, map, zIndex: 102, clickable: false });
+      const endCapColor = travelIndex >= pathPoints.length - 1 ? ROUTE_TRAVELED_COLOR : ROUTE_COLOR;
+      const endCap = new mapsApi.Circle({ center: pathPoints[pathPoints.length - 1], radius: 5, strokeWeight: 0, fillColor: endCapColor, fillOpacity: 1, map, zIndex: 102, clickable: false });
       layerRef.current.push(startCap, endCap);
 
-      if (currentPosition) {
+      }
+
+      if (vehiclePosition) {
 
 
 
-
-        if (Number.isFinite(currentPosition.heading)) {
-          headingRef.current = currentPosition.heading;
-          lastHeadingPositionRef.current = currentPosition;
+        if (Number.isFinite(vehiclePosition.heading)) {
+          headingRef.current = vehiclePosition.heading;
+          lastHeadingPositionRef.current = vehiclePosition;
         } else {
           const lastHeadingPosition = lastHeadingPositionRef.current;
-          if (!lastHeadingPosition || haversineKm(lastHeadingPosition, currentPosition) > VEHICLE_HEADING_MIN_MOVEMENT_KM) {
-            if (lastHeadingPosition) headingRef.current = computeVehicleBearing(lastHeadingPosition, currentPosition);
-            lastHeadingPositionRef.current = currentPosition;
+          if (!lastHeadingPosition || haversineKm(lastHeadingPosition, vehiclePosition) > VEHICLE_HEADING_MIN_MOVEMENT_KM) {
+            if (lastHeadingPosition) headingRef.current = computeVehicleBearing(lastHeadingPosition, vehiclePosition);
+            lastHeadingPositionRef.current = vehiclePosition;
           }
         }
 
         const vehicleHeading = resolveVehicleHeading({
           previousPosition: lastVehicleHeadingPositionRef.current,
-          currentPosition,
+          currentPosition: vehiclePosition,
           lastHeading: vehicleHeadingRef.current,
-          deviceHeading: currentPosition.deviceHeading,
-          gpsHeading: currentPosition.heading,
+          deviceHeading: vehiclePosition.deviceHeading,
+          gpsHeading: vehiclePosition.heading,
         });
         vehicleHeadingRef.current = vehicleHeading.heading;
-        if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+        if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
 
         if (!carEntryRef.current) {
 
@@ -544,7 +516,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
             const content = buildVehicleMarkerContent();
             updateVehicleHeading(content, vehicleHeadingRef.current);
             const marker = new mapsApi.AdvancedMarkerElement({
-              position: currentPosition,
+              position: vehiclePosition,
               map,
               content,
               anchorLeft: '-50%',
@@ -555,16 +527,16 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
               kind: 'advanced',
               marker,
               content,
-              currentLatLng: currentPosition,
+              currentLatLng: vehiclePosition,
               renderedHeading: vehicleHeadingRef.current,
               animationFrameId: null,
             };
           } else {
-            const marker = new mapsApi.Marker({ position: currentPosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
+            const marker = new mapsApi.Marker({ position: vehiclePosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
             carEntryRef.current = {
               kind: 'classic',
               marker,
-              currentLatLng: currentPosition,
+              currentLatLng: vehiclePosition,
               renderedHeading: vehicleHeadingRef.current,
               animationFrameId: null,
             };
@@ -572,7 +544,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
         } else {
           setVehicleMarkerMap(carEntryRef.current, map);
           setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
-          animateMarkerTo(carEntryRef.current, currentPosition);
+          animateMarkerTo(carEntryRef.current, vehiclePosition);
         }
 
 
@@ -581,36 +553,36 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
         if (autoFollow) {
           const zoom = zoomForSpeed(currentSpeedKmh || 0);
-          const center = hasVectorMap ? offsetPoint(currentPosition, (headingRef.current + 180) % 360, CAMERA_BEHIND_OFFSET_KM) : currentPosition;
+          const center = hasVectorMap ? offsetPoint(vehiclePosition, (headingRef.current + 180) % 360, CAMERA_BEHIND_OFFSET_KM) : vehiclePosition;
           map.moveCamera({ center, zoom, heading: hasVectorMap ? headingRef.current : 0, tilt: hasVectorMap ? 45 : 0 });
         }
       } else {
         setVehicleMarkerMap(carEntryRef.current, null);
       }
 
-      if (!autoFollow || !currentPosition) fitToBothPins();
+      if (!autoFollow || !vehiclePosition) fitToBothPins();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, googleRoute, currentPosition?.lat, currentPosition?.lng, origin.lat, origin.lng, destination.lat, destination.lng, autoFollow, deliveryState]);
+  }, [mapReady, googleRoute, navigation.alternatives, currentPosition?.lat, currentPosition?.lng, vehiclePosition?.lat, vehiclePosition?.lng, origin?.lat, origin?.lng, destination?.lat, destination?.lng, autoFollow, deliveryState]);
 
   useEffect(() => {
     const entry = carEntryRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!entry || !mapsApi || !currentPosition) return;
+    if (!entry || !mapsApi || !vehiclePosition) return;
 
     const resolvedHeading = resolveVehicleHeading({
       previousPosition: lastVehicleHeadingPositionRef.current,
-      currentPosition,
+      currentPosition: vehiclePosition,
       lastHeading: vehicleHeadingRef.current,
-      deviceHeading: currentPosition.deviceHeading,
-      gpsHeading: currentPosition.heading,
+      deviceHeading: vehiclePosition.deviceHeading,
+      gpsHeading: vehiclePosition.heading,
     });
     vehicleHeadingRef.current = resolvedHeading.heading;
-    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = currentPosition;
+    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
     if (getContinuousVehicleHeading(entry.renderedHeading ?? resolvedHeading.heading, resolvedHeading.heading)
       === (entry.renderedHeading ?? resolvedHeading.heading)) return;
     setVehicleMarkerHeading(entry, mapsApi, resolvedHeading.heading);
-  }, [currentPosition, currentPosition?.heading, currentPosition?.deviceHeading]);
+  }, [vehiclePosition, vehiclePosition?.heading, vehiclePosition?.deviceHeading]);
 
   useEffect(() => {
     return () => {
@@ -620,8 +592,22 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
   return (
     <div className="live-delivery-map-wrap">
+      <TrafficRouteNotice navigation={navigation} allowChoice={canChooseAlternative && transit.isInTransit} />
       <div className="nav-map-container">
         <div ref={containerRef} className="live-delivery-map" />
+
+        {trafficAvailable ? createPortal(
+          <button
+            type="button"
+            className={`nav-traffic-toggle${trafficEnabled ? ' active' : ''}`}
+            aria-pressed={trafficEnabled}
+            onClick={() => setTrafficOverride((previous) => !(previous ?? (deliveryState === 'navigating')))}
+            title={trafficEnabled ? 'Turn traffic off' : 'Turn traffic on'}
+          >
+            Traffic
+          </button>,
+          trafficControl,
+        ) : null}
 
         {deliveryState === 'navigating' ? (
           <button
@@ -655,7 +641,7 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
           </div>
           {deliveryStatusBadge ? <div className="nav-info-card-status">{deliveryStatusBadge}</div> : null}
           <div className="nav-info-card-gps">
-            <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={order.locationUpdatedAt} />
+            <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={lastLocationUpdatedAt} />
           </div>
         </div>
       ) : null}
@@ -685,10 +671,10 @@ export default function LiveDeliveryMap({ order, destinationMunicipalityOverride
 
       {!isPickup && !isCourier && !isDelivered && deliveryState !== 'navigating' ? (
         <div className="tracking-gps-card">
-          <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={order.locationUpdatedAt} />
+          <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={lastLocationUpdatedAt} />
           <div>
             <span>Route source</span>
-            <strong>Google Maps{googleRoute?.hasTrafficData ? ' (live traffic)' : ''}</strong>
+            <strong>{googleRoute ? `Google Maps${googleRoute.hasTrafficData ? ' (traffic-aware)' : ''}` : 'Route unavailable'}</strong>
           </div>
         </div>
       ) : null}

@@ -1,3 +1,4 @@
+import { hasWholesalePricing } from '../../../backend/shared/pricing.js';
 import { MapPin, Package, User } from 'lucide-react';
 import { isLowStock } from '../../utils/constants';
 import { formatCurrency, formatDate, formatQuantity, titleCase } from '../../utils/formatters';
@@ -37,6 +38,11 @@ export default function CheckoutProductCard({ product }) {
           {isLowStock(product.quantity) ? <span className="checkout-product-stock-low"> · Low stock</span> : null}
           {product.sellingType === 'wholesale' && product.moq ? ` · Min. order ${formatQuantity(product.moq)} ${product.unit}` : ''}
         </p>
+        {hasWholesalePricing(product) ? (
+          <p className="checkout-product-wholesale">
+            Wholesale: {formatCurrency(product.wholesalePrice)}/{product.unit} for {formatQuantity(product.wholesaleMinQuantity)}+ {product.unit}
+          </p>
+        ) : null}
 
         <div className="checkout-product-divider" />
 
@@ -45,10 +51,12 @@ export default function CheckoutProductCard({ product }) {
           <span><MapPin size={13} strokeWidth={2} /> {product.location}</span>
         </div>
 
-        <p className="checkout-product-listed">Listed {formatDate(product.createdAt)}</p>
-        {product.expirationDate ? (
-          <p className="checkout-product-expiration">Expires {formatDate(product.expirationDate)}</p>
-        ) : null}
+        <p className="checkout-product-listed">
+          <span>Listed {formatDate(product.createdAt)}</span>
+          {product.expirationDate ? (
+            <span className="checkout-product-expiration">Expires {formatDate(product.expirationDate)}</span>
+          ) : null}
+        </p>
       </div>
     </div>
   );

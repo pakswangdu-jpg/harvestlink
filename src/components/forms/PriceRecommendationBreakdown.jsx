@@ -1,5 +1,6 @@
 import Button from '../common/Button';
 import { formatCurrency } from '../../utils/formatters';
+import WholesalePriceRecommendation from './WholesalePriceRecommendation';
 
 
 
@@ -8,6 +9,8 @@ import { formatCurrency } from '../../utils/formatters';
 
 export default function PriceRecommendationBreakdown({
   unit, kgPerUnitValue, referencePrice, equivalentPsaPricePerUnit, recommendedPrice, costPrice, onUsePrice,
+  wholesaleEnabled, availableQuantity, onUseWholesalePrice,
+  sellingType = 'retail',
 }) {
   const cost = Number(costPrice);
   const hasCost = Number.isFinite(cost) && cost > 0;
@@ -24,7 +27,7 @@ export default function PriceRecommendationBreakdown({
       {recommendedPrice ? (
         <>
           <Row label="Markup" value={`${recommendedPrice.marginPercent}%`} />
-          <Row label="AI Recommended Selling Price" value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
+          <Row label={`Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
           {
 
                                         }
@@ -34,8 +37,17 @@ export default function PriceRecommendationBreakdown({
             emphasize={profit != null}
           />
           <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(recommendedPrice.price)}>
-            Use this price
+            Use {sellingType} price
           </Button>
+          {wholesaleEnabled ? (
+            <WholesalePriceRecommendation
+              retailPrice={recommendedPrice.price}
+              costPrice={cost}
+              availableQuantity={availableQuantity}
+              unit={unit}
+              onUseRecommendation={onUseWholesalePrice}
+            />
+          ) : null}
         </>
       ) : null}
     </div>

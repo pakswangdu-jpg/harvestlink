@@ -6,6 +6,14 @@ import { CEBU_MUNICIPALITY_COORDS, DEFAULT_MUNICIPALITY, getMunicipalityCoords }
 const DELIVERY_BASE_FEE = 40;
 const DELIVERY_FEE_PER_KM = 10;
 
+export const MAX_TRACKING_GPS_ACCURACY_METERS = 100;
+
+export function isReliableTrackingAccuracy(accuracy) {
+  if (accuracy == null) return true;
+  const meters = Number(accuracy);
+  return Number.isFinite(meters) && meters >= 0 && meters <= MAX_TRACKING_GPS_ACCURACY_METERS;
+}
+
 export function validateCoordinates(lat, lng) {
   const isNumber = (value) => (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
     && Number.isFinite(Number(value));

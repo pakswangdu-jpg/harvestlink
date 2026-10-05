@@ -29,7 +29,7 @@ function isValidCoordinate(lat, lng) {
 
 
 
-export function useBuyerActivePickupSharing(buyerId) {
+export function useBuyerActivePickupSharing(buyerId, locationPermission) {
   const [activeOrderIds, setActiveOrderIds] = useState([]);
   const [error, setError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('online');
@@ -42,6 +42,7 @@ export function useBuyerActivePickupSharing(buyerId) {
   const isSocketConnectedRef = useRef(false);
   const hasGpsErrorRef = useRef(false);
   const connectionStatusRef = useRef('online');
+  const permissionDeniedRef = useRef(false);
 
   useEffect(() => {
     if (!buyerId) return undefined;
@@ -147,7 +148,7 @@ export function useBuyerActivePickupSharing(buyerId) {
   };
 
   const startWatch = () => {
-    if (watchIdRef.current != null) return;
+    if (watchIdRef.current != null || permissionDeniedRef.current) return;
     if (!navigator.geolocation) {
       setError('Location sharing is not supported on this device.');
       return;
@@ -190,8 +191,9 @@ export function useBuyerActivePickupSharing(buyerId) {
       },
       (geoError) => {
         if (geoError.code === geoError.PERMISSION_DENIED) {
-          setError('Location permission was denied — enable location access to share your live position with the farmer.');
+          permissionDeniedRef.current = true;
           stopWatch();
+          setError('Location permission was denied — enable location access to share your live position with the farmer.');
         } else if (geoError.code === geoError.TIMEOUT) {
           setError('Location signal is weak — retrying…');
           hasGpsErrorRef.current = true;
@@ -212,6 +214,13 @@ export function useBuyerActivePickupSharing(buyerId) {
     else stopWatch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeOrderIds]);
+
+  useEffect(() => {
+    if (locationPermission !== 'granted') return;
+    permissionDeniedRef.current = false;
+    if (activeOrderIdsRef.current.length > 0) startWatch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationPermission]);
 
   useEffect(() => {
     return () => {

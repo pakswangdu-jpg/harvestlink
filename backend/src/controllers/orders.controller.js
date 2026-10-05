@@ -8,6 +8,7 @@ import { calculateDeliveryFee } from '../lib/deliveryFee.js';
 import { createLalamoveDeliveryForOrder } from './lalamove.controller.js';
 import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
+import { getApplicableUnitPrice } from '../../shared/pricing.js';
 
 async function hydrateFarmerProfiles(orders) {
   const farmerIds = [...new Set(orders.map((order) => order.farmer_id).filter(Boolean))];
@@ -117,6 +118,9 @@ export async function createOrder(req, res) {
   const quantity = Number(values.quantity);
   if (!(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
   if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
+  if (product.selling_type === 'wholesale' && product.moq && quantity < Number(product.moq)) {
+    throw new ApiError(`Minimum order quantity is ${product.moq} ${product.unit}.`, 400);
+  }
   if (!PAYMENT_METHODS.includes(values.paymentMethod)) throw new ApiError('Choose a valid payment method.', 400);
 
   const { data: farmer } = await supabaseAdmin
@@ -140,13 +144,18 @@ export async function createOrder(req, res) {
     tierLabel: deliveryFeeTier,
   } = await calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
   const now = new Date().toISOString();
+  const unitPrice = getApplicableUnitPrice({
+    price: product.price,
+    wholesalePrice: product.wholesale_price,
+    wholesaleMinQuantity: product.wholesale_min_quantity,
+  }, quantity);
 
   const row = {
     product_id: product.id,
     product_name: product.name,
     product_image_url: product.image_url || null,
     unit: product.unit,
-    unit_price: Number(product.price),
+    unit_price: unitPrice,
 
 
     unit_cost_price: product.cost_price == null ? null : Number(product.cost_price),
@@ -166,7 +175,7 @@ export async function createOrder(req, res) {
     delivery_distance_km: deliveryDistanceKm,
     delivery_duration_minutes: deliveryDurationMinutes,
     delivery_fee_tier: deliveryFeeTier,
-    total_amount: quantity * Number(product.price) + deliveryFee,
+    total_amount: quantity * unitPrice + deliveryFee,
     message: values.message?.trim() || '',
     payment_method: values.paymentMethod,
 

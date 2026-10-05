@@ -28,7 +28,6 @@ const notifiedNearOrders = new Set();
 function isValidCoordinate(lat, lng) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
-  if (lat === 0 && lng === 0) return false;
   return true;
 }
 
@@ -46,13 +45,13 @@ async function verifyOrderParty(token, orderId) {
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
-    .select('id, buyer_id, farmer_id')
+    .select('*')
     .eq('id', orderId)
     .single();
   if (orderError || !order) return null;
   if (order.buyer_id !== profile.id && order.farmer_id !== profile.id) return null;
 
-  return { userId: profile.id };
+  return { userId: profile.id, order };
 }
 
 export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
@@ -77,7 +76,16 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
       if (!socket.data.orderIds) socket.data.orderIds = new Set();
       socket.data.orderIds.add(orderId);
       socket.data.userId = verified.userId;
-      ack?.({ ok: true });
+      const order = verified.order;
+      ack?.({
+        ok: true,
+        serverNow: Date.now(),
+        location: order.current_lat != null && order.current_lng != null && order.location_updated_at ? {
+          orderId, lat: Number(order.current_lat), lng: Number(order.current_lng),
+          accuracy: order.current_accuracy, heading: order.current_heading, speed: order.current_speed,
+          locationUpdatedAt: order.location_updated_at,
+        } : null,
+      });
     });
 
 
@@ -85,11 +93,18 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
 
 
-    socket.on('farmer-location', async ({ orderId, lat, lng, accuracy, heading, speed } = {}, ack) => {
+    socket.on('farmer-location', async ({ orderId, lat, lng, accuracy, heading, speed, timestamp, sampleAgeMs } = {}, ack) => {
 
 
 
       const receivedAt = Date.now();
+      // The device clock may differ from the server. Persist sample age on the
+      // server clock, and preserve the original acquisition timestamp in realtime.
+      const ageMs = Number.isFinite(sampleAgeMs) && sampleAgeMs >= 0 ? sampleAgeMs : 0;
+      if (ageMs > 180000 || (accuracy != null && (!Number.isFinite(accuracy) || accuracy < 0 || accuracy > 100))) {
+        ack?.({ ok: false, error: 'A recent, accurate GPS sample is required.' });
+        return;
+      }
       const userId = socket.data.userId;
       if (!orderId || !socket.data.orderIds?.has(orderId) || !userId) {
         ack?.({ ok: false, error: 'Join the order room before sharing a location.' });
@@ -128,12 +143,13 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
 
 
-      if (order.location_updated_at && new Date(order.location_updated_at).getTime() > receivedAt) {
+      const sampleReceivedAt = receivedAt - ageMs;
+      if (order.location_updated_at && new Date(order.location_updated_at).getTime() >= sampleReceivedAt) {
         ack?.({ ok: true, skipped: true });
         return;
       }
 
-      const locationUpdatedAt = new Date().toISOString();
+      const locationUpdatedAt = new Date(sampleReceivedAt).toISOString();
       const baseUpdate = { current_lat: lat, current_lng: lng, location_updated_at: locationUpdatedAt };
       const enrichedUpdate = {
         ...baseUpdate,
@@ -141,7 +157,11 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
         current_speed: Number.isFinite(speed) ? speed : null,
         current_accuracy: Number.isFinite(accuracy) ? accuracy : null,
       };
-      let { error: updateError } = await supabaseAdmin.from('orders').update(enrichedUpdate).eq('id', orderId);
+      const save = (update) => supabaseAdmin.from('orders').update(update).eq('id', orderId)
+        .eq('status', 'confirmed').eq('delivery_status', 'out_for_delivery')
+        .or(`location_updated_at.is.null,location_updated_at.lt.${locationUpdatedAt}`)
+        .select('id').maybeSingle();
+      let { data: saved, error: updateError } = await save(enrichedUpdate);
 
 
 
@@ -149,10 +169,15 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
 
       if (updateError?.code === 'PGRST204' || updateError?.code === '42703') {
-        ({ error: updateError } = await supabaseAdmin.from('orders').update(baseUpdate).eq('id', orderId));
+        ({ data: saved, error: updateError } = await save(baseUpdate));
       }
       if (updateError) {
         ack?.({ ok: false, error: updateError.message });
+        return;
+      }
+
+      if (!saved) {
+        ack?.({ ok: true, skipped: true });
         return;
       }
 
@@ -164,6 +189,8 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
         heading: Number.isFinite(heading) ? heading : null,
         speed: Number.isFinite(speed) ? speed : null,
         locationUpdatedAt,
+        timestamp: Number.isFinite(timestamp) ? timestamp : null,
+        serverNow: Date.now(),
       });
       ack?.({ ok: true });
 

@@ -1,5 +1,6 @@
 import { getFixedKgPerUnit, hasFixedConversion } from './unitConversion';
 import { isValidPhilippineMobile } from './philippineMobile';
+import { getWholesalePricingErrors } from '../../backend/shared/pricing.js';
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -119,7 +120,7 @@ export function validateAuthForm(values, mode) {
 
 
 
-export function validateProductForm(values, availableUnits) {
+export function validateProductForm(values, availableUnits, existing = null) {
   const errors = {};
   if (!required(values.name)) errors.name = 'Choose or specify a product.';
   if (!required(values.category)) errors.category = 'Choose a category.';
@@ -140,6 +141,10 @@ export function validateProductForm(values, availableUnits) {
       if (moq === null) errors.moq = 'Enter a positive minimum order quantity.';
       else if (moq > Number(values.quantity)) errors.moq = 'MOQ cannot exceed the quantity available.';
     }
+    if (values.wholesaleEnabled && values.sellingType === 'retail') {
+      const retailPrice = Number((Number(values.price) * (1 - (Number(values.discountPercent) || 0) / 100)).toFixed(2));
+      Object.assign(errors, getWholesalePricingErrors({ ...values, price: retailPrice }, existing));
+    }
   }
   if (!required(values.unit)) errors.unit = 'Choose a unit.';
   else if (Array.isArray(availableUnits) && !availableUnits.includes(values.unit)) errors.unit = 'Choose a unit valid for this product.';
@@ -155,6 +160,10 @@ export function validateProductForm(values, availableUnits) {
     if (!errors.price) {
       const priceMessage = implausiblePerKgMessage('This price', values.price, kgPerUnit);
       if (priceMessage) errors.price = priceMessage;
+    }
+    if (values.wholesaleEnabled && values.sellingType === 'retail' && !errors.wholesalePrice) {
+      const message = implausiblePerKgMessage('Wholesale price', values.wholesalePrice, kgPerUnit);
+      if (message) errors.wholesalePrice = message;
     }
   }
   if (!values.isDonation && required(values.discountPercent)) {

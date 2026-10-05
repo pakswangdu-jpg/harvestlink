@@ -22,6 +22,17 @@ test('defaults GCash availability to false when farmer setup is missing', () => 
   assert.equal(serializeProduct(product).farmerGcashEnabled, false);
 });
 
+test('serializes decimal wholesale fields and preserves legacy listings without a tier', () => {
+  const serialized = serializeProduct({ ...product, wholesale_price: '48.50', wholesale_min_quantity: '10.25' });
+  assert.equal(serialized.wholesalePrice, 48.5);
+  assert.equal(serialized.wholesaleMinQuantity, 10.25);
+  const legacy = serializeProduct({ ...product, selling_type: 'wholesale', moq: '5' });
+  assert.equal(legacy.price, 50);
+  assert.equal(legacy.moq, 5);
+  assert.equal(legacy.wholesalePrice, null);
+  assert.equal(legacy.wholesaleMinQuantity, null);
+});
+
 test('serializes a tracked delivery vehicle plate number', () => {
   const serialized = serializeOrder({
     id: 'order-1',

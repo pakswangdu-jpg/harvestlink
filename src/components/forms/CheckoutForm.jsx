@@ -16,6 +16,7 @@ import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
 import { getLalamoveQuote } from '../../services/lalamoveService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
 import { formatQuantity } from '../../utils/formatters';
+import { getApplicableUnitPrice, isWholesaleQuantity } from '../../../backend/shared/pricing.js';
 
 const MESSAGE_MAX_LENGTH = 200;
 
@@ -261,7 +262,9 @@ export default function CheckoutForm({
   };
 
   const quantityNumber = Number(values.quantity) || 0;
-  const subtotal = quantityNumber * Number(product.price);
+  const unitPrice = getApplicableUnitPrice(product, quantityNumber);
+  const isWholesalePrice = isWholesaleQuantity(product, quantityNumber);
+  const subtotal = quantityNumber * unitPrice;
   const isGcash = values.paymentMethod === 'gcash';
   const deliveryMethodLabel = DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
 
@@ -420,6 +423,8 @@ export default function CheckoutForm({
       <OrderSummaryPanel
         product={product}
         quantity={values.quantity}
+        unitPrice={unitPrice}
+        isWholesalePrice={isWholesalePrice}
         subtotal={subtotal}
         deliveryMethod={values.deliveryMethod}
         deliveryMethodLabel={deliveryMethodLabel}

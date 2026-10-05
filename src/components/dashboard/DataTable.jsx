@@ -4,7 +4,15 @@
 
 
 
-export default function DataTable({ columns, rows, emptyMessage, onRowClick, selectedId }) {
+export default function DataTable({
+  columns,
+  rows,
+  emptyMessage,
+  onRowClick,
+  selectedId,
+  className = '',
+  responsiveLabels = false,
+}) {
   if (!rows.length) {
     if (emptyMessage && typeof emptyMessage === 'object') {
       return (
@@ -18,7 +26,7 @@ export default function DataTable({ columns, rows, emptyMessage, onRowClick, sel
   }
 
   return (
-    <div className="table-wrap">
+    <div className={`table-wrap ${className}`.trim()}>
       <table>
         <colgroup>
           {columns.map((column) => (
@@ -46,8 +54,13 @@ export default function DataTable({ columns, rows, emptyMessage, onRowClick, sel
                   column.align === 'right' && 'table-cell-right',
                 ].filter(Boolean).join(' ') || undefined;
                 return (
-                  <td key={column.key} className={className} title={column.truncate ? row[column.key] : undefined}>
-                    {value}
+                  <td
+                    key={column.key}
+                    className={className}
+                    data-label={responsiveLabels ? column.label : undefined}
+                    title={column.truncate ? row[column.key] : undefined}
+                  >
+                    {responsiveLabels ? <span className="table-cell-value">{value}</span> : value}
                   </td>
                 );
               })}

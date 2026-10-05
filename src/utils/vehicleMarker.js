@@ -3,6 +3,17 @@ export const VEHICLE_MARKER_ANIMATION_DURATION_MS = 700;
 export const VEHICLE_MARKER_WIDTH_PX = 28;
 export const VEHICLE_MARKER_HEIGHT_PX = 48;
 
+export async function requestDeviceOrientationPermission() {
+  if (typeof window === 'undefined') return false;
+  const orientationEvent = window.DeviceOrientationEvent;
+  if (typeof orientationEvent?.requestPermission !== 'function') return true;
+  try {
+    return (await orientationEvent.requestPermission()) === 'granted';
+  } catch {
+    return false;
+  }
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 function haversineKm(from, to) {

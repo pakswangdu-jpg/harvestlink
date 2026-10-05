@@ -16,7 +16,14 @@ async function load(path) {
  return mod;
 }
 const geo = await load('../src/utils/geo.js'); await geo.evaluate();
-const { getRegisteredCoordinates, sortByRegisteredDistance, formatNearbyDistance, nearbyMapPoints } = geo.namespace;
+const {
+ getRegisteredCoordinates,
+ sortByRegisteredDistance,
+ formatNearbyDistance,
+ nearbyMapPoints,
+ isReliableTrackingAccuracy,
+ MAX_TRACKING_GPS_ACCURACY_METERS,
+} = geo.namespace;
 const profileLocation = await load('../src/utils/profileLocation.js'); await profileLocation.evaluate();
 const popup = await load('../src/components/map/userLocationMarker.js'); await popup.evaluate();
 test('selected Places location supplies complete profile location fields for every role', () => {
@@ -69,6 +76,14 @@ test('saved coordinates validate ranges and preserve zero and decimal strings', 
  assert.equal(getRegisteredCoordinates({latitude:10,longitude:181}),null);
  assert.equal(JSON.stringify(getRegisteredCoordinates({latitude:'0',longitude:'0'})), '{"lat":0,"lng":0}');
  assert.equal(getRegisteredCoordinates({latitude:'10.1234567',longitude:'123.456789'}).lat,10.1234567);
+});
+test('live tracking accepts GPS accuracy only within the configured threshold', () => {
+ assert.equal(MAX_TRACKING_GPS_ACCURACY_METERS, 100);
+ assert.equal(isReliableTrackingAccuracy(100), true);
+ assert.equal(isReliableTrackingAccuracy('50'), true);
+ assert.equal(isReliableTrackingAccuracy(100.1), false);
+ assert.equal(isReliableTrackingAccuracy(-1), false);
+ assert.equal(isReliableTrackingAccuracy(Number.NaN), false);
 });
 test('nearby sorting uses saved coordinates, preserves input, and leaves missing coordinates last', () => {
  const people=[{id:'unknown',municipality:'Cebu City'},{id:'far',latitude:0,longitude:.02},{id:'near',latitude:0,longitude:.000063}];

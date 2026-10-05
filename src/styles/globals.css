@@ -1153,10 +1153,46 @@ p {
 }
 
 .checkout-product-expiration {
-  margin-top: 4px;
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 600;
+}
+
+.product-card-wholesale-price,
+.checkout-product-wholesale,
+.cart-item-wholesale-note,
+.checkout-summary-wholesale-note {
+  color: var(--green-700);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.wholesale-recommendation {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.wholesale-recommendation-note,
+.wholesale-recommendation-warning {
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.wholesale-recommendation-warning {
+  color: var(--amber-700);
+}
+
+.wholesale-pricing-toggle-wrap {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
 .landing-steps {
@@ -3694,6 +3730,35 @@ a.user-chip:hover {
   color: var(--text);
 }
 
+.panel.ot-map-panel {
+  padding-top: 16px;
+}
+
+.ot-route-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-bottom: 14px;
+}
+
+.ot-route-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+.ot-route-header-eta {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .ot-map-panel .live-delivery-map {
   height: 460px;
 }
@@ -5041,6 +5106,9 @@ a.user-chip:hover {
 
 
 .checkout-product-listed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
   margin-top: 8px;
   color: var(--muted);
   font-size: 0.76rem;
@@ -11311,27 +11379,35 @@ td {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 11px;
-  border: 1px solid var(--line);
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid var(--green-700);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--text-secondary);
+  background: var(--green-700);
+  color: #fff;
   font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  box-shadow: 0 2px 5px rgb(22 101 52 / 18%);
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .ot-view-tracking-btn:hover {
-  border-color: var(--green-700);
-  background: var(--green-50);
-  color: var(--green-800);
+  border-color: var(--green-800);
+  background: var(--green-800);
+  color: #fff;
+  box-shadow: 0 3px 8px rgb(22 101 52 / 24%);
+  transform: translateY(-1px);
 }
 
 .ot-view-tracking-btn:focus-visible {
   outline: 2px solid var(--green-700);
   outline-offset: 2px;
+}
+
+.ot-view-tracking-btn:active {
+  transform: translateY(0);
 }
 
 .tracking-overlay {
@@ -15226,6 +15302,61 @@ td {
   color: white;
 }
 
+.nav-map-traffic-control {
+  margin: 10px 10px 0 0;
+}
+
+.nav-traffic-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 18%);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nav-traffic-toggle.active {
+  border-color: #1a73e8;
+  color: #1558ad;
+}
+
+[data-theme='dark'] .nav-traffic-toggle.active {
+  color: #8ab4f8;
+}
+
+.nav-traffic-toggle:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.nav-traffic-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-traffic-legend i {
+  width: 7px;
+  height: 7px;
+  margin-left: 3px;
+  border-radius: 50%;
+}
+
+.nav-traffic-legend .is-light { background: #34a853; }
+.nav-traffic-legend .is-moderate { background: #f9ab00; }
+.nav-traffic-legend .is-heavy { background: #ea4335; }
 
 
 .nav-vehicle-marker {
@@ -23040,3 +23171,147 @@ button,
 .registered-location-notice p { margin: 4px 0; }
 .registered-location-notice a { display: inline-flex; align-items: center; min-height: 44px; color: var(--green-700); font-weight: 600; text-decoration: underline; }
 .map-legend > span:has(.legend-dot) { display: inline-flex; align-items: center; white-space: nowrap; }
+
+.farmer-activity-table table {
+  min-width: 0;
+}
+
+.farmer-activity-table th,
+.farmer-activity-table td {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.farmer-activity-table .table-cell-value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farmer-activity-table .payment-method-label,
+.farmer-activity-table .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+@media (max-width: 600px) {
+  .farmer-dashboard-page > .content-grid > .panel:has(.farmer-activity-table) {
+    padding: 14px;
+  }
+
+  .farmer-activity-table {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .farmer-activity-table table,
+  .farmer-activity-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .farmer-activity-table colgroup,
+  .farmer-activity-table thead {
+    display: none;
+  }
+
+  .farmer-activity-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .farmer-activity-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    height: auto;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+
+  .farmer-activity-table tbody td,
+  .farmer-activity-table tbody td.table-cell-truncate {
+    display: grid;
+    grid-template-columns: minmax(48px, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    max-width: none;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .farmer-activity-table tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .farmer-activity-table .table-cell-value {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .farmer-activity-table tbody td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .farmer-activity-table .payment-method-label,
+  .farmer-activity-table .badge {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .farmer-dashboard-page > .content-grid > .panel:has(.farmer-activity-table) .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .farmer-dashboard-page > .content-grid > .panel:has(.farmer-activity-table) .section-heading h2 {
+    font-size: 16px;
+  }
+
+  .farmer-dashboard-page > .content-grid > .panel:has(.farmer-activity-table) .section-heading .btn {
+    align-self: flex-start;
+  }
+}
+.traffic-route-notices { display: grid; gap: 8px; margin-bottom: 12px; }
+.traffic-route-notices:empty { display: none; }
+.traffic-route-status { margin: 0; color: var(--muted); font-size: 0.8rem; }
+.traffic-route-suggestion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.traffic-route-suggestion strong { font-size: 0.9rem; color: var(--text); }
+.traffic-route-suggestion p { margin: 4px 0; font-size: 0.85rem; }
+.traffic-route-suggestion span { color: var(--muted); font-size: 0.8rem; }
+.traffic-route-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.location-permission-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.location-permission-notice > svg { flex: 0 0 auto; }
+.location-permission-copy { flex: 1 1 220px; min-width: 0; }
+.location-permission-copy strong { font-size: 14px; font-weight: 600; }
+.location-permission-copy p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.location-permission-notice .btn { flex-shrink: 0; }

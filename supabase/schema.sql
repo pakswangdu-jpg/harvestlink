@@ -171,6 +171,8 @@ notify pgrst, 'reload schema';
     -- rename migration below for already-existing installs.
     moq numeric(12,2),
     price numeric(12,2) not null check (price >= 0),
+    wholesale_price numeric(12,2),
+    wholesale_min_quantity numeric(12,2),
     unit text not null,
     kg_per_unit numeric(12,3),
     quantity numeric(12,2) not null default 0 check (quantity >= 0),
@@ -200,6 +202,23 @@ notify pgrst, 'reload schema';
 
   alter table public.products add column if not exists cost_price numeric(12,2);
   alter table public.products add column if not exists expiration_date date;
+  alter table public.products add column if not exists wholesale_price numeric(12,2);
+  alter table public.products add column if not exists wholesale_min_quantity numeric(12,2);
+
+  do $$
+  begin
+    if not exists (
+      select 1 from pg_constraint
+      where conrelid = 'public.products'::regclass and conname = 'products_wholesale_pricing_check'
+    ) then
+      alter table public.products add constraint products_wholesale_pricing_check check (
+        (wholesale_price is null and wholesale_min_quantity is null)
+        or (wholesale_price is not null and wholesale_min_quantity is not null
+          and wholesale_price > 0 and wholesale_price < price
+          and wholesale_min_quantity > 0 and wholesale_min_quantity <> 'NaN'::numeric)
+      );
+    end if;
+  end $$;
 
   -- Sales Type rename migration (Bulk/Retail -> Retail/Wholesale) — safe to re-run: only acts
   -- on an already-existing install that still has the old bulk_min_quantity column/constraint;

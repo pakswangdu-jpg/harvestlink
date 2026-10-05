@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, MapPin, Sprout, Trash2, User } from 'lucide-react';
 import QuantityStepper from '../checkout/QuantityStepper';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
+import { getApplicableUnitPrice, isWholesaleQuantity, hasWholesalePricing } from '../../../backend/shared/pricing.js';
 
 
 
@@ -22,7 +23,10 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
   }
 
   const inStock = product.quantity > 0 && product.status === 'active';
-  const subtotal = Number(product.price) * quantity;
+  const minimumQuantity = product.sellingType === 'wholesale' && product.moq ? Number(product.moq) : 1;
+  const unitPrice = getApplicableUnitPrice(product, quantity);
+  const subtotal = unitPrice * quantity;
+  const isWholesalePrice = isWholesaleQuantity(product, quantity);
 
   return (
     <div className="cart-item-row">
@@ -37,8 +41,15 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
       <div className="cart-item-details">
         <Link to={`/products/${product.id}`} className="cart-item-name">{titleCase(product.name)}</Link>
         <div className="cart-item-price">
-          {formatCurrency(product.price)} <span>/ {product.unit}</span>
+          {formatCurrency(unitPrice)} <span>/ {product.unit}</span>
         </div>
+        {hasWholesalePricing(product) ? (
+          <span className="cart-item-wholesale-note">
+            {isWholesalePrice
+              ? 'Wholesale price applied'
+              : `Wholesale ${formatCurrency(product.wholesalePrice)} for ${formatQuantity(product.wholesaleMinQuantity)}+ ${product.unit}`}
+          </span>
+        ) : null}
         <span className="cart-item-tags">Grade {product.grade || 'A'} · {product.sellingType === 'wholesale' ? 'Wholesale' : 'Retail'}</span>
         {!inStock ? (
           <p className="cart-item-warning">This listing is currently out of stock or inactive.</p>
@@ -63,8 +74,8 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
           <span className="cart-item-qty-label">Quantity</span>
           <QuantityStepper
             value={String(quantity)}
-            onChange={(value) => onUpdateQuantity(Number(value) || 1)}
-            min={1}
+            onChange={(value) => onUpdateQuantity(Math.max(minimumQuantity, Number(value) || minimumQuantity))}
+            min={minimumQuantity}
             max={product.quantity}
             unit={product.unit}
             disabled={!inStock}
@@ -73,7 +84,7 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
         </div>
 
         <div className="cart-item-subtotal-block">
-          <span className="cart-item-calc">{formatQuantity(quantity)} {product.unit} × {formatCurrency(product.price)}</span>
+          <span className="cart-item-calc">{formatQuantity(quantity)} {product.unit} × {formatCurrency(unitPrice)}</span>
           <div className="cart-item-subtotal-row">
             <span>Subtotal</span>
             <strong className="cart-item-subtotal">{formatCurrency(subtotal)}</strong>

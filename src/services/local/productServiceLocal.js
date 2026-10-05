@@ -3,6 +3,20 @@
 
 import { getExpiryStatus, STORAGE_KEYS } from '../../utils/constants';
 import { createId, migrateLegacyProducts, readStorage, writeStorage } from '../storageService';
+import { getWholesalePricingErrors } from '../../../backend/shared/pricing.js';
+
+function wholesaleFields(values, existing = null) {
+  const enabled = !values.isDonation && values.sellingType !== 'wholesale'
+    && (values.wholesaleEnabled ?? (existing?.wholesalePrice != null));
+  if (!enabled) return { wholesalePrice: null, wholesaleMinQuantity: null };
+  const fields = {
+    wholesalePrice: Number(values.wholesalePrice),
+    wholesaleMinQuantity: Number(values.wholesaleMinQuantity),
+  };
+  const errors = getWholesalePricingErrors({ ...values, ...fields }, existing);
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+  return fields;
+}
 
 
 
@@ -91,6 +105,7 @@ export function createProduct(values, farmer) {
     sellingType: values.sellingType || 'retail',
     moq: values.sellingType === 'wholesale' ? Number(values.moq) : null,
     price: Number(values.price),
+    ...wholesaleFields(values),
     unit: values.unit,
     kgPerUnit: values.unit === 'kg' ? null : kgPerUnit,
     quantity: Number(values.quantity),
@@ -99,6 +114,7 @@ export function createProduct(values, farmer) {
     image: values.image || '',
     status: 'active',
     priceReview: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
+    expirationDate: values.expirationDate || null,
     createdAt: now,
     updatedAt: now,
   };
@@ -121,6 +137,7 @@ export function updateProduct(id, values) {
     return {
       ...product,
       ...rest,
+      ...wholesaleFields({ ...product, ...values }, product),
       price: Number(values.price),
       kgPerUnit: rest.unit === 'kg' ? null : kgPerUnit,
       quantity,

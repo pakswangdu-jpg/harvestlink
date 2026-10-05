@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BadgeCheck, Check, CheckCircle2, Clock3, Copy, FileText, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, X,
 } from 'lucide-react';
@@ -34,6 +34,8 @@ import {
   updateOrderStatus,
 } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS } from '../../utils/constants';
+import { getRegisteredCoordinates } from '../../utils/geo';
+import { requestDeviceOrientationPermission } from '../../utils/vehicleMarker';
 import {
   deliveryMethodLabel,
   formatCurrency,
@@ -72,7 +74,7 @@ export default function OrderTracking() {
   const location = useLocation();
   const [order, setOrder] = useState(null);
   const [loadedId, setLoadedId] = useState(null);
-  const [pickupBuyerMunicipality, setPickupBuyerMunicipality] = useState(null);
+  const [trackingProfiles, setTrackingProfiles] = useState(null);
   const [delivery, setDelivery] = useState(null);
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
@@ -83,7 +85,9 @@ export default function OrderTracking() {
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
+  const autoOpenedTrackingOrderRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +125,41 @@ export default function OrderTracking() {
 
 
 
+  useEffect(() => {
+    if (!order?.farmerId || !order?.buyerId) return undefined;
+    let cancelled = false;
+    Promise.all([getUserById(order.farmerId), getUserById(order.buyerId)])
+      .then(([farmer, buyer]) => {
+        if (cancelled) return;
+        const hasRegisteredLocations = getRegisteredCoordinates(farmer) && getRegisteredCoordinates(buyer);
+        setTrackingProfiles({
+          orderId: order.id,
+          farmerId: order.farmerId,
+          buyerId: order.buyerId,
+          farmer,
+          buyer,
+          error: hasRegisteredLocations
+            ? ''
+            : 'Saved Farmer and Buyer profile coordinates are required for delivery tracking.',
+        });
+      })
+      .catch((profileError) => {
+        if (!cancelled) {
+          setTrackingProfiles({
+            orderId: order.id,
+            farmerId: order.farmerId,
+            buyerId: order.buyerId,
+            error: profileError.message || 'Could not load the saved delivery locations.',
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, order?.farmerId, order?.buyerId]);
+
+
+
 
   useEffect(() => {
     const channel = supabase
@@ -134,26 +173,6 @@ export default function OrderTracking() {
     };
   }, [id]);
 
-
-
-
-
-
-  const needsPickupBuyerLookup = Boolean(order) && order.deliveryMethod === 'buyer_pickup' && currentUser.id !== order.buyerId;
-  useEffect(() => {
-    if (!needsPickupBuyerLookup) return undefined;
-    let cancelled = false;
-    getUserById(order.buyerId)
-      .then((buyer) => {
-        if (!cancelled) setPickupBuyerMunicipality(buyer?.municipality || null);
-      })
-      .catch(() => {
-        if (!cancelled) setPickupBuyerMunicipality(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [needsPickupBuyerLookup, order?.buyerId]);
 
 
 
@@ -180,6 +199,18 @@ export default function OrderTracking() {
   const isBuyer = Boolean(order) && currentUser.id === order.buyerId;
   const isFarmer = Boolean(order) && currentUser.role === 'farmer' && currentUser.id === order.farmerId;
 
+  useEffect(() => {
+    if (
+      !isBuyer
+      || order.deliveryMethod !== 'farmer_delivery'
+      || order.deliveryStatus !== 'out_for_delivery'
+      || autoOpenedTrackingOrderRef.current === order.id
+    ) return;
+
+    autoOpenedTrackingOrderRef.current = order.id;
+    setIsTrackingOpen(true);
+  }, [isBuyer, order?.deliveryMethod, order?.deliveryStatus, order?.id]);
+
 
 
   const needsRatingCheck = isBuyer && order?.status === 'completed';
@@ -200,8 +231,19 @@ export default function OrderTracking() {
     };
   }, [needsRatingCheck, order?.id]);
 
-  const transit = order ? getLiveTransitProgress(order) : null;
-  const { etaMinutes = null, estimatedTotalMinutes = null, isInTransit = false, isLiveGps = false } = transit || {};
+  const hasTrackingProfiles = Boolean(order && trackingProfiles)
+    && trackingProfiles.orderId === order.id
+    && trackingProfiles.farmerId === order.farmerId
+    && trackingProfiles.buyerId === order.buyerId;
+  const farmerProfile = hasTrackingProfiles ? trackingProfiles.farmer : null;
+  const buyerProfile = hasTrackingProfiles ? trackingProfiles.buyer : null;
+  const profileLocationError = hasTrackingProfiles ? trackingProfiles.error : '';
+  const registeredRoutePoints = {
+    origin: getRegisteredCoordinates(farmerProfile),
+    destination: getRegisteredCoordinates(buyerProfile),
+  };
+  const transit = order ? getLiveTransitProgress(order, registeredRoutePoints) : null;
+  const { etaMinutes = null, estimatedTotalMinutes = null, isInTransit = false } = transit || {};
 
 
 
@@ -214,8 +256,6 @@ export default function OrderTracking() {
 
 
   const [liveRoute, setLiveRoute] = useState(null);
-
-  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
 
   if (loadedId !== id) return null;
   if (!order) return <Navigate to={fallbackOrdersPath(currentUser.role)} replace />;
@@ -248,12 +288,19 @@ export default function OrderTracking() {
     }
   };
 
-  const handleStartDelivery = (plateNumber) => {
+  const handleStartDelivery = async (plateNumber) => {
     setIsStartDeliveryDialogOpen(false);
-    run(
-      () => advanceDelivery(order.id, plateNumber),
-      `Order marked "${DELIVERY_STEP_LABELS.out_for_delivery}".`,
-    );
+    await requestDeviceOrientationPermission();
+    try {
+      const updated = await advanceDelivery(order.id, plateNumber);
+      setOrder(updated);
+      setError('');
+      setNotice(`Order marked "${DELIVERY_STEP_LABELS.out_for_delivery}".`);
+      setIsTrackingOpen(true);
+    } catch (actionError) {
+      setNotice('');
+      setError(actionError.message);
+    }
   };
 
   const handleSubmitRating = async () => {
@@ -280,7 +327,7 @@ export default function OrderTracking() {
 
 
   const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
-  const { remainingKm, isNearDestination } = transit;
+  const { isNearDestination } = transit;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
@@ -292,9 +339,8 @@ export default function OrderTracking() {
 
 
 
-  const displayEtaMinutes = liveRoute?.etaMinutes ?? etaMinutes;
+  const displayEtaMinutes = liveRoute ? liveRoute.etaMinutes : etaMinutes;
   const displayEstimatedTotalMinutes = liveRoute?.etaMinutes ?? estimatedTotalMinutes;
-  const displayRemainingKm = liveRoute?.isInTransit ? (liveRoute.remainingKm ?? remainingKm) : remainingKm;
 
   return (
     <AppShell
@@ -304,7 +350,9 @@ export default function OrderTracking() {
     >
       <div className="ot-page">
         {notice ? <div className="form-alert success">{notice}</div> : null}
-        {error ? <div className="form-alert error">{error}</div> : null}
+        {error || profileLocationError
+          ? <div className="form-alert error">{error || profileLocationError}</div>
+          : null}
 
         <div className="ot-header-bar">
           <div className="ot-header-badges">
@@ -340,7 +388,7 @@ export default function OrderTracking() {
               <div className="ot-progress-heading-actions">
                 {isTrackable ? (
                   <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
-                    <Map size={15} aria-hidden="true" /> View tracking
+                    <Map size={15} aria-hidden="true" /> View live tracking
                   </button>
                 ) : null}
                 <span className="live-indicator"><span className="live-dot" /> Live</span>
@@ -434,7 +482,7 @@ export default function OrderTracking() {
                     <span>{isInTransit ? 'Estimated delivery' : 'Estimated delivery (upfront)'}</span>
                     <strong>
                       {isInTransit
-                        ? `~${displayEtaMinutes} min${displayEtaMinutes === 1 ? '' : 's'} left`
+                        ? (displayEtaMinutes != null ? `~${displayEtaMinutes} min${displayEtaMinutes === 1 ? '' : 's'} left` : 'Unavailable')
                         : `~${formatDurationMinutes(displayEstimatedTotalMinutes)}`}
                     </strong>
                   </div>
@@ -624,21 +672,13 @@ export default function OrderTracking() {
 
         {isTrackable ? (
           <section className="panel ot-map-panel">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Map</p>
-                <h2>{isPickup ? 'Route to pickup location' : isCourier ? 'Courier route' : 'Delivery route'}</h2>
-              </div>
-              {isCourier ? (
-                <span className="live-indicator"><span className="live-dot" /> Route preview</span>
-              ) : isInTransit ? (
-                <span className="live-indicator">
-                  <span className="live-dot" /> {isLiveGps ? 'Live GPS' : 'Estimated'}
-                  {displayRemainingKm != null ? ` · ${displayRemainingKm.toFixed(1)} km left` : ''} · ETA ~{displayEtaMinutes} min{displayEtaMinutes === 1 ? '' : 's'}
-                </span>
-              ) : (
-                <span className="live-indicator"><span className="live-dot" /> Live</span>
-              )}
+            <div className="ot-route-header">
+              <h2>{isPickup ? 'Route to pickup location' : isCourier ? 'Courier route' : 'Delivery route'}</h2>
+              <span className="ot-route-header-eta">
+                {Number.isFinite(displayEtaMinutes) && displayEtaMinutes >= 0
+                  ? `About ${displayEtaMinutes} min`
+                  : 'ETA unavailable'}
+              </span>
             </div>
             {isCourier ? (
               <p className="muted ot-map-note">
@@ -648,9 +688,13 @@ export default function OrderTracking() {
             ) : null}
 
             <LiveDeliveryMap
+              navigationEnabled={isTrackingOpen}
+              canChooseAlternative={isFarmer && !isPickup && !isCourier}
               order={order}
+              farmerProfile={farmerProfile}
+              buyerProfile={buyerProfile}
               destinationMunicipalityOverride={isPickup
-                ? (isBuyer ? currentUser.municipality : pickupBuyerMunicipality) || order.deliveryMunicipality
+                ? (isBuyer ? currentUser.municipality : buyerProfile?.municipality) || order.deliveryMunicipality
                 : undefined}
               onRouteUpdate={setLiveRoute}
               deliveryStatusBadge={(

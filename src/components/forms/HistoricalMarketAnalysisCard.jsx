@@ -1,6 +1,7 @@
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import Button from '../common/Button';
 import { formatCurrency } from '../../utils/formatters';
+import WholesalePriceRecommendation from './WholesalePriceRecommendation';
 
 const TREND_META = {
   rising: { label: 'Rising', icon: TrendingUp, className: 'trend-up' },
@@ -22,7 +23,10 @@ function Row({ label, value, emphasize }) {
 
 
 
-export default function HistoricalMarketAnalysisCard({ analysis, unit, onUsePrice }) {
+export default function HistoricalMarketAnalysisCard({
+  analysis, unit, onUsePrice, wholesaleEnabled, costPrice, availableQuantity, onUseWholesalePrice,
+  sellingType = 'retail',
+}) {
   const {
     averagePrice, lowestPrice, highestPrice, trend, confidence, recommendedPrice, orderCount,
   } = analysis;
@@ -49,10 +53,19 @@ export default function HistoricalMarketAnalysisCard({ analysis, unit, onUsePric
           )}
         />
         <Row label="Confidence Score" value={`${confidence}%`} />
-        <Row label="AI Recommended Selling Price" value={`${formatCurrency(recommendedPrice)}/${unit}`} emphasize />
+        <Row label={`Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice)}/${unit}`} emphasize />
         <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(recommendedPrice)}>
-          Use this price
+          Use {sellingType} price
         </Button>
+        {wholesaleEnabled ? (
+          <WholesalePriceRecommendation
+            retailPrice={recommendedPrice}
+            costPrice={costPrice}
+            availableQuantity={availableQuantity}
+            unit={unit}
+            onUseRecommendation={onUseWholesalePrice}
+          />
+        ) : null}
       </div>
     </div>
   );
