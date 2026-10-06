@@ -7,6 +7,7 @@ import { isFreshLivePosition, normalizeLivePosition } from '../utils/liveTrackin
 import { haversineKm } from '../utils/geo';
 import {
   computeVehicleBearing,
+  getContinuousVehicleHeading,
   normalizeVehicleHeading,
   VEHICLE_HEADING_MIN_MOVEMENT_KM,
 } from '../utils/vehicleMarker';
@@ -108,7 +109,7 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
         const speed = Number.isFinite(position.coords.speed) ? position.coords.speed : null;
         const movedForHeading = !lastHeadingPosition
           || haversineKm(lastHeadingPosition, point) >= VEHICLE_HEADING_MIN_MOVEMENT_KM;
-        const heading = movedForHeading && gpsHeading != null && (speed == null || speed >= MIN_RELIABLE_HEADING_SPEED_MPS)
+        const heading = gpsHeading != null && (speed >= MIN_RELIABLE_HEADING_SPEED_MPS || (speed == null && movedForHeading))
           ? gpsHeading
           : movedForHeading && lastHeadingPosition
             ? computeVehicleBearing(lastHeadingPosition, point)
@@ -123,15 +124,17 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
         latestPosition = next;
         if (movedForHeading) {
           lastHeadingPosition = next;
-          if (next.heading != null) lastReliableHeading = next.heading;
         }
+        if (next.heading != null) lastReliableHeading = next.heading;
         gpsError = false;
         setError('');
         refreshStatus();
         // Local marker/route consume this fix immediately, independently of network/compass.
         activeIds.forEach((orderId) => publishLiveOrderPosition(orderId, next, { source: 'gps' }));
         const moved = !lastSentPosition || haversineKm(lastSentPosition, next) >= MIN_SEND_MOVE_KM;
-        if (now - lastSentAt < MIN_SEND_INTERVAL_MS && !moved) return;
+        const turned = next.heading != null && lastSentPosition?.heading != null
+          && Math.abs(getContinuousVehicleHeading(lastSentPosition.heading, next.heading) - lastSentPosition.heading) >= 3;
+        if (now - lastSentAt < MIN_SEND_INTERVAL_MS && !moved && !turned) return;
         lastSentAt = now;
         lastSentPosition = next;
         activeIds.forEach((orderId) => { void send(orderId); });

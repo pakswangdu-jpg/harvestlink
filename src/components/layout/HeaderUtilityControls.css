@@ -1,0 +1,74 @@
+.app-shell .header-utility-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 2px;
+}
+
+.app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle) {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  transform: none;
+  transition: background-color 150ms ease;
+}
+
+.app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle) svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  stroke-width: 1.8;
+}
+
+.app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle):hover,
+.app-shell .header-utility-controls .notification-bell-toggle[aria-expanded='true'] {
+  border-color: transparent;
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
+.app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle):focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 2px;
+}
+
+.app-shell .header-utility-controls :is(.cart-button-badge, .notification-badge) {
+  box-sizing: border-box;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 2px solid var(--panel);
+  border-radius: 6px;
+  background: var(--notification-badge);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle) {
+    transition: none;
+  }
+}

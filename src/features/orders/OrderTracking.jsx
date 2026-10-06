@@ -383,9 +383,21 @@ export default function OrderTracking() {
               <span>{formatDate(order.createdAt)}</span>
             </div>
           </div>
-          <div className="ot-header-statuses">
-            <StatusBadge value={order.deliveryStatus} type="deliveryStatus" />
-            <StatusBadge value={order.paymentStatus} type="paymentStatus" />
+          <div className="ot-header-statuses" role="group" aria-label="Delivery and payment status">
+            <div className="ot-header-status-item">
+              <span className="ot-header-status-label">Delivery</span>
+              <div className="ot-header-status-value">
+                {['delivered', 'picked_up'].includes(order.deliveryStatus) ? <CheckCircle2 size={16} aria-hidden="true" /> : null}
+                <StatusBadge value={order.deliveryStatus} type="deliveryStatus" />
+              </div>
+            </div>
+            <div className="ot-header-status-item">
+              <span className="ot-header-status-label">Payment</span>
+              <div className="ot-header-status-value">
+                {order.paymentStatus === 'paid' ? <CheckCircle2 size={16} aria-hidden="true" /> : null}
+                <StatusBadge value={order.paymentStatus} type="paymentStatus" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -462,15 +474,15 @@ export default function OrderTracking() {
                 </div>
               </div>
 
-              <div className="ot-detail-group">
+              <div className="ot-detail-group ot-payment-details">
                 <h4>Payment</h4>
                 <div className="ot-detail-row"><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
-                <div className="ot-detail-row"><span>{order.paymentMethod === 'cod' ? 'Amount to collect' : 'Amount'}</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+                <div className="ot-detail-row"><span>{order.paymentMethod === 'cod' ? 'Amount to collect' : 'Amount'}</span><strong className="ot-payment-amount">{formatCurrency(order.totalAmount)}</strong></div>
                 <div className="ot-detail-row"><span>Payment status</span><StatusBadge value={order.paymentStatus} type="paymentStatus" /></div>
                 {order.paymentMethod === 'gcash' && order.paymentVerificationStatus ? (
                   <>
                     <div className="ot-detail-row"><span>Verification</span><StatusBadge value={order.paymentVerificationStatus} type="paymentVerificationStatus" /></div>
-                    <div className="ot-detail-row"><span>Reference #</span><strong>{order.paymentReferenceNumber}</strong></div>
+                    <div className="ot-detail-row"><span>Reference #</span><strong className="ot-payment-reference">{order.paymentReferenceNumber}</strong></div>
                     <div className="ot-detail-row"><span>Sender name</span><strong>{order.paymentSenderName}</strong></div>
                     <div className="ot-detail-row"><span>Submitted</span><strong>{formatDate(order.paymentSubmittedAt)}</strong></div>
                   </>

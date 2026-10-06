@@ -85,10 +85,12 @@ export default function NotificationBell({ userId }) {
         type="button"
         className="notification-bell-toggle"
         onClick={() => setIsOpen((previous) => !previous)}
-        aria-label="Notifications"
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        aria-expanded={isOpen}
+        title="Notifications"
       >
-        <Bell size={20} />
-        {unreadCount > 0 ? <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
+        <Bell size={20} aria-hidden="true" />
+        {unreadCount > 0 ? <span className="notification-badge" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
       </button>
 
       {isOpen ? (

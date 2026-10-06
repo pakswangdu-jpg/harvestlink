@@ -92,6 +92,19 @@ test('farmer sharing derives vehicle heading from movement instead of phone rota
   h.cleanup();
 });
 
+test('moving GPS heading changes reach the buyer without waiting for 8 m of movement', async () => {
+  const h = await harness();
+  const timestamp = Date.now();
+  const coords = { latitude: 10.31, longitude: 123.91, accuracy: 8, heading: 358, speed: 2 };
+  h.gps({ coords, timestamp });
+  await flush();
+  h.gps({ coords: { ...coords, heading: 2 }, timestamp: timestamp + 5000 });
+  await flush();
+  assert.equal(h.local.at(-1).heading, 2);
+  assert.equal(h.sends.at(-1).heading, 2);
+  h.cleanup();
+});
+
 test('offline GPS updates stay local; reconnect sends newest sample with original timestamp instead of buffering old fixes', async () => {
   const h = await harness();
   h.socket.connected = false;

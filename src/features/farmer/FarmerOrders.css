@@ -434,14 +434,45 @@
   text-underline-offset: 3px;
 }
 
-.farmer-orders-page .farmer-orders-workspace .badge-status {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
+.farmer-orders-page .farmer-orders-workspace .farmer-order-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
   white-space: normal;
   letter-spacing: 0;
+}
+
+.farmer-orders-page .farmer-order-stage::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.farmer-orders-page .farmer-order-stage.stage-pending::before,
+.farmer-orders-page .farmer-order-stage.stage-preparing::before {
+  background: var(--amber-700);
+}
+
+.farmer-orders-page .farmer-order-stage.stage-out_for_delivery::before {
+  background: var(--blue-700);
+}
+
+.farmer-orders-page .farmer-order-stage.stage-completed::before,
+.farmer-orders-page .farmer-order-stage.stage-ready_for_pickup::before {
+  background: var(--green-800);
+}
+
+.farmer-orders-page .farmer-order-stage.stage-cancelled::before,
+.farmer-orders-page .farmer-order-stage.stage-rejected::before {
+  background: var(--red-700);
 }
 
 .farmer-orders-page .farmer-orders-workspace .farmer-order-action-link,
