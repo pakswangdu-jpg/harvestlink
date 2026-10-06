@@ -5,12 +5,16 @@ import { getOrdersByFarmer } from '../services/orderService';
 import { publishLiveOrderPosition, clearLiveOrderPositions } from '../services/liveTrackingStore';
 import { isFreshLivePosition, normalizeLivePosition } from '../utils/liveTrackingPosition';
 import { haversineKm } from '../utils/geo';
-import { getDeviceCompassHeading, normalizeVehicleHeading, smoothVehicleHeading } from '../utils/vehicleMarker';
+import {
+  computeVehicleBearing,
+  normalizeVehicleHeading,
+  VEHICLE_HEADING_MIN_MOVEMENT_KM,
+} from '../utils/vehicleMarker';
 
 const POLL_INTERVAL_MS = 6000;
 const MIN_SEND_INTERVAL_MS = 4000;
 const MIN_SEND_MOVE_KM = 0.01;
-const DEVICE_HEADING_MAX_AGE_MS = 10000;
+const MIN_RELIABLE_HEADING_SPEED_MPS = 0.8;
 
 function isActiveDeliveryOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery';
@@ -20,25 +24,7 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('online');
-  const deviceHeadingRef = useRef(null);
-  const deviceHeadingUpdatedAtRef = useRef(0);
   const resumeLocationRef = useRef(null);
-
-  useEffect(() => {
-    const updateDeviceHeading = (event) => {
-      const screenAngle = window.screen?.orientation?.angle ?? window.orientation ?? 0;
-      const heading = getDeviceCompassHeading(event, screenAngle, event.type === 'deviceorientationabsolute');
-      if (heading == null) return;
-      deviceHeadingRef.current = smoothVehicleHeading(deviceHeadingRef.current, heading);
-      deviceHeadingUpdatedAtRef.current = Date.now();
-    };
-    window.addEventListener('deviceorientationabsolute', updateDeviceHeading);
-    window.addEventListener('deviceorientation', updateDeviceHeading);
-    return () => {
-      window.removeEventListener('deviceorientationabsolute', updateDeviceHeading);
-      window.removeEventListener('deviceorientation', updateDeviceHeading);
-    };
-  }, []);
 
   useEffect(() => {
     if (!farmerId) return undefined;
@@ -51,6 +37,8 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
     let gpsError = false;
     let latestPosition = null;
     let lastSentPosition = null;
+    let lastHeadingPosition = null;
+    let lastReliableHeading = null;
     let lastSentAt = 0;
     const joined = new Set();
     const joining = new Map();
@@ -115,16 +103,28 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
       watchId = navigator.geolocation.watchPosition((position) => {
         if (cancelled || !activeIds.size) return;
         const now = Date.now();
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
         const gpsHeading = normalizeVehicleHeading(position.coords.heading);
-        const deviceHeadingIsFresh = now - deviceHeadingUpdatedAtRef.current <= DEVICE_HEADING_MAX_AGE_MS;
+        const speed = Number.isFinite(position.coords.speed) ? position.coords.speed : null;
+        const movedForHeading = !lastHeadingPosition
+          || haversineKm(lastHeadingPosition, point) >= VEHICLE_HEADING_MIN_MOVEMENT_KM;
+        const heading = movedForHeading && gpsHeading != null && (speed == null || speed >= MIN_RELIABLE_HEADING_SPEED_MPS)
+          ? gpsHeading
+          : movedForHeading && lastHeadingPosition
+            ? computeVehicleBearing(lastHeadingPosition, point)
+            : lastReliableHeading;
         const next = normalizeLivePosition({
-          lat: position.coords.latitude, lng: position.coords.longitude,
-          accuracy: position.coords.accuracy, speed: position.coords.speed,
-          heading: deviceHeadingIsFresh ? deviceHeadingRef.current : gpsHeading,
+          lat: point.lat, lng: point.lng,
+          accuracy: position.coords.accuracy, speed,
+          heading,
           timestamp: position.timestamp,
         });
         if (!next || !isFreshLivePosition(next) || (latestPosition && next.timestamp < latestPosition.timestamp)) return;
         latestPosition = next;
+        if (movedForHeading) {
+          lastHeadingPosition = next;
+          if (next.heading != null) lastReliableHeading = next.heading;
+        }
         gpsError = false;
         setError('');
         refreshStatus();

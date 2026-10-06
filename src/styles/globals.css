@@ -15091,6 +15091,137 @@ td {
   gap: 14px;
 }
 
+.tracking-completed-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px 28px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.tracking-completed-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tracking-completed-state > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--green-800);
+}
+
+.tracking-completed-state strong,
+.tracking-completed-metrics dd {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+
+.tracking-completed-state p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.tracking-completed-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1 1 240px;
+  max-width: 320px;
+  gap: 24px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.tracking-completed-metrics > div {
+  display: flex;
+  flex-direction: column-reverse;
+  min-width: 0;
+}
+
+.tracking-completed-metrics dd {
+  margin: 0;
+}
+
+.tracking-completed-metrics dt {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.tracking-info-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px 0 4px;
+  border-top: 1px solid var(--line);
+}
+
+.tracking-info-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tracking-info-card + .tracking-info-card {
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.tracking-info-card-icon {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  color: var(--muted);
+}
+
+.tracking-info-card p {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.tracking-info-card strong {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.tracking-info-card .tracking-badge {
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+
+@media (max-width: 720px) {
+  .tracking-info-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 16px;
+  }
+
+  .tracking-info-card + .tracking-info-card {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .live-delivery-map {
   width: 100%;
   height: 360px;

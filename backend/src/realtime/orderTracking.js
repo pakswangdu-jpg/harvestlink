@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { createNotification } from '../lib/notify.js';
 import { haversineKm, resolveDeliveryDestination } from '../lib/geo.js';
+import { accumulateTripTelemetry } from '../lib/tripTelemetry.js';
 
 
 
@@ -117,7 +118,7 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
       const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
-        .select('farmer_id, buyer_id, farmer_name, delivery_method, status, delivery_status, origin_municipality, delivery_municipality, location_updated_at')
+        .select('*')
         .eq('id', orderId)
         .single();
       if (orderError || !order) {
@@ -157,19 +158,34 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
         current_speed: Number.isFinite(speed) ? speed : null,
         current_accuracy: Number.isFinite(accuracy) ? accuracy : null,
       };
-      const save = (update) => supabaseAdmin.from('orders').update(update).eq('id', orderId)
-        .eq('status', 'confirmed').eq('delivery_status', 'out_for_delivery')
-        .or(`location_updated_at.is.null,location_updated_at.lt.${locationUpdatedAt}`)
-        .select('id').maybeSingle();
-      let { data: saved, error: updateError } = await save(enrichedUpdate);
-
-
-
-
-
-
-      if (updateError?.code === 'PGRST204' || updateError?.code === '42703') {
-        ({ data: saved, error: updateError } = await save(baseUpdate));
+      let previousOrder = order;
+      let saved = null;
+      let updateError = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const save = (update) => {
+          let query = supabaseAdmin.from('orders').update(update).eq('id', orderId)
+            .eq('status', 'confirmed').eq('delivery_status', 'out_for_delivery')
+            .or(`location_updated_at.is.null,location_updated_at.lt.${locationUpdatedAt}`);
+          // Match the exact prior sample so concurrent updates cannot overwrite trip totals.
+          query = previousOrder.location_updated_at
+            ? query.eq('location_updated_at', previousOrder.location_updated_at)
+            : query.is('location_updated_at', null);
+          return query.select('id').maybeSingle();
+        };
+        const telemetry = accumulateTripTelemetry(previousOrder, { lat, lng, speed, accuracy }, locationUpdatedAt);
+        ({ data: saved, error: updateError } = await save({ ...enrichedUpdate, ...telemetry }));
+        if (updateError?.code === 'PGRST204' || updateError?.code === '42703') {
+          ({ data: saved, error: updateError } = await save(enrichedUpdate));
+        }
+        if (updateError?.code === 'PGRST204' || updateError?.code === '42703') {
+          ({ data: saved, error: updateError } = await save(baseUpdate));
+        }
+        if (saved || updateError) break;
+        const latest = await supabaseAdmin.from('orders').select('*').eq('id', orderId).single();
+        if (latest.error) { updateError = latest.error; break; }
+        previousOrder = latest.data;
+        if (!previousOrder || previousOrder.status !== 'confirmed' || previousOrder.delivery_status !== 'out_for_delivery'
+          || Date.parse(previousOrder.location_updated_at) >= sampleReceivedAt) break;
       }
       if (updateError) {
         ack?.({ ok: false, error: updateError.message });

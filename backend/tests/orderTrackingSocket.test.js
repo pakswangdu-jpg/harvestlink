@@ -21,12 +21,14 @@ mock.module('../src/lib/supabaseClient.js', { namedExports: { supabaseAdmin: {
       // Model the atomic timestamp/status predicates used by the real database update.
       if (!row || (filters.status && row.status !== filters.status)
         || (filters.delivery_status && row.delivery_status !== filters.delivery_status)
+        || ('location_updated_at' in filters && (row.location_updated_at ?? null) !== filters.location_updated_at)
         || (row.location_updated_at && row.location_updated_at >= update.location_updated_at)) return { data: null, error: null };
       Object.assign(row, update);
       return { data: { id: row.id }, error: null };
     };
     return {
       select() { return this; }, eq(key, value) { filters[key] = value; return this; },
+      is(key, value) { filters[key] = value; return this; },
       update(value) { update = value; return this; },
       or(value) { assert.match(value, /location_updated_at\.lt\./); return this; },
       single: execute, maybeSingle: execute,
@@ -113,4 +115,28 @@ test('real order room delivers exact GPS to farmer/buyer, replays late joins, an
   releaseOldWrite();
   assert.equal((await oldWrite).skipped, true);
   assert.equal(rows.get(orderId).current_lat, moved.lat);
+
+  // A newer overlapping sample retries against the committed totals, rather than losing an interval.
+  const telemetryOrder = 'telemetry-order';
+  rows.set(telemetryOrder, { ...rows.get(orderId), id: telemetryOrder,
+    current_lat: 10.31, current_lng: 123.91, current_speed: 10, current_accuracy: 5,
+    location_updated_at: new Date(Date.now() - 20000).toISOString(),
+    tracked_distance_km: 1, tracked_duration_seconds: 100 });
+  await emit(farmer, 'join-order', { orderId: telemetryOrder, token: 'farmer' });
+  let releaseNewWrite;
+  delayNextWrite = new Promise(resolve => { releaseNewWrite = resolve; });
+  const newWrite = emit(farmer, 'farmer-location', { orderId: telemetryOrder, lat: 10.31, lng: 123.912,
+    speed: 10, accuracy: 5, sampleAgeMs: 0 });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  await emit(farmer, 'farmer-location', { orderId: telemetryOrder, lat: 10.31, lng: 123.911,
+    speed: 10, accuracy: 5, sampleAgeMs: 10000 });
+  releaseNewWrite();
+  assert.equal((await newWrite).ok, true);
+  const recorded = rows.get(telemetryOrder);
+  assert.ok(recorded.tracked_duration_seconds > 119 && recorded.tracked_duration_seconds < 122);
+  assert.ok(Math.abs(recorded.tracked_distance_km - (1 + (recorded.tracked_duration_seconds - 100) / 100)) < 0.0001);
+  const totalsBeforeStaleSample = recorded.tracked_duration_seconds;
+  await emit(farmer, 'farmer-location', { orderId: telemetryOrder, lat: 10.31, lng: 123.911,
+    speed: 10, accuracy: 5, sampleAgeMs: 15000 });
+  assert.equal(recorded.tracked_duration_seconds, totalsBeforeStaleSample);
 });

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
+import { CheckCircle2, Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
 import { DARK_MAP_STYLE, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { isFreshLivePosition } from '../../utils/liveTrackingPosition';
+import { getRecordedAverageSpeedKmh } from '../../utils/tripTelemetry';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { haversineKm, validateCoordinates } from '../../utils/geo';
 import { nearestIndexOnPath } from '../../services/routingService';
@@ -25,6 +26,7 @@ import {
   VEHICLE_MARKER_WIDTH_PX,
 } from '../../utils/vehicleMarker';
 import DriverConnectionBadge from './DriverConnectionBadge';
+import LiveDeliverySummary from './LiveDeliverySummary';
 
 
 
@@ -192,6 +194,7 @@ export default function LiveDeliveryMap({
   destinationMunicipalityOverride,
   onRouteUpdate,
   deliveryStatusBadge,
+  deliveryStatusSummary,
   canChooseAlternative = false,
   navigationEnabled = true,
 }) {
@@ -287,15 +290,7 @@ export default function LiveDeliveryMap({
     : null;
   const etaMinutes = !navigation.stale && googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
   const arrivalLabel = estimatedArrivalLabel(isDelivered ? null : etaMinutes);
-  const tripDistanceKm = origin && destination
-    ? (googleRoute?.distanceKm ?? haversineKm(origin, destination))
-    : null;
-  const tripElapsedMinutes = order.transitStartedAt && order.updatedAt
-    ? (new Date(order.updatedAt).getTime() - new Date(order.transitStartedAt).getTime()) / 60000
-    : null;
-  const completedAverageSpeedKmh = tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
-    ? tripDistanceKm / (tripElapsedMinutes / 60)
-    : null;
+  const completedAverageSpeedKmh = getRecordedAverageSpeedKmh(order);
   const isArrived = !isDelivered && remainingKm != null && remainingKm <= ARRIVED_KM_THRESHOLD;
   const etaCardValue = isDelivered ? 'Delivered' : isArrived ? 'Arrived' : (etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—');
   const distanceCardValue = isDelivered
@@ -304,7 +299,7 @@ export default function LiveDeliveryMap({
       ? `${remainingKm.toFixed(1)} km`
       : '—';
   const speedCardValue = isDelivered
-    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h avg` : '—')
+    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(1)} km/h avg` : '—')
     : (currentSpeedKmh != null ? `${currentSpeedKmh.toFixed(0)} km/h` : '—');
 
   useEffect(() => {
@@ -626,7 +621,19 @@ export default function LiveDeliveryMap({
         ) : null}
       </div>
 
-      {deliveryState === 'navigating' ? (
+      {deliveryState === 'navigating' && order.deliveryMethod === 'farmer_delivery' ? (
+        <LiveDeliverySummary
+          order={order}
+          eta={etaCardValue}
+          distance={distanceCardValue}
+          arrival={arrivalLabel}
+          speed={speedCardValue}
+          connectionStatus={connectionStatus}
+          lastUpdatedAt={lastLocationUpdatedAt}
+          deliveryStatus={deliveryStatusSummary}
+          deliveryStatusBadge={deliveryStatusBadge}
+        />
+      ) : deliveryState === 'navigating' ? (
         <div className="nav-info-card">
           <div className="nav-info-card-header">
             <span className={`nav-status-dot status-${connectionStatus || 'reconnecting'}`} />
@@ -646,11 +653,25 @@ export default function LiveDeliveryMap({
         </div>
       ) : null}
 
-      {deliveryState !== 'navigating' ? (
+      {isDelivered ? (
+        <section className="tracking-completed-summary" aria-label="Completed delivery summary">
+          <div className="tracking-completed-state">
+            <CheckCircle2 size={20} aria-hidden="true" />
+            <div>
+              <strong>{etaCardValue}</strong>
+              <p>Order completed successfully</p>
+            </div>
+          </div>
+          <dl className="tracking-completed-metrics">
+            <div><dt>Remaining</dt><dd>{distanceCardValue}</dd></div>
+            <div><dt>Average speed</dt><dd>{speedCardValue.replace(/ avg$/, '')}</dd></div>
+          </dl>
+        </section>
+      ) : deliveryState !== 'navigating' ? (
         <div className="tracking-info-cards">
           <div className="tracking-info-card">
             <div className="tracking-info-card-icon"><Clock3 size={18} /></div>
-            <div><p>ETA</p><strong>{etaCardValue}</strong></div>
+            <div><p>{isDelivered ? 'Delivery' : 'ETA'}</p><strong>{etaCardValue}</strong></div>
           </div>
           <div className="tracking-info-card">
             <div className="tracking-info-card-icon"><MapPin size={18} /></div>
@@ -658,7 +679,7 @@ export default function LiveDeliveryMap({
           </div>
           <div className="tracking-info-card">
             <div className="tracking-info-card-icon"><Gauge size={18} /></div>
-            <div><p>Current Speed</p><strong>{speedCardValue}</strong></div>
+            <div><p>{isDelivered ? 'Average speed' : 'Current Speed'}</p><strong>{speedCardValue}</strong></div>
           </div>
           {deliveryStatusBadge ? (
             <div className="tracking-info-card">

@@ -10,12 +10,14 @@ import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
-import DeliveryTruckIcon from '../../components/icons/DeliveryTruckIcon';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
+import FeedbackSuccessDialog from '../../components/orders/FeedbackSuccessDialog';
+import '../../components/orders/DeliveryTrackingInfo.css';
+import './OrderDetails.css';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { getUserById } from '../../services/authService';
@@ -82,6 +84,9 @@ export default function OrderTracking() {
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+  const [feedbackSuccessOrderId, setFeedbackSuccessOrderId] = useState(null);
+  const ratingSubmitInFlightRef = useRef(false);
+  const feedbackPanelRef = useRef(null);
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
@@ -304,18 +309,22 @@ export default function OrderTracking() {
   };
 
   const handleSubmitRating = async () => {
+    if (ratingSubmitInFlightRef.current) return;
     if (!ratingValue) {
       setRatingError('Choose a star rating first.');
       return;
     }
+    ratingSubmitInFlightRef.current = true;
     setIsSubmittingRating(true);
     setRatingError('');
     try {
       const created = await createRating({ farmerId: order.farmerId, orderId: order.id, rating: ratingValue, comment: ratingComment });
       setExistingRating(created);
+      setFeedbackSuccessOrderId(order.id);
     } catch (ratingSubmitError) {
       setRatingError(ratingSubmitError.message);
     } finally {
+      ratingSubmitInFlightRef.current = false;
       setIsSubmittingRating(false);
     }
   };
@@ -355,9 +364,9 @@ export default function OrderTracking() {
           : null}
 
         <div className="ot-header-bar">
-          <div className="ot-header-badges">
-            <span className="ot-chip">
-              <FileText size={13} /> #{shortOrderId(order.id)}
+          <div className="ot-order-summary">
+            <div className="ot-order-number">
+              <strong>Order #{shortOrderId(order.id)}</strong>
               <button
                 type="button"
                 className="ot-chip-copy"
@@ -367,10 +376,12 @@ export default function OrderTracking() {
               >
                 {orderIdCopied ? <Check size={12} /> : <Copy size={12} />}
               </button>
-            </span>
-            <span className="ot-chip"><Package size={13} /> {order.quantity} {order.unit}</span>
-            <span className="ot-chip">{formatCurrency(order.totalAmount)}</span>
-            <span className="ot-chip">{formatDate(order.createdAt)}</span>
+            </div>
+            <div className="ot-order-meta">
+              <span>{order.quantity} {order.unit}</span>
+              <span>{formatCurrency(order.totalAmount)}</span>
+              <span>{formatDate(order.createdAt)}</span>
+            </div>
           </div>
           <div className="ot-header-statuses">
             <StatusBadge value={order.deliveryStatus} type="deliveryStatus" />
@@ -382,8 +393,8 @@ export default function OrderTracking() {
           <div className="panel ot-progress-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Tracking</p>
                 <h2>Order progress</h2>
+                <p className="ot-section-subtitle">Track the current order status</p>
               </div>
               <div className="ot-progress-heading-actions">
                 {isTrackable ? (
@@ -391,26 +402,24 @@ export default function OrderTracking() {
                     <Map size={15} aria-hidden="true" /> View live tracking
                   </button>
                 ) : null}
-                <span className="live-indicator"><span className="live-dot" /> Live</span>
               </div>
             </div>
             {isCourier ? (
               <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={isFarmer} onDeliveryUpdate={setDelivery} />
-            ) : <OrderTracker order={order} isFarmer={isFarmer} />}
+            ) : <OrderTracker order={order} isFarmer={isFarmer} showSummary={false} />}
           </div>
 
           <div className="panel ot-details-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Details</p>
                 <h2>Order details</h2>
               </div>
             </div>
 
             <div className="ot-detail-groups">
               <div className="ot-detail-group">
-                <h4>General Information</h4>
-                <div className="ot-detail-row"><span>Order #</span><strong>{shortOrderId(order.id)}</strong></div>
+                <h4>Order information</h4>
+                <div className="ot-detail-row"><span>Order number</span><strong>{shortOrderId(order.id)}</strong></div>
                 <div className="ot-detail-row ot-detail-row-product">
                   <span>Product</span>
                   <div className="ot-product-summary">
@@ -422,7 +431,19 @@ export default function OrderTracking() {
                 </div>
                 <div className="ot-detail-row"><span>Quantity</span><strong>{order.quantity} {order.unit}</strong></div>
                 <div className="ot-detail-row"><span>Product amount</span><strong>{formatCurrency(order.unitPrice * order.quantity)}</strong></div>
-                <div className="ot-detail-row"><span>Buyer</span><strong>{order.buyerName}</strong></div>
+              </div>
+
+              <div className="ot-detail-group">
+                <h4>People</h4>
+                <div className="ot-detail-row ot-detail-row-farmer">
+                  <span>Buyer</span>
+                  <div className="ot-farmer-profile">
+                    <span className="farmer-list-avatar" aria-hidden="true">
+                      {order.buyerAvatarUrl ? <img src={order.buyerAvatarUrl} alt="" /> : getInitials(order.buyerName)}
+                    </span>
+                    <span className="ot-farmer-profile-text"><span className="ot-farmer-name">{order.buyerName}</span></span>
+                  </div>
+                </div>
                 <div className="ot-detail-row ot-detail-row-farmer">
                   <span>Farmer</span>
                   <div className="ot-farmer-profile">
@@ -491,7 +512,7 @@ export default function OrderTracking() {
 
               {order.message ? (
                 <div className="ot-detail-group">
-                  <h4>Additional Information</h4>
+                  <h4>Additional information</h4>
                   <div className="ot-detail-row ot-detail-row-message"><span>Message</span><strong>{order.message}</strong></div>
                 </div>
               ) : null}
@@ -559,7 +580,7 @@ export default function OrderTracking() {
         </section>
 
         {isBuyer && order.status === 'completed' ? (
-          <section className="panel ot-feedback-panel">
+          <section ref={feedbackPanelRef} tabIndex={-1} className="panel ot-feedback-panel" aria-label="Order feedback">
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Feedback</p>
@@ -576,7 +597,7 @@ export default function OrderTracking() {
                 {existingRating.createdAt ? <p className="ot-review-date">Reviewed {formatDate(existingRating.createdAt)}</p> : null}
               </div>
             ) : (
-              <div className="form-stack">
+              <div className="form-stack" aria-busy={isSubmittingRating}>
                 {ratingError ? <div className="form-alert error">{ratingError}</div> : null}
                 <StarRating value={ratingValue} onChange={setRatingValue} size={26} />
                 <textarea
@@ -603,51 +624,43 @@ export default function OrderTracking() {
           title={isPickup ? 'Pickup tracking' : 'Delivery tracking'}
         >
         {isTrackable ? (
-          <section className="ot-summary-cards-wrap">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{isPickup ? 'Pickup tracking' : 'Delivery tracking'}</p>
-                <h2 className="tracking-info-heading">Live overview</h2>
-              </div>
-            </div>
-            <div className="ot-summary-cards">
-              <div className="ot-summary-card">
-                <span className="farmer-list-avatar">
+          <section className="delivery-tracking-info" aria-label={isPickup ? 'Pickup information' : 'Delivery information'}>
+            <header className="delivery-tracking-info-heading">
+              <h2>{isPickup ? 'Pickup tracking' : 'Delivery tracking'}</h2>
+              <p>Live order overview</p>
+            </header>
+            <div className="delivery-tracking-info-row">
+              <div className="delivery-tracking-info-person">
+                <span className="delivery-tracking-info-avatar" aria-hidden="true">
                   {order.farmerAvatarUrl ? <img src={order.farmerAvatarUrl} alt="" /> : getInitials(order.farmerName)}
                 </span>
                 <div>
-                  <p>Farmer</p>
                   <strong>{order.farmerName}</strong>
+                  <span>Farmer</span>
                 </div>
               </div>
-              <div className="ot-summary-card">
-                <span className="farmer-list-avatar buyer">
+              <div className="delivery-tracking-info-person">
+                <span className="delivery-tracking-info-avatar" aria-hidden="true">
                   {order.buyerAvatarUrl ? <img src={order.buyerAvatarUrl} alt="" /> : getInitials(order.buyerName)}
                 </span>
                 <div>
-                  <p>Buyer</p>
                   <strong>{order.buyerName}</strong>
+                  <span>Buyer</span>
                 </div>
               </div>
-              <div className="ot-summary-card">
-                <span className="ot-summary-icon"><DeliveryTruckIcon size={18} /></span>
+              <div className={`delivery-tracking-info-status status-${trackingStatus.key}`}>
+                <TrackingStatusIcon size={17} aria-hidden="true" />
                 <div>
-                  <p>{isPickup ? 'Pickup Status' : 'Delivery Status'}</p>
-                  <span className={`tracking-badge tracking-${trackingStatus.key}`}>
-                    <TrackingStatusIcon size={13} strokeWidth={2.5} /> {trackingStatus.label}
-                  </span>
+                  <strong>{trackingStatus.label.charAt(0) + trackingStatus.label.slice(1).toLowerCase()}</strong>
+                  <span>{isPickup ? 'Pickup status' : 'Delivery status'}</span>
                 </div>
               </div>
             </div>
             {!isPickup && !isCourier && order.vehiclePlateNumber ? (
-              <div className="ot-tracking-vehicle" aria-label={`Vehicle plate number ${order.vehiclePlateNumber}`}>
-                <span className="ot-tracking-vehicle-label">
-                  <Truck size={16} aria-hidden="true" />
-                  Vehicle plate
-                </span>
-                <span className="ot-tracking-vehicle-number">
-                  <strong>{order.vehiclePlateNumber}</strong>
-                </span>
+              <div className="delivery-tracking-info-vehicle" aria-label={`Vehicle plate number ${order.vehiclePlateNumber}`}>
+                <Truck size={16} aria-hidden="true" />
+                <span>Vehicle plate</span>
+                <strong>{order.vehiclePlateNumber}</strong>
               </div>
             ) : null}
           </section>
@@ -697,6 +710,7 @@ export default function OrderTracking() {
                 ? (isBuyer ? currentUser.municipality : buyerProfile?.municipality) || order.deliveryMunicipality
                 : undefined}
               onRouteUpdate={setLiveRoute}
+              deliveryStatusSummary={trackingStatus}
               deliveryStatusBadge={(
                 <span className={`tracking-badge tracking-${trackingStatus.key}`}>
                   <TrackingStatusIcon size={13} strokeWidth={2.5} /> {trackingStatus.label}
@@ -718,6 +732,11 @@ export default function OrderTracking() {
         cancelLabel="Keep Order"
         onConfirm={() => { setIsCancelDialogOpen(false); run(() => cancelOrder(order.id), 'Order cancelled.'); }}
         onCancel={() => setIsCancelDialogOpen(false)}
+      />
+      <FeedbackSuccessDialog
+        open={feedbackSuccessOrderId === order.id}
+        onClose={() => setFeedbackSuccessOrderId(null)}
+        returnFocusRef={feedbackPanelRef}
       />
       <StartDeliveryDialog
         open={isStartDeliveryDialogOpen}

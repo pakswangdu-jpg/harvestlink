@@ -307,6 +307,8 @@ notify pgrst, 'reload schema';
     -- optional enrichment, never a required field.
     current_heading double precision,
     current_speed double precision,
+    tracked_distance_km double precision not null default 0,
+    tracked_duration_seconds double precision not null default 0,
     current_accuracy double precision,
     location_updated_at timestamptz,
     -- Set once, the moment delivery_status first becomes 'out_for_delivery' (see
@@ -332,6 +334,8 @@ notify pgrst, 'reload schema';
   alter table public.orders add column if not exists current_lng double precision;
   alter table public.orders add column if not exists current_heading double precision;
   alter table public.orders add column if not exists current_speed double precision;
+  alter table public.orders add column if not exists tracked_distance_km double precision not null default 0;
+  alter table public.orders add column if not exists tracked_duration_seconds double precision not null default 0;
   alter table public.orders add column if not exists current_accuracy double precision;
   alter table public.orders add column if not exists location_updated_at timestamptz;
   alter table public.orders add column if not exists transit_started_at timestamptz;

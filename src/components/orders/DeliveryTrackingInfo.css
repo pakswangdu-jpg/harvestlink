@@ -1,0 +1,153 @@
+.delivery-tracking-info {
+  container-type: inline-size;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-ui);
+  letter-spacing: 0;
+}
+
+.delivery-tracking-info-heading {
+  margin-bottom: 16px;
+}
+
+.delivery-tracking-info-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.delivery-tracking-info-heading p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.delivery-tracking-info-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+}
+
+.delivery-tracking-info-person,
+.delivery-tracking-info-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 0;
+}
+
+.delivery-tracking-info-row > div + div {
+  border-top: 1px solid var(--line);
+}
+
+.delivery-tracking-info-person > div,
+.delivery-tracking-info-status > div {
+  min-width: 0;
+}
+
+.delivery-tracking-info-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--panel-subtle);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.delivery-tracking-info-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.delivery-tracking-info-person strong,
+.delivery-tracking-info-status strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+}
+
+.delivery-tracking-info-person div > span,
+.delivery-tracking-info-status div > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 19px;
+}
+
+.delivery-tracking-info-status > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.delivery-tracking-info-status.status-near-destination > svg,
+.delivery-tracking-info-status.status-near-destination strong {
+  color: var(--violet-700);
+}
+
+.delivery-tracking-info-status.status-delivered > svg {
+  color: var(--green-800);
+}
+
+.delivery-tracking-info-vehicle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.delivery-tracking-info-vehicle > svg,
+.delivery-tracking-info-vehicle > span {
+  color: var(--muted);
+}
+
+.delivery-tracking-info-vehicle strong {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@container (min-width: 620px) {
+  .delivery-tracking-info-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(150px, 0.65fr);
+    padding: 16px 0;
+  }
+
+  .delivery-tracking-info-row > div {
+    padding: 0 20px;
+  }
+
+  .delivery-tracking-info-row > div:first-child {
+    padding-left: 0;
+  }
+
+  .delivery-tracking-info-row > div:last-child {
+    padding-right: 0;
+  }
+
+  .delivery-tracking-info-row > div + div {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}

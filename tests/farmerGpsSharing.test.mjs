@@ -79,6 +79,19 @@ test('existing single high-accuracy watcher publishes GPS locally before emittin
   assert.equal(h.cleared(), 1);
 });
 
+test('farmer sharing derives vehicle heading from movement instead of phone rotation', async () => {
+  const h = await harness();
+  const timestamp = Date.now();
+  const base = { latitude: 10.31, longitude: 123.91, accuracy: 8, heading: null, speed: 1.2 };
+  h.gps({ coords: base, timestamp });
+  await flush();
+  h.gps({ coords: { ...base, longitude: 123.911 }, timestamp: timestamp + 5000 });
+  await flush();
+  assert.equal(Math.round(h.local.at(-1).heading), 90);
+  assert.equal(Math.round(h.sends.at(-1).heading), 90);
+  h.cleanup();
+});
+
 test('offline GPS updates stay local; reconnect sends newest sample with original timestamp instead of buffering old fixes', async () => {
   const h = await harness();
   h.socket.connected = false;

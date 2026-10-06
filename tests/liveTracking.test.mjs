@@ -21,6 +21,7 @@ test('seconds, milliseconds and ISO timestamps preserve valid zero/string coordi
     assert.equal(value.lng, 123.5);
     assert.equal(value.timestamp, time);
     assert.equal(value.heading, null);
+    assert.equal(value.deviceHeading, null);
     assert.equal(value.speed, null);
     assert.equal(position.isFreshLivePosition(value, time), true);
   }
@@ -28,6 +29,13 @@ test('seconds, milliseconds and ISO timestamps preserve valid zero/string coordi
     assert.equal(position.normalizeLivePosition(fix({ lat, lng: 10 })), null);
   }
   assert.equal(position.normalizeLivePosition({ ...fix(), accuracy: 180 }), null);
+});
+
+test('device heading stays separate from authoritative travel heading', () => {
+  const value = position.normalizeLivePosition({ ...fix(), heading: 90, deviceHeading: 181 });
+  assert.equal(value.heading, 90);
+  assert.equal(value.deviceHeading, 181);
+  assert.equal(position.normalizeLivePosition({ ...fix(), heading: 90 }).deviceHeading, null);
 });
 
 test('server/client clock differences preserve sample age; stale samples stay stale', () => {
