@@ -14,9 +14,9 @@ import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import {
   getRegisteredCoordinates,
-  haversineKm,
 } from '../../utils/geo';
 import { useTrafficNavigation } from '../../hooks/useTrafficNavigation';
+import { getRecordedAverageSpeedKmh } from '../../utils/tripTelemetry';
 import TrafficRouteNotice from './TrafficRouteNotice';
 import { advanceDelivery, getLiveTransitProgress, getNextDeliveryStatus } from '../../services/orderService';
 import { getUserById } from '../../services/authService';
@@ -185,24 +185,14 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
 
 
 
-  const tripDistanceKm = origin && destination
-    ? (googleRoute?.distanceKm ?? haversineKm(origin, destination))
-    : null;
-  const tripElapsedMinutes = order.transitStartedAt && order.updatedAt
-    ? (new Date(order.updatedAt).getTime() - new Date(order.transitStartedAt).getTime()) / 60000
-    : null;
-
-
-  const completedAverageSpeedKmh = tripDistanceKm != null && tripElapsedMinutes != null && tripElapsedMinutes >= 0.5
-    ? tripDistanceKm / (tripElapsedMinutes / 60)
-    : null;
+  const completedAverageSpeedKmh = getRecordedAverageSpeedKmh(order);
 
   const gpsSpeed = currentPosition?.speed;
   const activeSpeedKmh = Number.isFinite(gpsSpeed) ? Math.max(0, gpsSpeed * 3.6) : null;
   const etaValue = etaMinutes != null ? `${etaMinutes} min${etaMinutes === 1 ? '' : 's'}` : '—';
   const distanceValue = isDelivered ? '0.0 km' : (remainingKm != null ? `${remainingKm.toFixed(1)} km` : '—');
   const speedValue = isDelivered
-    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(0)} km/h` : '—')
+    ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(1)} km/h` : '—')
     : (activeSpeedKmh != null && isOutForDelivery ? `${activeSpeedKmh.toFixed(0)} km/h` : '—');
   const lastLocationUpdatedAt = livePosition?.locationUpdatedAt || order.locationUpdatedAt;
   const mapConnectionLabel = connectionStatus === 'connected'

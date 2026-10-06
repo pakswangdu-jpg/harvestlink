@@ -19,14 +19,14 @@ const TERMINAL_STEP_LABEL = {
   cancelled: 'Cancelled',
 };
 
-export default function OrderTracker({ order, isFarmer = false }) {
+export default function OrderTracker({ order, isFarmer = false, showSummary = true }) {
   const isActive = order.status === 'confirmed' || order.status === 'completed';
   const sequence = getDeliverySequence(order.deliveryMethod);
   const currentIndex = sequence.indexOf(order.deliveryStatus);
 
   return (
     <div className="order-tracker">
-      <div className="tracker-summary">
+      {showSummary ? <div className="tracker-summary">
         <div>
           <span>Order status</span>
           <StatusBadge value={order.status} />
@@ -35,7 +35,7 @@ export default function OrderTracker({ order, isFarmer = false }) {
           <span>Payment</span>
           <StatusBadge value={order.paymentStatus} type="paymentStatus" />
         </div>
-      </div>
+      </div> : null}
 
       {isActive ? (
         <ol className="tracker">

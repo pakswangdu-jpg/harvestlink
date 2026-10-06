@@ -1,0 +1,301 @@
+.ot-page .ot-header-bar {
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.ot-order-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ot-order-number strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.ot-order-number .ot-chip-copy {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+}
+
+.ot-order-number .ot-chip-copy:focus-visible {
+  outline: 2px solid var(--green-800);
+  outline-offset: 2px;
+}
+
+.ot-order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ot-order-meta span + span::before {
+  margin-right: 10px;
+  content: '\00b7';
+}
+
+.ot-page .ot-header-statuses .badge,
+.ot-page .ot-details-panel .ot-detail-row > .badge {
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  letter-spacing: 0;
+}
+
+.ot-page .ot-main-grid {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 20px;
+}
+
+.ot-page .ot-progress-panel,
+.ot-page .ot-details-panel {
+  min-width: 0;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.ot-page .ot-main-grid .section-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ot-page .ot-main-grid .section-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.ot-section-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ot-page .ot-view-tracking-btn {
+  padding: 8px 12px;
+  border: 1px solid #166534;
+  border-radius: 8px;
+  background: #166534;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  box-shadow: none;
+}
+
+.ot-page .ot-view-tracking-btn:hover {
+  background: #14532d;
+  box-shadow: none;
+  transform: none;
+}
+
+.ot-page .ot-view-tracking-btn:focus-visible {
+  outline: 2px solid var(--green-800);
+  outline-offset: 3px;
+}
+
+.ot-page .ot-progress-panel .tracker-step {
+  margin-left: 9px;
+  padding: 3px 0 20px 20px;
+  border-left-width: 1px;
+}
+
+.ot-page .ot-progress-panel .tracker-step:last-child {
+  padding-bottom: 0;
+}
+
+.ot-page .ot-progress-panel .tracker-icon {
+  top: 3px;
+  left: -10px;
+  width: 19px;
+  height: 19px;
+  border-width: 1px;
+}
+
+.ot-page .ot-progress-panel .tracker-icon-dot {
+  width: 5px;
+  height: 5px;
+}
+
+.ot-page .ot-progress-panel .tracker-step-body {
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.ot-page .ot-progress-panel .tracker-label {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.ot-page .ot-progress-panel .tracker-step.done .tracker-label {
+  color: var(--green-800);
+  font-weight: 500;
+}
+
+.ot-page .ot-progress-panel .tracker-step.active .tracker-label {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.ot-page .ot-progress-panel .tracker-step.error .tracker-label {
+  color: var(--red-700);
+}
+
+.ot-page .ot-progress-panel .tracker-timestamp {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.ot-page .ot-details-panel .ot-detail-groups {
+  gap: 20px;
+}
+
+.ot-page .ot-details-panel .ot-detail-group h4 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ot-page .ot-details-panel .ot-detail-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.8fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 21px;
+}
+
+.ot-page .ot-details-panel .ot-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.ot-page .ot-details-panel .ot-detail-row > span:first-child:not(.badge) {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.ot-page .ot-details-panel .ot-detail-row > :last-child {
+  min-width: 0;
+  justify-self: start;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ot-page .ot-details-panel .ot-detail-row strong {
+  font-weight: 500;
+  text-align: left;
+}
+
+.ot-page .ot-details-panel .ot-product-summary {
+  justify-content: flex-start;
+}
+
+.ot-page .ot-details-panel .ot-product-summary strong {
+  max-width: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ot-page .ot-details-panel .ot-product-thumb {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-color: var(--line);
+  background: var(--panel-subtle);
+}
+
+.ot-page .ot-details-panel .ot-farmer-profile {
+  align-items: flex-start;
+}
+
+.ot-page .ot-details-panel .ot-farmer-profile .farmer-list-avatar {
+  flex: 0 0 34px;
+  background: var(--panel-subtle);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.ot-page .ot-details-panel .ot-farmer-profile-text {
+  text-align: left;
+}
+
+.ot-page .ot-details-panel .ot-farmer-name {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ot-page .ot-details-panel .ot-farmer-farm,
+.ot-page .ot-details-panel .ot-farmer-location {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.ot-page .ot-details-panel .ot-farmer-profile span {
+  flex-shrink: 1;
+}
+
+.ot-page .ot-details-panel .ot-action-links .btn {
+  font-size: 14px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .ot-page .ot-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ot-page .ot-progress-panel,
+  .ot-page .ot-details-panel {
+    padding: 16px;
+  }
+
+  .ot-page .ot-details-panel .ot-detail-row {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+    gap: 10px;
+  }
+}

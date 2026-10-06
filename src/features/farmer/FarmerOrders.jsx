@@ -455,12 +455,14 @@ export default function FarmerOrders() {
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
     return orders.filter((order) => {
-      if (activeStage !== 'all' && getOrderStage(order) !== activeStage) return false;
+      if (activeStage === 'to_prepare') {
+        if (!['confirmed', 'preparing'].includes(getOrderStage(order))) return false;
+      } else if (activeStage !== 'all' && getOrderStage(order) !== activeStage) return false;
       if (paymentFilter !== 'all' && order.paymentStatus !== paymentFilter) return false;
       if (deliveryFilter !== 'all' && order.deliveryMethod !== deliveryFilter) return false;
       if (!isWithinDateFilter(order, dateFilter, exactDateTime)) return false;
       if (query) {
-        const haystack = `${order.buyerName} ${order.productName}`.toLowerCase();
+        const haystack = `${order.buyerName} ${order.productName} #HL-${shortOrderId(order.id)} #${order.id}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -471,7 +473,7 @@ export default function FarmerOrders() {
     <AppShell
       user={currentUser}
       navItems={farmerNavItems}
-      eyebrow="Order Management"
+      eyebrow="Order management"
       title="Purchase Orders"
       subtitle="Review and process customer orders from confirmation to completion."
       pageClassName="farmer-orders-page"
@@ -482,10 +484,10 @@ export default function FarmerOrders() {
         <section className="panel payment-verification-panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Payments</p>
-              <h2>Payment Verification</h2>
+              <h2>Payment verification</h2>
+              <p className="payment-verification-subtitle">Review payments that still need confirmation.</p>
             </div>
-            <span className="badge badge-pending">{pendingVerifications.length} pending</span>
+            <span className="payment-verification-pending">{pendingVerifications.length} pending</span>
           </div>
 
           <div className="payment-verification-list">
@@ -525,7 +527,7 @@ export default function FarmerOrders() {
       <section className="farmer-orders-workspace" aria-label="Purchase orders">
         {orders.length ? (
           <>
-            <OrderStatusSummary stageCounts={stageCounts} />
+            <OrderStatusSummary stageCounts={stageCounts} activeStage={activeStage} onSelectStage={setActiveStage} />
 
             <div className="filter-tabs" role="tablist" aria-label="Filter by order stage">
               {STAGE_TABS.map((tab) => (
@@ -551,8 +553,8 @@ export default function FarmerOrders() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search orders..."
-                  aria-label="Search orders by buyer or product"
+                  placeholder="Order ID, buyer or product"
+                  aria-label="Search orders by order ID, buyer or product"
                 />
               </label>
 
@@ -616,7 +618,7 @@ export default function FarmerOrders() {
                         <th>Order ID</th>
                         <th>Payment</th>
                         <th>Fulfillment</th>
-                        <th>Order Status</th>
+                        <th>Order status</th>
                         <th>Date</th>
                         <th>Action</th>
                       </tr>
@@ -648,13 +650,14 @@ export default function FarmerOrders() {
                     <div key={order.id} className="order-mobile-card">
                       <div className="order-mobile-card-top">
                         <BuyerCell order={order} />
-                        <time className="order-mobile-card-date" dateTime={order.createdAt}>
-                          {formatDate(order.createdAt)} · {formatTime(order.createdAt)}
-                        </time>
                       </div>
 
                       <ProductCell order={order} />
-                      <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
+
+                      <div className="order-mobile-card-record">
+                        <OrderStageBadge order={order} />
+                        <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
+                      </div>
 
                       <div className="order-mobile-card-grid">
                         <div>
@@ -668,9 +671,9 @@ export default function FarmerOrders() {
                         </div>
                       </div>
 
-                      <div>
-                        <p className="order-mobile-card-label">Status</p>
-                        <div className="mt-1"><OrderStageBadge order={order} /></div>
+                      <div className="farmer-order-date">
+                        <span>{formatDate(order.createdAt)}</span>
+                        <time dateTime={order.createdAt}>{formatTime(order.createdAt)}</time>
                       </div>
 
                       <div className="order-mobile-card-actions">

@@ -278,6 +278,8 @@ export function mapOrderRealtimeRow(row) {
     currentLng: row.current_lng == null ? null : Number(row.current_lng),
     currentHeading: row.current_heading == null ? null : Number(row.current_heading),
     currentSpeed: row.current_speed == null ? null : Number(row.current_speed),
+    trackedDistanceKm: row.tracked_distance_km == null ? null : Number(row.tracked_distance_km),
+    trackedDurationSeconds: row.tracked_duration_seconds == null ? null : Number(row.tracked_duration_seconds),
     currentAccuracy: row.current_accuracy == null ? null : Number(row.current_accuracy),
     locationUpdatedAt: row.location_updated_at,
     transitStartedAt: row.transit_started_at,

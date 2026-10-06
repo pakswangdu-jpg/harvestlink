@@ -1,25 +1,25 @@
 import { Check, ClipboardList, MapPin, Package, Truck } from 'lucide-react';
 import './OrderStatusSummary.css';
 
-export default function OrderStatusSummary({ stageCounts }) {
+export default function OrderStatusSummary({ stageCounts, activeStage, onSelectStage }) {
   const statuses = [
     {
-      status: 'pending', label: 'New Orders', count: stageCounts.pending,
+      status: 'pending', label: 'New orders', count: stageCounts.pending,
       description: 'Awaiting confirmation', emptyDescription: 'No new orders',
       icon: ClipboardList, tone: 'attention',
     },
     {
-      status: 'preparing', label: 'To Prepare', count: stageCounts.confirmed + stageCounts.preparing,
+      status: 'to_prepare', label: 'To prepare', count: stageCounts.confirmed + stageCounts.preparing,
       description: 'Confirmed orders', emptyDescription: 'No orders to prepare',
       icon: Package, tone: 'neutral',
     },
     {
-      status: 'ready_for_pickup', label: 'Ready for Pickup', count: stageCounts.ready_for_pickup,
+      status: 'ready_for_pickup', label: 'Ready for pickup', count: stageCounts.ready_for_pickup,
       description: 'Waiting for buyer', emptyDescription: 'No pickups waiting',
       icon: MapPin, tone: 'pickup',
     },
     {
-      status: 'out_for_delivery', label: 'Out for Delivery', count: stageCounts.out_for_delivery,
+      status: 'out_for_delivery', label: 'Out for delivery', count: stageCounts.out_for_delivery,
       description: 'Currently in transit', emptyDescription: 'No deliveries in transit',
       icon: Truck, tone: 'transit',
     },
@@ -31,19 +31,26 @@ export default function OrderStatusSummary({ stageCounts }) {
   ];
 
   return (
-    <div className="order-status-summary">
-      <dl className="order-status-summary-list" aria-label="Order status overview">
+    <section className="order-status-summary" aria-label="Order overview">
+      <h2>Order overview</h2>
+      <div className="order-status-summary-list" role="group" aria-label="Filter orders by status">
         {statuses.map(({ status, label, count, description, emptyDescription, icon: Icon, tone }) => (
-          <div key={status} className={`order-status-summary-item${count > 0 ? ` order-status-summary-${tone}` : ''}`}>
-            <dt className="order-status-summary-label">
-              <Icon size={18} strokeWidth={2} aria-hidden="true" />
+          <button
+            key={status}
+            type="button"
+            className={`order-status-summary-item${count > 0 ? ` order-status-summary-${tone}` : ''}`}
+            aria-pressed={activeStage === status}
+            onClick={() => onSelectStage(status)}
+          >
+            <span className="order-status-summary-count">{count}</span>
+            <span className="order-status-summary-label">
+              <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span>{label}</span>
-            </dt>
-            <dd className="order-status-summary-count">{count}</dd>
-            <dd className="order-status-summary-description">{count > 0 ? description : emptyDescription}</dd>
-          </div>
+            </span>
+            <span className="order-status-summary-description">{count > 0 ? description : emptyDescription}</span>
+          </button>
         ))}
-      </dl>
-    </div>
+      </div>
+    </section>
   );
 }

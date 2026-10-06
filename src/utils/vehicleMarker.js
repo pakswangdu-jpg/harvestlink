@@ -83,16 +83,16 @@ export function resolveVehicleHeading({
     || haversineKm(previousPosition, currentPosition) >= VEHICLE_HEADING_MIN_MOVEMENT_KM;
   const shouldUpdateReference = movedEnough;
 
-  if (normalizeVehicleHeading(deviceHeading) != null) {
-    return { heading: normalizeVehicleHeading(deviceHeading), shouldUpdateReference };
-  }
-
   if (movedEnough && normalizeVehicleHeading(gpsHeading) != null) {
     return { heading: normalizeVehicleHeading(gpsHeading), shouldUpdateReference };
   }
 
   if (movedEnough && previousPosition) {
     return { heading: computeVehicleBearing(previousPosition, currentPosition), shouldUpdateReference };
+  }
+
+  if (movedEnough && normalizeVehicleHeading(deviceHeading) != null) {
+    return { heading: normalizeVehicleHeading(deviceHeading), shouldUpdateReference };
   }
 
   return { heading: normalizeVehicleHeading(lastHeading) ?? 0, shouldUpdateReference: false };

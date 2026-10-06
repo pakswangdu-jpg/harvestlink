@@ -27,7 +27,7 @@ export function normalizeLivePosition(payload, { receivedAt = Date.now(), server
     ...point,
     accuracy: optionalNumber(payload.accuracy),
     heading: optionalNumber(payload.heading),
-    deviceHeading: optionalNumber(payload.deviceHeading ?? payload.heading),
+    deviceHeading: optionalNumber(payload.deviceHeading),
     speed: optionalNumber(payload.speed),
     timestamp,
     locationUpdatedAt: new Date(updatedAt).toISOString(),

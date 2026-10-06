@@ -37,7 +37,7 @@ test('vehicle keeps its last heading below the 8 m movement threshold', () => {
   assert.equal(result.shouldUpdateReference, false);
 });
 
-test('vehicle prefers compass, falls back to GPS heading and then movement bearing', () => {
+test('vehicle prefers GPS travel heading, then movement bearing, then compass fallback', () => {
   const destination = { lat: 0, lng: 0.0001 };
 
   assert.deepEqual(resolveVehicleHeading({
@@ -46,7 +46,7 @@ test('vehicle prefers compass, falls back to GPS heading and then movement beari
     lastHeading: 0,
     deviceHeading: 274,
     gpsHeading: 92,
-  }), { heading: 274, shouldUpdateReference: true });
+  }), { heading: 92, shouldUpdateReference: true });
 
   assert.deepEqual(resolveVehicleHeading({
     previousPosition: origin,
@@ -60,6 +60,12 @@ test('vehicle prefers compass, falls back to GPS heading and then movement beari
     currentPosition: destination,
     lastHeading: 135,
   }), { heading: 90, shouldUpdateReference: true });
+
+  assert.deepEqual(resolveVehicleHeading({
+    currentPosition: destination,
+    lastHeading: 135,
+    deviceHeading: 274,
+  }), { heading: 274, shouldUpdateReference: true });
 });
 
 test('device orientation converts absolute alpha with screen angle and prefers iOS compass heading', () => {
@@ -80,7 +86,7 @@ test('device heading smoothing follows the short path across north', () => {
     currentPosition: origin,
     lastHeading: 15,
     deviceHeading: 92,
-  }).heading, 92);
+  }).heading, 15);
 });
 
 test('vehicle heading changes use the shortest rotation across north', () => {
