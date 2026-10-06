@@ -1,7 +1,7 @@
 export const VEHICLE_HEADING_MIN_MOVEMENT_KM = 0.008;
 export const VEHICLE_MARKER_ANIMATION_DURATION_MS = 700;
-export const VEHICLE_MARKER_WIDTH_PX = 28;
-export const VEHICLE_MARKER_HEIGHT_PX = 48;
+export const VEHICLE_MARKER_WIDTH_PX = 56;
+export const VEHICLE_MARKER_HEIGHT_PX = 56;
 
 export async function requestDeviceOrientationPermission() {
   if (typeof window === 'undefined') return false;
@@ -83,7 +83,8 @@ export function resolveVehicleHeading({
     || haversineKm(previousPosition, currentPosition) >= VEHICLE_HEADING_MIN_MOVEMENT_KM;
   const shouldUpdateReference = movedEnough;
 
-  if (movedEnough && normalizeVehicleHeading(gpsHeading) != null) {
+  const moving = Number.isFinite(currentPosition?.speed) && currentPosition.speed >= 1;
+  if ((movedEnough || moving) && normalizeVehicleHeading(gpsHeading) != null) {
     return { heading: normalizeVehicleHeading(gpsHeading), shouldUpdateReference };
   }
 
@@ -103,13 +104,13 @@ export function buildVehicleMarkerSvg(iconUrl, headingDeg = 0, previousHeadingDe
     ? getContinuousVehicleHeading(previousHeadingDeg, headingDeg)
     : headingDeg;
   const headingAnimation = Number.isFinite(previousHeadingDeg)
-    ? `<animateTransform attributeName="transform" type="rotate" from="${previousHeadingDeg} 14 24" to="${animatedHeading} 14 24" dur="300ms" fill="freeze"/>`
+    ? `<animateTransform attributeName="transform" type="rotate" from="${previousHeadingDeg} 14 24" to="${animatedHeading} 14 24" dur="200ms" fill="freeze"/>`
     : '';
   const initialTransform = Number.isFinite(previousHeadingDeg)
     ? ''
     : ` transform="rotate(${animatedHeading} 14 24)"`;
   return `
-    <svg width="${VEHICLE_MARKER_WIDTH_PX}" height="${VEHICLE_MARKER_HEIGHT_PX}" viewBox="0 0 28 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <svg width="${VEHICLE_MARKER_WIDTH_PX}" height="${VEHICLE_MARKER_HEIGHT_PX}" viewBox="-14 -4 56 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <g data-vehicle-body="true"${initialTransform}>
         ${headingAnimation}
         <image href="${iconUrl}" x="2" y="2" width="24" height="44" preserveAspectRatio="xMidYMid meet" filter="url(#vehicle-shadow)"/>

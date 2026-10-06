@@ -6,7 +6,8 @@ import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { isFreshLivePosition } from '../../utils/liveTrackingPosition';
 import { getRecordedAverageSpeedKmh } from '../../utils/tripTelemetry';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
-import { haversineKm, validateCoordinates } from '../../utils/geo';
+import { validateCoordinates } from '../../utils/geo';
+import { createLiveMapCamera } from '../../utils/liveMapCamera';
 import { nearestIndexOnPath } from '../../services/routingService';
 import { useTrafficNavigation } from '../../hooks/useTrafficNavigation';
 import TrafficRouteNotice from './TrafficRouteNotice';
@@ -17,10 +18,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import deliveryVanIcon from '../../assets/icons/harvestlink-delivery-van.png?inline';
 import {
   buildVehicleMarkerSvg,
-  computeVehicleBearing,
   getContinuousVehicleHeading,
   resolveVehicleHeading,
-  VEHICLE_HEADING_MIN_MOVEMENT_KM,
   VEHICLE_MARKER_ANIMATION_DURATION_MS,
   VEHICLE_MARKER_HEIGHT_PX,
   VEHICLE_MARKER_WIDTH_PX,
@@ -64,7 +63,6 @@ const ARRIVED_KM_THRESHOLD = 0.03;
 
 
 
-const CAMERA_BEHIND_OFFSET_KM = 0.12;
 
 
 
@@ -94,6 +92,8 @@ function buildVehicleMarkerContent() {
 
 function updateVehicleHeading(content, headingDeg) {
   const vehicleBody = content.querySelector('[data-vehicle-body]');
+  if (!vehicleBody || !Number.isFinite(headingDeg)) return;
+  vehicleBody.removeAttribute('transform');
   vehicleBody.style.transform = `rotate(${headingDeg}deg)`;
 }
 
@@ -139,19 +139,7 @@ function setVehicleMarkerHeading(entry, mapsApi, headingDeg) {
 
 
 
-function offsetPoint(point, bearingDeg, km) {
-  const earthRadiusKm = 6371;
-  const bearing = (bearingDeg * Math.PI) / 180;
-  const lat1 = (point.lat * Math.PI) / 180;
-  const lng1 = (point.lng * Math.PI) / 180;
-  const angularDistance = km / earthRadiusKm;
-  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(angularDistance) + Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing));
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
-    Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2),
-  );
-  return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
-}
+
 
 
 
@@ -165,11 +153,7 @@ function estimatedArrivalLabel(etaMinutes) {
 
 
 
-function zoomForSpeed(speedKmh) {
-  if (speedKmh >= 60) return 15;
-  if (speedKmh >= 35) return 16;
-  return 17.5;
-}
+
 
 function animateMarkerTo(entry, targetPosition, durationMs = VEHICLE_MARKER_ANIMATION_DURATION_MS) {
   if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
@@ -204,8 +188,9 @@ export default function LiveDeliveryMap({
   const trafficLayerRef = useRef(null);
   const layerRef = useRef([]);
   const carEntryRef = useRef(null);
-  const headingRef = useRef(0);
-  const lastHeadingPositionRef = useRef(null);
+  const cameraRef = useRef(null);
+  const liveTargetRef = useRef(null);
+  const overviewStateRef = useRef(null);
   const vehicleHeadingRef = useRef(0);
   const lastVehicleHeadingPositionRef = useRef(null);
   const autoEnabledRef = useRef(false);
@@ -267,10 +252,9 @@ export default function LiveDeliveryMap({
   const transit = getLiveTransitProgress(order, { origin, destination });
   const isDelivered = order.status === 'completed';
   const currentPosition = transit.isInTransit ? livePosition : null;
-  const hasReceivedGpsCoordinates = Boolean(validateCoordinates(order.currentLat, order.currentLng));
   const vehiclePosition = currentPosition
-    || (isDelivered ? livePosition : null)
-    || (transit.isInTransit && !isPickup && !hasReceivedGpsCoordinates ? origin : null);
+    || (isDelivered ? livePosition : null);
+  const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
 
   const deliveryState = isDelivered ? 'delivered' : (transit.isInTransit ? 'navigating' : 'preview');
   const trafficEnabled = trafficOverride ?? (deliveryState === 'navigating');
@@ -308,19 +292,12 @@ export default function LiveDeliveryMap({
   }, [etaMinutes, remainingKm, currentSpeedKmh, currentPosition?.lat, currentPosition?.lng, isDelivered]);
 
   useEffect(() => {
-    if (deliveryState === 'navigating' && !autoEnabledRef.current) {
-      setAutoFollow(true);
-      autoEnabledRef.current = true;
-    }
-  }, [deliveryState]);
-
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current || !origin || !destination) return undefined;
+    if (!containerRef.current || mapRef.current || !initialCenter) return undefined;
     let cancelled = false;
     loadGoogleMaps().then((mapsApi) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
       const map = new mapsApi.Map(containerRef.current, {
-        center: origin,
+        center: initialCenter,
         zoom: 12,
         mapId: GOOGLE_MAPS_MAP_ID || undefined,
         disableDefaultUI: true,
@@ -345,9 +322,30 @@ export default function LiveDeliveryMap({
     return () => {
       cancelled = true;
     };
-    // Profile coordinates are intentionally the only map initialization trigger.
+    // Live GPS can initialize the map even when registered profile coordinates are missing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [origin?.lat, origin?.lng, destination?.lat, destination?.lng, effectiveTheme, hasVectorMap]);
+  }, [initialCenter?.lat, initialCenter?.lng, effectiveTheme, hasVectorMap]);
+
+  useEffect(() => {
+    liveTargetRef.current = vehiclePosition;
+  }, [vehiclePosition]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !mapsApiRef.current) return undefined;
+    const camera = createLiveMapCamera({
+      map: mapRef.current,
+      mapsApi: mapsApiRef.current,
+      container: containerRef.current,
+      getPosition: () => liveTargetRef.current,
+      getHeading: () => vehicleHeadingRef.current,
+      onFollowChange: setAutoFollow,
+    });
+    cameraRef.current = camera;
+    return () => {
+      camera.destroy();
+      cameraRef.current = null;
+    };
+  }, [mapReady]);
 
 
 
@@ -407,7 +405,7 @@ export default function LiveDeliveryMap({
       bounds.extend(origin);
       bounds.extend(destination);
       if (vehiclePosition) bounds.extend(vehiclePosition);
-      map.fitBounds(bounds, 48);
+      cameraRef.current?.fitOverview(bounds);
     };
 
     if (deliveryState === 'preview') {
@@ -416,18 +414,18 @@ export default function LiveDeliveryMap({
       const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 100 });
       layerRef.current.push(shadow, casing, routeLine);
       setVehicleMarkerMap(carEntryRef.current, null);
+      cameraRef.current?.pause();
       map.setTilt(0);
       map.setHeading(0);
-      fitToBothPins();
     } else if (deliveryState === 'delivered') {
       const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 90 });
       const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 8, strokeOpacity: 0.9, geodesic: true, map, zIndex: 99 });
       const routeLine = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_DELIVERED_COLOR, strokeWeight: 5, strokeOpacity: 0.95, geodesic: true, map, zIndex: 100 });
       layerRef.current.push(shadow, casing, routeLine);
       setVehicleMarkerMap(carEntryRef.current, null);
+      cameraRef.current?.pause();
       map.setTilt(0);
       map.setHeading(0);
-      fitToBothPins();
     } else {
 
 
@@ -477,112 +475,88 @@ export default function LiveDeliveryMap({
 
       }
 
-      if (vehiclePosition) {
-
-
-
-        if (Number.isFinite(vehiclePosition.heading)) {
-          headingRef.current = vehiclePosition.heading;
-          lastHeadingPositionRef.current = vehiclePosition;
-        } else {
-          const lastHeadingPosition = lastHeadingPositionRef.current;
-          if (!lastHeadingPosition || haversineKm(lastHeadingPosition, vehiclePosition) > VEHICLE_HEADING_MIN_MOVEMENT_KM) {
-            if (lastHeadingPosition) headingRef.current = computeVehicleBearing(lastHeadingPosition, vehiclePosition);
-            lastHeadingPositionRef.current = vehiclePosition;
-          }
-        }
-
-        const vehicleHeading = resolveVehicleHeading({
-          previousPosition: lastVehicleHeadingPositionRef.current,
-          currentPosition: vehiclePosition,
-          lastHeading: vehicleHeadingRef.current,
-          deviceHeading: vehiclePosition.deviceHeading,
-          gpsHeading: vehiclePosition.heading,
-        });
-        vehicleHeadingRef.current = vehicleHeading.heading;
-        if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
-
-        if (!carEntryRef.current) {
-
-
-
-
-          if (hasVectorMap) {
-            const content = buildVehicleMarkerContent();
-            updateVehicleHeading(content, vehicleHeadingRef.current);
-            const marker = new mapsApi.AdvancedMarkerElement({
-              position: vehiclePosition,
-              map,
-              content,
-              anchorLeft: '-50%',
-              anchorTop: '-50%',
-              zIndex: 1000,
-            });
-            carEntryRef.current = {
-              kind: 'advanced',
-              marker,
-              content,
-              currentLatLng: vehiclePosition,
-              renderedHeading: vehicleHeadingRef.current,
-              animationFrameId: null,
-            };
-          } else {
-            const marker = new mapsApi.Marker({ position: vehiclePosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
-            carEntryRef.current = {
-              kind: 'classic',
-              marker,
-              currentLatLng: vehiclePosition,
-              renderedHeading: vehicleHeadingRef.current,
-              animationFrameId: null,
-            };
-          }
-        } else {
-          setVehicleMarkerMap(carEntryRef.current, map);
-          setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
-          animateMarkerTo(carEntryRef.current, vehiclePosition);
-        }
-
-
-
-
-
-        if (autoFollow) {
-          const zoom = zoomForSpeed(currentSpeedKmh || 0);
-          const center = hasVectorMap ? offsetPoint(vehiclePosition, (headingRef.current + 180) % 360, CAMERA_BEHIND_OFFSET_KM) : vehiclePosition;
-          map.moveCamera({ center, zoom, heading: hasVectorMap ? headingRef.current : 0, tilt: hasVectorMap ? 45 : 0 });
-        }
-      } else {
-        setVehicleMarkerMap(carEntryRef.current, null);
-      }
-
-      if (!autoFollow || !vehiclePosition) fitToBothPins();
     }
+    if (overviewStateRef.current !== deliveryState) {
+      overviewStateRef.current = deliveryState;
+      fitToBothPins();
+    }
+    // GPS updates move the marker independently; route changes do not reset the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, googleRoute, navigation.alternatives, currentPosition?.lat, currentPosition?.lng, vehiclePosition?.lat, vehiclePosition?.lng, origin?.lat, origin?.lng, destination?.lat, destination?.lng, autoFollow, deliveryState]);
+  }, [mapReady, googleRoute, navigation.alternatives, origin?.lat, origin?.lng, destination?.lat, destination?.lng, deliveryState]);
 
   useEffect(() => {
-    const entry = carEntryRef.current;
+    const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!entry || !mapsApi || !vehiclePosition) return;
-
-    const resolvedHeading = resolveVehicleHeading({
+    if (!mapReady || !map || !mapsApi) return;
+    if (deliveryState !== 'navigating' || !validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng)) {
+      setVehicleMarkerMap(carEntryRef.current, null);
+      cameraRef.current?.pause();
+      autoEnabledRef.current = false;
+      return;
+    }
+    const vehicleHeading = resolveVehicleHeading({
       previousPosition: lastVehicleHeadingPositionRef.current,
       currentPosition: vehiclePosition,
       lastHeading: vehicleHeadingRef.current,
       deviceHeading: vehiclePosition.deviceHeading,
       gpsHeading: vehiclePosition.heading,
     });
-    vehicleHeadingRef.current = resolvedHeading.heading;
-    if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
-    if (getContinuousVehicleHeading(entry.renderedHeading ?? resolvedHeading.heading, resolvedHeading.heading)
-      === (entry.renderedHeading ?? resolvedHeading.heading)) return;
-    setVehicleMarkerHeading(entry, mapsApi, resolvedHeading.heading);
-  }, [vehiclePosition, vehiclePosition?.heading, vehiclePosition?.deviceHeading]);
+    vehicleHeadingRef.current = vehicleHeading.heading;
+    if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
 
-  useEffect(() => {
-    return () => {
-      if (carEntryRef.current?.animationFrameId != null) cancelAnimationFrame(carEntryRef.current.animationFrameId);
-    };
+    if (!carEntryRef.current) {
+
+      if (hasVectorMap && typeof mapsApi.AdvancedMarkerElement === 'function') {
+        const content = buildVehicleMarkerContent();
+        updateVehicleHeading(content, vehicleHeadingRef.current);
+        const marker = new mapsApi.AdvancedMarkerElement({
+          position: vehiclePosition,
+          map,
+          content,
+          anchorLeft: '-50%',
+          anchorTop: '-50%',
+          zIndex: 1000,
+        });
+        carEntryRef.current = {
+          kind: 'advanced',
+          marker,
+          content,
+          currentLatLng: vehiclePosition,
+          renderedHeading: vehicleHeadingRef.current,
+          animationFrameId: null,
+        };
+      } else {
+        const marker = new mapsApi.Marker({ position: vehiclePosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
+        carEntryRef.current = {
+          kind: 'classic',
+          marker,
+          currentLatLng: vehiclePosition,
+          renderedHeading: vehicleHeadingRef.current,
+          animationFrameId: null,
+        };
+      }
+    } else {
+      setVehicleMarkerMap(carEntryRef.current, map);
+      setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
+      animateMarkerTo(carEntryRef.current, vehiclePosition);
+    }
+    if (!autoEnabledRef.current) {
+      autoEnabledRef.current = cameraRef.current?.resume() || false;
+    } else {
+      cameraRef.current?.update();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, vehiclePosition?.lat, vehiclePosition?.lng, vehiclePosition?.heading, vehiclePosition?.deviceHeading, deliveryState]);
+
+  useEffect(() => () => {
+    cameraRef.current?.destroy();
+    if (carEntryRef.current?.animationFrameId != null) cancelAnimationFrame(carEntryRef.current.animationFrameId);
+    setVehicleMarkerMap(carEntryRef.current, null);
+    carEntryRef.current = null;
+    layerRef.current.forEach((layer) => layer.setMap(null));
+    layerRef.current = [];
+    mapRef.current = null;
+    mapsApiRef.current = null;
   }, []);
 
   return (
@@ -608,7 +582,8 @@ export default function LiveDeliveryMap({
           <button
             type="button"
             className={`nav-recenter-btn ${autoFollow ? 'active' : ''}`}
-            onClick={() => setAutoFollow((value) => !value)}
+            onClick={() => cameraRef.current?.resume()}
+            aria-pressed={autoFollow}
             aria-label={autoFollow ? 'Following driver' : 'Re-center on driver'}
             title={autoFollow ? 'Following driver' : 'Re-center on driver'}
           >
@@ -662,10 +637,11 @@ export default function LiveDeliveryMap({
               <p>Order completed successfully</p>
             </div>
           </div>
-          <dl className="tracking-completed-metrics">
-            <div><dt>Remaining</dt><dd>{distanceCardValue}</dd></div>
-            <div><dt>Average speed</dt><dd>{speedCardValue.replace(/ avg$/, '')}</dd></div>
-          </dl>
+          {completedAverageSpeedKmh != null ? (
+            <dl className="tracking-completed-metrics">
+              <div><dt>Average speed</dt><dd>{speedCardValue.replace(/ avg$/, '')}</dd></div>
+            </dl>
+          ) : null}
         </section>
       ) : deliveryState !== 'navigating' ? (
         <div className="tracking-info-cards">

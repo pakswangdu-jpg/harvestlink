@@ -46,8 +46,8 @@ const STAGE_LABELS = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   preparing: 'Preparing',
-  ready_for_pickup: 'Ready for Pickup',
-  out_for_delivery: 'Out for Delivery',
+  ready_for_pickup: 'Ready for pickup',
+  out_for_delivery: 'Out for delivery',
   completed: 'Completed',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
@@ -137,7 +137,7 @@ function getPrimaryAction(order) {
 
 function OrderStageBadge({ order }) {
   const stage = getOrderStage(order);
-  return <span className={`badge badge-status badge-${stage}`}>{STAGE_LABELS[stage]}</span>;
+  return <span className={`farmer-order-stage stage-${stage}`}>{STAGE_LABELS[stage]}</span>;
 }
 
 function BuyerCell({ order }) {

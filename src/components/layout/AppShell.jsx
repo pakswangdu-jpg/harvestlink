@@ -17,6 +17,7 @@ import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliv
 import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
 import logo from '../../assets/logo.png';
+import './HeaderUtilityControls.css';
 
 const navListVariants = {
   hidden: {},
@@ -253,9 +254,11 @@ export default function AppShell({
             </div>
             <div className="page-header-actions">
               {headerActions}
-              {ORDERING_ROLES.includes(user.role) ? <CartButton /> : null}
-              <ThemeToggle compact />
-              {hasProfile ? <NotificationBell userId={user.id} /> : null}
+              <div className="header-utility-controls" role="group" aria-label="Quick actions">
+                {ORDERING_ROLES.includes(user.role) ? <CartButton /> : null}
+                <ThemeToggle compact />
+                {hasProfile ? <NotificationBell userId={user.id} /> : null}
+              </div>
             </div>
           </header>
         ) : null}

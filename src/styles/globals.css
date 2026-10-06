@@ -15131,8 +15131,8 @@ td {
 
 .tracking-completed-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  flex: 1 1 240px;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 0 1 auto;
   max-width: 320px;
   gap: 24px;
   margin: 0;
@@ -15492,15 +15492,15 @@ td {
 
 .nav-vehicle-marker {
   display: block;
-  width: 28px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   transform-origin: center center;
 }
 
 .nav-vehicle-marker [data-vehicle-body] {
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform 0.25s linear;
+  transition: transform 0.2s linear;
 }
 
 @media (max-width: 640px) {

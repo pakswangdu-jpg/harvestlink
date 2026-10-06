@@ -495,32 +495,40 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
           ) : null}
 
           {isDelivered ? (
-            <div className="tracking-completion-message">
-              <CheckCircle2 size={18} aria-hidden="true" />
-              <div>
-                <strong>Completed successfully</strong>
-                <span>Your order has reached its destination.</span>
+            <section className="tracking-completed-summary" aria-label="Completed delivery summary">
+              <div className="tracking-completed-state">
+                <CheckCircle2 size={20} aria-hidden="true" />
+                <div>
+                  <strong>{statusLabel}</strong>
+                  <p>Order completed successfully</p>
+                </div>
               </div>
-            </div>
-          ) : null}
-          <section className="tracking-delivery-summary" aria-label={isDelivered ? 'Delivery summary' : 'Live delivery summary'}>
-            <div className="tracking-summary-stat">
-              <span><Clock3 size={16} aria-hidden="true" />ETA</span>
-              <strong>{etaValue}</strong>
-            </div>
-            <div className="tracking-summary-stat">
-              <span><MapPin size={16} aria-hidden="true" />Remaining Distance</span>
-              <strong>{distanceValue}</strong>
-            </div>
-            <div className="tracking-summary-stat">
-              <span><Gauge size={16} aria-hidden="true" />{isDelivered ? 'Average Speed' : 'Current Speed'}</span>
-              <strong>{speedValue}</strong>
-            </div>
-            <div className="tracking-summary-stat">
-              <span><Truck size={16} aria-hidden="true" />Delivery Status</span>
-              <strong>{statusLabel}</strong>
-            </div>
-          </section>
+              {completedAverageSpeedKmh != null ? (
+                <dl className="tracking-completed-metrics">
+                  <div><dt>Average speed</dt><dd>{speedValue}</dd></div>
+                </dl>
+              ) : null}
+            </section>
+          ) : (
+            <section className="tracking-delivery-summary" aria-label="Live delivery summary">
+              <div className="tracking-summary-stat">
+                <span><Clock3 size={16} aria-hidden="true" />ETA</span>
+                <strong>{etaValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><MapPin size={16} aria-hidden="true" />Remaining Distance</span>
+                <strong>{distanceValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><Gauge size={16} aria-hidden="true" />{isDelivered ? 'Average Speed' : 'Current Speed'}</span>
+                <strong>{speedValue}</strong>
+              </div>
+              <div className="tracking-summary-stat">
+                <span><Truck size={16} aria-hidden="true" />Delivery Status</span>
+                <strong>{statusLabel}</strong>
+              </div>
+            </section>
+          )}
 
           {farmerMarkedComplete && order.status !== 'completed' ? (
             <p className="tracking-pending-confirmation">

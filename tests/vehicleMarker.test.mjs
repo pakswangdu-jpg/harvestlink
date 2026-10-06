@@ -94,18 +94,26 @@ test('vehicle heading changes use the shortest rotation across north', () => {
   assert.equal(getContinuousVehicleHeading(1, 359), -1);
 });
 
+test('reliable GPS heading responds while moving without waiting for an 8 m displacement', () => {
+  const previousPosition = { lat: 10.31, lng: 123.91 };
+  const result = resolveVehicleHeading({ previousPosition,
+    currentPosition: { ...previousPosition, speed: 2 }, lastHeading: 358, gpsHeading: 2 });
+  assert.equal(result.heading, 2);
+  assert.equal(result.shouldUpdateReference, false);
+});
+
 test('vehicle marker uses the cropped van image without a container', () => {
   const svg = buildVehicleMarkerSvg('data:image/png;base64,cropped-van');
 
-  assert.equal(VEHICLE_MARKER_WIDTH_PX, 28);
-  assert.equal(VEHICLE_MARKER_HEIGHT_PX, 48);
+  assert.equal(VEHICLE_MARKER_WIDTH_PX, 56);
+  assert.equal(VEHICLE_MARKER_HEIGHT_PX, 56);
   assert.ok(VEHICLE_MARKER_ANIMATION_DURATION_MS > 0);
   assert.ok(VEHICLE_MARKER_ANIMATION_DURATION_MS <= 800);
-  assert.match(svg, /viewBox="0 0 28 48"/);
+  assert.match(svg, /viewBox="-14 -4 56 56"/);
   assert.doesNotMatch(svg, /<circle\b/);
   assert.match(svg, /data-vehicle-body="true" transform="rotate\(0 14 24\)"/);
   assert.match(svg, /<image href="data:image\/png;base64,cropped-van" x="2" y="2" width="24" height="44"/);
   assert.match(svg, /<feDropShadow dx="0" dy="1" stdDeviation="\.65"/);
   assert.match(buildVehicleMarkerSvg('van', 90), /transform="rotate\(90 14 24\)"/);
-  assert.match(buildVehicleMarkerSvg('van', 1, 359), /<animateTransform[^>]+from="359 14 24" to="361 14 24" dur="300ms"/);
+  assert.match(buildVehicleMarkerSvg('van', 1, 359), /<animateTransform[^>]+from="359 14 24" to="361 14 24" dur="200ms"/);
 });

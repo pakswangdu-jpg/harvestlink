@@ -42,9 +42,9 @@ export default function FeedbackSuccessDialog({ open, onClose, returnFocusRef })
         onClose();
       }}
     >
-      <CheckCircle2 className="feedback-success-icon" size={30} strokeWidth={1.8} aria-hidden="true" />
+      <CheckCircle2 className="feedback-success-icon" size={40} strokeWidth={1.8} aria-hidden="true" />
       <h2 id={titleId}>Thank you for your feedback</h2>
-      <p id={messageId}>Your feedback means a lot and helps farmers improve their service.</p>
+      <p id={messageId}>Your feedback helps farmers improve their service.</p>
       <p className="feedback-success-note">Your review is now visible on this order.</p>
       <Button ref={doneRef} className="feedback-success-done" onClick={onClose}>Done</Button>
     </dialog>

@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Truck } from 'lucide-react';
 import Button from '../common/Button';
+import './StartDeliveryDialog.css';
 
 export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmitting = false }) {
   const [plateNumber, setPlateNumber] = useState('');
+  const titleId = useId();
+  const descriptionId = useId();
+  const plateId = useId();
+  const hintId = useId();
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -23,51 +28,80 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 p-4"
+          className="start-delivery-overlay"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={isSubmitting ? undefined : handleCancel}
         >
           <motion.form
-            className="w-full max-w-sm rounded-lg border border-[var(--line)] bg-[var(--surface-elevated)] p-5 shadow-lg"
+            className="start-delivery-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            aria-describedby={descriptionId}
+            aria-busy={isSubmitting}
+            tabIndex={-1}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             onClick={(event) => event.stopPropagation()}
             onSubmit={handleSubmit}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !isSubmitting) {
+                event.preventDefault();
+                event.stopPropagation();
+                handleCancel();
+              }
+              if (event.key !== 'Tab') return;
+              const form = event.currentTarget;
+              const controls = [...form.querySelectorAll('input:not(:disabled), button:not(:disabled)')];
+              const first = controls[0];
+              const last = controls.at(-1);
+              if (!first) {
+                event.preventDefault();
+                form.focus();
+              } else if (event.shiftKey && (document.activeElement === first || document.activeElement === form)) {
+                event.preventDefault();
+                last.focus();
+              } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === form)) {
+                event.preventDefault();
+                first.focus();
+              }
+            }}
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
+            <div className="start-delivery-heading">
               <Truck size={20} aria-hidden="true" />
+              <h2 id={titleId}>Start delivery</h2>
             </div>
-            <h2 className="mt-3 text-[17px] font-semibold text-[var(--text)]">Start delivery</h2>
-            <p className="mt-1 text-[14px] leading-relaxed text-[var(--muted)]">
-              Enter the plate number of the vehicle you will use for this delivery.
+            <p id={descriptionId} className="start-delivery-description">
+              Add your vehicle plate so the buyer can identify your delivery.
             </p>
-            <label className="mt-4 block text-[14px] font-medium text-[var(--text)]" htmlFor="delivery-plate-number">
+            <label className="start-delivery-label" htmlFor={plateId}>
               Vehicle plate number <span aria-hidden="true">*</span>
             </label>
             <input
-              id="delivery-plate-number"
-              className="mt-1.5 h-11 w-full rounded-md border border-[var(--line)] bg-[var(--input-bg)] px-3 text-[15px] font-medium uppercase text-[var(--text)] outline-none focus:border-[var(--green-700)] focus:ring-2 focus:ring-[var(--green-700)]/20"
+              id={plateId}
+              className="start-delivery-plate"
+              aria-describedby={hintId}
               value={plateNumber}
               onChange={(event) => setPlateNumber(event.target.value)}
               placeholder="e.g. ABC 1234"
               autoComplete="off"
               maxLength={15}
-              pattern="[A-Za-z0-9 -]+"
+              pattern="[A-Za-z0-9 \-]+"
               title="Use letters, numbers, spaces, or hyphens only."
               required
               autoFocus
               disabled={isSubmitting}
             />
-            <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--muted)]">
-              Enter the plate number the buyer should look for.
+            <p id={hintId} className="start-delivery-hint">
+              Use the plate exactly as it appears on your vehicle.
             </p>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="start-delivery-actions">
               <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSubmitting}>Cancel</Button>
               <Button type="submit" disabled={!plateNumber.trim() || isSubmitting}>
-                {isSubmitting ? 'Starting…' : 'Start Delivery'}
+                {isSubmitting ? 'Starting…' : 'Start delivery'}
               </Button>
             </div>
           </motion.form>
