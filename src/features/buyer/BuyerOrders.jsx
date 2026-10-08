@@ -17,6 +17,7 @@ import {
   formatCurrency, formatDate, formatTime, getInitials, shortOrderId,
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import './BuyerOrdersSummary.css';
 
 
 
@@ -353,23 +354,23 @@ export default function BuyerOrders() {
             <h2 id="buyer-order-overview-title">Order Overview</h2>
             <p>Track and manage your recent orders</p>
           </div>
-          <div className="product-stats-bar buyer-order-stats" aria-label="Filter orders by overview status">
+          <div className="buyer-orders-summary" aria-label="Filter orders by overview status">
             {ORDER_OVERVIEW_FILTERS.map(({ key, label, hint, icon: Icon }) => (
               <button
                 key={key}
                 type="button"
-                className={`product-stats-item buyer-order-stat buyer-order-stat-${key}${overviewFilter === key ? ' is-selected' : ''}`}
+                className={`buyer-orders-summary-item is-${key}${overviewFilter === key ? ' is-selected' : ''}`}
                 aria-pressed={overviewFilter === key}
                 onClick={() => selectOverviewFilter(key)}
               >
-                <span className="product-stats-label-row">
-                  <Icon size={21} aria-hidden="true" />
-                  <span className="product-stats-label">{label}</span>
-                </span>
-                <span className="product-stats-value">
+                <span className="buyer-orders-summary-value">
                   {key === 'all' ? summary.total : summary[key === 'to_receive' ? 'toReceive' : key]}
                 </span>
-                <span className="product-stats-hint">{hint}</span>
+                <span className="buyer-orders-summary-label">
+                  <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                  <span>{label}</span>
+                </span>
+                <span className="buyer-orders-summary-hint">{hint}</span>
               </button>
             ))}
           </div>

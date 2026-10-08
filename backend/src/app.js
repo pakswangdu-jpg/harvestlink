@@ -3,6 +3,7 @@ import cors from 'cors';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { rateLimit } from './middleware/rateLimit.js';
+import { getAllowedOrigins } from './lib/appUrls.js';
 
 const app = express();
 
@@ -10,8 +11,7 @@ function normalizeOrigin(value) {
   return value.trim().replace(/\/+$/, '').toLowerCase();
 }
 
-const allowedOriginPatterns = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173,http://localhost:5174')
-  .split(',')
+const allowedOriginPatterns = getAllowedOrigins()
   .map((origin) => normalizeOrigin(origin))
   .filter(Boolean);
 

@@ -29,6 +29,10 @@ export async function checkContactNumberAvailability(value) {
   return apiClient.get(`/auth/check-contact-number?value=${encodeURIComponent(value)}`);
 }
 
+export async function requestPasswordReset(email, redirectTo) {
+  return apiClient.post('/auth/request-password-reset', { email: email.trim().toLowerCase(), redirectTo });
+}
+
 export async function verifyRegistrationOtp(email, token, password, pendingFiles = {}) {
   if (!password) {
     throw new Error('Unable to complete verification because the password is missing. Please try again.');

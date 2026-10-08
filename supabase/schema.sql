@@ -8,7 +8,8 @@
   -- Do not rerun this provisioning schema against production: it contains data
   -- cleanup steps which are not part of the profile-table consolidation.
   --
-  -- Scope: donations, market-price overrides, reports, demand forecast, geocoding, and
+  -- After provisioning, run migrations/20261009_shared_donations.sql for shared donations.
+  -- Scope: market-price overrides, reports, demand forecast, geocoding, and
   -- translation caches are NOT part of this schema — those stay on localStorage / free
   -- public APIs for now (see backend/README.md for why).
 

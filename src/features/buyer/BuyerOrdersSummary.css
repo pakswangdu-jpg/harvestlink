@@ -1,0 +1,107 @@
+.buyer-orders-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  font-family: var(--font-ui, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+
+.buyer-orders-summary .buyer-orders-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.buyer-orders-summary .buyer-orders-summary-item.is-selected {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+@media (hover: hover) {
+  .buyer-orders-summary .buyer-orders-summary-item:hover {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+}
+
+.buyer-orders-summary .buyer-orders-summary-item:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: -2px;
+}
+
+.buyer-orders-summary-value {
+  color: var(--text);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 36px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.buyer-orders-summary-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 21px;
+}
+
+.buyer-orders-summary-label svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.buyer-orders-summary .is-pending svg { color: var(--amber-700); }
+.buyer-orders-summary .is-to_receive svg { color: var(--blue-700); }
+.buyer-orders-summary .is-completed svg { color: var(--green-700); }
+.buyer-orders-summary .is-cancelled svg { color: var(--red-700); }
+
+.buyer-orders-summary-hint {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .buyer-orders-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .buyer-orders-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 4px;
+  }
+
+  .buyer-orders-summary .buyer-orders-summary-item {
+    padding: 14px 10px;
+  }
+
+  .buyer-orders-summary-value {
+    font-size: 28px;
+    line-height: 34px;
+  }
+}

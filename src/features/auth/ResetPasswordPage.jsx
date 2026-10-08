@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
@@ -18,9 +18,35 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recoveryToken] = useState(() => new URLSearchParams(window.location.search).get('token_hash'));
+  const recoveryRequestRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
+    if (recoveryToken) {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('token_hash');
+      cleanUrl.searchParams.delete('type');
+      window.history.replaceState(window.history.state, '', cleanUrl.toString());
+      // Reuse the request when StrictMode replays this effect; recovery tokens are single-use.
+      if (!recoveryRequestRef.current) {
+        recoveryRequestRef.current = supabase.auth.verifyOtp({ token_hash: recoveryToken, type: 'recovery' });
+      }
+      recoveryRequestRef.current.then(({ data, error: recoveryError }) => {
+        if (cancelled) return;
+        if (recoveryError || !data?.session?.user?.id) {
+          setError('This reset link is invalid or has expired. Request a new one to continue.');
+          setSessionState('invalid');
+          return;
+        }
+        setSessionState('ready');
+      }).catch(() => {
+        if (cancelled) return;
+        setError('Unable to verify this reset link. Please request a new one and try again.');
+        setSessionState('invalid');
+      });
+      return () => { cancelled = true; };
+    }
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
       if (event === 'PASSWORD_RECOVERY' && session?.user?.id) setSessionState('ready');
@@ -41,7 +67,7 @@ export default function ResetPasswordPage() {
       cancelled = true;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [recoveryToken]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

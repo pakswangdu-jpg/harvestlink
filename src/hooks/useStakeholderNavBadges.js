@@ -25,15 +25,11 @@ export function useStakeholderNavBadges(stakeholderId) {
 
 
 
-      const available = getAvailableDonations();
-      const urgent = available.filter((donation) => getExpiryStatus(donation.expirationDate));
-
-
-      const myRequests = getDonationsForStakeholder(stakeholderId);
-      if (!cancelled) {
-        setDonationsBadge(urgent.length);
+      Promise.all([getAvailableDonations(), getDonationsForStakeholder(stakeholderId)]).then(([available, myRequests]) => {
+        if (cancelled) return;
+        setDonationsBadge(available.filter((donation) => getExpiryStatus(donation.expirationDate)).length);
         setRequestsBadge(myRequests.filter((donation) => donation.status === 'scheduled').length);
-      }
+      }).catch(() => {});
 
 
 

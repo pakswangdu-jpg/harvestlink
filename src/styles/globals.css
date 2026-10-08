@@ -21825,7 +21825,13 @@ button,
 .buyer-dashboard-page .buyer-recommendation-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 7px;
+}
+
+.buyer-dashboard-page .buyer-recommended-panel .section-heading > div {
+  width: 100%;
+  min-width: 0;
 }
 
 .buyer-dashboard-page .buyer-recommendation-title > svg {
@@ -21945,6 +21951,7 @@ button,
 .buyer-dashboard-page .buyer-recommendation-toggle {
   display: inline-flex;
   flex: 0 0 auto;
+  margin-left: auto;
   align-items: center;
   gap: 5px;
   min-height: 30px;

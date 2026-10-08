@@ -57,6 +57,7 @@ export default function FarmerDashboard() {
   const { currentUser, acknowledgeVerification } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState(EMPTY_STATE);
+  const [loadError, setLoadError] = useState('');
   const [expandedPayment, setExpandedPayment] = useState(null);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function FarmerDashboard() {
         getStakeholders(),
       ]);
       if (cancelled) return;
+      setLoadError('');
 
 
 
@@ -89,8 +91,9 @@ export default function FarmerDashboard() {
       });
     };
 
-    reload();
-    const interval = setInterval(reload, 4000);
+    const refresh = () => reload().catch((error) => { if (!cancelled) setLoadError(error.message); });
+    refresh();
+    const interval = setInterval(refresh, 4000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -133,6 +136,7 @@ export default function FarmerDashboard() {
       subtitle="Manage your harvest listings, orders, and surplus donations from one workspace."
       pageClassName="farmer-dashboard-page"
     >
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
       {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
         <div className="form-alert success">
           <strong>Your account has been approved by admin!</strong>

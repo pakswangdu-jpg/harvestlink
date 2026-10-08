@@ -1,7 +1,7 @@
 .tracking-route-summary {
   --route-connector: #7d8b84;
   --route-motion: #2563eb;
-  --route-start: #15803d;
+  --route-start: #f24f4b;
   margin: 0 0 16px;
   padding: 0;
   list-style: none;
@@ -10,18 +10,18 @@
 
 .tracking-route-stop {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
   position: relative;
 }
 
-.tracking-route-stop + .tracking-route-stop { margin-top: 12px; }
+.tracking-route-stop + .tracking-route-stop { margin-top: 24px; }
 .tracking-route-stop:first-child::after {
   content: '';
   position: absolute;
-  left: 11px;
-  top: 24px;
-  bottom: -10px;
+  left: 15px;
+  top: 32px;
+  bottom: -22px;
   border-left: 2px dotted var(--route-connector);
 }
 
@@ -29,8 +29,8 @@
   content: '';
   position: absolute;
   z-index: 1;
-  left: 9px;
-  top: 24px;
+  left: 13px;
+  top: 32px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -39,26 +39,121 @@
   pointer-events: none;
 }
 
-.tracking-route-marker { display: grid; place-items: center; height: 24px; color: var(--route-motion); }
+.tracking-route-marker { display: grid; place-items: center; width: 32px; height: 32px; color: var(--route-motion); }
 .tracking-route-marker svg { width: 18px; height: 20px; stroke-width: 2.5; }
-.tracking-route-marker.is-start { color: var(--route-start); }
+.tracking-route-marker.is-start {
+  position: relative;
+  isolation: isolate;
+  color: var(--route-start);
+}
+
+.tracking-route-marker.is-start::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  bottom: 4px;
+  width: 22px;
+  height: 7px;
+  border-radius: 50%;
+  background: #71c285;
+}
+
+.tracking-route-marker.is-start svg {
+  align-self: start;
+  margin-top: 2px;
+  width: 24px;
+  height: 24px;
+  fill: var(--route-start);
+  stroke-width: 1.5;
+}
+
+.tracking-route-marker.is-start svg circle {
+  fill: var(--surface-elevated);
+}
+
+.tracking-route-marker.is-destination {
+  position: relative;
+}
+
+.tracking-route-destination-pin {
+  position: absolute;
+  top: 1px;
+  left: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e33129;
+}
+
+.tracking-route-destination-pin::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ff6668;
+}
+
+.tracking-route-destination-pin::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 7px;
+  width: 2px;
+  height: 15px;
+  border-radius: 0 0 2px 2px;
+  background: #596584;
+}
 
 @keyframes tracking-route-travel {
-  from { top: 24px; }
-  to { top: calc(100% + 4px); }
+  from { top: 32px; }
+  to { top: calc(100% + 16px); }
 }
 
 :root[data-theme="dark"] .tracking-route-summary {
   --route-connector: #a7b5ad;
   --route-motion: #60a5fa;
-  --route-start: #4ade80;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tracking-route-stop:first-child::before { display: none; animation: none; }
 }
-.tracking-route-stop > div { min-width: 0; overflow-wrap: anywhere; }
-.tracking-route-label { display: block; color: var(--text-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }
-.tracking-route-stop strong { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; line-height: 22px; }
-.tracking-route-stop p { margin: 2px 0 0; font-size: 14px; line-height: 21px; }
-.tracking-route-helper { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 18px; }
+.tracking-route-stop > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.tracking-route-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.tracking-route-stop strong {
+  display: block;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.tracking-route-stop p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.tracking-route-helper {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}

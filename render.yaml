@@ -16,6 +16,8 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGIN
         sync: false
+      - key: APP_URL
+        value: https://harvestlink.dev
       - key: OPENWEATHERMAP_API_KEY
         sync: false
       - key: GEMINI_API_KEY

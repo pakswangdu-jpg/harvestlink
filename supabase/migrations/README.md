@@ -1,5 +1,52 @@
 # Registered profile coordinates
 
+## Shared donations
+
+Run `20261009_shared_donations.sql` in the Supabase SQL Editor for the project
+configured by the backend's `SUPABASE_URL`, then deploy the updated backend
+and frontend together. For a fresh project, run it after `supabase/schema.sql`.
+
+This creates shared donation records and service-role-only transaction functions.
+Listing reserves real product stock; cancellation restores it once. Requests
+require an active, verified stakeholder. Only the donating farmer can accept,
+decline, or cancel, and only the requesting organization can confirm receipt.
+Notifications are committed with each handoff. The migration is rerunnable.
+
+Old browser-only donations are not imported: localStorage is untrusted and
+cannot prove ownership or stock availability. Farmers must relist those offers
+after the migration. No accounts are automatically verified by this migration.
+
+## Registration fails because `public.farmers` does not exist
+
+Run `20261009_remove_legacy_profile_sync.sql` in the Supabase SQL Editor for
+the project configured by the backend's `SUPABASE_URL`, then retry email
+verification. Request a fresh code if the current one has expired.
+
+This repair removes only the obsolete profile-to-role-table synchronization
+triggers, including renamed triggers attached to `public.sync_profile_role_table`.
+It leaves account data, unrelated triggers, and RLS policies intact, and can be
+rerun. It does not recreate the removed `farmers`, `buyers`, or `stakeholders`
+tables. The current backend already stores all account fields in `profiles`.
+
+If the error remains, inspect the installed trigger functions before changing
+other database objects:
+
+```sql
+select table_schema.nspname as table_schema,
+       table_row.relname as table_name,
+       trigger_row.tgname as trigger_name,
+       function_schema.nspname as function_schema,
+       function_row.proname as function_name,
+       pg_get_functiondef(function_row.oid) as function_definition
+from pg_trigger trigger_row
+join pg_class table_row on table_row.oid = trigger_row.tgrelid
+join pg_namespace table_schema on table_schema.oid = table_row.relnamespace
+join pg_proc function_row on function_row.oid = trigger_row.tgfoid
+join pg_namespace function_schema on function_schema.oid = function_row.pronamespace
+where not trigger_row.tgisinternal
+  and trigger_row.tgrelid in ('public.profiles'::regclass, 'auth.users'::regclass);
+```
+
 ## Optional wholesale pricing
 
 Run `20261005_product_wholesale_pricing.sql` before deploying the dual-price API

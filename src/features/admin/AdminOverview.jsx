@@ -82,16 +82,17 @@ const EMPTY_STATE = {
 export default function AdminOverview() {
   const { currentUser } = useAuth();
   const [state, setState] = useState(EMPTY_STATE);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getUsers(), getProducts(), getOrders(), getPendingPriceReviews(), getAllPriceOverrides()])
-      .then(([users, products, orders, pendingPriceReviews, priceOverrides]) => {
+    Promise.all([getUsers(), getProducts(), getOrders(), getPendingPriceReviews(), getAllPriceOverrides(), getDonations()])
+      .then(([users, products, orders, pendingPriceReviews, priceOverrides, donations]) => {
         if (cancelled) return;
         setState({
-          users, products, orders, pendingPriceReviews, priceOverrides, donations: getDonations(),
+          users, products, orders, pendingPriceReviews, priceOverrides, donations,
         });
-      });
+      }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, []);
 
@@ -141,6 +142,7 @@ export default function AdminOverview() {
   return (
     <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" hideHeader>
       <PageHeader title="Dashboard" description="Monitor HarvestLink activity across users, products, orders, and surplus donations." />
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
       {isLoading ? (
         <LoadingState rows={4} />

@@ -86,6 +86,14 @@ test('creating and merging listings persist and serialize the farmer-approved ti
   assert.equal(merged.body.wholesalePrice, 45);
 });
 
+test('donation-only stock is never briefly published as a free marketplace listing', async () => {
+  const response = await invoke(createProduct, listing({ isDonation: true, price: 0, costPrice: 0 }));
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.status, 'inactive');
+  assert.equal(response.body.price, 0);
+  assert.equal(writes[0].row.status, 'inactive');
+});
+
 test('create and edit reject non-positive, non-finite and over-precise tier inputs before writing', async () => {
   for (const handler of [createProduct, updateProduct]) {
     for (const wholesalePrice of [-1, 0, '', 'Infinity', 'invalid', 55, 48.001]) {

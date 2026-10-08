@@ -286,7 +286,7 @@ export async function createProduct(req, res) {
     location: values.location.trim(),
     description: values.description?.trim() || '',
     image_url: values.image || null,
-    status: 'active',
+    status: values.isDonation ? 'inactive' : 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
     original_price: originalPrice,

@@ -160,7 +160,7 @@ export default function FarmerProducts() {
         const created = await createProduct({
           ...values, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
         });
-        createDonation(created, currentUser);
+        await createDonation(created);
         showToast({ type: 'success', message: `${created.name} listed as a surplus donation for partner organizations.` });
         closeDrawer();
       } else {
@@ -210,7 +210,7 @@ export default function FarmerProducts() {
 
   const handleDonate = async (product) => {
     try {
-      createDonation(product, currentUser);
+      await createDonation(product);
       showToast({ type: 'success', message: `${product.name} listed as a surplus donation for partner organizations.` });
       reload();
     } catch (donateError) {
