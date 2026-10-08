@@ -7,6 +7,7 @@ const GET_CACHE_TTL_MS = 10000;
 const LIVE_GET_CACHE_TTL_MS = 1500;
 const GET_CACHE_LIMIT = 100;
 const getCache = new Map();
+const pendingGets = new Map();
 let cacheGeneration = 0;
 
 function getCacheTtl(path) {
@@ -36,6 +37,20 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   const requestGeneration = cacheGeneration;
+  const pending = isGet ? pendingGets.get(cacheKey) : null;
+  if (pending?.generation === requestGeneration) return pending.promise;
+
+  const promise = sendRequest(path, { method, body }, session, cacheKey, requestGeneration);
+  if (isGet) pendingGets.set(cacheKey, { generation: requestGeneration, promise });
+  try {
+    return await promise;
+  } finally {
+    if (isGet && pendingGets.get(cacheKey)?.promise === promise) pendingGets.delete(cacheKey);
+  }
+}
+
+async function sendRequest(path, { method, body }, session, cacheKey, requestGeneration) {
+  const isGet = method === 'GET';
   const headers = { 'Content-Type': 'application/json' };
   if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
   const controller = new AbortController();

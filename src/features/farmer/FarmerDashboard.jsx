@@ -18,7 +18,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
 import { getOrdersByFarmer } from '../../services/orderService';
-import { getDonationsByFarmer } from '../../services/donationService';
+import { useDonationList } from '../../hooks/useDonationList';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getMonthlyRevenue, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
@@ -26,7 +26,7 @@ import { nearestByMunicipality } from '../../utils/geo';
 import { farmerNavItems } from './farmerNav';
 
 const EMPTY_STATE = {
-  products: [], orders: [], donations: [], otherFarmers: [], registeredBuyers: [],
+  products: [], orders: [], otherFarmers: [], registeredBuyers: [],
   registeredStakeholders: [],
 };
 
@@ -59,15 +59,15 @@ export default function FarmerDashboard() {
   const [state, setState] = useState(EMPTY_STATE);
   const [loadError, setLoadError] = useState('');
   const [expandedPayment, setExpandedPayment] = useState(null);
+  const { donations, loading: donationsLoading, loadError: donationError } = useDonationList({ farmerId: currentUser.id });
 
   useEffect(() => {
     let cancelled = false;
 
     const reload = async () => {
-      const [products, orders, donations, verifiedFarmers, registeredBuyers, registeredStakeholders] = await Promise.all([
+      const [products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders] = await Promise.all([
         getProductsByFarmer(currentUser.id),
         getOrdersByFarmer(currentUser.id),
-        getDonationsByFarmer(currentUser.id),
         getVerifiedFarmers(),
         getBuyers(),
         getStakeholders(),
@@ -81,7 +81,6 @@ export default function FarmerDashboard() {
       setState({
         products,
         orders,
-        donations,
         otherFarmers: nearestByMunicipality(
           currentUser.municipality,
           verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id),
@@ -100,7 +99,7 @@ export default function FarmerDashboard() {
     };
   }, [currentUser.id, currentUser.municipality]);
 
-  const { products, orders, donations, otherFarmers, registeredBuyers, registeredStakeholders } = state;
+  const { products, orders, otherFarmers, registeredBuyers, registeredStakeholders } = state;
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
@@ -196,7 +195,7 @@ export default function FarmerDashboard() {
             <GlanceItem icon={Clock3} tone="warning" label="Pending orders" value={pendingOrders.length} href="/farmer-orders" action="View all" />
             <GlanceItem icon={CheckCircle2} tone="success" label="Confirmed orders" value={confirmedOrders.length} href="/farmer-orders" action="View all" />
             <GlanceItem icon={MessageCircle} tone="info" label="Active listings" value={activeListings} href="/farmer-products" action="Manage" />
-            <GlanceItem icon={Gift} tone="rose" label="Surplus donations" value={pendingDonationRequests.length} href="/farmer-donations" action="View donations" />
+            <GlanceItem icon={Gift} tone="rose" label="Surplus donations" value={donationError || donationsLoading ? '--' : pendingDonationRequests.length} href="/farmer-donations" action="View donations" />
           </div>
         </div>
       </section>
@@ -364,7 +363,7 @@ export default function FarmerDashboard() {
             <Gift size={16} /> Manage donations
           </Link>
         </div>
-        {pendingDonationRequests.length ? (
+        {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : pendingDonationRequests.length ? (
           <DataTable
             columns={[
               { key: 'productName', label: 'Product' },

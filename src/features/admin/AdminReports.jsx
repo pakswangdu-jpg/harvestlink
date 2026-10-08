@@ -12,7 +12,7 @@ import StatusDistributionChart from '../../components/charts/StatusDistributionC
 import { useAuth } from '../auth/AuthContext';
 import { getUsers } from '../../services/authService';
 import { getOrders } from '../../services/orderService';
-import { getDonations } from '../../services/donationService';
+import { useDonationList } from '../../hooks/useDonationList';
 import {
   getDonationStatusBreakdown, getMonthlyRevenue, getOrderStatusBreakdown, getTopProducts, getTotalRevenue, getUserRoleBreakdown,
 } from '../../services/reportService';
@@ -23,12 +23,13 @@ export default function AdminReports() {
   const { currentUser } = useAuth();
   const [state, setState] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const { donations, loading: donationsLoading, loadError: donationError } = useDonationList();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getUsers(), getOrders(), getDonations()]).then(([users, orders, donations]) => {
+    Promise.all([getUsers(), getOrders()]).then(([users, orders]) => {
       if (cancelled) return;
-      setState({ users, orders, donations });
+      setState({ users, orders });
     }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, []);
@@ -42,7 +43,7 @@ export default function AdminReports() {
     );
   }
 
-  const { users, orders, donations } = state;
+  const { users, orders } = state;
   const totalRevenue = getTotalRevenue(orders);
   const monthlyRevenue = getMonthlyRevenue(orders, 6);
   const topProducts = getTopProducts(orders, 10);
@@ -56,7 +57,7 @@ export default function AdminReports() {
         <StatCard label="Total sales" value={formatCurrency(totalRevenue)} icon={TrendingUp} tone="green" />
         <StatCard label="Total orders" value={orders.length} icon={ClipboardList} tone="blue" />
         <StatCard label="Registered users" value={users.length} icon={Users} tone="slate" />
-        <StatCard label="Donations completed" value={completedDonations} icon={Gift} tone="amber" />
+        <StatCard label="Donations completed" value={donationError || donationsLoading ? '--' : completedDonations} icon={Gift} tone="amber" />
       </div>
 
       <Card className="mb-4">
@@ -80,7 +81,7 @@ export default function AdminReports() {
 
         <Card>
           <CardHeader eyebrow="Surplus" title="Donations by status" />
-          <StatusDistributionChart
+          {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : <StatusDistributionChart
             records={donations}
             computeBreakdown={(filteredDonations) => getDonationStatusBreakdown(filteredDonations).map((entry) => ({
               key: entry.status,
@@ -88,7 +89,7 @@ export default function AdminReports() {
               label: donationStatusLabel(entry.status),
               count: entry.count,
             }))}
-          />
+          />}
         </Card>
       </div>
 
