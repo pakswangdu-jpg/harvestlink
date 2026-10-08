@@ -65,5 +65,9 @@ export function useOrderTrackingSocket(orderId, order = null) {
     };
   }, [orderId]);
 
-  return { livePosition: livePosition || (order?.id === orderId ? positionFromOrder(order) : null), connectionStatus };
+  return {
+    livePosition: livePosition?.trackingPosition || livePosition || (order?.id === orderId ? positionFromOrder(order) : null),
+    rawPosition: livePosition,
+    connectionStatus,
+  };
 }

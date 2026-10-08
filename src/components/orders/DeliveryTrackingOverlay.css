@@ -1,0 +1,81 @@
+.tracking-overlay .tracking-overlay-panel {
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.tracking-overlay .tracking-overlay-header { padding: 12px 16px; }
+.tracking-overlay .tracking-overlay-header h2 { margin: 0; font-size: 20px; line-height: 27px; font-weight: 600; }
+.tracking-overlay-header p { margin: 3px 0 0; color: var(--muted); font-size: 13px; line-height: 20px; }
+.tracking-overlay .tracking-overlay-close { width: 44px; height: 44px; }
+.tracking-overlay .tracking-overlay-body { min-width: 0; min-height: 0; padding: 16px; gap: 16px; align-content: start; }
+.tracking-overlay-summary {
+  flex-shrink: 0;
+  min-width: 0;
+  max-height: 35dvh;
+  overflow-y: auto;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-elevated, var(--panel));
+}
+.tracking-overlay .tracking-overlay-body > section { min-width: 0; }
+.tracking-overlay .delivery-tracking-info { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.tracking-overlay .delivery-tracking-info-row { border-top: 0; border-bottom: 1px solid var(--line); }
+.tracking-overlay-summary .delivery-tracking-info-row { border-bottom: 0; }
+.tracking-overlay .ot-route-header { margin-bottom: 12px; }
+.tracking-overlay .ot-route-header h2 { font-size: 15px; }
+.tracking-overlay .ot-route-header-eta { color: var(--text-secondary); font-size: 13px; }
+.tracking-overlay .ot-map-panel { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.tracking-overlay .ot-map-panel .live-delivery-map { height: 340px; border-radius: 6px; }
+.tracking-overlay .nav-map-container { border-radius: 6px; }
+
+.tracking-overlay .nav-info-card,
+.tracking-overlay .delivery-live-summary,
+.tracking-overlay .tracking-info-cards,
+.tracking-overlay .tracking-gps-card,
+.tracking-overlay .tracking-completed-summary {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.tracking-overlay .nav-info-card { padding: 14px 0 0; }
+.tracking-overlay .nav-info-card-grid { gap: 14px; }
+.tracking-overlay .nav-info-card-grid > div { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.tracking-overlay .nav-info-card-grid p { margin: 0 0 4px; font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.tracking-overlay .nav-info-card-grid strong { color: var(--text); font-size: 17px; font-weight: 600; line-height: 24px; }
+.tracking-overlay .nav-info-card-header { padding-bottom: 12px; flex-wrap: wrap; }
+.tracking-overlay .nav-info-card-header strong { font-size: 14px; font-weight: 600; }
+.tracking-overlay .nav-info-card-vehicle { font-size: 13px; }
+.tracking-overlay .nav-info-card-status { padding-top: 10px; }
+.tracking-overlay .tracking-badge { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 13px; font-weight: 500; }
+.tracking-overlay .tracking-info-card { padding: 12px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.tracking-overlay .tracking-info-card-icon { display: none; }
+.tracking-overlay .tracking-info-card p { font-size: 13px; }
+.tracking-overlay .tracking-info-card strong { font-size: 17px; font-weight: 600; }
+.tracking-overlay .delivery-live-summary { padding: 14px 0 0; }
+.tracking-overlay .delivery-live-identity { display: none; }
+.tracking-overlay .delivery-live-progress { margin: 0 0 14px; padding: 0 0 14px; border-top: 0; gap: 16px; }
+.tracking-overlay .delivery-live-progress > div { flex-direction: column; }
+.tracking-overlay .delivery-live-progress dt { margin: 0 0 4px; font-size: 13px; }
+.tracking-overlay .delivery-live-progress dd { font-size: 17px; font-weight: 600; line-height: 24px; }
+.tracking-overlay .delivery-live-state { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 13px; }
+
+@container (max-width: 619px) {
+  .tracking-overlay .delivery-tracking-info-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 0 12px; }
+  .tracking-overlay .delivery-tracking-info-row > div { padding: 0; }
+  .tracking-overlay .delivery-tracking-info-person { align-items: start; }
+  .tracking-overlay .delivery-tracking-info-row > div + div { border-top: 0; }
+  .tracking-overlay .delivery-tracking-info-row > div:nth-child(2) { padding-left: 12px; border-left: 1px solid var(--line); }
+  .tracking-overlay .delivery-tracking-info-status { grid-column: 1 / -1; margin-top: 12px; }
+}
+
+@container (min-width: 620px) {
+  .tracking-overlay .delivery-tracking-info-row { padding: 0 0 14px; }
+}
+
+@media (max-width: 640px) {
+  .tracking-overlay .tracking-overlay-panel { border-radius: 0; }
+  .tracking-overlay .tracking-overlay-body { padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .tracking-overlay .ot-map-panel .live-delivery-map { height: 300px; }
+}

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
+import './DeliveryTrackingOverlay.css';
 
 
 
@@ -18,7 +19,7 @@ import { X } from 'lucide-react';
 
 
 
-export default function DeliveryTrackingOverlay({ open, title, onClose, children }) {
+export default function DeliveryTrackingOverlay({ open, title, subtitle, summary, onClose, children }) {
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -42,11 +43,12 @@ export default function DeliveryTrackingOverlay({ open, title, onClose, children
         onClick={(event) => event.stopPropagation()}
       >
         <div className="tracking-overlay-header">
-          <h2>{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close tracking" className="tracking-overlay-close">
+          <div><h2>{title}</h2>{subtitle ? <p>{subtitle}</p> : null}</div>
+          <button type="button" onClick={onClose} aria-label="Close tracking" title="Close tracking" className="tracking-overlay-close">
             <X size={20} strokeWidth={2} />
           </button>
         </div>
+        {summary ? <div className="tracking-overlay-summary">{summary}</div> : null}
         <div className="tracking-overlay-body">
           {children}
         </div>

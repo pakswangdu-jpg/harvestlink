@@ -1,0 +1,64 @@
+.tracking-route-summary {
+  --route-connector: #7d8b84;
+  --route-motion: #2563eb;
+  --route-start: #15803d;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+}
+
+.tracking-route-stop {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  position: relative;
+}
+
+.tracking-route-stop + .tracking-route-stop { margin-top: 12px; }
+.tracking-route-stop:first-child::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: -10px;
+  border-left: 2px dotted var(--route-connector);
+}
+
+.tracking-route-stop:first-child::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 9px;
+  top: 24px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--route-motion);
+  animation: tracking-route-travel 2.4s linear infinite;
+  pointer-events: none;
+}
+
+.tracking-route-marker { display: grid; place-items: center; height: 24px; color: var(--route-motion); }
+.tracking-route-marker svg { width: 18px; height: 20px; stroke-width: 2.5; }
+.tracking-route-marker.is-start { color: var(--route-start); }
+
+@keyframes tracking-route-travel {
+  from { top: 24px; }
+  to { top: calc(100% + 4px); }
+}
+
+:root[data-theme="dark"] .tracking-route-summary {
+  --route-connector: #a7b5ad;
+  --route-motion: #60a5fa;
+  --route-start: #4ade80;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tracking-route-stop:first-child::before { display: none; animation: none; }
+}
+.tracking-route-stop > div { min-width: 0; overflow-wrap: anywhere; }
+.tracking-route-label { display: block; color: var(--text-secondary); font-size: 13px; font-weight: 500; line-height: 20px; }
+.tracking-route-stop strong { display: block; margin-top: 2px; font-size: 15px; font-weight: 600; line-height: 22px; }
+.tracking-route-stop p { margin: 2px 0 0; font-size: 14px; line-height: 21px; }
+.tracking-route-helper { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 18px; }

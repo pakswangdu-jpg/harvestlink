@@ -78,6 +78,13 @@ export function createTrafficNavigator({ fetchRoutes, onChange, now = Date.now }
     try {
       const routes = await fetchRoutes(origin, destination);
       if (destroyed || id !== requestId) return;
+      const latest = inputs.active ? livePosition() : null;
+      if (latest && haversineKm(origin, latest) >= 0.15) {
+        // A slow Google response must not leave routing anchored at an older GPS fix.
+        pending = false;
+        void refresh(preferred);
+        return;
+      }
       if (!routes?.length) {
         lastFailure = true;
         publish({ stale: true, message: previous ? 'Keeping your route. Google route updates are temporarily unavailable.' : 'Google road route unavailable. Retrying shortly.' });

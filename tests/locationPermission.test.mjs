@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createLocationPermissionController } from '../src/services/locationPermissionService.js';
+import { createLocationPermissionController, requireDeliveryLocation } from '../src/services/locationPermissionService.js';
 
 function harness({ permission = 'prompt', secureContext = true, supported = true, querySupported = true } = {}) {
   let state;
@@ -34,6 +34,26 @@ function harness({ permission = 'prompt', secureContext = true, supported = true
     change(value) { permissionStatus.state = value; listeners.forEach((handler) => handler()); },
   };
 }
+
+test('delivery permission requires a fresh valid fix, without saving coordinates', async () => {
+  let success;
+  const request = requireDeliveryLocation({ geolocation: { getCurrentPosition(ok, fail, options) {
+    success = ok;
+    assert.deepEqual(options, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  } } }, true);
+  success({ coords: { latitude: 10.31, longitude: 123.91 } });
+  assert.equal(await request, undefined);
+});
+
+test('delivery cannot start with denied, unavailable, timed out, invalid or unsupported location', async () => {
+  for (const code of [1, 2, 3]) {
+    await assert.rejects(requireDeliveryLocation({ geolocation: { getCurrentPosition(ok, fail) { fail({ code }); } } }, true),
+      code === 1 ? /Allow location/ : code === 3 ? /timed out/ : /unavailable/);
+  }
+  await assert.rejects(requireDeliveryLocation({}, true), /does not support/);
+  await assert.rejects(requireDeliveryLocation({}, false), /HTTPS/);
+  await assert.rejects(requireDeliveryLocation({ geolocation: { getCurrentPosition(ok) { ok({ coords: { latitude: NaN, longitude: 123 } }); } } }, true), /unavailable/);
+});
 
 test('checking permission does not collect GPS; explicit Enable location requests high accuracy once', async () => {
   const h = harness();

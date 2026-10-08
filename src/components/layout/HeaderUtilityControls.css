@@ -47,6 +47,15 @@
   outline-offset: 2px;
 }
 
+.app-shell .header-utility-controls :is(.theme-toggle-compact, .notification-bell-toggle) {
+  border-color: var(--line);
+}
+
+.app-shell .header-utility-controls :is(.theme-toggle-compact, .notification-bell-toggle):hover,
+.app-shell .header-utility-controls .notification-bell-toggle[aria-expanded='true'] {
+  border-color: var(--muted);
+}
+
 .app-shell .header-utility-controls :is(.cart-button-badge, .notification-badge) {
   box-sizing: border-box;
   top: -2px;

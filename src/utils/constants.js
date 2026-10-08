@@ -9,11 +9,6 @@ export const STORAGE_KEYS = {
   legacyRequests: 'harvestlink_purchase_requests',
 };
 
-
-
-
-
-
 export const PRODUCT_GRADES = [
   { value: 'A', label: 'Grade A — Premium' },
   { value: 'B', label: 'Grade B — Standard' },
@@ -24,21 +19,12 @@ export const SALES_TYPES = [
   { value: 'wholesale', label: 'Wholesale' },
 ];
 
-
-
-
 export const LOW_STOCK_THRESHOLD = 10;
-
-
 
 export function isLowStock(quantity) {
   const value = Number(quantity);
   return value > 0 && value <= LOW_STOCK_THRESHOLD;
 }
-
-
-
-
 
 export function getProductStatusInfo(product) {
   if (product.status === 'inactive') return { value: 'inactive', label: 'Inactive' };
@@ -48,11 +34,7 @@ export function getProductStatusInfo(product) {
   return { value: 'active', label: 'Active' };
 }
 
-
-
 export const EXPIRING_SOON_DAYS = 3;
-
-
 
 export function getExpiryStatus(expirationDate) {
   if (!expirationDate) return null;

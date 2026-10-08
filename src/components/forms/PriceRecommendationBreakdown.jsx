@@ -27,7 +27,7 @@ export default function PriceRecommendationBreakdown({
       {recommendedPrice ? (
         <>
           <Row label="Markup" value={`${recommendedPrice.marginPercent}%`} />
-          <Row label={`Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
+          <Row label={`AI Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
           {
 
                                         }

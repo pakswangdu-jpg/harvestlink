@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck,
+  Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck, X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -40,7 +40,7 @@ function getOrderStage(order) {
 
 
 
-const VISIBLE_VERIFICATION_LIMIT = 3;
+const VISIBLE_VERIFICATION_LIMIT = 5;
 
 const STAGE_LABELS = {
   pending: 'Pending',
@@ -137,7 +137,7 @@ function getPrimaryAction(order) {
 
 function OrderStageBadge({ order }) {
   const stage = getOrderStage(order);
-  return <span className={`farmer-order-stage stage-${stage}`}>{STAGE_LABELS[stage]}</span>;
+  return <span className={`farmer-order-stage stage-${stage}`}>{stage === 'completed' ? <Check size={14} aria-hidden="true" /> : null}{stage === 'pending' ? 'Waiting for your confirmation' : STAGE_LABELS[stage]}</span>;
 }
 
 function BuyerCell({ order }) {
@@ -163,7 +163,7 @@ function ProductCell({ order }) {
       )}
       <div>
         <div className="order-cell-main">{order.productName}</div>
-        <div className="order-cell-sub">{order.quantity} {order.unit}</div>
+        <div className="farmer-order-quantity">{order.quantity} {order.unit} ordered</div>
       </div>
     </div>
   );
@@ -192,6 +192,9 @@ function PaymentCell({ order, onViewPayment }) {
   return (
     <div className="order-payment-cell">
       <div className="order-cell-main"><PaymentMethodLabel method={order.paymentMethod} /></div>
+      {order.paymentMethod === 'gcash' ? (
+        <span className="order-cell-sub">{({ pending: 'Awaiting verification', approved: 'Payment verified', rejected: 'Payment rejected' })[order.paymentVerificationStatus] || ({ paid: 'Paid', pending: 'Payment pending', refunded: 'Refunded' })[order.paymentStatus] || order.paymentStatus}</span>
+      ) : null}
       <button
         type="button"
         className="order-payment-info-btn"
@@ -209,7 +212,7 @@ function DeliveryCell({ order }) {
   const stage = getOrderStage(order);
   return (
     <div>
-      <div className="order-cell-main">{deliveryMethodLabel(order.deliveryMethod)}</div>
+      <div className="farmer-order-delivery">{order.deliveryMethod === 'buyer_pickup' ? <MapPin size={15} aria-hidden="true" /> : <Truck size={15} aria-hidden="true" />}{deliveryMethodLabel(order.deliveryMethod)}</div>
       {stage === 'out_for_delivery' ? <div className="order-cell-sub">In transit</div> : null}
     </div>
   );
@@ -235,11 +238,11 @@ function OrderActions({ order, onAction, onReviewPayment }) {
     return (
       <div className="farmer-order-actions">
         {paymentAction}
-        <Button size="sm" className="farmer-order-action farmer-order-action-primary" onClick={() => onAction('confirm', order)} aria-label={`Confirm order from ${order.buyerName}`}>
-          <Check size={14} aria-hidden="true" /> Confirm
-        </Button>
         <Button size="sm" variant="ghost" className="farmer-order-action farmer-order-action-reject" onClick={() => onAction('reject', order)} aria-label={`Reject order from ${order.buyerName}`}>
           Reject
+        </Button>
+        <Button size="sm" className="farmer-order-action farmer-order-action-primary" onClick={() => onAction('confirm', order)} aria-label={`Confirm order from ${order.buyerName}`}>
+          <Check size={16} aria-hidden="true" /> Confirm order
         </Button>
       </div>
     );
@@ -311,12 +314,89 @@ function OrderActions({ order, onAction, onReviewPayment }) {
   );
 }
 
+function PaymentVerificationList({ orders, onReview }) {
+  return (
+    <div className="payment-verification-list">
+      {orders.map((order) => (
+        <button key={order.id} type="button" className="payment-verification-row" onClick={() => onReview(order)}>
+          <span className="payment-verification-row-main">
+            <strong>{order.buyerName}</strong>
+            <span className="muted">Order #{shortOrderId(order.id)} &middot; Ref {order.paymentReferenceNumber || 'Not provided'} &middot; {formatDate(order.paymentSubmittedAt)}</span>
+          </span>
+          <span className="payment-verification-row-amount">{formatCurrency(order.totalAmount)}</span>
+          <span className="payment-verification-row-cta">Review <ChevronRight size={15} aria-hidden="true" /></span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PaymentListDialog({ open, orders, onClose, onReview }) {
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  return (
+    <dialog ref={dialogRef} className="payment-verification-dialog" aria-labelledby="payment-list-title"
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="payment-verification-dialog-heading">
+        <div><h2 id="payment-list-title">Payment verification</h2><span className="payment-verification-pending">{orders.length} pending</span></div>
+        <button type="button" className="payment-verification-close" onClick={onClose} aria-label="Close payments" title="Close payments" autoFocus><X size={20} aria-hidden="true" /></button>
+      </div>
+      <PaymentVerificationList orders={orders} onReview={onReview} />
+    </dialog>
+  );
+}
+
+function ConfirmPurchaseDialog({ order, onCancel, onConfirm, submitting }) {
+  const dialogRef = useRef(null);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (order && !dialog.open) dialog.showModal();
+    if (!order && dialog.open) dialog.close();
+  }, [order]);
+
+  return (
+    <dialog ref={dialogRef} className="farmer-confirm-dialog" aria-labelledby="confirm-purchase-title" aria-describedby="confirm-purchase-description"
+      onCancel={(event) => { event.preventDefault(); if (!submitting) onCancel(); }}
+      onClick={(event) => { if (event.target === event.currentTarget && !submitting) onCancel(); }}>
+      {order ? <div className="farmer-confirm-content" aria-busy={submitting}>
+        <h2 id="confirm-purchase-title">Confirm this order?</h2>
+        <p id="confirm-purchase-description" className="farmer-confirm-description">Review the order details before accepting.</p>
+        <div className="farmer-confirm-product">
+          {order.productImageUrl ? <img src={order.productImageUrl} alt="" /> : null}
+          <div>
+            <h3>{order.productName}</h3>
+            <p>{order.quantity} {order.unit} <span aria-hidden="true">&middot;</span> {formatCurrency(order.totalAmount)}</p>
+          </div>
+        </div>
+        <dl className="farmer-confirm-summary">
+          <div className="farmer-confirm-buyer"><dt>Buyer</dt><dd>{order.buyerName}</dd></div>
+          <div><dt>Payment</dt><dd><PaymentMethodLabel method={order.paymentMethod} /></dd></div>
+          <div><dt>Delivery</dt><dd>{deliveryMethodLabel(order.deliveryMethod)}</dd></div>
+        </dl>
+        <div className="farmer-confirm-total"><span>Order total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+        <div className="farmer-confirm-actions">
+          <Button variant="secondary" onClick={onCancel} disabled={submitting} autoFocus>Cancel</Button>
+          <Button onClick={onConfirm} disabled={submitting}><Check size={16} aria-hidden="true" />{submitting ? 'Confirming...' : 'Confirm order'}</Button>
+        </div>
+      </div> : null}
+    </dialog>
+  );
+}
+
 export default function FarmerOrders() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [confirming, setConfirming] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [startDeliveryOrder, setStartDeliveryOrder] = useState(null);
   const [verifyingOrderId, setVerifyingOrderId] = useState(null);
@@ -352,7 +432,7 @@ export default function FarmerOrders() {
 
   const handleAction = (type, order, action) => {
     if (type === 'confirm') {
-      run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.');
+      setConfirmTarget(order);
       return;
     }
     if (type === 'reject') {
@@ -376,6 +456,14 @@ export default function FarmerOrders() {
     if (!rejectTarget) return;
     run(() => updateOrderStatus(rejectTarget.id, 'rejected'), 'Order rejected.');
     setRejectTarget(null);
+  };
+
+  const confirmPurchase = async () => {
+    if (!confirmTarget || confirming) return;
+    setConfirming(true);
+    await run(() => updateOrderStatus(confirmTarget.id, 'confirmed'), 'Order confirmed.');
+    setConfirming(false);
+    setConfirmTarget(null);
   };
 
   const confirmAdvance = () => {
@@ -417,9 +505,12 @@ export default function FarmerOrders() {
   const verifyingOrder = orders.find((order) => order.id === verifyingOrderId) || null;
 
 
-  const visibleVerifications = showAllVerifications
-    ? pendingVerifications
-    : pendingVerifications.slice(0, VISIBLE_VERIFICATION_LIMIT);
+  const visibleVerifications = pendingVerifications.slice(0, VISIBLE_VERIFICATION_LIMIT);
+
+  const reviewPayment = (order) => {
+    setShowAllVerifications(false);
+    setVerifyingOrderId(order.id);
+  };
 
   const stageCounts = useMemo(() => {
     const counts = { all: orders.length };
@@ -466,7 +557,7 @@ export default function FarmerOrders() {
         if (!haystack.includes(query)) return false;
       }
       return true;
-    });
+    }).sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'));
   }, [orders, activeStage, search, paymentFilter, deliveryFilter, dateFilter, exactDateTime]);
 
   return (
@@ -487,39 +578,17 @@ export default function FarmerOrders() {
               <h2>Payment verification</h2>
               <p className="payment-verification-subtitle">Review payments that still need confirmation.</p>
             </div>
-            <span className="payment-verification-pending">{pendingVerifications.length} pending</span>
-          </div>
-
-          <div className="payment-verification-list">
-            {visibleVerifications.map((order) => (
-              <button
-                key={order.id}
-                type="button"
-                className="payment-verification-row"
-                onClick={() => setVerifyingOrderId(order.id)}
-              >
-                <span className="payment-verification-row-main">
-                  <strong>{order.buyerName}</strong>
-                  <span className="muted">
-                    Order #{shortOrderId(order.id)} · Ref {order.paymentReferenceNumber || '—'} · {formatDate(order.paymentSubmittedAt)}
-                  </span>
-                </span>
-                <span className="payment-verification-row-amount">{formatCurrency(order.totalAmount)}</span>
-                <span className="payment-verification-row-cta">Review <ChevronRight size={15} aria-hidden="true" /></span>
+            <div className="payment-verification-header-actions">
+              <span className="payment-verification-pending">{pendingVerifications.length} pending</span>
+              <button type="button" className="payment-verification-view" onClick={() => setShowAllVerifications(true)}>
+                View payment <ChevronRight size={15} aria-hidden="true" />
               </button>
-            ))}
+            </div>
           </div>
 
+          <PaymentVerificationList orders={visibleVerifications} onReview={reviewPayment} />
           {pendingVerifications.length > VISIBLE_VERIFICATION_LIMIT ? (
-            <button
-              type="button"
-              className="payment-verification-toggle"
-              onClick={() => setShowAllVerifications((previous) => !previous)}
-            >
-              {showAllVerifications
-                ? 'Show less'
-                : `Review all ${pendingVerifications.length} payments`}
-            </button>
+            <p className="payment-verification-limit">Showing {VISIBLE_VERIFICATION_LIMIT} of {pendingVerifications.length} pending payments</p>
           ) : null}
         </section>
       ) : null}
@@ -527,6 +596,12 @@ export default function FarmerOrders() {
       <section className="farmer-orders-workspace" aria-label="Purchase orders">
         {orders.length ? (
           <>
+            {stageCounts.pending ? (
+              <div className="farmer-orders-attention">
+                <div><h2>Needs your attention</h2><p>{stageCounts.pending} {stageCounts.pending === 1 ? 'order' : 'orders'} waiting for confirmation</p></div>
+                <Button variant="secondary" onClick={() => { clearFilters(); setActiveStage('pending'); }}>Review pending <ChevronRight size={16} aria-hidden="true" /></Button>
+              </div>
+            ) : null}
             <OrderStatusSummary stageCounts={stageCounts} activeStage={activeStage} onSelectStage={setActiveStage} />
 
             <div className="filter-tabs" role="tablist" aria-label="Filter by order stage">
@@ -608,81 +683,32 @@ export default function FarmerOrders() {
             </div>
 
             {filteredOrders.length ? (
-              <>
-                <div className="order-table-wrap table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Buyer</th>
-                        <th>Product</th>
-                        <th>Order ID</th>
-                        <th>Payment</th>
-                        <th>Fulfillment</th>
-                        <th>Order status</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOrders.map((order) => (
-                        <tr key={order.id}>
-                          <td><BuyerCell order={order} /></td>
-                          <td><ProductCell order={order} /></td>
-                          <td><OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} /></td>
-                          <td><PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
-                          <td><DeliveryCell order={order} /></td>
-                          <td><OrderStageBadge order={order} /></td>
-                          <td>
-                            <span className="farmer-order-date">
-                              <span>{formatDate(order.createdAt)}</span>
-                              <time dateTime={order.createdAt}>{formatTime(order.createdAt)}</time>
-                            </span>
-                          </td>
-                          <td><OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} /></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="order-mobile-cards">
-                  {filteredOrders.map((order) => (
-                    <div key={order.id} className="order-mobile-card">
-                      <div className="order-mobile-card-top">
-                        <BuyerCell order={order} />
-                      </div>
-
-                      <ProductCell order={order} />
-
-                      <div className="order-mobile-card-record">
-                        <OrderStageBadge order={order} />
-                        <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
-                      </div>
-
-                      <div className="order-mobile-card-grid">
-                        <div>
-                          <p className="order-mobile-card-label">Payment</p>
-                          <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
-                        </div>
-                        <div>
-                          <p className="order-mobile-card-label">Fulfillment</p>
-                          <p className="order-mobile-card-value">{deliveryMethodLabel(order.deliveryMethod)}</p>
-                          {getOrderStage(order) === 'out_for_delivery' ? <span className="order-cell-sub">In transit</span> : null}
-                        </div>
-                      </div>
-
-                      <div className="farmer-order-date">
-                        <span>{formatDate(order.createdAt)}</span>
-                        <time dateTime={order.createdAt}>{formatTime(order.createdAt)}</time>
-                      </div>
-
-                      <div className="order-mobile-card-actions">
-                        <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
-                      </div>
+              <div className="farmer-purchase-list" role="list" aria-label="Orders">
+                {filteredOrders.map((order) => (
+                  <article key={order.id} role="listitem" className={`farmer-purchase-row${order.status === 'pending' ? ' is-pending' : ''}${getOrderStage(order) === 'completed' ? ' is-completed' : ''}`} aria-label={`Order from ${order.buyerName}: ${order.productName}`}>
+                    <div className="farmer-purchase-buyer">
+                      <BuyerCell order={order} />
+                      <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
                     </div>
-                  ))}
-                </div>
-              </>
+                    <div className="farmer-purchase-summary">
+                      <div className="farmer-purchase-product">
+                        <ProductCell order={order} />
+                        <div className="farmer-purchase-total"><span>Order total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+                      </div>
+                      <div className="farmer-purchase-logistics">
+                        <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
+                        <DeliveryCell order={order} />
+                      </div>
+                      <time className="farmer-purchase-date" dateTime={order.createdAt}>{formatDate(order.createdAt)} &middot; {formatTime(order.createdAt)}</time>
+                    </div>
+                    <div className="farmer-purchase-decision">
+                      <OrderStageBadge order={order} />
+                      <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
+                      {order.status === 'pending' ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
             ) : (
               <EmptyState
                 icon={Package}
@@ -703,6 +729,8 @@ export default function FarmerOrders() {
           />
         )}
       </section>
+
+      <ConfirmPurchaseDialog order={confirmTarget} onCancel={() => setConfirmTarget(null)} onConfirm={confirmPurchase} submitting={confirming} />
 
       <ConfirmDialog
         open={Boolean(rejectTarget)}
@@ -727,6 +755,8 @@ export default function FarmerOrders() {
         onConfirm={confirmStartDelivery}
         onCancel={() => setStartDeliveryOrder(null)}
       />
+
+      <PaymentListDialog open={showAllVerifications} orders={pendingVerifications} onClose={() => setShowAllVerifications(false)} onReview={reviewPayment} />
 
       <PaymentVerificationDrawer
         order={verifyingOrder}

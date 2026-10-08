@@ -12,6 +12,8 @@ async function harness(locationPermission) {
   const sends = [];
   const local = [];
   const errors = [];
+  let pendingAck = null;
+  let holdAck = false;
   let gps;
   let gpsError;
   let watches = 0;
@@ -23,7 +25,10 @@ async function harness(locationPermission) {
     off(event) { socketListeners.delete(event); },
     timeout() { return this; },
     emit(event, payload, callback) {
-      if (event === 'farmer-location') sends.push(payload);
+      if (event === 'farmer-location') {
+        sends.push(payload);
+        if (holdAck) { pendingAck = callback; return; }
+      }
       callback?.(null, { ok: true });
     },
   };
@@ -55,6 +60,8 @@ async function harness(locationPermission) {
   await flush();
   return { gps: (...args) => gps(...args), gpsError: (...args) => gpsError(...args), sends, local, errors, intervals, socket,
     reconnect: () => socketListeners.get('connect')(),
+    holdAck: () => { holdAck = true; },
+    releaseAck: () => { holdAck = false; const callback = pendingAck; pendingAck = null; callback?.(null, { ok: true }); },
     permissionGranted: () => effects.at(-1)(),
     watches: () => watches, cleared: () => cleared, cleanup: () => cleanups.forEach((cleanup) => cleanup?.()) };
 }
@@ -89,6 +96,38 @@ test('farmer sharing derives vehicle heading from movement instead of phone rota
   await flush();
   assert.equal(Math.round(h.local.at(-1).heading), 90);
   assert.equal(Math.round(h.sends.at(-1).heading), 90);
+  h.cleanup();
+});
+
+test('a GPS update received while an acknowledgement is pending is sent immediately afterwards', async () => {
+  const h = await harness();
+  const timestamp = Date.now();
+  const coords = { latitude: 10.31, longitude: 123.91, accuracy: 8, heading: null, speed: 0 };
+  h.holdAck();
+  h.gps({ coords, timestamp });
+  await flush();
+  h.gps({ coords: { ...coords, latitude: 10.32 }, timestamp: timestamp + 1000 });
+  h.gps({ coords: { ...coords, latitude: 10.33 }, timestamp: timestamp + 2000 });
+  assert.equal(h.local.at(-1).lat, 10.33);
+  assert.equal(h.sends.length, 1);
+  h.releaseAck();
+  await flush();
+  assert.equal(h.sends.length, 2);
+  assert.equal(h.sends.at(-1).lat, 10.33);
+  assert.equal(h.sends.at(-1).timestamp, timestamp + 2000);
+  h.cleanup();
+});
+
+test('small real GPS updates are broadcast without the previous four-second throttle', async () => {
+  const h = await harness();
+  const timestamp = Date.now();
+  const coords = { latitude: 10.31, longitude: 123.91, accuracy: 3, heading: 90, speed: 2 };
+  h.gps({ coords, timestamp });
+  await flush();
+  h.gps({ coords: { ...coords, longitude: 123.91001 }, timestamp: timestamp + 1000 });
+  await flush();
+  assert.equal(h.sends.length, 2);
+  assert.equal(h.sends.at(-1).lng, 123.91001);
   h.cleanup();
 });
 

@@ -253,8 +253,13 @@ export default function LiveDeliveryMap({
   const isDelivered = order.status === 'completed';
   const currentPosition = transit.isInTransit ? livePosition : null;
   const vehiclePosition = currentPosition
-    || (isDelivered ? livePosition : null);
+    || (isDelivered ? livePosition : null)
+    || (transit.isInTransit && !isPickup && !isCourier ? origin : null);
   const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
+  const canRecenter = mapReady && Boolean(validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng));
+  const recenterLabel = !mapReady ? 'Loading map'
+    : !canRecenter ? 'Waiting for driver location'
+      : autoFollow ? 'Following driver' : 'Re-center on driver';
 
   const deliveryState = isDelivered ? 'delivered' : (transit.isInTransit ? 'navigating' : 'preview');
   const trafficEnabled = trafficOverride ?? (deliveryState === 'navigating');
@@ -582,10 +587,11 @@ export default function LiveDeliveryMap({
           <button
             type="button"
             className={`nav-recenter-btn ${autoFollow ? 'active' : ''}`}
+            disabled={!canRecenter}
             onClick={() => cameraRef.current?.resume()}
             aria-pressed={autoFollow}
-            aria-label={autoFollow ? 'Following driver' : 'Re-center on driver'}
-            title={autoFollow ? 'Following driver' : 'Re-center on driver'}
+            aria-label={recenterLabel}
+            title={recenterLabel}
           >
             <Crosshair size={18} />
           </button>

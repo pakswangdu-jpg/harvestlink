@@ -107,6 +107,13 @@
   margin-top: 24px;
 }
 
+.start-delivery-dialog .start-delivery-error {
+  margin: 12px 0 0;
+  color: var(--danger, #dc2626);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .start-delivery-dialog .start-delivery-actions .btn {
   min-height: 44px;
   padding: 10px 16px;

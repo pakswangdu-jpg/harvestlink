@@ -15,6 +15,7 @@ import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
+import TrackingRouteSummary from '../../components/orders/TrackingRouteSummary';
 import FeedbackSuccessDialog from '../../components/orders/FeedbackSuccessDialog';
 import '../../components/orders/DeliveryTrackingInfo.css';
 import './OrderDetails.css';
@@ -350,6 +351,8 @@ export default function OrderTracking() {
 
   const displayEtaMinutes = liveRoute ? liveRoute.etaMinutes : etaMinutes;
   const displayEstimatedTotalMinutes = liveRoute?.etaMinutes ?? estimatedTotalMinutes;
+  const receiverRole = buyerProfile?.role === 'stakeholder' || (isBuyer && currentUser.role === 'stakeholder') ? 'stakeholder' : 'buyer';
+  const trackingRouteTitle = isPickup ? 'Route to pickup location' : receiverRole === 'stakeholder' ? 'Route to drop-off location' : 'Route to delivery location';
 
   return (
     <AppShell
@@ -634,13 +637,9 @@ export default function OrderTracking() {
           open={isTrackingOpen}
           onClose={() => setIsTrackingOpen(false)}
           title={isPickup ? 'Pickup tracking' : 'Delivery tracking'}
-        >
-        {isTrackable ? (
+          subtitle="Live order overview"
+          summary={isTrackable ? (
           <section className="delivery-tracking-info" aria-label={isPickup ? 'Pickup information' : 'Delivery information'}>
-            <header className="delivery-tracking-info-heading">
-              <h2>{isPickup ? 'Pickup tracking' : 'Delivery tracking'}</h2>
-              <p>Live order overview</p>
-            </header>
             <div className="delivery-tracking-info-row">
               <div className="delivery-tracking-info-person">
                 <span className="delivery-tracking-info-avatar" aria-hidden="true">
@@ -657,7 +656,7 @@ export default function OrderTracking() {
                 </span>
                 <div>
                   <strong>{order.buyerName}</strong>
-                  <span>Buyer</span>
+                  <span>{receiverRole === 'stakeholder' ? 'Stakeholder' : 'Buyer'}</span>
                 </div>
               </div>
               <div className={`delivery-tracking-info-status status-${trackingStatus.key}`}>
@@ -676,7 +675,8 @@ export default function OrderTracking() {
               </div>
             ) : null}
           </section>
-        ) : null}
+          ) : null}
+        >
 
         {isTrackable && isCourier ? (
           <DeliveryInfoCard
@@ -696,9 +696,11 @@ export default function OrderTracking() {
         ) : null}
 
         {isTrackable ? (
-          <section className="panel ot-map-panel">
+          <section className="ot-map-panel" aria-label={trackingRouteTitle}>
+            <div className="ot-route-header"><h2>Order locations</h2></div>
+            <TrackingRouteSummary order={order} farmerProfile={farmerProfile} buyerProfile={buyerProfile} receiverRole={receiverRole} />
             <div className="ot-route-header">
-              <h2>{isPickup ? 'Route to pickup location' : isCourier ? 'Courier route' : 'Delivery route'}</h2>
+              <h2>{trackingRouteTitle}</h2>
               <span className="ot-route-header-eta">
                 {Number.isFinite(displayEtaMinutes) && displayEtaMinutes >= 0
                   ? `About ${displayEtaMinutes} min`

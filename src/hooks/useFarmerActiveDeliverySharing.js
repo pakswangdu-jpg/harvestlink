@@ -7,14 +7,11 @@ import { isFreshLivePosition, normalizeLivePosition } from '../utils/liveTrackin
 import { haversineKm } from '../utils/geo';
 import {
   computeVehicleBearing,
-  getContinuousVehicleHeading,
   normalizeVehicleHeading,
   VEHICLE_HEADING_MIN_MOVEMENT_KM,
 } from '../utils/vehicleMarker';
 
 const POLL_INTERVAL_MS = 6000;
-const MIN_SEND_INTERVAL_MS = 4000;
-const MIN_SEND_MOVE_KM = 0.01;
 const MIN_RELIABLE_HEADING_SPEED_MPS = 0.8;
 
 function isActiveDeliveryOrder(order) {
@@ -37,10 +34,8 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
     let permissionDenied = false;
     let gpsError = false;
     let latestPosition = null;
-    let lastSentPosition = null;
     let lastHeadingPosition = null;
     let lastReliableHeading = null;
-    let lastSentAt = 0;
     const joined = new Set();
     const joining = new Map();
     const sending = new Set();
@@ -73,11 +68,13 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
     const send = async (orderId) => {
       if (cancelled || !socket.connected || sending.has(orderId)) return;
       sending.add(orderId);
+      let sentPosition = null;
       try {
         if (!await join(orderId) || cancelled || !socket.connected || !activeIds.has(orderId)) return;
         // Read after joining: a newer GPS callback may have arrived during authentication.
         const position = latestPosition;
         if (!position || !isFreshLivePosition(position)) return;
+        sentPosition = position;
         await new Promise((resolve) => {
           socket.timeout(10000).emit('farmer-location', {
             orderId, lat: position.lat, lng: position.lng, accuracy: position.accuracy,
@@ -89,7 +86,13 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
             resolve();
           });
         });
-      } finally { sending.delete(orderId); }
+      } finally {
+        sending.delete(orderId);
+        // Drain a newer real fix received while the previous socket ack was pending.
+        if (sentPosition && latestPosition !== sentPosition && !cancelled && socket.connected && activeIds.has(orderId)) {
+          void send(orderId);
+        }
+      }
     };
     const stopWatch = () => {
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
@@ -103,7 +106,6 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
       }
       watchId = navigator.geolocation.watchPosition((position) => {
         if (cancelled || !activeIds.size) return;
-        const now = Date.now();
         const point = { lat: position.coords.latitude, lng: position.coords.longitude };
         const gpsHeading = normalizeVehicleHeading(position.coords.heading);
         const speed = Number.isFinite(position.coords.speed) ? position.coords.speed : null;
@@ -131,12 +133,6 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
         refreshStatus();
         // Local marker/route consume this fix immediately, independently of network/compass.
         activeIds.forEach((orderId) => publishLiveOrderPosition(orderId, next, { source: 'gps' }));
-        const moved = !lastSentPosition || haversineKm(lastSentPosition, next) >= MIN_SEND_MOVE_KM;
-        const turned = next.heading != null && lastSentPosition?.heading != null
-          && Math.abs(getContinuousVehicleHeading(lastSentPosition.heading, next.heading) - lastSentPosition.heading) >= 3;
-        if (now - lastSentAt < MIN_SEND_INTERVAL_MS && !moved && !turned) return;
-        lastSentAt = now;
-        lastSentPosition = next;
         activeIds.forEach((orderId) => { void send(orderId); });
       }, (geoError) => {
         if (cancelled) return;
@@ -176,7 +172,6 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
         } else {
           stopWatch();
           latestPosition = null;
-          lastSentPosition = null;
           permissionDenied = false;
           setError('');
         }
