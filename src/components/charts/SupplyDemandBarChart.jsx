@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { Bot, LineChart, Sprout } from 'lucide-react';
+import './SupplyDemandBarChart.css';
 
 const CHART_HEIGHT = 260;
 
@@ -53,6 +54,15 @@ function ChartTooltip({ active, payload }) {
 
 
 
+function CropTick({ x, y, payload }) {
+  const lines = String(payload.value).match(/.{1,13}(?:\s|$)|\S{1,13}/g) || [];
+  return (
+    <text x={x - 8} y={y} textAnchor="end" fill="var(--muted)" fontSize={12}>
+      {lines.map((line, index) => <tspan key={index} x={x - 8} dy={index === 0 ? 4 - (lines.length - 1) * 7 : 14}>{line.trim()}</tspan>)}
+    </text>
+  );
+}
+
 function AlternatingBackground({ x, y, width, height, index }) {
   if (index % 2 !== 0) return null;
   return <rect x={x} y={y} width={width} height={height} fill="var(--soft)" rx={6} />;
@@ -75,6 +85,8 @@ function SummaryCard({ icon: Icon, label, children }) {
 
 
 export default function SupplyDemandBarChart({ data }) {
+  const [chartWidth, setChartWidth] = useState(0);
+  const compact = chartWidth < Math.max(480, data.length * 100);
   const hasMeaningfulData = data.some((entry) => entry.demand > 0 || entry.supply > 0);
 
   const summary = useMemo(() => {
@@ -95,7 +107,7 @@ export default function SupplyDemandBarChart({ data }) {
   }, [data, hasMeaningfulData]);
 
   return (
-    <div className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
+    <div className="supply-demand-panel min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
       <h3 className="text-[18px] font-bold text-[var(--text)]">Supply vs. Demand</h3>
       <p className="mt-1 text-[13px] text-[var(--muted)]">Compare customer demand with available supply.</p>
 
@@ -106,42 +118,42 @@ export default function SupplyDemandBarChart({ data }) {
             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--green-600)]" /> Available Supply</span>
           </div>
 
-          <div className="mt-3" style={{ height: CHART_HEIGHT }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 24, right: 8, left: 0, bottom: 0 }} barGap={4} barCategoryGap="24%">
-                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
-                <XAxis dataKey="crop" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} interval={0} height={36} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
+          <div className="supply-demand-plot mt-3" style={{ height: compact ? Math.max(CHART_HEIGHT, data.length * 68 + 36) : CHART_HEIGHT }}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} onResize={(width) => setChartWidth(width)}>
+              <BarChart data={data} layout={compact ? 'vertical' : 'horizontal'} margin={compact ? { top: 8, right: 32, left: 0, bottom: 0 } : { top: 24, right: 16, left: 0, bottom: 0 }} barGap={4} barCategoryGap="24%">
+                <CartesianGrid vertical={compact} horizontal={!compact} stroke="var(--line)" strokeDasharray="3 3" />
+                <XAxis type={compact ? 'number' : 'category'} dataKey={compact ? undefined : 'crop'} tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} interval={compact ? 'preserveStartEnd' : 0} height={36} allowDecimals={false} minTickGap={24} />
+                <YAxis type={compact ? 'category' : 'number'} dataKey={compact ? 'crop' : undefined} tick={compact ? <CropTick /> : { fontSize: 11, fill: 'var(--muted)' }} axisLine={false} tickLine={false} width={compact ? 104 : 28} interval={0} allowDecimals={false} />
                 <Tooltip cursor={{ fill: 'transparent' }} content={<ChartTooltip />} />
                 <Bar
                   dataKey="demand"
                   name="Demand"
                   fill="var(--blue-700)"
-                  radius={[6, 6, 0, 0]}
+                  radius={compact ? [0, 3, 3, 0] : [3, 3, 0, 0]}
                   maxBarSize={36}
                   animationDuration={700}
                   animationEasing="ease-out"
                   background={<AlternatingBackground />}
                 >
-                  <LabelList dataKey="demand" position="top" style={{ fontSize: 12, fontWeight: 700, fill: 'var(--blue-700)' }} />
+                  <LabelList dataKey="demand" position={compact ? 'right' : 'top'} style={{ fontSize: 12, fontWeight: 600, fill: 'var(--blue-700)' }} />
                 </Bar>
                 <Bar
                   dataKey="supply"
                   name="Supply"
                   fill="var(--green-600)"
-                  radius={[6, 6, 0, 0]}
+                  radius={compact ? [0, 3, 3, 0] : [3, 3, 0, 0]}
                   maxBarSize={36}
                   animationDuration={700}
                   animationEasing="ease-out"
                   background={<AlternatingBackground />}
                 >
-                  <LabelList dataKey="supply" position="top" style={{ fontSize: 12, fontWeight: 700, fill: 'var(--green-700)' }} />
+                  <LabelList dataKey="supply" position={compact ? 'right' : 'top'} style={{ fontSize: 12, fontWeight: 600, fill: 'var(--green-700)' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="supply-demand-summary mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <SummaryCard icon={Sprout} label="Best Crop to Sell">
               <p className="mt-0.5 truncate text-[15px] font-bold text-[var(--green-700)]">{summary.bestToSell.crop}</p>
             </SummaryCard>

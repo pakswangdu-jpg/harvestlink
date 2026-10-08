@@ -1,0 +1,35 @@
+.supply-demand-panel {
+  container-type: inline-size;
+}
+
+.supply-demand-plot {
+  min-width: 0;
+}
+
+.supply-demand-plot .recharts-wrapper:focus:not(:focus-visible),
+.supply-demand-plot .recharts-surface:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.supply-demand-plot .recharts-wrapper:focus-visible,
+.supply-demand-plot .recharts-surface:focus-visible {
+  outline: 2px solid var(--green-600);
+  outline-offset: 3px;
+}
+
+@container (max-width: 560px) {
+  .supply-demand-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .supply-demand-summary .truncate {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 480px) {
+  .supply-demand-panel {
+    padding: 16px;
+  }
+}
