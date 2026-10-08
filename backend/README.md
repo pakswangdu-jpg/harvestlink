@@ -7,6 +7,11 @@ Auth — this backend only verifies the resulting session token.
 
 ## Scope
 
+Verified, active sessions have no general API request cap. Anonymous traffic
+and invalid sessions remain limited to 30 requests per minute per IP.
+Password reset, registration, payment, messaging, and other action-specific
+limits remain in force. Session expiry and account access checks are unchanged.
+
 The API includes shared donations alongside profiles, products, orders,
 notifications, messaging, delivery, and other marketplace services. Donation
 records must not use browser-only storage: farmers and stakeholder organizations

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import { rateLimit } from './middleware/rateLimit.js';
+import { apiRateLimit } from './middleware/apiRateLimit.js';
 import { getAllowedOrigins } from './lib/appUrls.js';
 
 const app = express();
@@ -48,11 +48,7 @@ app.use(express.json({
 }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
-app.use('/api', rateLimit({
-  name: 'API',
-  limit: (req) => (req.headers.authorization ? 120 : 30),
-  windowMs: 60 * 1000,
-}));
+app.use('/api', apiRateLimit);
 app.use('/api', apiRoutes);
 
 app.use(notFoundHandler);

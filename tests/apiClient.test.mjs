@@ -73,7 +73,7 @@ test('an older request timing out cannot cancel a newer request', async (t) => {
   const first = assert.rejects(client.get('/products'), { name: 'TimeoutError' });
   await setImmediate();
   t.mock.timers.tick(30000);
-  const second = client.get('/products');
+  const second = client.get('/orders');
   await setImmediate();
   t.mock.timers.tick(60000);
   await first;
@@ -174,4 +174,74 @@ test('reuses recent GET responses and invalidates them after a write', async (t)
   await client.post('/orders', { quantity: 1 });
   assert.deepEqual(await client.get('/products'), [{ id: 2 }]);
   assert.equal(productFetches, 2);
+});
+
+test('simultaneous reads from dashboard and badges share one network request', async (t) => {
+  let resolve;
+  let fetches = 0;
+  const client = await loadClient(t, () => {
+    fetches += 1;
+    return new Promise((finish) => { resolve = finish; });
+  });
+  const reads = [client.get('/orders?farmerId=1'), client.get('/orders?farmerId=1'), client.get('/orders?farmerId=1')];
+  await setImmediate();
+  assert.equal(fetches, 1);
+  resolve(Response.json([{ id: 'order-1' }]));
+  for (const result of await Promise.all(reads)) assert.deepEqual(result, [{ id: 'order-1' }]);
+});
+
+test('a failed shared read is cleared so the next attempt can recover', async (t) => {
+  let reject;
+  let fetches = 0;
+  const client = await loadClient(t, () => {
+    if (++fetches === 2) return Promise.resolve(Response.json([]));
+    return new Promise((resolve, fail) => { reject = fail; });
+  });
+  const first = assert.rejects(client.get('/orders'), /Network unavailable/);
+  const second = assert.rejects(client.get('/orders'), /Network unavailable/);
+  await setImmediate();
+  reject(new Error('Network unavailable'));
+  await Promise.all([first, second]);
+  assert.deepEqual(await client.get('/orders'), []);
+  assert.equal(fetches, 2);
+});
+
+test('a write makes later reads independent of an older pending read', async (t) => {
+  const requests = [];
+  const client = await loadClient(t, (url, options) => {
+    if (options.method === 'POST') return Promise.resolve(new Response(null, { status: 204 }));
+    return new Promise((resolve) => requests.push(resolve));
+  });
+  const old = client.get('/orders');
+  await setImmediate();
+  await client.post('/orders', { quantity: 1 });
+  const fresh = client.get('/orders');
+  await setImmediate();
+  assert.equal(requests.length, 2);
+  requests[0](Response.json([{ id: 'before-write' }]));
+  await old;
+  const sharedFresh = client.get('/orders');
+  await setImmediate();
+  assert.equal(requests.length, 2);
+  requests[1](Response.json([{ id: 'after-write' }]));
+  assert.deepEqual(await fresh, [{ id: 'after-write' }]);
+  assert.deepEqual(await sharedFresh, [{ id: 'after-write' }]);
+  assert.deepEqual(await client.get('/orders'), [{ id: 'after-write' }]);
+});
+
+test('in-flight reads are isolated by signed-in account', async (t) => {
+  let userId = 'farmer-1';
+  const requests = [];
+  const client = await loadClient(t, () => new Promise((resolve) => requests.push(resolve)),
+    async () => ({ data: { session: { user: { id: userId }, access_token: userId } }, error: null }));
+  const first = client.get('/orders');
+  await setImmediate();
+  userId = 'farmer-2';
+  const second = client.get('/orders');
+  await setImmediate();
+  assert.equal(requests.length, 2);
+  requests[0](Response.json([{ id: 'first-account' }]));
+  requests[1](Response.json([{ id: 'second-account' }]));
+  assert.deepEqual(await first, [{ id: 'first-account' }]);
+  assert.deepEqual(await second, [{ id: 'second-account' }]);
 });

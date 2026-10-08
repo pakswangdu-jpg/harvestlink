@@ -14,7 +14,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getUsers } from '../../services/authService';
 import { getPendingPriceReviews, getProducts } from '../../services/productService';
 import { getOrders } from '../../services/orderService';
-import { getDonations } from '../../services/donationService';
+import { useDonationList } from '../../hooks/useDonationList';
 import { MARKET_COMMODITIES, getAllPriceOverrides, matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
@@ -76,21 +76,22 @@ function ActivityRow({ icon: Icon, tone, message, at }) {
 }
 
 const EMPTY_STATE = {
-  users: null, products: null, orders: null, donations: null, pendingPriceReviews: null, priceOverrides: null,
+  users: null, products: null, orders: null, pendingPriceReviews: null, priceOverrides: null,
 };
 
 export default function AdminOverview() {
   const { currentUser } = useAuth();
   const [state, setState] = useState(EMPTY_STATE);
   const [loadError, setLoadError] = useState('');
+  const { donations, loading: donationsLoading, loadError: donationError } = useDonationList();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getUsers(), getProducts(), getOrders(), getPendingPriceReviews(), getAllPriceOverrides(), getDonations()])
-      .then(([users, products, orders, pendingPriceReviews, priceOverrides, donations]) => {
+    Promise.all([getUsers(), getProducts(), getOrders(), getPendingPriceReviews(), getAllPriceOverrides()])
+      .then(([users, products, orders, pendingPriceReviews, priceOverrides]) => {
         if (cancelled) return;
         setState({
-          users, products, orders, pendingPriceReviews, priceOverrides, donations,
+          users, products, orders, pendingPriceReviews, priceOverrides,
         });
       }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
@@ -98,7 +99,7 @@ export default function AdminOverview() {
 
   const isLoading = state.users === null;
   const {
-    users, products, orders, donations, pendingPriceReviews, priceOverrides,
+    users, products, orders, pendingPriceReviews, priceOverrides,
   } = state;
 
   const pendingVerifications = users ? users.filter((user) => user.verificationStatus === 'pending') : [];
@@ -155,7 +156,7 @@ export default function AdminOverview() {
             <StatCard label="Total sales" value={formatCurrency(totalRevenue)} icon={TrendingUp} tone="green" />
             <StatCard label="Total orders" value={orders.length} icon={ClipboardList} tone="blue" />
             <StatCard label="Registered users" value={users.length} icon={Users} tone="slate" />
-            <StatCard label="Donations completed" value={completedDonations} icon={Gift} tone="amber" />
+            <StatCard label="Donations completed" value={donationError || donationsLoading ? '--' : completedDonations} icon={Gift} tone="amber" />
           </div>
 
           <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -206,11 +207,11 @@ export default function AdminOverview() {
                 title="Donations"
                 action={<Link to="/admin-donations" className="text-[13px] font-medium text-[var(--green-800)] hover:underline">View all</Link>}
               />
-              <div className="grid grid-cols-3 gap-4">
+              {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : <div className="grid grid-cols-3 gap-4">
                 <MiniStat label="Completed" value={completedDonations} tone="green" />
                 <MiniStat label="Pending" value={donations.filter((donation) => donation.status === 'requested' || donation.status === 'scheduled').length} tone="amber" />
                 <MiniStat label="Available" value={donations.filter((donation) => donation.status === 'available').length} tone="muted" />
-              </div>
+              </div>}
             </Card>
           </div>
         </>
