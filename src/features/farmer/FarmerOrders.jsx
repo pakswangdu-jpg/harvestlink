@@ -419,14 +419,17 @@ export default function FarmerOrders() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id]);
 
-  const run = async (action, successMessage) => {
+  const run = async (action, successMessage, nextStage) => {
     try {
       await action();
       setError('');
       showToast({ type: 'success', message: successMessage });
-      reload();
+      await reload();
+      if (nextStage) setActiveStage(nextStage);
+      return true;
     } catch (actionError) {
       showToast({ type: 'error', message: actionError.message });
+      return false;
     }
   };
 
@@ -448,7 +451,11 @@ export default function FarmerOrders() {
         setConfirmAction({ order, action });
         return;
       }
-      run(() => advanceDelivery(order.id), `Order marked "${action.label}".`);
+      run(
+        () => advanceDelivery(order.id),
+        `Order marked "${action.label}".`,
+        getOrderStage({ ...order, deliveryStatus: action.next }),
+      );
     }
   };
 
@@ -461,7 +468,8 @@ export default function FarmerOrders() {
   const confirmPurchase = async () => {
     if (!confirmTarget || confirming) return;
     setConfirming(true);
-    await run(() => updateOrderStatus(confirmTarget.id, 'confirmed'), 'Order confirmed.');
+    const confirmed = await run(() => updateOrderStatus(confirmTarget.id, 'confirmed'), 'Order confirmed.');
+    if (confirmed) setActiveStage('confirmed');
     setConfirming(false);
     setConfirmTarget(null);
   };
@@ -469,7 +477,11 @@ export default function FarmerOrders() {
   const confirmAdvance = () => {
     if (!confirmAction) return;
     const { order, action } = confirmAction;
-    run(() => advanceDelivery(order.id), `Order marked "${action.label}".`);
+    run(
+      () => advanceDelivery(order.id),
+      `Order marked "${action.label}".`,
+      getOrderStage({ ...order, deliveryStatus: action.next }),
+    );
     setConfirmAction(null);
   };
 
@@ -480,6 +492,7 @@ export default function FarmerOrders() {
     run(
       () => advanceDelivery(target.id, plateNumber),
       'Order marked "Out for Delivery".',
+      'out_for_delivery',
     );
   };
 
@@ -573,17 +586,17 @@ export default function FarmerOrders() {
 
       {pendingVerifications.length ? (
         <section className="panel payment-verification-panel">
-          <div className="section-heading">
-            <div>
-              <h2>Payment verification</h2>
+          <div className="payment-verification-heading">
+            <div className="payment-verification-heading-main">
+              <div className="payment-verification-title-row">
+                <h2>Payment verification</h2>
+                <span className="payment-verification-pending">{pendingVerifications.length} pending</span>
+              </div>
               <p className="payment-verification-subtitle">Review payments that still need confirmation.</p>
             </div>
-            <div className="payment-verification-header-actions">
-              <span className="payment-verification-pending">{pendingVerifications.length} pending</span>
-              <button type="button" className="payment-verification-view" onClick={() => setShowAllVerifications(true)}>
-                View payment <ChevronRight size={15} aria-hidden="true" />
-              </button>
-            </div>
+            <button type="button" className="payment-verification-view" onClick={() => setShowAllVerifications(true)}>
+              View payments <ChevronRight size={15} aria-hidden="true" />
+            </button>
           </div>
 
           <PaymentVerificationList orders={visibleVerifications} onReview={reviewPayment} />

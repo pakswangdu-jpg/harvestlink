@@ -173,11 +173,29 @@
   box-shadow: none;
 }
 
-.farmer-orders-page .payment-verification-panel .section-heading {
-  align-items: flex-start;
+.payment-verification-heading {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px 16px;
   margin-bottom: 12px;
+}
+
+.payment-verification-heading-main {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.payment-verification-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.payment-verification-title-row .payment-verification-pending {
+  padding-top: 0;
+  white-space: nowrap;
 }
 
 .farmer-orders-page .payment-verification-panel h2 {
@@ -252,13 +270,6 @@
   font-weight: 500;
 }
 
-.payment-verification-header-actions {
-  display: grid;
-  justify-items: end;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
 .payment-verification-view,
 .payment-verification-close {
   display: inline-flex;
@@ -274,6 +285,11 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.payment-verification-view {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .payment-verification-view:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -304,7 +320,6 @@
 .payment-verification-close { width: 40px; height: 40px; padding: 0; color: var(--text-secondary); }
 
 @media (max-width: 540px) {
-  .farmer-orders-page .payment-verification-panel .section-heading { flex-wrap: nowrap; }
   .farmer-orders-page .payment-verification-panel h2 { font-size: 16px; }
   .payment-verification-view { min-height: 44px; font-size: 13px; }
   .payment-verification-dialog { padding: 16px; }
