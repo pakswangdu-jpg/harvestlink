@@ -1,5 +1,6 @@
 import { ArrowRight, ClipboardList, Package, TrendingUp, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import './MetricsSummary.css';
 
 
 
@@ -23,7 +24,7 @@ export default function MetricsSummary({ financialMetrics, productMetrics, order
   ];
 
   return (
-    <section className="panel metrics-overview-panel">
+    <section className="panel metrics-overview-panel business-summary">
       <div className="section-heading">
         <div>
           <p className="eyebrow">Business overview</p>
@@ -58,10 +59,10 @@ function OverviewCard({
         <Icon size={16} className="product-stats-icon" aria-hidden="true" />
         <p className="product-stats-label">{title}</p>
       </div>
-      <p className="product-stats-value">
-        {metric.value}
+      <div className="business-summary-number-row">
+        <p className="product-stats-value">{metric.value}</p>
         {metric.trend ? <TrendingUp size={15} className="metrics-overview-trend" aria-hidden="true" /> : null}
-      </p>
+      </div>
       <p className="product-stats-hint">{metric.hint || metric.label}</p>
       {secondary ? (
         <p className="metrics-overview-secondary"><strong>{secondary.value}</strong> {secondary.label}</p>
