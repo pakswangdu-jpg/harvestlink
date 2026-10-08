@@ -92,6 +92,30 @@ test('a stale local sample cannot supersede a fresh server snapshot', () => {
   assert.equal(store.getLiveOrderPosition('A').lat, origin.lat);
 });
 
+test('stationary jitter holds one confirmed display point for marker/route while preserving raw GPS', () => {
+  store.clearLiveOrderPositions();
+  const stopped = { ...fix(), speed: 0, heading: 90 };
+  store.publishLiveOrderPosition('stopped', stopped, { source: 'gps' });
+  const noise = { ...stopped, lat: origin.lat + 0.00002, heading: 180, timestamp: time + 1000 };
+  const latest = store.publishLiveOrderPosition('stopped', noise);
+  assert.equal(latest.lat, noise.lat);
+  assert.equal(latest.heading, noise.heading);
+  assert.equal(latest.trackingPosition.lat, origin.lat);
+  assert.equal(latest.trackingPosition.lng, origin.lng);
+  assert.equal(latest.trackingPosition.heading, stopped.heading);
+  assert.equal(latest.trackingPosition.timestamp, noise.timestamp);
+  assert.equal(position.isFreshLivePosition(latest, time + 240000), false);
+  assert.equal(store.getLiveOrderPosition('stopped'), latest, 'offline/stale age cannot move the vehicle');
+  const moved = store.publishLiveOrderPosition('stopped', { ...noise, lat: origin.lat + 0.001, timestamp: time + 2000 });
+  assert.equal(moved.trackingPosition.lat, origin.lat + 0.001);
+});
+
+test('reported travel speed bypasses stationary jitter suppression', () => {
+  const previous = position.normalizeLivePosition({ ...fix(), speed: 0 });
+  const next = position.normalizeLivePosition({ ...fix({ lat: origin.lat + 0.00001, lng: origin.lng }, time + 1000), speed: 2 });
+  assert.equal(position.stableTrackingPosition(previous, next), next);
+});
+
 function navigator(fetchRoutes = async (from, to) => [route(from, to)]) {
   const calls = [];
   let clock = time;
@@ -126,6 +150,22 @@ test('first GPS fix supersedes an in-flight profile preview immediately', async 
   await flush();
   assert.deepEqual(plain(nav.state().selected.points[0]), live);
   assert.equal(nav.state().stale, false);
+});
+
+test('GPS received during a slow route request triggers a new route from the latest coordinate', async () => {
+  const resolvers = [];
+  const nav = navigator((from, to) => new Promise((resolve) => resolvers.push(() => resolve([route(from, to)]))));
+  nav.controller.update({ ...nav.inputs, position: fix() });
+  const latest = { lat: 10.35, lng: 123.95 };
+  nav.controller.update({ ...nav.inputs, position: fix(latest, time + 1000) });
+  resolvers[0]();
+  await flush();
+  assert.deepEqual(nav.calls, [[origin, destination], [latest, destination]]);
+  assert.equal(nav.state().selected, null, 'an outdated response must not become the active route');
+  resolvers[1]();
+  await flush();
+  assert.deepEqual(plain(nav.state().selected.points[0]), latest);
+  assert.deepEqual(plain(nav.state().selected.points.at(-1)), destination);
 });
 
 test('movement is throttled; off-route updates use the latest GPS and unchanged buyer destination', async () => {

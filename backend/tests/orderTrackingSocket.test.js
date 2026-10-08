@@ -140,3 +140,79 @@ test('real order room delivers exact GPS to farmer/buyer, replays late joins, an
     speed: 10, accuracy: 5, sampleAgeMs: 15000 });
   assert.equal(recorded.tracked_duration_seconds, totalsBeforeStaleSample);
 });
+
+test('buyer/stakeholder viewers cannot move the farmer or change driver presence; pickup keeps its own mover', async (t) => {
+  const http = createServer();
+  const io = setupOrderTrackingSocket(http, []);
+  await new Promise(resolve => http.listen(0, '127.0.0.1', resolve));
+  const clients = [];
+  t.after(async () => {
+    clients.forEach(client => client.disconnect());
+    await new Promise(resolve => io.close(resolve));
+  });
+  const client = async (orderId, token) => {
+    const socket = connect(`http://127.0.0.1:${http.address().port}`, { transports: ['websocket'], forceNew: true });
+    clients.push(socket);
+    await once(socket, 'connect');
+    const joined = await emit(socket, 'join-order', { orderId, token });
+    return { socket, joined };
+  };
+  const settle = () => new Promise(resolve => setTimeout(resolve, 30));
+
+  for (const receiver of ['buyer', 'stakeholder']) {
+    const orderId = `presence-${receiver}`;
+    rows.set(orderId, {
+      id: orderId, farmer_id: 'farmer', buyer_id: receiver, farmer_name: 'Farmer',
+      delivery_method: 'farmer_delivery', status: 'confirmed', delivery_status: 'out_for_delivery',
+      origin_municipality: 'Mandaue City', delivery_municipality: 'Mandaue City',
+    });
+    const { socket: farmer } = await client(orderId, 'farmer');
+    const { socket: viewer } = await client(orderId, receiver);
+    const { socket: unrelated, joined: denied } = await client(orderId, `${receiver}-unrelated`);
+    assert.equal(denied.ok, false);
+    unrelated.disconnect();
+    const sample = { orderId, lat: 10.315, lng: 123.912, accuracy: 5, speed: 0, heading: 90, timestamp: Date.now() };
+    const received = once(viewer, 'location-update');
+    assert.equal((await emit(farmer, 'farmer-location', sample)).ok, true);
+    const [location] = await received;
+    assert.equal(location.lat, sample.lat);
+    assert.equal(location.lng, sample.lng);
+    assert.equal((await emit(viewer, 'farmer-location', { ...sample, lat: 10.4 })).ok, false);
+    assert.equal((await emit(viewer, 'buyer-location', { ...sample, lat: 10.4 })).ok, false);
+
+    const { socket: lateViewer, joined } = await client(orderId, receiver);
+    assert.equal(joined.location.lat, sample.lat);
+    assert.equal(joined.location.lng, sample.lng);
+    const statuses = [];
+    lateViewer.on('sharer-status', payload => statuses.push(payload));
+    viewer.emit('share-status', { orderId, status: 'offline' });
+    await settle();
+    assert.equal(statuses.length, 0, 'a receiving viewer cannot publish farmer presence');
+    viewer.disconnect();
+    await settle();
+    assert.equal(statuses.length, 0, 'closing a viewer must not mark the farmer offline');
+
+    const { socket: secondFarmer } = await client(orderId, 'farmer');
+    farmer.disconnect();
+    await settle();
+    assert.equal(statuses.length, 0, 'another connected farmer session still leads the delivery');
+    const offline = once(lateViewer, 'sharer-status');
+    secondFarmer.disconnect();
+    assert.equal((await offline)[0].status, 'offline');
+    assert.equal(rows.get(orderId).current_lat, sample.lat, 'offline retains the last confirmed point');
+    lateViewer.disconnect();
+  }
+
+  const pickupId = 'pickup-presence';
+  rows.set(pickupId, { id: pickupId, farmer_id: 'pickup-farmer', buyer_id: 'pickup-buyer',
+    buyer_name: 'Pickup Buyer', delivery_method: 'buyer_pickup', status: 'confirmed', delivery_status: 'ready_for_pickup',
+    origin_municipality: 'Mandaue City' });
+  const { socket: pickupFarmer } = await client(pickupId, 'pickup-farmer');
+  const { socket: pickupBuyer } = await client(pickupId, 'pickup-buyer');
+  const pickupLocation = once(pickupFarmer, 'location-update');
+  assert.equal((await emit(pickupBuyer, 'buyer-location', { orderId: pickupId, lat: 10.31, lng: 123.91 })).ok, true);
+  assert.equal((await pickupLocation)[0].lat, 10.31);
+  const pickupOffline = once(pickupFarmer, 'sharer-status');
+  pickupBuyer.disconnect();
+  assert.equal((await pickupOffline)[0].status, 'offline');
+});

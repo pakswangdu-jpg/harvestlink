@@ -15413,19 +15413,36 @@ td {
 
 .nav-recenter-btn {
   position: absolute;
-  bottom: 14px;
+  bottom: 32px;
   right: 14px;
   z-index: 10;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
   border: none;
   border-radius: 999px;
   background: var(--panel);
   color: #1a73e8;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.nav-recenter-btn svg {
+  pointer-events: none;
+}
+
+.nav-recenter-btn:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 3px;
+}
+
+.nav-recenter-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .nav-recenter-btn.active {

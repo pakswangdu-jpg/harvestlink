@@ -4,13 +4,15 @@ import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
 import { loadFrontend } from './helpers/loadFrontend.mjs';
 
-async function harness(vector = false, profiles = true) {
+async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }) {
   const slots = [];
   let index = 0;
   let pending = [];
   let dirty = false;
   let tree;
-  let position = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 };
+  let position = initialPosition;
+  let connection = 'online';
+  let navigationInputs;
   const maps = [];
   const markers = [];
   const routes = [];
@@ -68,9 +70,9 @@ async function harness(vector = false, profiles = true) {
   const scope = { React: react, ...react, ...geo, ...vehicle, ...camera, ...trip,
     createPortal: (child) => child, GOOGLE_MAPS_MAP_ID: vector ? 'test-map' : null, DARK_MAP_STYLE: [],
     loadGoogleMaps: async () => mapsApi, useTheme: () => ({ effectiveTheme: 'light' }),
-    useOrderTrackingSocket: () => ({ livePosition: position }), useOrderConnectionStatus: () => 'online',
+    useOrderTrackingSocket: () => ({ livePosition: position }), useOrderConnectionStatus: () => connection,
     useMapCoordinates: () => profiles ? { farmer: { lat: 10.3, lng: 123.9 }, buyer: { lat: 10.4, lng: 123.95 } } : {},
-    useTrafficNavigation: () => navigation, getLiveTransitProgress: () => ({ isInTransit: true }),
+    useTrafficNavigation: (inputs) => { navigationInputs = inputs; return navigation; }, getLiveTransitProgress: () => ({ isInTransit: true }),
     isFreshLivePosition: () => true, nearestIndexOnPath: () => 0,
     MAP_COLORS: { origin: 'green', destination: 'blue' }, deliveryVanIcon: 'van',
     document: { createElement: () => ({ className: '', querySelector: () => ({ style: {}, removeAttribute() {} }) }) },
@@ -100,6 +102,9 @@ async function harness(vector = false, profiles = true) {
   await new Promise(setImmediate);
   render();
   return { maps, markers, routes, calls, render, recenter: () => { find(tree).props.onClick(); render(); },
+    recenterProps: () => find(tree).props,
+    navigationInputs: () => navigationInputs,
+    offline() { connection = 'offline'; render(); },
     update(next) { position = next; render(); },
     cleanup() { slots.forEach((slot) => slot?.cleanup?.()); },
   };
@@ -138,5 +143,46 @@ test('buyer can see and recenter on saved live driver GPS before profile coordin
   assert.equal(h.markers.length, 1);
   h.recenter();
   assert.equal(h.calls.at(-1)[1].lat, 10.31);
+  h.cleanup();
+});
+
+test('recenter indicates unavailable GPS and becomes usable when the driver location arrives', async () => {
+  const h = await harness(false, false, null);
+  assert.equal(h.recenterProps().disabled, true);
+  assert.match(h.recenterProps()['aria-label'], /Loading map|Waiting for driver location/);
+  h.update({ lat: 10.32, lng: 123.92, heading: 90, speed: 2 });
+  await new Promise(setImmediate);
+  h.render();
+  assert.equal(h.recenterProps().disabled, false);
+  h.maps[0].listeners.get('dragstart')();
+  h.render();
+  assert.equal(h.recenterProps()['aria-pressed'], false);
+  h.recenter();
+  assert.equal(h.recenterProps()['aria-pressed'], true);
+  assert.equal(h.calls.findLast(([kind]) => kind === 'pan')[1].lat, 10.32);
+  h.cleanup();
+});
+
+test('farm fallback switches to GPS once and stopped/offline tracking never resets to the farm', async () => {
+  const h = await harness(false, true, null);
+  const vehicle = h.markers.find(marker => marker.zIndex === 1000);
+  assert.equal(vehicle.position.lat, 10.3);
+  const stopped = { lat: 10.32, lng: 123.92, heading: 90, speed: 0 };
+  h.update(stopped);
+  assert.equal(vehicle.position.lat, stopped.lat);
+  assert.equal(vehicle.position.lng, stopped.lng);
+  assert.equal(h.navigationInputs().position, stopped, 'route and marker consume the same fix');
+  assert.equal(h.navigationInputs().destination.lat, 10.4, 'saved receiver destination stays fixed');
+  assert.equal(h.navigationInputs().destination.lng, 123.95);
+  h.offline();
+  for (let i = 0; i < 5; i++) h.render();
+  assert.equal(vehicle.position.lat, stopped.lat);
+  assert.equal(vehicle.position.lng, stopped.lng);
+  h.recenter();
+  const cameraPosition = h.calls.findLast(([kind]) => kind === 'pan')[1];
+  assert.equal(cameraPosition.lat, stopped.lat);
+  assert.equal(cameraPosition.lng, stopped.lng);
+  assert.equal(h.markers.filter(marker => marker.zIndex === 1000).length, 1);
+  assert.equal(h.routes.length, 3, 'marker can update while Google route data is unavailable');
   h.cleanup();
 });

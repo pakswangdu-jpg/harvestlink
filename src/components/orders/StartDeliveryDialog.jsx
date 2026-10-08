@@ -1,26 +1,48 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Truck } from 'lucide-react';
 import Button from '../common/Button';
+import { requireDeliveryLocation } from '../../services/locationPermissionService';
 import './StartDeliveryDialog.css';
 
 export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmitting = false }) {
   const [plateNumber, setPlateNumber] = useState('');
+  const [requestingLocation, setRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const inFlightRef = useRef(false);
+  const attemptRef = useRef(0);
+  const busy = isSubmitting || requestingLocation;
+  useEffect(() => () => { attemptRef.current += 1; }, []);
   const titleId = useId();
   const descriptionId = useId();
   const plateId = useId();
   const hintId = useId();
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const normalizedPlate = plateNumber.trim().toUpperCase();
-    if (!normalizedPlate || isSubmitting) return;
-    setPlateNumber('');
-    onConfirm(normalizedPlate);
+    if (!normalizedPlate || busy || inFlightRef.current) return;
+    const attempt = attemptRef.current;
+    inFlightRef.current = true;
+    setLocationError('');
+    setRequestingLocation(true);
+    try {
+      await requireDeliveryLocation();
+      if (attempt !== attemptRef.current) return;
+      await onConfirm(normalizedPlate);
+      if (attempt === attemptRef.current) setPlateNumber('');
+    } catch (error) {
+      if (attempt === attemptRef.current) setLocationError(error.message);
+    } finally {
+      inFlightRef.current = false;
+      if (attempt === attemptRef.current) setRequestingLocation(false);
+    }
   };
 
   const handleCancel = () => {
+    if (busy || inFlightRef.current) return;
     setPlateNumber('');
+    setLocationError('');
     onCancel();
   };
 
@@ -32,7 +54,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={isSubmitting ? undefined : handleCancel}
+          onClick={busy ? undefined : handleCancel}
         >
           <motion.form
             className="start-delivery-dialog"
@@ -40,7 +62,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={descriptionId}
-            aria-busy={isSubmitting}
+            aria-busy={busy}
             tabIndex={-1}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -48,7 +70,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
             onClick={(event) => event.stopPropagation()}
             onSubmit={handleSubmit}
             onKeyDown={(event) => {
-              if (event.key === 'Escape' && !isSubmitting) {
+              if (event.key === 'Escape' && !busy) {
                 event.preventDefault();
                 event.stopPropagation();
                 handleCancel();
@@ -93,15 +115,16 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
               title="Use letters, numbers, spaces, or hyphens only."
               required
               autoFocus
-              disabled={isSubmitting}
+              disabled={busy}
             />
             <p id={hintId} className="start-delivery-hint">
               Use the plate exactly as it appears on your vehicle.
             </p>
+            {locationError ? <p className="start-delivery-error" role="alert">{locationError}</p> : null}
             <div className="start-delivery-actions">
-              <Button type="button" variant="secondary" onClick={handleCancel} disabled={isSubmitting}>Cancel</Button>
-              <Button type="submit" disabled={!plateNumber.trim() || isSubmitting}>
-                {isSubmitting ? 'Starting…' : 'Start delivery'}
+              <Button type="button" variant="secondary" onClick={handleCancel} disabled={busy}>Cancel</Button>
+              <Button type="submit" disabled={!plateNumber.trim() || busy}>
+                {requestingLocation ? 'Checking location...' : isSubmitting ? 'Starting…' : 'Start delivery'}
               </Button>
             </div>
           </motion.form>

@@ -55,6 +55,12 @@ async function verifyOrderParty(token, orderId) {
   return { userId: profile.id, order };
 }
 
+function isActiveMover(order, userId) {
+  if (order.status !== 'confirmed') return false;
+  return (order.delivery_method === 'farmer_delivery' && order.delivery_status === 'out_for_delivery' && order.farmer_id === userId)
+    || (order.delivery_method === 'buyer_pickup' && order.delivery_status === 'ready_for_pickup' && order.buyer_id === userId);
+}
+
 export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
   const io = new Server(httpServer, {
     cors: { origin: allowedOrigins },
@@ -78,6 +84,9 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
       socket.data.orderIds.add(orderId);
       socket.data.userId = verified.userId;
       const order = verified.order;
+      if (!socket.data.movingOrderIds) socket.data.movingOrderIds = new Set();
+      if (isActiveMover(order, verified.userId)) socket.data.movingOrderIds.add(orderId);
+      else socket.data.movingOrderIds.delete(orderId);
       ack?.({
         ok: true,
         serverNow: Date.now(),
@@ -332,8 +341,11 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
 
 
-    socket.on('share-status', ({ orderId, status } = {}) => {
+    socket.on('share-status', async ({ orderId, status } = {}) => {
       if (!orderId || !socket.data.orderIds?.has(orderId) || !VALID_SHARER_STATUSES.has(status)) return;
+      const { data: order, error } = await supabaseAdmin.from('orders').select('*').eq('id', orderId).single();
+      if (!socket.connected || error || !order || !isActiveMover(order, socket.data.userId)) return;
+      socket.data.movingOrderIds.add(orderId);
       io.to(ROOM_PREFIX + orderId).emit('sharer-status', { orderId, status, at: new Date().toISOString() });
     });
 
@@ -344,9 +356,11 @@ export function setupOrderTrackingSocket(httpServer, allowedOrigins) {
 
 
     socket.on('disconnect', () => {
-      if (!socket.data.orderIds?.size) return;
+      if (!socket.data.movingOrderIds?.size) return;
       const at = new Date().toISOString();
-      socket.data.orderIds.forEach((orderId) => {
+      socket.data.movingOrderIds.forEach((orderId) => {
+        const peers = io.sockets.adapter.rooms.get(ROOM_PREFIX + orderId) || [];
+        if ([...peers].some((id) => io.sockets.sockets.get(id)?.data.movingOrderIds?.has(orderId))) return;
         io.to(ROOM_PREFIX + orderId).emit('sharer-status', { orderId, status: 'offline', at });
       });
     });

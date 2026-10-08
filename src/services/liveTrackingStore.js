@@ -1,4 +1,4 @@
-import { isFreshLivePosition, locationTimestamp, normalizeLivePosition } from '../utils/liveTrackingPosition';
+import { isFreshLivePosition, locationTimestamp, normalizeLivePosition, stableTrackingPosition } from '../utils/liveTrackingPosition';
 
 // One in-memory position per order, shared by the existing GPS watcher and map consumers.
 const positions = new Map();
@@ -41,7 +41,11 @@ export function publishLiveOrderPosition(orderId, payload, options = {}) {
       return previous;
     }
   }
-  const value = { ...next, source: options.source || 'socket' };
+  const value = {
+    ...next,
+    source: options.source || 'socket',
+    trackingPosition: stableTrackingPosition(previous?.trackingPosition, next),
+  };
   positions.set(orderId, value);
   listeners.get(orderId)?.forEach((listener) => listener());
   return value;
