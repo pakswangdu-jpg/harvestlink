@@ -1,0 +1,104 @@
+.farmer-dashboard-page .metrics-overview-panel.business-summary {
+  container: business-summary / inline-size;
+  min-width: 0;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item {
+  min-width: 0;
+  min-height: 120px;
+  padding: 16px;
+  border: 0;
+  overflow: visible;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item + .product-stats-item {
+  border-left: 1px solid var(--line);
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-label,
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-hint,
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .business-summary-number-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 10px;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-value {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-trend {
+  flex: 0 0 15px;
+  margin: 0;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-hint {
+  margin-top: 4px;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary {
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-cta {
+  flex-wrap: wrap;
+  min-height: 28px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+@container business-summary (max-width: 760px) {
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@container business-summary (max-width: 440px) {
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item:nth-child(-n + 2) {
+    grid-column: 1 / -1;
+    border-left: 0;
+  }
+
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item:nth-child(2) {
+    border-top: 1px solid var(--line);
+  }
+
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item {
+    min-height: 0;
+    padding: 14px;
+  }
+}
