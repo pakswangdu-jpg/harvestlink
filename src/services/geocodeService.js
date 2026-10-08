@@ -1,4 +1,5 @@
 import { loadGoogleGeocoding } from '../lib/googleMapsLoader';
+import { parseReverseGeocodeResults } from '../utils/reverseGeocodeResult';
 
 
 
@@ -92,10 +93,6 @@ export async function geocodeAccountLocation({ address, municipality }) {
   return result;
 }
 
-function addressComponent(components, type) {
-  return components.find((component) => component.types.includes(type))?.long_name || '';
-}
-
 
 
 
@@ -106,33 +103,7 @@ export async function reverseGeocode({ lat, lng }) {
     const { results } = await geocoder.geocode({
       location: { lat: Number(lat), lng: Number(lng) },
     });
-    if (!results.length) return null;
-    const components = results[0].address_components;
-
-    const streetLine = [addressComponent(components, 'street_number'), addressComponent(components, 'route')]
-      .filter(Boolean)
-      .join(' ');
-    const barangay = addressComponent(components, 'sublocality_level_1')
-      || addressComponent(components, 'neighborhood')
-      || addressComponent(components, 'sublocality');
-    const addressLine = [streetLine, barangay].filter(Boolean).join(', ');
-    const cityText = addressComponent(components, 'locality') || addressComponent(components, 'administrative_area_level_2');
-
-
-
-
-
-
-    const result = {
-      address: addressLine,
-      street: streetLine,
-      barangay,
-      zipCode: addressComponent(components, 'postal_code'),
-      cityText,
-      province: addressComponent(components, 'administrative_area_level_1'),
-      formattedAddress: results[0].formatted_address || '',
-    };
-    return result;
+    return parseReverseGeocodeResults(results);
   } catch (error) {
     throw new Error('Reverse geocoding failed.', { cause: error });
   }

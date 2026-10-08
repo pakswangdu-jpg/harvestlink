@@ -49,10 +49,16 @@
 .tracking-overlay .nav-info-card-vehicle { font-size: 13px; }
 .tracking-overlay .nav-info-card-status { padding-top: 10px; }
 .tracking-overlay .tracking-badge { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 13px; font-weight: 500; }
-.tracking-overlay .tracking-info-card { padding: 12px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.tracking-overlay .tracking-info-cards {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 12px 24px;
+  padding: 16px 0;
+}
+.tracking-overlay .tracking-info-card { grid-template-columns: minmax(0, 1fr); padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.tracking-overlay .tracking-info-card > div { min-width: 0; }
 .tracking-overlay .tracking-info-card-icon { display: none; }
-.tracking-overlay .tracking-info-card p { font-size: 13px; }
-.tracking-overlay .tracking-info-card strong { font-size: 17px; font-weight: 600; }
+.tracking-overlay .tracking-info-card p { margin: 0 0 6px; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+.tracking-overlay .tracking-info-card strong { display: block; font-size: 17px; font-weight: 600; line-height: 24px; overflow-wrap: normal; }
 .tracking-overlay .delivery-live-summary { padding: 14px 0 0; }
 .tracking-overlay .delivery-live-identity { display: none; }
 .tracking-overlay .delivery-live-progress { margin: 0 0 14px; padding: 0 0 14px; border-top: 0; gap: 16px; }

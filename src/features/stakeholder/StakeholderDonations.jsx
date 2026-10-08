@@ -1,45 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Gift } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
-import { getAvailableDonations, requestDonation } from '../../services/donationService';
-import { STORAGE_KEYS } from '../../utils/constants';
+import { requestDonation } from '../../services/donationService';
+import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
 
 export default function StakeholderDonations() {
   const { currentUser } = useAuth();
-  const [donations, setDonations] = useState(() => getAvailableDonations());
+  const { donations, loading, loadError, reload } = useDonationList({ availableOnly: true });
+  const [requesting, setRequesting] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
   const canRequestDonations = currentUser.verificationStatus === 'verified';
 
-  const reload = () => setDonations(getAvailableDonations());
-
-  useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.donations) reload();
-    };
-    const interval = setInterval(reload, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, []);
-
-  const handleRequest = (donation) => {
+  const handleRequest = async (donation) => {
+    if (requesting) return;
+    setRequesting(true);
     try {
-      requestDonation(donation.id, currentUser);
+      await requestDonation(donation.id);
       setError('');
       setNotice(`Request sent to ${donation.farmerName} for ${donation.productName}.`);
-      reload();
+      await reload();
     } catch (requestError) {
       setNotice('');
       setError(requestError.message);
+    } finally {
+      setRequesting(false);
     }
   };
 
@@ -68,8 +59,9 @@ export default function StakeholderDonations() {
 
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
-      {donations.length ? (
+      {loading ? <p role="status">Loading donations...</p> : donations.length ? (
         <section className="product-grid">
           {donations.map((donation) => (
             <DonationCard
@@ -79,7 +71,7 @@ export default function StakeholderDonations() {
                 <Button
                   size="sm"
                   onClick={() => handleRequest(donation)}
-                  disabled={!canRequestDonations}
+                  disabled={!canRequestDonations || requesting}
                   title={canRequestDonations ? undefined : 'Verify your account before requesting donations.'}
                 >
                   <Gift size={15} /> Request donation

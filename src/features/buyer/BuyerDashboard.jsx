@@ -414,19 +414,20 @@ export default function BuyerDashboard() {
               <div className="buyer-recommendation-title">
                 <Leaf size={17} aria-hidden="true" />
                 <h2 id="recommendations-title">Recommended for you</h2>
+                {sortedRecommendedFarmers.length > 0 ? (
+                  <button
+                    type="button"
+                    className="buyer-recommendation-toggle"
+                    onClick={() => setIsRecommendationsOpen(true)}
+                    aria-haspopup="dialog"
+                    aria-expanded={isRecommendationsOpen}
+                  >
+                    View more <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
               <p className="section-supporting-text">Based on your orders, location, and marketplace activity.</p>
             </div>
-            {sortedRecommendedFarmers.length > 5 ? (
-              <button
-                type="button"
-                className="buyer-recommendation-toggle"
-                onClick={() => setIsRecommendationsOpen(true)}
-                aria-haspopup="dialog"
-              >
-                <>Browse more <ArrowRight size={14} aria-hidden="true" /></>
-              </button>
-            ) : null}
           </div>
           {sortedRecommendedFarmers.length ? (
             <div className="buyer-recommended-grid">
@@ -448,7 +449,7 @@ export default function BuyerDashboard() {
           setRecommendationSearch('');
         }}
         eyebrow="Recommended for you"
-        title="Browse more farms"
+        title="Recommended farms"
       >
         <div className="buyer-recommendations-modal-toolbar">
           <label className="buyer-recommendations-search">

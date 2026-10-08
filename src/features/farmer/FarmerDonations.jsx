@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Check, Gift, History, Hourglass, Package, PackageCheck, Search, Truck, X,
@@ -20,9 +20,8 @@ import {
   acceptDonationRequest,
   cancelDonation,
   declineDonationRequest,
-  getDonationsByFarmer,
 } from '../../services/donationService';
-import { STORAGE_KEYS } from '../../utils/constants';
+import { useDonationList } from '../../hooks/useDonationList';
 import {
   donationStatusLabel, formatDate, formatQuantity, formatRelativeTime,
 } from '../../utils/formatters';
@@ -81,37 +80,27 @@ function DonationRow({ donation, meta, badge, actions }) {
 
 export default function FarmerDonations() {
   const { currentUser } = useAuth();
-  const [donations, setDonations] = useState(() => getDonationsByFarmer(currentUser.id));
+  const { donations, loading, loadError, reload } = useDonationList({ farmerId: currentUser.id });
   const [pickupDrafts, setPickupDrafts] = useState({});
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('all');
 
-  const reload = () => setDonations(getDonationsByFarmer(currentUser.id));
-
-  useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.donations) reload();
-    };
-    const interval = setInterval(reload, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id]);
-
-  const run = (action, successMessage) => {
+  const run = async (action, successMessage) => {
+    if (saving) return;
+    setSaving(true);
     try {
-      action();
+      await action();
       setError('');
       setNotice(successMessage);
-      reload();
+      await reload();
     } catch (actionError) {
       setNotice('');
       setError(actionError.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -174,6 +163,8 @@ export default function FarmerDonations() {
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
+      {loading ? <p role="status">Loading donations...</p> : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Active donation offers" value={available.length} icon={Gift} tone="green" hint="Listed and unclaimed" />
@@ -203,11 +194,12 @@ export default function FarmerDonations() {
                       />
                       <Button
                         size="sm"
+                        disabled={saving}
                         onClick={() => run(() => acceptDonationRequest(donation.id, pickupDrafts[donation.id]), 'Pickup scheduled.')}
                       >
                         <Check size={15} /> Accept
                       </Button>
-                      <Button size="sm" variant="danger" onClick={() => run(() => declineDonationRequest(donation.id), 'Request declined.')}>
+                      <Button size="sm" disabled={saving} variant="danger" onClick={() => run(() => declineDonationRequest(donation.id), 'Request declined.')}>
                         <X size={15} /> Decline
                       </Button>
                     </>
@@ -230,7 +222,7 @@ export default function FarmerDonations() {
                   donation={donation}
                   meta={`${formatQuantity(donation.quantity)} ${donation.unit} · ${donation.location}`}
                   actions={(
-                    <Button size="sm" variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
+                    <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
                       Withdraw
                     </Button>
                   )}
@@ -260,7 +252,7 @@ export default function FarmerDonations() {
                   donation={donation}
                   meta={`${formatQuantity(donation.quantity)} ${donation.unit} · Pickup ${formatDate(donation.pickupDate)}`}
                   actions={(
-                    <Button size="sm" variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
+                    <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
                       Cancel
                     </Button>
                   )}

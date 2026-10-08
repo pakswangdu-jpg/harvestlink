@@ -77,6 +77,18 @@ function buildDotIcon(mapsApi, color) {
   };
 }
 
+function buildDestinationPinIcon(mapsApi) {
+  const svg = '<svg width="24" height="42" viewBox="0 0 24 42" xmlns="http://www.w3.org/2000/svg">'
+    + '<path d="M12 20v20" stroke="#596584" stroke-width="3" stroke-linecap="round"/>'
+    + '<circle cx="12" cy="11" r="10" fill="#e33129"/>'
+    + '<circle cx="8.5" cy="8" r="2.2" fill="#ff6668"/></svg>';
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new mapsApi.Size(24, 42),
+    anchor: new mapsApi.Point(12, 42),
+  };
+}
+
 
 
 
@@ -401,7 +413,7 @@ export default function LiveDeliveryMap({
     layerRef.current = [];
 
     const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildDotIcon(mapsApi, MAP_COLORS.origin), title: order.farmerName });
-    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDotIcon(mapsApi, MAP_COLORS.destination), title: order.buyerName });
+    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDestinationPinIcon(mapsApi), title: order.buyerName });
     layerRef.current.push(originMarker, destinationMarker);
 
     const pathPoints = googleRoute?.points || [];

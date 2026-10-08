@@ -27,17 +27,18 @@ const EMPTY_STATE = { available: [], myRequests: [], donationFarmers: [] };
 export default function StakeholderDashboard() {
   const { currentUser, acknowledgeVerification } = useAuth();
   const [state, setState] = useState(EMPTY_STATE);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     const reload = async () => {
-      const available = getAvailableDonations();
-      const myRequests = getDonationsForStakeholder(currentUser.id);
+      const [available, myRequests] = await Promise.all([getAvailableDonations(), getDonationsForStakeholder(currentUser.id)]);
       const donationFarmers = await buildDonationFarmers(available);
-      if (!cancelled) setState({ available, myRequests, donationFarmers });
+      if (!cancelled) { setState({ available, myRequests, donationFarmers }); setLoadError(''); }
     };
-    reload();
-    const interval = setInterval(reload, 4000);
+    const refresh = () => reload().catch((error) => { if (!cancelled) setLoadError(error.message); });
+    refresh();
+    const interval = setInterval(refresh, 4000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [currentUser.id]);
 
@@ -49,6 +50,7 @@ export default function StakeholderDashboard() {
 
   return <AppShell user={currentUser} navItems={stakeholderNavItems} title="Partner dashboard" subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests." pageClassName="stakeholder-dashboard-page stakeholder-operations-dashboard">
     <VerificationBanner user={currentUser} onDismiss={acknowledgeVerification} />
+    {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
     <section className="stakeholder-quick-actions" aria-label="Quick actions">
       <Link to="/marketplace"><Wheat aria-hidden="true" />Browse produce</Link><Link to="/stakeholder-donations"><HandHeart aria-hidden="true" />Browse donations</Link><Link to="/stakeholder-requests"><ClipboardList aria-hidden="true" />View requests</Link><Link to="/messages"><MessageSquare aria-hidden="true" />Open messages</Link>
     </section>

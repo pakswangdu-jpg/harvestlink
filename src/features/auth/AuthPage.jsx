@@ -14,11 +14,13 @@ import { setAuthPersistence } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { getProfileLocationFromPlace } from '../../utils/profileLocation';
 import { reverseGeocode } from '../../services/geocodeService';
+import { getAccurateDeviceLocation } from '../../utils/deviceLocation';
 import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
 import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
+import './AuthorizedRepresentative.css';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
@@ -498,7 +500,7 @@ function StakeholderRegisterFields({
 
       <hr className="form-section-divider" />
 
-      <div className="form-section">
+      <div className="form-section authorized-representative-section">
         <div className="form-section-header">
           <span className="form-section-icon"><Users size={18} /></span>
           <div>
@@ -763,6 +765,8 @@ export default function AuthPage({ mode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
+  const locationRequestRef = useRef(null);
+  useEffect(() => () => locationRequestRef.current?.abort(), []);
   const [rememberMe, setRememberMe] = useState(() => !isRegister && Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY)));
 
 
@@ -926,65 +930,70 @@ export default function AuthPage({ mode }) {
 
 
 
-  const handleUseMyLocation = () => {
+  const handleUseMyLocation = async () => {
+    if (isLocating) return;
     if (!navigator.geolocation) {
       setLocationNotice('Location access is not supported on this device.');
       return;
     }
+    const request = new AbortController();
+    locationRequestRef.current = request;
     setIsLocating(true);
-    setLocationNotice('');
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        try {
-          const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
-          const municipality = CEBU_MUNICIPALITIES.find(
-            (candidate) => candidate.toLowerCase() === reverse?.cityText?.trim().toLowerCase(),
-          );
-          if (municipality) updateField('municipality', municipality);
-          if (isStakeholderRegister) {
-            if (reverse?.street) updateField('address', reverse.street);
-            if (reverse?.barangay) updateField('barangay', reverse.barangay);
-          } else if (reverse?.address) {
-            updateField('address', reverse.address);
-          }
-          if (reverse?.zipCode) updateField('zipCode', reverse.zipCode);
-          updateField('latitude', latitude);
-          updateField('longitude', longitude);
-
-          const accuracyText = Number.isFinite(accuracy)
-            ? ` Location accuracy is about ${Math.round(accuracy)} m.`
-            : '';
-          const lowAccuracyText = Number.isFinite(accuracy) && accuracy > 1000
-            ? ' Accuracy is low; move to an area with better GPS reception or manually verify the address.'
-            : '';
-          if (!reverse) {
-            setLocationNotice(`Location detected, but no address was returned.${accuracyText}${lowAccuracyText}`);
-          } else if (isStakeholderRegister && !reverse.barangay) {
-            setLocationNotice(`Location detected, but the barangay was unavailable.${accuracyText}${lowAccuracyText}`);
-          } else if (!municipality) {
-            setLocationNotice(`Location detected, but the municipality is outside the supported list.${accuracyText}${lowAccuracyText}`);
-          } else {
-            setLocationNotice(`Location detected.${accuracyText}${lowAccuracyText} Please double-check the details below.`);
-          }
-        } catch {
-          setLocationNotice('Reverse geocoding failed. Your location was detected, but please enter the address manually.');
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      (error) => {
-        setIsLocating(false);
-        setLocationNotice(
-          error.code === error.PERMISSION_DENIED
+    setLocationNotice('Finding your current location with the best available accuracy...');
+    let detectedPosition;
+    try {
+      detectedPosition = await getAccurateDeviceLocation(navigator.geolocation, { signal: request.signal });
+      const { latitude, longitude, accuracy } = detectedPosition.coords;
+      const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
+      if (request.signal.aborted) return;
+      const accuracyText = ` Location accuracy is about ${Math.round(accuracy)} m.`;
+      if (!reverse) {
+        setLocationNotice(`No address was found for your location.${accuracyText} Please enter the address manually.`);
+        return;
+      }
+      if (!reverse.municipality) {
+        setLocationNotice(`The detected city could not be matched to a supported Cebu municipality.${accuracyText} Your existing address has not been changed.`);
+        return;
+      }
+      setForm((previous) => ({
+        ...previous,
+        municipality: reverse.municipality,
+        address: isStakeholderRegister ? reverse.street : reverse.address,
+        ...(isStakeholderRegister ? { barangay: reverse.barangay } : {}),
+        zipCode: reverse.zipCode,
+        latitude,
+        longitude,
+      }));
+      setErrors((previous) => ({
+        ...previous, municipality: undefined, address: undefined,
+        ...(isStakeholderRegister ? { barangay: undefined } : {}),
+        form: undefined,
+      }));
+      setMessage('');
+      const missing = [
+        isStakeholderRegister && !reverse.barangay ? 'barangay' : null,
+        !reverse.street ? 'street' : null,
+      ].filter(Boolean);
+      const missingText = missing.length ? ` Please enter the ${missing.join(' and ')} manually; it was not returned by the map.` : '';
+      const lowAccuracyText = accuracy > 100
+        ? ' This reading is approximate. Please verify the address or retry where GPS reception is better.'
+        : ' Please double-check the detected address.';
+      setLocationNotice(`Location fields updated.${accuracyText}${missingText}${lowAccuracyText}`);
+    } catch (error) {
+      if (request.signal.aborted) return;
+      setLocationNotice(
+        detectedPosition
+          ? 'Your location was detected, but the address lookup failed. Please retry or enter the address manually.'
+          : error.code === 1
             ? 'Location permission denied. You can still fill this in manually.'
-            : error.code === error.TIMEOUT
+            : error.code === 3
               ? 'Location timed out. Please try again or fill this in manually.'
-              : 'Location unavailable. Please try again or fill this in manually.'
-        );
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
+              : 'Location unavailable. Please try again or fill this in manually.',
+      );
+    } finally {
+      if (!request.signal.aborted) setIsLocating(false);
+      if (locationRequestRef.current === request) locationRequestRef.current = null;
+    }
   };
 
   const handleSubmit = async (event) => {

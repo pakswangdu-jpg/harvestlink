@@ -29,8 +29,9 @@ export function useFarmerNavBadges(farmerId) {
         });
 
 
-      const donations = getDonationsByFarmer(farmerId);
-      if (!cancelled) setDonationsBadge(donations.filter((donation) => donation.status === 'requested').length);
+      getDonationsByFarmer(farmerId).then((donations) => {
+        if (!cancelled) setDonationsBadge(donations.filter((donation) => donation.status === 'requested').length);
+      }).catch(() => {});
     };
     refresh();
     const interval = setInterval(refresh, POLL_INTERVAL_MS);

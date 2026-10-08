@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Calendar, CheckCircle2, History, Hourglass } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
@@ -6,9 +6,9 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
-import { confirmReceipt, getDonationsForStakeholder, markDonationRated } from '../../services/donationService';
+import { confirmReceipt, markDonationRated } from '../../services/donationService';
 import { createRating } from '../../services/ratingService';
-import { STORAGE_KEYS } from '../../utils/constants';
+import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
 
 
@@ -29,8 +29,8 @@ function DonationRatingPrompt({ donation, onRated }) {
     setError('');
     try {
       await createRating({ farmerId: donation.farmerId, rating: value });
-      markDonationRated(donation.id);
-      onRated();
+      await markDonationRated(donation.id);
+      await onRated();
     } catch (rateError) {
       setError(rateError.message);
     } finally {
@@ -48,34 +48,24 @@ function DonationRatingPrompt({ donation, onRated }) {
 
 export default function StakeholderRequests() {
   const { currentUser } = useAuth();
-  const [donations, setDonations] = useState(() => getDonationsForStakeholder(currentUser.id));
+  const { donations, loading, loadError, reload } = useDonationList({ stakeholderId: currentUser.id });
+  const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
-  const reload = () => setDonations(getDonationsForStakeholder(currentUser.id));
-
-  useEffect(() => {
-    const handleStorage = (event) => {
-      if (!event.key || event.key === STORAGE_KEYS.donations) reload();
-    };
-    const interval = setInterval(reload, 4000);
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorage);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id]);
-
-  const handleConfirm = (donation) => {
+  const handleConfirm = async (donation) => {
+    if (confirming) return;
+    setConfirming(true);
     try {
-      confirmReceipt(donation.id);
+      await confirmReceipt(donation.id);
       setError('');
       setNotice(`${donation.productName} marked as received. Thank you!`);
-      reload();
+      await reload();
     } catch (confirmError) {
       setNotice('');
       setError(confirmError.message);
+    } finally {
+      setConfirming(false);
     }
   };
 
@@ -92,6 +82,8 @@ export default function StakeholderRequests() {
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
+      {loading ? <p role="status">Loading donation requests...</p> : null}
 
       <section className="content-grid two">
         <div className="panel">
@@ -124,7 +116,7 @@ export default function StakeholderRequests() {
                   key={donation.id}
                   donation={donation}
                   actions={(
-                    <Button size="sm" onClick={() => handleConfirm(donation)}>
+                    <Button size="sm" disabled={confirming} onClick={() => handleConfirm(donation)}>
                       <CheckCircle2 size={15} /> Confirm receipt
                     </Button>
                   )}

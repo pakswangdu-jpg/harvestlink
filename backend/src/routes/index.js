@@ -15,6 +15,7 @@ import forecastRoutes from './forecast.routes.js';
 import catalogRoutes from './catalog.routes.js';
 import marketPriceOverridesRoutes from './marketPriceOverrides.routes.js';
 import contactRoutes from './contact.routes.js';
+import donationsRoutes from './donations.routes.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/forecast', forecastRoutes);
 router.use('/catalog', catalogRoutes);
 router.use('/market-price-overrides', marketPriceOverridesRoutes);
 router.use('/contact', contactRoutes);
+router.use('/donations', donationsRoutes);
 
 export default router;

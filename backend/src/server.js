@@ -3,14 +3,13 @@ import { createServer } from 'http';
 import app from './app.js';
 import { setupOrderTrackingSocket } from './realtime/orderTracking.js';
 import { setupChatSocket } from './realtime/chatPresence.js';
+import { getAllowedOrigins } from './lib/appUrls.js';
 
 const port = process.env.PORT || 4000;
 
 
 
-const allowedOrigins = (process.env.CORS_ALLOWED_ORIGIN || 'http://localhost:5173,http://localhost:5174')
-  .split(',')
-  .map((origin) => origin.trim());
+const allowedOrigins = getAllowedOrigins();
 
 
 

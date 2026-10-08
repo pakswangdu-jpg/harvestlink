@@ -10,7 +10,7 @@ const getCache = new Map();
 let cacheGeneration = 0;
 
 function getCacheTtl(path) {
-  return ['/deliveries', '/messages', '/notifications', '/orders', '/profiles?role=', '/profiles/nearby-map'].some((prefix) => path.startsWith(prefix))
+  return ['/deliveries', '/messages', '/notifications', '/orders', '/donations', '/profiles?role=', '/profiles/nearby-map'].some((prefix) => path.startsWith(prefix))
     ? LIVE_GET_CACHE_TTL_MS
     : GET_CACHE_TTL_MS;
 }

@@ -201,6 +201,28 @@ export async function sendVerificationCodeEmail(email, code) {
   return data;
 }
 
+export async function sendPasswordResetEmail(email, resetLink) {
+  if (!resend) throw new Error('Email delivery is not configured.');
+  const safeLink = resetLink.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to: [email],
+    subject: 'Reset your HarvestLink password',
+    text: `Reset your HarvestLink password using this secure link:\n\n${resetLink}\n\nIf you did not request this reset, you can ignore this email.`,
+    html: `<!doctype html><html lang="en"><body style="margin:0;padding:32px 16px;background:${PAGE_BG};font-family:${FONT_STACK};color:${TEXT_DARK};">
+      <table role="presentation" style="width:100%;max-width:480px;margin:auto;background:white;border:1px solid ${LINE};border-radius:8px;"><tr><td style="padding:28px;">
+        <p style="margin:0 0 24px;font-size:18px;font-weight:600;"><span style="color:${BRAND_HARVEST};">Harvest</span><span style="color:${BRAND_LINK};">Link</span></p>
+        <h1 style="margin:0 0 12px;font-size:22px;">Reset your password</h1>
+        <p style="color:${TEXT_BODY};line-height:24px;">Use the secure link below to choose a new password for your account.</p>
+        <p style="margin:24px 0;"><a href="${safeLink}" style="display:inline-block;padding:12px 20px;background:${BRAND_HARVEST};color:white;border-radius:6px;text-decoration:none;">Reset password</a></p>
+        <p style="margin:0;color:${TEXT_MUTED};font-size:13px;line-height:20px;">If you did not request this reset, you can ignore this email.</p>
+      </td></tr></table>
+    </body></html>`,
+  });
+  if (error || !data?.id) throw new Error('Unable to send the password reset email.');
+  return data;
+}
+
 export async function sendContactMessageEmail({ name, email, message }) {
   const recipient = 'johndominiczanoria@gmail.com';
   const subject = `HarvestLink contact message from ${name}`;

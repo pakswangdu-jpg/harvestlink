@@ -22,13 +22,14 @@ import { adminNavItems } from './adminNav';
 export default function AdminReports() {
   const { currentUser } = useAuth();
   const [state, setState] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getUsers(), getOrders()]).then(([users, orders]) => {
+    Promise.all([getUsers(), getOrders(), getDonations()]).then(([users, orders, donations]) => {
       if (cancelled) return;
-      setState({ users, orders, donations: getDonations() });
-    });
+      setState({ users, orders, donations });
+    }).catch((error) => { if (!cancelled) setLoadError(error.message); });
     return () => { cancelled = true; };
   }, []);
 
@@ -36,7 +37,7 @@ export default function AdminReports() {
     return (
       <AppShell user={currentUser} navItems={adminNavItems} title="Reports" hideHeader>
         <PageHeader title="Reports" description="Revenue, order, and donation trends across HarvestLink." />
-        <LoadingState rows={4} />
+        {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : <LoadingState rows={4} />}
       </AppShell>
     );
   }

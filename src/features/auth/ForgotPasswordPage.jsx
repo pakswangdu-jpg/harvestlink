@@ -4,7 +4,7 @@ import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
-import { supabase } from '../../lib/supabaseClient';
+import { requestPasswordReset } from '../../services/authService';
 import { isValidEmail } from '../../utils/validators';
 import logo from '../../assets/logo.png';
 
@@ -17,6 +17,7 @@ function getPasswordRecoveryRedirect() {
 }
 
 function getResetErrorMessage(error) {
+  if ([400, 404, 429, 503].includes(error?.status) && error.message) return error.message;
   const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
   if (message.includes('invalid') && message.includes('email')) {
     return 'Please enter a valid email address.';
@@ -35,6 +36,7 @@ export default function ForgotPasswordPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) {
       setError('Please enter your email address.');
@@ -47,25 +49,14 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     setError('');
-    let resetError;
     try {
-      ({ error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: getPasswordRecoveryRedirect(),
-      }));
+      await requestPasswordReset(trimmed, getPasswordRecoveryRedirect());
+      setSent(true);
     } catch (requestError) {
-      setIsSubmitting(false);
       setError(getResetErrorMessage(requestError));
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-
-
-
-    if (resetError) {
-      setError(getResetErrorMessage(resetError));
-      return;
-    }
-    setSent(true);
   };
 
   return (
@@ -96,7 +87,7 @@ export default function ForgotPasswordPage() {
           <FormAlert
             type="success"
             title="Reset link sent"
-            message={`If an account exists for ${email.trim()}, you'll receive a password reset link shortly. Check your inbox and spam folder.`}
+            message={`A password reset link has been sent to ${email.trim()}. Check your inbox and spam folder.`}
           />
         ) : (
           <form className="form-stack" onSubmit={handleSubmit}>

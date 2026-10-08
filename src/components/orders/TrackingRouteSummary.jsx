@@ -1,4 +1,4 @@
-import { Circle, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import './TrackingRouteSummary.css';
 
 function locationText(profile, municipality) {
@@ -26,8 +26,8 @@ export default function TrackingRouteSummary({ order, farmerProfile, buyerProfil
     <ol className="tracking-route-summary" aria-label="Order locations">
       {points.map((point, index) => (
         <li key={index === 0 ? 'origin' : 'destination'} className="tracking-route-stop">
-          <span className={`tracking-route-marker${index === 0 ? ' is-start' : ''}`} aria-hidden="true">
-            {index === 0 ? <Circle size={16} /> : <MapPin size={18} />}
+          <span className={`tracking-route-marker${index === 0 ? ' is-start' : ' is-destination'}`} aria-hidden="true">
+            {index === 0 ? <MapPin size={18} /> : <span className="tracking-route-destination-pin" />}
           </span>
           <div>
             <span className="tracking-route-label">{index === 0 ? 'Starting point' : 'Destination'}</span>

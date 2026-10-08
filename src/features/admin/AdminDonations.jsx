@@ -7,7 +7,7 @@ import Pagination from '../../components/admin/Pagination';
 import { usePagination } from '../../components/admin/usePagination';
 import { donationTone, donationStatusLabel } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
-import { getDonations } from '../../services/donationService';
+import { useDonationList } from '../../hooks/useDonationList';
 import { formatDate } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
 
@@ -15,12 +15,14 @@ export default function AdminDonations() {
   const { currentUser } = useAuth();
 
 
-  const donations = getDonations();
+  const { donations, loading, loadError } = useDonationList();
   const { page, setPage, pageRows, pageSize, total } = usePagination(donations, 15);
 
   return (
     <AppShell user={currentUser} navItems={adminNavItems} title="Donations" hideHeader>
       <PageHeader title="Donations" description="Surplus donation lifecycle across every farmer and partner organization." />
+      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
+      {loading ? <p role="status">Loading donations...</p> : null}
       <Card>
         <CardHeader title="Surplus donations" />
         <Table

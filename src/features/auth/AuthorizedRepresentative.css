@@ -1,0 +1,63 @@
+.authorized-representative-section {
+  container-type: inline-size;
+  gap: 16px;
+}
+
+.authorized-representative-section .form-section-header {
+  align-items: center;
+  gap: 10px;
+}
+
+.authorized-representative-section .form-section-header h3 {
+  margin: 0;
+  line-height: 22px;
+}
+
+.authorized-representative-section .form-section-header p {
+  margin: 2px 0 0;
+  line-height: 18px;
+}
+
+.authorized-representative-section .form-grid {
+  align-items: start;
+  gap: 16px;
+}
+
+.authorized-representative-section .form-field {
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.authorized-representative-section .form-field > span {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.authorized-representative-section .form-grid .form-field input {
+  box-sizing: border-box;
+  height: 44px;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.authorized-representative-section .phone-field {
+  min-width: 0;
+}
+
+.authorized-representative-section .phone-validation-message {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 460px) {
+  .authorized-representative-section .form-grid,
+  .authorized-representative-section .form-grid.three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

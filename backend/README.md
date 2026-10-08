@@ -7,11 +7,15 @@ Auth — this backend only verifies the resulting session token.
 
 ## Scope
 
-This backend currently covers **profiles (accounts), products, orders, and
-notifications** only. Donations, messages, market prices, delivery routing, reports,
-demand forecasting, geocoding, and translation are unchanged — they still run entirely
-client-side against `localStorage` and free public APIs (see the root `src/services/`
-folder). That's a deliberate, scoped first pass, not an oversight.
+The API includes shared donations alongside profiles, products, orders,
+notifications, messaging, delivery, and other marketplace services. Donation
+records must not use browser-only storage: farmers and stakeholder organizations
+need the same server-side handoff state.
+
+Before deploying donation changes, run
+`supabase/migrations/20261009_shared_donations.sql` in the Supabase SQL Editor.
+This is required for existing projects and fresh projects provisioned with
+`supabase/schema.sql`. See `supabase/migrations/README.md` for rollout details.
 
 ## One-time setup
 
@@ -44,6 +48,28 @@ npm run dev             # http://localhost:4000, auto-restarts on file changes
 
 The frontend expects `VITE_API_URL=http://localhost:4000/api` in the root `.env` for
 local dev (see the root README for the full frontend env var list).
+
+## Password recovery
+
+`POST /api/auth/request-password-reset` checks both the application profile and
+its verified Supabase Auth account before generating a recovery link. Missing
+accounts receive a 404 response and no email. Email is sent through the existing
+Resend configuration (`RESEND_API_KEY` and `RESEND_FROM_EMAIL`); missing provider
+configuration or a rejected delivery returns an error instead of reporting success.
+
+`APP_URL` is the canonical production frontend URL (defaults to
+`https://harvestlink.dev`), and is automatically allowed by HTTP and socket CORS.
+The live site's `https://www.harvestlink.dev` redirect destination is also allowed.
+Production reset emails link directly to `https://harvestlink.dev/reset-password`
+with a recovery token hash. The reset page verifies that token with Supabase,
+without navigating through Supabase's potentially outdated Site URL. Local
+development requests retain their localhost reset URL.
+
+Also set Supabase Authentication's Site URL to `https://harvestlink.dev` and add
+`https://harvestlink.dev/reset-password` and
+`https://www.harvestlink.dev/reset-password` to its allowed redirect URLs for existing
+Supabase-generated links. Previously sent expired or used links cannot be reused;
+request a fresh email after deploying both the frontend and backend updates.
 
 ## Deploying to Render
 
