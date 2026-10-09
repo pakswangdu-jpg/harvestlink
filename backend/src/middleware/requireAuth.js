@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { ApiError } from '../lib/ApiError.js';
+import { requireAdminNetwork } from './requireAdminNetwork.js';
 
 const AUTH_CACHE_TTL_MS = 10 * 1000;
 const AUTH_CACHE_LIMIT = 500;
@@ -69,11 +70,19 @@ export async function requireAuth(req, res, next) {
 
     const { user, profile } = await resolveAuth(token);
 
-    touchLastActive(profile);
-
     req.authUser = user;
     req.profile = { ...profile };
-    next();
+    // Only the caller's own profile is available before the Admin network gate.
+    const ownProfileBootstrap = req.method === 'GET' && req.originalUrl?.split('?')[0] === '/api/profiles/me';
+    if (ownProfileBootstrap) {
+      if (profile.role !== 'admin') touchLastActive(profile);
+      return next();
+    }
+    requireAdminNetwork(req, res, (error) => {
+      if (error) return next(error);
+      touchLastActive(profile);
+      next();
+    });
   } catch (error) {
     next(error);
   }

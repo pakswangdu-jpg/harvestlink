@@ -23470,3 +23470,107 @@ button,
 .location-permission-copy strong { font-size: 14px; font-weight: 600; }
 .location-permission-copy p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .location-permission-notice .btn { flex-shrink: 0; }
+
+/* Native typography is scoped to sign-in; shared auth layouts stay unchanged. */
+.auth-page-login,
+.auth-page-login .auth-hero,
+.auth-page-login .auth-card-login,
+.auth-page-login .auth-hero *,
+.auth-page-login .auth-card-login * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.auth-page-login input,
+.auth-page-login button {
+  font-family: inherit;
+}
+
+.auth-page-login .auth-hero h1 {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-hero p {
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-brand strong,
+.auth-page-login .auth-card-brand strong {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-brand small {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-card-header h2 {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-card-header p {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.auth-page-login .form-field > span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.auth-page-login .form-field input {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-checkbox {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-forgot-link,
+.auth-page-login .auth-back-button {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-submit {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-switch {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.auth-page-login .auth-switch a {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+@media (max-width: 1023px) {
+  .auth-page-login .auth-hero h1 {
+    font-size: 34px;
+  }
+}

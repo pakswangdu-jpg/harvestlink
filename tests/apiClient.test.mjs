@@ -6,11 +6,11 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/services/apiClient.js', import.meta.url), 'utf8');
 
-async function loadClient(t, fetch, getSession = async () => ({ data: { session: null }, error: null })) {
+async function loadClient(t, fetch, getSession = async () => ({ data: { session: null }, error: null }), windowExtras = {}) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const context = vm.createContext({
-    AbortController, DOMException, SyntaxError, fetch,
-    window: { setTimeout, clearTimeout },
+    AbortController, DOMException, SyntaxError, Event, fetch,
+    window: { setTimeout, clearTimeout, ...windowExtras },
   });
   const client = new vm.SourceTextModule(source, {
     context,
@@ -24,6 +24,25 @@ async function loadClient(t, fetch, getSession = async () => ({ data: { session:
   await client.evaluate();
   return client.namespace.apiClient;
 }
+
+test('Admin access checks bypass cache and a denied network clears protected cached data', async t => {
+  const calls = [];
+  const events = [];
+  const client = await loadClient(t, async url => {
+    calls.push(url);
+    if (url.endsWith('/denied')) return Response.json({ error:'ADMIN_NETWORK_NOT_ALLOWED',message:'Admin access is not allowed from this network.' }, { status:403 });
+    return Response.json({ allowed:true });
+  }, undefined, { dispatchEvent:event=>events.push(event.type) });
+  await client.get('/auth/admin-access');
+  await client.get('/auth/admin-access');
+  assert.equal(calls.filter(url=>url.endsWith('/auth/admin-access')).length,2);
+  await client.get('/orders');await client.get('/orders');
+  assert.equal(calls.filter(url=>url.endsWith('/orders')).length,1);
+  await assert.rejects(client.get('/denied'), { status:403,code:'ADMIN_NETWORK_NOT_ALLOWED',message:'Admin access is not allowed from this network.' });
+  assert.deepEqual(events,['harvestlink:admin-network-denied']);
+  await client.get('/orders');
+  assert.equal(calls.filter(url=>url.endsWith('/orders')).length,2);
+});
 
 test('a backend taking a minute to start can complete without being aborted', async (t) => {
   const client = await loadClient(t, (url, { signal }) => new Promise((resolve, reject) => {

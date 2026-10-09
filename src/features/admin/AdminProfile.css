@@ -1,0 +1,38 @@
+.admin-profile-page .admin-profile-content {
+  max-width: 1080px;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+}
+.admin-profile-page .admin-profile-content * { letter-spacing: 0; }
+.admin-profile-page .admin-profile-content > div:first-child { margin-bottom: 20px; }
+.admin-profile-page .admin-profile-content h1 { font-size: 28px; font-weight: 600; }
+.admin-profile-page .admin-profile-content > div:first-child p { font-size: 14px; }
+.admin-profile-page .admin-profile-identity { display: flex; align-items: center; gap: 14px; padding: 0 0 20px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+.admin-profile-page .admin-profile-identity > div { min-width: 0; }
+.admin-profile-page .admin-profile-avatar { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 14px; font-weight: 600; }
+.admin-profile-page .admin-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.admin-profile-page .admin-profile-identity h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.admin-profile-page .admin-profile-identity p { margin: 3px 0 0; font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.admin-profile-page .admin-profile-role { display: flex; flex-wrap: wrap; gap: 6px; }
+.admin-profile-page .admin-profile-section { margin-bottom: 24px; }
+.admin-profile-page .admin-profile-section > h2 { margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); font-size: 18px; font-weight: 600; line-height: 1.4; }
+.admin-profile-page .admin-profile-information { margin: 0; }
+.admin-profile-page .admin-profile-information > div { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 14px; line-height: 1.5; }
+.admin-profile-page .admin-profile-information dt { color: var(--text-secondary); font-weight: 400; }
+.admin-profile-page .admin-profile-information dd { margin: 0; overflow-wrap: anywhere; }
+.admin-profile-page .admin-profile-active { color: var(--green-700); }
+.admin-profile-page .admin-profile-security-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.admin-profile-page .admin-profile-security-row > div { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.admin-profile-page .admin-profile-security-row svg { flex-shrink: 0; color: var(--text-secondary); }
+.admin-profile-page .admin-profile-security-row button { min-height: 40px; font-size: 13px; font-weight: 500; box-shadow: none; }
+.admin-profile-page .admin-profile-password { max-width: 440px; padding: 16px 0; gap: 14px; }
+.admin-profile-page .admin-profile-password .form-field { font-size: 14px; font-weight: 500; }
+.admin-profile-page .admin-profile-password input { min-height: 44px; font-size: 16px; }
+.admin-profile-page .admin-profile-password-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.admin-profile-page .admin-profile-password-actions button { min-height: 44px; font-size: 14px; }
+[data-theme="dark"] .admin-profile-page .admin-profile-active { color: #90cba8; }
+@media (max-width: 600px) {
+  .admin-profile-page .admin-profile-information > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .admin-profile-page .admin-profile-security-row > div { max-width: 100%; }
+}

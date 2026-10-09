@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BadgeCheck, CalendarDays, CheckCircle2, CircleCheck, CircleX, Clipboard, ClipboardList,
+  ArrowRight, BadgeCheck, CalendarDays, CheckCircle2, CircleCheck, CircleX, Clipboard, ClipboardList,
   Clock3, CreditCard, Eye, MapPin, Package, RotateCcw, Search, ShoppingBag, Truck, X,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+import OrderReasonDialog from '../../components/orders/OrderReasonDialog';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -70,7 +70,7 @@ const PAYMENT_FILTER_OPTIONS = [
 const ORDERS_PER_PAGE = 10;
 
 const ORDER_OVERVIEW_FILTERS = [
-  { key: 'all', label: 'Total Orders', hint: 'All purchases', icon: ShoppingBag },
+  { key: 'all', label: 'My Orders', hint: 'View all orders', icon: ShoppingBag },
   { key: 'pending', label: 'Pending', hint: 'Needs confirmation', icon: Clock3 },
   { key: 'to_receive', label: 'To Receive', hint: 'Orders on the way', icon: Truck },
   { key: 'completed', label: 'Completed', hint: 'Orders received', icon: CircleCheck },
@@ -247,15 +247,18 @@ export default function BuyerOrders() {
       await action();
       showToast({ type: 'success', message: successMessage });
       reload();
+      return true;
     } catch (actionError) {
       showToast({ type: 'error', message: actionError.message });
+      return false;
     }
   };
 
-  const confirmCancel = () => {
+  const confirmCancel = async (reason) => {
     if (!cancelTarget) return;
-    run(() => cancelOrder(cancelTarget.id), 'Order cancelled.');
-    setCancelTarget(null);
+    const success = await run(() => cancelOrder(cancelTarget.id, reason), 'Order cancelled.');
+    if (success) setCancelTarget(null);
+    return success;
   };
 
   const summary = useMemo(() => {
@@ -363,14 +366,16 @@ export default function BuyerOrders() {
                 aria-pressed={overviewFilter === key}
                 onClick={() => selectOverviewFilter(key)}
               >
-                <span className="buyer-orders-summary-value">
-                  {key === 'all' ? summary.total : summary[key === 'to_receive' ? 'toReceive' : key]}
-                </span>
                 <span className="buyer-orders-summary-label">
                   <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
                   <span>{label}</span>
                 </span>
-                <span className="buyer-orders-summary-hint">{hint}</span>
+                <span className="buyer-orders-summary-value">
+                  {key === 'all' ? summary.total : summary[key === 'to_receive' ? 'toReceive' : key]}
+                </span>
+                <span className="buyer-orders-summary-hint">
+                  {hint}{key === 'all' ? <ArrowRight size={13} aria-hidden="true" /> : null}
+                </span>
               </button>
             ))}
           </div>
@@ -572,12 +577,8 @@ export default function BuyerOrders() {
         )}
       </section>
 
-      <ConfirmDialog
+      <OrderReasonDialog
         open={Boolean(cancelTarget)}
-        title="Cancel Order?"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmLabel="Yes, Cancel Order"
-        cancelLabel="Keep Order"
         onConfirm={confirmCancel}
         onCancel={() => setCancelTarget(null)}
       />

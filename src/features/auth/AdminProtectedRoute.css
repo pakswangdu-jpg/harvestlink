@@ -1,0 +1,8 @@
+.admin-access-screen { display: flex; align-items: center; justify-content: center; min-height: 100dvh; padding: 24px; background: var(--page, var(--soft)); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.admin-access-screen > div { width: 100%; max-width: 420px; }
+.admin-access-screen h1 { margin: 0 0 12px; font-size: 24px; font-weight: 600; line-height: 1.25; }
+.admin-access-screen p { margin: 0 0 20px; font-size: 14px; line-height: 1.5; color: var(--text-secondary, var(--muted)); }
+.admin-access-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.admin-access-actions a { color: var(--green-700); font-size: 14px; font-weight: 600; text-decoration: underline; }
+.admin-access-actions button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; cursor: pointer; }
+.admin-access-actions :is(a,button):focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; }

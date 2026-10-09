@@ -19,6 +19,23 @@
   create extension if not exists pgcrypto; -- gen_random_uuid()
 
   -- ============================================================================
+  -- Password hashes (managed by Supabase Auth, not by public.profiles)
+  -- ============================================================================
+  -- Supabase Auth hashes email/password credentials with bcrypt and stores the
+  -- result in auth.users.encrypted_password for every role, including admin.
+  -- Create accounts and change passwords through the Auth API. Do not add a
+  -- password/password_hash column to profiles or write auth.users hashes directly.
+  -- Never expose password hashes through application queries, views, or APIs.
+  --
+  -- Optional read-only check in the Supabase SQL editor. This returns only
+  -- whether a hash exists; it does not reveal any password or password hash:
+  -- select p.id, p.role,
+  --   coalesce(length(u.encrypted_password), 0) > 0 as has_password_hash
+  -- from public.profiles p
+  -- join auth.users u on u.id = p.id;
+  -- Passwordless accounts can legitimately return false.
+
+  -- ============================================================================
   -- profiles — the single application account row per auth.users user.
   -- Role-specific nullable fields live here alongside shared identity fields.
   -- Do not add buyers, farmers, or stakeholders account tables; all user
@@ -493,7 +510,7 @@ notify pgrst, 'reload schema';
   create table if not exists public.notifications (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references public.profiles(id),
-    type text not null check (type in ('verification','order','donation','message','payment')),
+    type text not null check (type in ('verification','order','donation','message','payment','market_price')),
     title text not null,
     message text not null,
     link text,
@@ -515,7 +532,7 @@ notify pgrst, 'reload schema';
   -- matters for an already-existing install from before this migration.
   alter table public.notifications drop constraint if exists notifications_type_check;
   alter table public.notifications add constraint notifications_type_check
-    check (type in ('verification','order','donation','message','payment'));
+    check (type in ('verification','order','donation','message','payment','market_price'));
 
   -- The Web Push notification feature (browser permission prompt, desktop/mobile push
   -- toggles) was tried and removed — this drops the table an already-migrated install would

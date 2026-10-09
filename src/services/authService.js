@@ -157,15 +157,17 @@ export async function getBuyers() {
   return apiClient.get('/profiles?role=buyer');
 }
 
-export async function setUserVerification(id, status) {
-  return apiClient.patch(`/profiles/${id}/verification`, { status });
+export const getAdminUserPage = (filters) => apiClient.get(`/profiles?${new URLSearchParams(filters)}`);
+export const getAdminUserDetails = (id, historyPage = 1) => apiClient.get(`/profiles/${id}/admin-details?historyPage=${historyPage}`);
+export async function setUserVerification(id, status, reason, expectedStatus) {
+  return apiClient.patch(`/profiles/${id}/verification`, { status, reason, expectedStatus });
 }
 
 
 
 
-export async function setAccountStatus(id, status) {
-  return apiClient.patch(`/profiles/${id}/account-status`, { status });
+export async function setAccountStatus(id, status, expectedStatus) {
+  return apiClient.patch(`/profiles/${id}/account-status`, { status, expectedStatus });
 }
 
 

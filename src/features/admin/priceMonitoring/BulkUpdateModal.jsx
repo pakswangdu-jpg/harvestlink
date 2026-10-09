@@ -121,7 +121,7 @@ export default function BulkUpdateModal({
   open, nonce, rows, onClose, onConfirm,
 }) {
   return (
-    <Modal open={open} onClose={onClose} eyebrow="DTI oversight" title="Bulk Update Reference Prices">
+    <Modal open={open} onClose={onClose} title="Bulk update reference prices" className="pm-modal" dialogLabel="Bulk update reference prices">
       {open ? (
         <BulkUpdateForm key={nonce} rows={rows} onClose={onClose} onConfirm={onConfirm} />
       ) : null}

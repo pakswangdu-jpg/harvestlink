@@ -1,0 +1,11 @@
+.checkout-page .checkout-flow { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0; padding: 12px 0; list-style: none; border-bottom: 1px solid var(--line); }
+.checkout-page .checkout-flow li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.checkout-page .checkout-flow li span { color: var(--green-700); font-weight: 600; }
+.checkout-page .checkout-review-check { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 8px 0; color: var(--text); font-size: 13px; line-height: 1.5; cursor: pointer; }
+.checkout-page .checkout-review-check input { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; accent-color: var(--green-700); }
+.checkout-page .checkout-summary-warning button { min-height: 36px; color: var(--green-700); text-decoration: underline; }
+.checkout-page { --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.checkout-page .checkout-grid > .checkout-flow { order: 0; }
+.checkout-page .checkout-grid > .checkout-main { order: 1; }
+.checkout-page .checkout-grid > .checkout-summary { order: 2; }
+.checkout-page .checkout-grid > .checkout-trust-row { order: 3; }

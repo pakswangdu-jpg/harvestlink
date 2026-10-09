@@ -8,6 +8,8 @@ import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { getActiveProducts } from '../../services/productService';
+import { matchCommodity } from '../../services/marketPriceService';
+import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
 import { CEBU_MUNICIPALITIES, getExpiryStatus, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
@@ -214,6 +216,7 @@ export default function Marketplace() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [products, setProducts] = useState([]);
+  const { references, referenceError } = useAdminMarketReferences();
   const navItems = getNavItemsForRole(currentUser.role);
 
 
@@ -243,6 +246,8 @@ export default function Marketplace() {
     const interval = setInterval(reload, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const referencesByCommodity = useMemo(() => new Map(references.map((reference) => [reference.commodityId, reference])), [references]);
 
   const filteredProducts = useMemo(() => {
     if (farmerIdFilter) {
@@ -357,9 +362,10 @@ export default function Marketplace() {
         </div>
       </section>
 
+      {referenceError ? <p className="muted" role="status">{referenceError}</p> : null}
       {filteredProducts.length ? (
         <section className="product-grid">
-          {filteredProducts.map((product) => <ProductCard key={product.id} product={product} className="marketplace-product-card" />)}
+          {filteredProducts.map((product) => <ProductCard key={product.id} product={product} className="marketplace-product-card" marketReference={referencesByCommodity.get(matchCommodity(product.name)?.id)} />)}
         </section>
       ) : (
         <EmptyState

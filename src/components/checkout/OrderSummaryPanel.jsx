@@ -31,16 +31,17 @@ export default function OrderSummaryPanel({
   product, quantity, unitPrice, isWholesalePrice, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
   isSubmitting, orderPlaced, isGcash, paymentMethod,
+  quote, isReviewed, onReview, onRetryQuote,
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
-  const total = subtotal + fee;
+  const total = quote?.total ?? subtotal + fee;
   const quantityNumber = Number(quantity) || 0;
   const deliveryLogo = DELIVERY_METHOD_LOGOS[deliveryMethod];
 
   return (
     <aside className="checkout-summary">
       <div className="panel checkout-summary-card">
-        <h2 className="checkout-summary-title">Order summary</h2>
+        <h2 className="checkout-summary-title">Review order</h2>
 
         <div className="checkout-summary-item">
           <div className="checkout-summary-item-row">
@@ -54,6 +55,10 @@ export default function OrderSummaryPanel({
             <span className="checkout-summary-wholesale-note">Wholesale price applied</span>
           ) : null}
         </div>
+
+        <div className="checkout-summary-line"><span>Subtotal before savings</span><span>{quote ? formatCurrency(quote.retailSubtotal) : '--'}</span></div>
+        <div className="checkout-summary-line"><span>Discount / wholesale savings</span><span>{quote ? formatCurrency(quote.discount) : '--'}</span></div>
+        <div className="checkout-summary-line"><span>Subtotal</span><span>{quote ? formatCurrency(quote.subtotal) : '--'}</span></div>
 
         <div className="checkout-summary-delivery">
           <div className="checkout-summary-delivery-label">
@@ -83,7 +88,7 @@ export default function OrderSummaryPanel({
             </div>
           ) : null}
 
-          {error ? <div className="checkout-summary-warning"><span>{error}</span></div> : null}
+          {error ? <div className="checkout-summary-warning" role="alert"><span>{error}</span>{onRetryQuote ? <button type="button" onClick={onRetryQuote}>Refresh total</button> : null}</div> : null}
 
           {isLoading && !estimate ? (
             <p className="checkout-summary-note">
@@ -103,7 +108,7 @@ export default function OrderSummaryPanel({
 
           <div className="checkout-summary-line">
             <span>Delivery fee</span>
-            <span>{isPickup ? 'Free' : formatCurrency(fee)}</span>
+            <span>{isPickup ? 'Free' : quote ? formatCurrency(fee) : '--'}</span>
           </div>
         </div>
 
@@ -114,10 +119,11 @@ export default function OrderSummaryPanel({
 
         <div className="checkout-summary-total-row">
           <span>Total</span>
-          <strong>{formatCurrency(total)}</strong>
+          <strong>{quote ? formatCurrency(total) : '--'}</strong>
         </div>
 
-        <Button type="submit" className="full-width checkout-submit-btn" disabled={isSubmitting || orderPlaced}>
+        <label className="checkout-review-check"><input type="checkbox" checked={Boolean(isReviewed)} onChange={(event) => onReview(event.target.checked)} disabled={!quote || isSubmitting || orderPlaced} /><span>I have reviewed the items, delivery, payment method, and total.</span></label>
+        <Button type="submit" className="full-width checkout-submit-btn" disabled={isSubmitting || orderPlaced || !quote || !isReviewed}>
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin" aria-hidden="true" />
@@ -128,10 +134,10 @@ export default function OrderSummaryPanel({
           ) : isGcash ? (
             <>
               <img src={gcashLogo} alt="" width={16} height={16} className="checkout-submit-btn-logo" />
-              Continue to Payment
+              Place order
             </>
           ) : (
-            'Continue to Payment'
+            'Place order'
           )}
         </Button>
         <p className="checkout-summary-security">

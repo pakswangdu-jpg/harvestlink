@@ -25,7 +25,7 @@ async function request(path, { method = 'GET', body } = {}) {
   if (sessionError) throw sessionError;
   const isGet = method === 'GET';
   const cacheKey = `${session?.user?.id || 'anonymous'}:${path}`;
-  const cached = isGet ? getCache.get(cacheKey) : null;
+  const cached = isGet && path !== '/auth/admin-access' ? getCache.get(cacheKey) : null;
   if (cached && (cached.expiresAt > Date.now() || globalThis.document?.visibilityState === 'hidden')) {
     return cached.value;
   }
@@ -74,11 +74,17 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
       throw error;
     });
     if (!response.ok) {
-      const error = new Error(payload?.error || `Request failed with status ${response.status}`);
+      const error = new Error(payload?.message || payload?.error || `Request failed with status ${response.status}`);
       error.status = response.status;
+      if (payload?.error === 'ADMIN_NETWORK_NOT_ALLOWED') {
+        error.code = payload.error;
+        cacheGeneration += 1;
+        getCache.clear();
+        window.dispatchEvent?.(new Event('harvestlink:admin-network-denied'));
+      }
       throw error;
     }
-    if (isGet && requestGeneration === cacheGeneration) {
+    if (isGet && path !== '/auth/admin-access' && requestGeneration === cacheGeneration) {
       if (getCache.size >= GET_CACHE_LIMIT) getCache.delete(getCache.keys().next().value);
       getCache.set(cacheKey, { value: payload, expiresAt: Date.now() + getCacheTtl(path) });
     }

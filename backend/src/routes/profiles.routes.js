@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { getAdminUserDetails } from '../lib/adminUserQueries.js';
 import {
   acknowledgeMyVerification,
   createProfile,
@@ -33,6 +34,7 @@ router.get('/farmers', getAllVerifiedFarmers);
 
 
 router.get('/:id/public', getPublicFarmerProfile);
+router.get('/:id/admin-details', requireAuth, requireRole('admin'), getAdminUserDetails);
 router.get('/:id/verification-documents', requireAuth, requireRole('admin'), getVerificationDocuments);
 router.patch('/:id/verification', requireAuth, requireRole('admin'), setVerification);
 router.patch('/:id/account-status', requireAuth, requireRole('admin'), setAccountStatus);

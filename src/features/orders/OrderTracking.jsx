@@ -5,7 +5,7 @@ import {
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
+import OrderReasonDialog from '../../components/orders/OrderReasonDialog';
 import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import StarRating from '../../components/common/StarRating';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -90,6 +90,7 @@ export default function OrderTracking() {
   const feedbackPanelRef = useRef(null);
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
@@ -288,9 +289,11 @@ export default function OrderTracking() {
       setOrder(updated);
       setError('');
       setNotice(successMessage);
+      return true;
     } catch (actionError) {
       setNotice('');
       setError(actionError.message);
+      return false;
     }
   };
 
@@ -548,7 +551,7 @@ export default function OrderTracking() {
                   <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
                     <Check size={15} /> Confirm order
                   </Button>
-                  <Button variant="danger" onClick={() => run(() => updateOrderStatus(order.id, 'rejected'), 'Order rejected.')}>
+                  <Button variant="danger" onClick={() => setIsRejectDialogOpen(true)}>
                     <X size={15} /> Reject order
                   </Button>
                 </>
@@ -738,15 +741,12 @@ export default function OrderTracking() {
         <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
       </div>
 
-      <ConfirmDialog
+      <OrderReasonDialog
         open={isCancelDialogOpen}
-        title="Cancel Order?"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmLabel="Yes, Cancel Order"
-        cancelLabel="Keep Order"
-        onConfirm={() => { setIsCancelDialogOpen(false); run(() => cancelOrder(order.id), 'Order cancelled.'); }}
+        onConfirm={async (reason) => { const success = await run(() => cancelOrder(order.id, reason), 'Order cancelled.'); if (success) setIsCancelDialogOpen(false); return success; }}
         onCancel={() => setIsCancelDialogOpen(false)}
       />
+      <OrderReasonDialog open={isRejectDialogOpen} kind="reject" onCancel={() => setIsRejectDialogOpen(false)} onConfirm={async (reason) => { const success = await run(() => updateOrderStatus(order.id, 'rejected', reason), 'Order rejected.'); if (success) setIsRejectDialogOpen(false); return success; }} />
       <FeedbackSuccessDialog
         open={feedbackSuccessOrderId === order.id}
         onClose={() => setFeedbackSuccessOrderId(null)}

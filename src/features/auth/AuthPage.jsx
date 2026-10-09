@@ -19,8 +19,10 @@ import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
 import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
 import { useAuth } from './AuthContext';
+import { getAuthDestination } from '../../utils/authDestination';
 import logo from '../../assets/logo.png';
 import './AuthorizedRepresentative.css';
+import './AdminPortal.css';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
@@ -726,12 +728,13 @@ function buildEmptyForm(preselectedRole) {
   };
 }
 
-export default function AuthPage({ mode }) {
+export default function AuthPage({ mode, adminPortal = false }) {
   const isRegister = mode === 'register';
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { currentUser, loading: authLoading, login, register, verifyOtp, resendOtp } = useAuth();
+  const isGeneralAdminSession = !adminPortal && currentUser?.role === 'admin';
   const [form, setForm] = useState(() => {
     const base = buildEmptyForm(searchParams.get('role'));
     const rememberedEmail = !isRegister && localStorage.getItem(REMEMBERED_EMAIL_KEY);
@@ -854,7 +857,8 @@ export default function AuthPage({ mode }) {
 
 
   if (!authLoading && currentUser && authStage !== 'submitted') {
-    return <Navigate to={ROLE_DASHBOARDS[currentUser.role]} replace />;
+    const destination = getAuthDestination(currentUser.role, { adminPortal });
+    if (destination) return <Navigate to={destination} replace />;
   }
 
   const updateField = (field, value) => {
@@ -1034,8 +1038,9 @@ export default function AuthPage({ mode }) {
         if (rememberMe) localStorage.setItem(REMEMBERED_EMAIL_KEY, form.email.trim().toLowerCase());
         else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
       }
-      const fallback = ROLE_DASHBOARDS[result.role];
-      navigate(location.state?.from || fallback, { replace: true });
+      const destination = getAuthDestination(result.role, { adminPortal, from: location.state?.from });
+      if (destination) navigate(destination, { replace: true });
+      else setIsSubmitting(false);
     } catch (error) {
 
 
@@ -1080,8 +1085,9 @@ export default function AuthPage({ mode }) {
         setIsVerifyingOtp(false);
         return;
       }
-      const fallback = ROLE_DASHBOARDS[user.role];
-      navigate(location.state?.from || fallback, { replace: true });
+      const destination = getAuthDestination(user.role, { adminPortal, from: location.state?.from });
+      if (destination) navigate(destination, { replace: true });
+      else setIsVerifyingOtp(false);
     } catch (error) {
       setOtpError(error.message);
       setIsVerifyingOtp(false);
@@ -1129,8 +1135,8 @@ export default function AuthPage({ mode }) {
   const otpErrorAlert = mapVerificationAlert(otpError, 'Verification failed');
 
   return (
-    <main className={`auth-page ${isRegister ? 'auth-page-register' : 'auth-page-login'} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''}`}>
-      <section className="auth-hero">
+    <main className={`auth-page ${isRegister ? 'auth-page-register' : 'auth-page-login'} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''} ${adminPortal ? 'auth-page-admin' : ''}`}>
+      {!adminPortal ? <section className="auth-hero">
         <Link to="/" className="brand auth-brand">
           <span className="brand-mark">
             <img src={logo} alt="" />
@@ -1152,7 +1158,7 @@ export default function AuthPage({ mode }) {
               : 'Farmers manage produce, orders, and surplus donations. Buyers browse harvests, check out with payment and delivery tracking. Partner organizations (orphanages, elder-care homes, NGOs, food banks) can request surplus produce donations.'}
           </p>
         </div>
-      </section>
+      </section> : null}
 
       <section className={`auth-card ${isRegister ? 'auth-card-register' : 'auth-card-login'} ${isStakeholderRegister ? 'auth-card-glass' : ''}`}>
         <Button
@@ -1173,14 +1179,16 @@ export default function AuthPage({ mode }) {
 
         <div className="auth-card-header">
           <h2>
-            {authStage === 'submitted'
+            {adminPortal && authStage === 'form' ? 'HarvestLink Admin Portal' : authStage === 'submitted'
               ? 'Partnership Application Submitted'
               : authStage === 'otp'
                 ? 'Verify your email'
                 : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
           </h2>
-          <p>
-            {authStage === 'submitted'
+          <p className={adminPortal && authStage === 'form' ? 'admin-portal-restriction' : undefined}>
+            {adminPortal && authStage === 'form'
+              ? 'Authorized administrators only.'
+              : authStage === 'submitted'
               ? "Thank you for your interest in partnering with HarvestLink. Our team will review your organization's information and contact your authorized representative once verification is complete."
               : authStage === 'otp'
                 ? 'Enter the 6-digit code we emailed you to finish this.'
@@ -1192,6 +1200,7 @@ export default function AuthPage({ mode }) {
           className={`form-stack ${isRegister && authStage !== 'otp' ? 'register-form' : ''}`}
           onSubmit={authStage === 'otp' ? handleVerifyOtp : handleSubmit}
         >
+          {isGeneralAdminSession && !isRegister && authStage === 'form' ? <FormAlert type="info" title="Administrator account" message="Please use the HarvestLink Admin portal to sign in." /> : null}
           {errors.form ? (
             <FormAlert
               type="error"
@@ -1465,7 +1474,7 @@ export default function AuthPage({ mode }) {
                   />
                   <span>Remember me</span>
                 </label>
-                <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link>
+                {!adminPortal ? <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link> : null}
               </div>
             </>
           )}
@@ -1528,7 +1537,7 @@ export default function AuthPage({ mode }) {
           )}
         </form>
 
-        {authStage === 'form' ? (
+        {authStage === 'form' && !adminPortal ? (
           <p className="auth-switch">
             {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
             <Link to={isRegister ? '/login' : '/register'}>

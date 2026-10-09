@@ -1,0 +1,49 @@
+.admin-users-page, .admin-user-details { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text); letter-spacing: 0; }
+.admin-users-page h1 { font-size: 28px; font-weight: 600; }
+.admin-user-tabs { display: flex; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--line); margin: 20px 0 0; }
+.admin-user-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-secondary); font: inherit; font-size: 14px; cursor: pointer; }
+.admin-user-tabs button[aria-pressed="true"] { border-bottom-color: var(--green-700); color: var(--green-700); }
+.admin-user-tabs span { font-size: 12px; font-variant-numeric: tabular-nums; }
+.admin-user-toolbar { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-items: end; gap: 12px; padding: 16px 0; }
+.admin-user-toolbar label { display: grid; gap: 5px; font-size: 12px; font-weight: 600; min-width: 0; }
+.admin-user-search { grid-column: span 2; }
+.admin-user-search > div { display: flex; align-items: center; gap: 8px; padding-left: 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; }
+.admin-user-toolbar input, .admin-user-toolbar select, .admin-user-confirm select, .admin-user-confirm textarea { width: 100%; min-width: 0; height: 38px; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 6px; padding: 6px 10px; font: inherit; font-weight: 400; font-size: 13px; }
+.admin-user-toolbar .admin-user-search input { border: 0; background: transparent; }
+.admin-user-action-notice { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--green-700) 22%, var(--line)); border-radius: 8px; background: color-mix(in srgb, var(--green-700) 5%, var(--panel)); color: var(--text); }
+.admin-user-action-notice > div { display: flex; align-items: flex-start; gap: 9px; flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; }
+.admin-user-action-notice > div > svg { flex: 0 0 auto; margin-top: 2px; color: var(--green-700); }
+.admin-user-action-notice span { overflow-wrap: anywhere; }
+.admin-user-action-notice > button { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.admin-user-action-notice > button:hover { background: color-mix(in srgb, var(--green-700) 8%, var(--panel)); color: var(--text); }
+.admin-user-table { padding: 0 20px; }
+.admin-user-table th { text-transform: none; letter-spacing: 0; font-size: 13px; }
+.admin-user-table td { font-size: 14px; line-height: 1.4; padding-top: 12px; padding-bottom: 12px; max-width: none; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.admin-user-table strong { font-weight: 600; }
+.admin-user-table :is(th,td):nth-child(1) { width: 18%; }
+.admin-user-table :is(th,td):nth-child(2) { width: 22%; }
+.admin-user-table td:nth-child(2) { font-size: 13px; color: var(--text-secondary); }
+.admin-user-link { display: inline-flex; align-items: center; gap: 5px; padding: 0; min-height: 36px; border: 0; background: transparent; color: var(--green-700); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.admin-user-link:hover { text-decoration: underline; }
+.admin-user-state { font-size: 13px; }
+.admin-user-state.is-pending { color: var(--amber-700); }
+.admin-user-state.is-verified { color: var(--green-700); }
+.admin-user-state.is-rejected, .admin-user-deactivated { color: var(--red-700); }
+.admin-user-detail-modal { z-index: 1000; }
+.admin-user-details section { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.admin-user-details h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+.admin-user-fields > div { display: grid; grid-template-columns: 140px minmax(0,1fr); gap: 12px; padding: 7px 0; font-size: 14px; }
+.admin-user-fields dt, .admin-user-secondary { color: var(--text-secondary); font-size: 13px; }
+.admin-user-fields dd { margin: 0; overflow-wrap: anywhere; }
+.admin-user-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.admin-user-confirm { width: min(420px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); overflow-y: auto; }
+.admin-user-confirm::backdrop { background: rgb(0 0 0 / 40%); }
+.admin-user-confirm p { font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
+.admin-user-confirm label { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; }
+.admin-user-confirm textarea { min-height: 80px; }
+.admin-user-history { list-style: none; padding-left: 14px; border-left: 1px solid var(--line); }
+.admin-user-history li { display: grid; gap: 4px; margin: 14px 0; font-size: 13px; }
+.admin-user-history strong { font-weight: 600; }
+.admin-user-history time, .admin-user-history span, .admin-user-history p { margin: 0; font-size: 12px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.admin-users-page :is(button,input,select):focus-visible, .admin-user-details :is(button,select,textarea):focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+@media (max-width: 700px) { .admin-user-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); } .admin-user-tabs { gap: 12px; } .admin-user-fields > div { grid-template-columns: 110px minmax(0,1fr); } }

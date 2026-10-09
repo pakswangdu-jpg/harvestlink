@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeProfile } from '../lib/serialize.js';
-import { createNotification } from '../lib/notify.js';
+import { getAdminUserPage, manageAccount } from '../lib/adminUserQueries.js';
 import { ApiError } from '../lib/ApiError.js';
 import { invalidateAuthCacheForUser } from '../middleware/requireAuth.js';
 
@@ -403,6 +403,7 @@ export async function getPublicFarmerProfile(req, res) {
 
 
 export async function listProfiles(req, res) {
+  if (req.query.page !== undefined) return getAdminUserPage(req, res);
   const isAdmin = req.profile.role === 'admin';
   let query = supabaseAdmin.from('profiles').select(PROFILE_DIRECTORY_SELECT);
 
@@ -453,24 +454,8 @@ export async function setVerification(req, res) {
   const { status } = req.body;
   if (!['verified', 'rejected'].includes(status)) throw new ApiError('Invalid verification status.', 400);
 
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .update({ verification_status: status, verified_at: new Date().toISOString(), verification_acknowledged: false })
-    .eq('id', req.params.id)
-    .select()
-    .single();
-  if (error || !data) throw new ApiError('Account was not found.', 404);
+  const data = await manageAccount(req, 'verification');
   invalidateAuthCacheForUser(req.params.id);
-
-  await createNotification({
-    userId: data.id,
-    type: 'verification',
-    title: status === 'verified' ? 'Account verified' : 'Verification declined',
-    message: status === 'verified'
-      ? 'Your account has been approved by admin. You can now add products to the marketplace.'
-      : 'Your account verification was declined. Update your profile and contact support if you believe this was a mistake.',
-    link: '/profile',
-  });
 
   res.json(serializeProfile(data));
 }
@@ -479,13 +464,7 @@ export async function setAccountStatus(req, res) {
   const { status } = req.body;
   if (!['active', 'suspended'].includes(status)) throw new ApiError('Invalid account status.', 400);
 
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .update({ account_status: status })
-    .eq('id', req.params.id)
-    .select()
-    .single();
-  if (error || !data) throw new ApiError('Account was not found.', 404);
+  const data = await manageAccount(req, 'account');
   invalidateAuthCacheForUser(req.params.id);
   res.json(serializeProfile(data));
 }

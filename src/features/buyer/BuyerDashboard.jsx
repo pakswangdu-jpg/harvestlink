@@ -25,6 +25,7 @@ import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } f
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 import freshListingsLeaf from '../../assets/icons/fresh-listings-leaf.png';
+import './BuyerOverview.css';
 
 const NEARBY_FARMERS_LIMIT = 5;
 const EMPTY_STATE = {
@@ -224,7 +225,7 @@ export default function BuyerDashboard() {
             <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
-        <div className="buyer-order-summary" aria-label="Buyer order summary">
+        <div className="buyer-order-summary buyer-summary-cards" aria-label="Buyer order summary">
           <Link className="buyer-summary-item" to="/buyer-orders" aria-label="View all buyer orders">
             <span className="buyer-summary-label"><ClipboardList size={18} strokeWidth={2} aria-hidden="true" /> My Orders</span>
             <strong>{isLoading ? '...' : orders.length}</strong>

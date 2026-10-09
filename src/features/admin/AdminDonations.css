@@ -1,0 +1,55 @@
+.admin-donations-page { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--text); letter-spacing: 0; }
+.admin-donations-page h1 { font-size: 28px; font-weight: 600; }
+.admin-donation-overview { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 20px 0; padding: 16px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.admin-donation-overview > div { padding: 0 18px; border-inline-start: 1px solid var(--line); }
+.admin-donation-overview > div:first-child { border: 0; }
+.admin-donation-overview dt { font-size: 13px; color: var(--text-secondary); }
+.admin-donation-overview dd { margin: 4px 0 0; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.admin-donation-register { border-top: 1px solid var(--line); }
+.admin-donation-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 16px 0; }
+.admin-donation-toolbar label { display: grid; gap: 5px; min-width: 0; }
+.admin-donation-toolbar label > span { font-size: 12px; font-weight: 600; }
+.admin-donation-toolbar .admin-donation-search { flex: 1 1 240px; }
+.admin-donation-search > div { display: flex; align-items: center; gap: 8px; padding-left: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text-secondary); }
+.admin-donation-toolbar input, .admin-donation-toolbar select { height: 38px; min-width: 0; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; }
+.admin-donation-search input { width: 100%; border: 0; background: transparent; }
+.admin-donation-refresh { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text-secondary); cursor: pointer; }
+.admin-donation-refresh:disabled { opacity: .5; cursor: wait; }
+.admin-donation-table { padding: 0 20px; }
+.admin-donation-table th { text-transform: none; letter-spacing: 0; font-size: 13px; background: var(--soft); }
+.admin-donation-table td { padding-top: 12px; padding-bottom: 12px; font-size: 14px; white-space: normal; overflow: visible; max-width: none; line-height: 1.4; overflow-wrap: anywhere; }
+.admin-donation-table td strong { font-weight: 600; }
+.admin-donation-table small { display: block; margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
+.admin-donation-secondary { color: var(--text-secondary); font-size: 13px; }
+.admin-donation-table .admin-donation-urgency.warning { color: var(--amber-700, #95621a); }
+.admin-donation-table .admin-donation-urgency.danger { color: var(--red-700, #b34848); }
+.admin-donation-action { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0; border: 0; background: transparent; color: var(--green-700); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
+.admin-donation-action:hover { text-decoration: underline; }
+.admin-donations-page :is(button, input, select):focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+.admin-donation-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); color: var(--text-secondary); font-size: 12px; }
+.admin-donation-footer > div { margin: 0; padding: 0; border: 0; gap: 20px; }
+.admin-donation-loading { padding: 20px 0; color: var(--text-secondary); font-size: 14px; }
+.admin-donation-details { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.admin-donation-image { width: 88px; height: 88px; object-fit: cover; border-radius: 6px; margin-bottom: 14px; }
+.admin-donation-details h3 { margin: 0 0 16px; font-size: 18px; font-weight: 600; }
+.admin-donation-details dl > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.admin-donation-details dt { color: var(--text-secondary); font-size: 13px; }
+.admin-donation-details dd { margin: 0; overflow-wrap: anywhere; }
+.admin-donation-history { margin-top: 24px; }
+.admin-donation-history h3 { font-size: 16px; }
+.admin-donation-history ol { list-style: none; padding: 0 0 0 14px; border-left: 1px solid var(--line); }
+.admin-donation-history li { display: grid; gap: 4px; margin-bottom: 16px; font-size: 13px; }
+.admin-donation-history strong { font-weight: 600; }
+.admin-donation-history span, .admin-donation-history p { font-size: 12px; color: var(--text-secondary); }
+@media (max-width: 700px) {
+  .admin-donation-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 16px; }
+  .admin-donation-overview > div { padding: 0 12px; }
+  .admin-donation-overview > div:nth-child(4) { border: 0; }
+  .admin-donation-toolbar label { flex: 1 1 140px; }
+  .admin-donation-toolbar .admin-donation-search { flex-basis: 100%; }
+  .admin-donation-details dl > div { grid-template-columns: 125px minmax(0, 1fr); }
+}
+@media (max-width: 400px) {
+  .admin-donation-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-donation-overview > div { border: 0; }
+}

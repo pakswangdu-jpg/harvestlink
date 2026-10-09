@@ -1,0 +1,69 @@
+.admin-price-monitoring {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.admin-price-monitoring h1 { font-size: 28px; font-weight: 600; letter-spacing: 0; }
+.admin-price-monitoring h2 { font-size: 18px; font-weight: 600; letter-spacing: 0; }
+.admin-price-monitoring :is(h1, h2, h3, p, label, dt, dd, td, th, button, input, select, textarea) { font-family: inherit; letter-spacing: 0; }
+.admin-price-monitoring th { text-transform: none; }
+.pm-toolbar { display: grid; gap: 12px; margin-bottom: 14px; }
+.pm-filter-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pm-filter-fields > div { width: auto; min-width: 0; }
+.pm-filter-fields > div > div { width: 100%; }
+.pm-filter-fields label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.pm-progress { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+.pm-progress progress { height: 4px; width: 100px; accent-color: var(--green-700); }
+.pm-desktop-table { overflow-x: auto; }
+.pm-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 1040px; }
+.admin-price-monitoring table { table-layout: auto; }
+.pm-table th { color: var(--muted); font-weight: 500; background: var(--soft); white-space: nowrap; }
+.pm-table td, .pm-table th { padding: 11px 10px; border-bottom: 1px solid var(--line); }
+.pm-table td { white-space: nowrap; }
+.pm-table th button, .pm-expand, .pm-link { display: inline-flex; align-items: center; gap: 5px; border: 0; padding: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; }
+.pm-table th button:hover, .pm-expand:hover { color: var(--green-700); }
+.pm-link { color: var(--green-700); font-size: 13px; font-weight: 500; }
+.pm-link:hover { text-decoration: underline; }
+.pm-link:disabled { color: var(--muted); cursor: wait; }
+.pm-link:focus-visible, .pm-expand:focus-visible, .pm-table th button:focus-visible { outline: 2px solid var(--green-700); outline-offset: 4px; }
+.pm-secondary, .admin-price-monitoring small { color: var(--muted); }
+.admin-price-monitoring small { display: block; font-size: 12px; font-weight: 400; margin-top: 3px; }
+.pm-table .pm-detail-cell { padding: 0; white-space: normal; }
+.pm-details { padding: 16px; background: var(--soft); min-width: 0; }
+.pm-detail-prices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 20px; margin: 0 0 16px; }
+.pm-details dt, .pm-record-prices dt { font-size: 12px; color: var(--muted); }
+.pm-details dd, .pm-record-prices dd { margin: 4px 0 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.pm-details h3 { font-size: 14px; font-weight: 600; margin: 16px 0 10px; }
+.pm-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pm-detail-actions button { background: var(--panel); color: var(--text); }
+.pm-history-section { border-top: 1px solid var(--line); margin-top: 16px; }
+.pm-empty { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; padding: 2px 0; }
+.pm-empty svg { color: var(--green-700); }
+.pm-review-section { padding: 16px 20px; }
+.pm-review-section h2 { font-size: 16px; }
+.pm-review-section > div:first-child { margin-bottom: 12px; }
+.pm-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pm-pagination > div:first-child { width: 116px; flex: 0 0 116px; }
+.pm-pagination > div:nth-child(2) { flex: 1; }
+.pm-mobile-records { display: none; }
+.pm-modal { z-index: 1000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.pm-modal label, .pm-modal p { text-transform: none; letter-spacing: 0; }
+.pm-reason-choice { width: 100%; background: var(--input-bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 9px; margin-bottom: 12px; }
+@media (max-width: 800px) {
+  .pm-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pm-desktop-table { display: none; }
+  .pm-mobile-records { display: block; }
+  .pm-mobile-records > article { border-top: 1px solid var(--line); padding: 14px 0; }
+  .pm-record-heading { display: flex; align-items: flex-start; gap: 8px; }
+  .pm-record-heading > div { flex: 1; min-width: 0; }
+  .pm-record-heading h3 { font-size: 14px; font-weight: 600; margin: 0; }
+  .pm-record-heading > span { font-size: 11px; max-width: 110px; white-space: normal; }
+  .pm-record-prices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+  .pm-record-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+  .pm-mobile-records .pm-details { margin-top: 14px; padding: 12px; }
+  .pm-detail-prices { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .pm-pagination { flex-wrap: wrap; }
+  .pm-pagination > div:nth-child(2) { flex-basis: 100%; }
+  .admin-price-monitoring .pm-workspace { padding: 14px; }
+  .pm-review-section { padding: 14px; }
+}

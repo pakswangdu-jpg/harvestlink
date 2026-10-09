@@ -49,21 +49,26 @@ export function CartProvider({ children }) {
   const value = useMemo(() => {
     const addItem = (productId, stockQuantity, incrementBy = 1) => {
       if (!userId) return;
+      const increment = Number(incrementBy);
+      if (!Number.isFinite(increment) || increment <= 0) return;
       setItems((previous) => {
         const existing = previous.find((item) => item.productId === productId);
-        const cap = Number(stockQuantity) > 0 ? Number(stockQuantity) : 0;
+        const cap = Number.isFinite(Number(stockQuantity)) && Number(stockQuantity) > 0 ? Number(stockQuantity) : 0;
         if (!cap) return previous;
         if (existing) {
-          const nextQuantity = Math.min(cap, existing.quantity + incrementBy);
+          const nextQuantity = Math.min(cap, Number(existing.quantity) + increment);
           return previous.map((item) => (item.productId === productId ? { ...item, quantity: nextQuantity } : item));
         }
-        return [...previous, { productId, quantity: Math.min(cap, incrementBy) }];
+        return [...previous, { productId, quantity: Math.min(cap, increment) }];
       });
     };
 
     const updateQuantity = (productId, quantity, stockQuantity) => {
-      const cap = Number(stockQuantity) > 0 ? Number(stockQuantity) : 1;
-      const clamped = Math.min(cap, Math.max(1, Math.round(Number(quantity) || 1)));
+      const cap = Number(stockQuantity);
+      if (!Number.isFinite(cap) || cap <= 0) return;
+      const requested = Number(quantity);
+      if (!Number.isFinite(requested) || requested <= 0) return;
+      const clamped = Math.min(cap, Math.max(Math.min(1, cap), Number(requested.toFixed(2))));
       setItems((previous) => previous.map((item) => (item.productId === productId ? { ...item, quantity: clamped } : item)));
     };
 

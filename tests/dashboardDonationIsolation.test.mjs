@@ -15,7 +15,7 @@ const donationFailure = { donations: [], loading: false, loadError: 'Donations a
 
 async function harness(file, donationState = donationFailure) {
   const original = await readFile(new URL(`../src/features/${file}.jsx`, import.meta.url), 'utf8');
-  const source = original.replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
+  const source = original.replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace(/import\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
   const { code } = await transformWithOxc(source, `${file}.jsx`, { jsx: { runtime: 'classic' } });
   const componentName = file.split('/').at(-1);
   const scope = {};
@@ -65,7 +65,7 @@ async function harness(file, donationState = donationFailure) {
     render, values,
     refresh: async () => { poll(); await flush(); },
     failCore: () => { failCore = true; },
-    recoverDonations: () => { donationState = { donations: [{ id: 'donation-1', status: 'requested' }, { id: 'donation-2', status: 'completed' }], loading: false, loadError: '' }; },
+    recoverDonations: () => { donationState = { donations: [{ id: 'donation-1', status: 'requested', createdAt: new Date().toISOString() }, { id: 'donation-2', status: 'completed', createdAt: new Date().toISOString() }], loading: false, loadError: '' }; },
     cleanup: () => cleanup.forEach((callback) => callback?.()),
   };
 }
