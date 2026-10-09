@@ -18,6 +18,7 @@ import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSha
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
 import logo from '../../assets/logo.png';
 import './HeaderUtilityControls.css';
+import './AdminSidebar.css';
 
 const navListVariants = {
   hidden: {},
@@ -110,7 +111,7 @@ export default function AppShell({
             {!isSidebarCollapsed ? (
               <span>
                 <strong><BrandWordmark /></strong>
-                <small>{user.role} workspace</small>
+                <small>{user.role === 'admin' ? 'Admin Portal' : `${user.role} workspace`}</small>
               </span>
             ) : null}
           </Link>
@@ -155,7 +156,7 @@ export default function AppShell({
               <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
             ) : null}
             {profileItem ? (
-              <SidebarNavItem to={profileItem.to} label="Settings" icon={Settings} isCollapsed={isSidebarCollapsed} />
+              <SidebarNavItem to={profileItem.to} label={user.role === 'admin' ? 'Profile' : 'Settings'} icon={user.role === 'admin' ? profileItem.icon : Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}
           </div>
 
@@ -201,7 +202,7 @@ export default function AppShell({
           </span>
           <span>
             <strong><BrandWordmark /></strong>
-            <small>{user.role} workspace</small>
+            <small>{user.role === 'admin' ? 'Admin Portal' : `${user.role} workspace`}</small>
           </span>
         </Link>
       ) : null}

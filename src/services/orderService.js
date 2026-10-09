@@ -204,6 +204,8 @@ export function getDeliveryTrackingStatus(order, isInTransit, isNearDestination)
   return { key: 'confirmed', label: 'Confirmed' };
 }
 
+export const getAdminOrderPage = (filters) => apiClient.get(`/orders?${new URLSearchParams(filters)}`);
+
 export async function getOrders() {
   return apiClient.get('/orders');
 }
@@ -227,12 +229,16 @@ export async function createOrder(values) {
   return apiClient.post('/orders', values);
 }
 
-export async function updateOrderStatus(id, status) {
-  return apiClient.patch(`/orders/${id}/status`, { status });
+export async function getCheckoutQuote(values) {
+  return apiClient.post('/orders/quote', values);
 }
 
-export async function cancelOrder(id) {
-  return apiClient.patch(`/orders/${id}/cancel`);
+export async function updateOrderStatus(id, status, reason) {
+  return apiClient.patch(`/orders/${id}/status`, { status, ...(reason ? { reason } : {}) });
+}
+
+export async function cancelOrder(id, reason) {
+  return apiClient.patch(`/orders/${id}/cancel`, reason ? { reason } : undefined);
 }
 
 export async function advanceDelivery(id, plateNumber) {
@@ -267,6 +273,8 @@ export function mapOrderRealtimeRow(row) {
     deliveryFee: Number(row.delivery_fee || 0),
     totalAmount: Number(row.total_amount),
     message: row.message || '',
+    cancellationReason: row.cancellation_reason || null,
+    rejectionReason: row.rejection_reason || null,
     paymentMethod: row.payment_method,
     paymentStatus: row.payment_status,
     deliveryMethod: row.delivery_method,

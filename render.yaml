@@ -18,6 +18,10 @@ services:
         sync: false
       - key: APP_URL
         value: https://harvestlink.dev
+      - key: ADMIN_ALLOWED_IPS
+        sync: false
+      - key: TRUSTED_PROXY_IPS
+        sync: false
       - key: OPENWEATHERMAP_API_KEY
         sync: false
       - key: GEMINI_API_KEY

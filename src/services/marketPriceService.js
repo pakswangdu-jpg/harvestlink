@@ -124,13 +124,14 @@ let overridesCacheAt = 0;
 
 
 
-async function getOverridesMap() {
-  if (overridesCache && Date.now() - overridesCacheAt < OVERRIDES_CACHE_TTL_MS) return overridesCache;
+async function getOverridesMap({ force = false } = {}) {
+  if (!force && overridesCache && Date.now() - overridesCacheAt < OVERRIDES_CACHE_TTL_MS) return overridesCache;
   try {
     const rows = await apiClient.get('/market-price-overrides');
     overridesCache = Object.fromEntries(rows.map((row) => [row.commodityId, row]));
     overridesCacheAt = Date.now();
-  } catch {
+  } catch (error) {
+    if (force) throw error;
     return overridesCache || {};
   }
   return overridesCache;
@@ -146,8 +147,8 @@ function invalidateOverridesCache() {
 
 
 
-export async function getAllPriceOverrides() {
-  const overrides = await getOverridesMap();
+export async function getAllPriceOverrides(options) {
+  const overrides = await getOverridesMap(options);
   return Object.values(overrides);
 }
 
@@ -247,7 +248,7 @@ async function applyOverride(commodityId, points) {
 
 
 
-async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
+export async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
   const endYear = new Date().getFullYear();
   const startYear = Math.max(TABLE_MIN_YEAR, endYear - yearsBack + 1);
   const cacheKey = `${CACHE_PREFIX}annual_${commodityId}_${startYear}_${endYear}`;

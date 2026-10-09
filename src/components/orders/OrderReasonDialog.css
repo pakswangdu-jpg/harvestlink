@@ -1,0 +1,7 @@
+.order-reason-dialog { width: min(420px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); overflow-y: auto; }
+.order-reason-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.order-reason-dialog h2 { font-size: 20px; font-weight: 600; }
+.order-reason-dialog p { margin: 8px 0 16px; color: var(--muted); font-size: 14px; }
+.order-reason-dialog label { display: block; margin: 12px 0 6px; font-size: 14px; font-weight: 500; }
+.order-reason-dialog :is(select, textarea) { width: 100%; min-height: 44px; }
+.order-reason-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }

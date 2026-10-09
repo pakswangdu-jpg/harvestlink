@@ -12,8 +12,11 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
     from(table) {
       calls.push(['from', table]);
       return {
-        select() { return this; },
-        order() { return this; },
+        select(...args) { calls.push(['select', ...args]); return this; },
+        order(...args) { calls.push(['order', ...args]); return this; },
+        range(...args) { calls.push(['range', ...args]); return this; },
+        gte(...args) { calls.push(['gte', ...args]); return this; },
+        lt(...args) { calls.push(['lt', ...args]); return this; },
         eq(...args) { calls.push(['eq', ...args]); return this; },
         or(value) { calls.push(['or', value]); return this; },
         then(resolve, reject) { return Promise.resolve(result).then(resolve, reject); },
@@ -59,6 +62,35 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
     request.profile.role = 'farmer';
     await api.listDonations(request, res);
     assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'farmer_id' && call[2] === actor));
+  });
+
+  await t.test('admin overview uses bounded rows, database filters and count-only summaries', async () => {
+    result = { data: [donation], count: 43, error: null };
+    const request = req();
+    request.profile.role = 'admin';
+    request.query = { page: '2', status: 'scheduled', search: 'Farm, (Cebu)', from: '2026-10-01', to: '2026-10-12' };
+    await api.listDonations(request, res);
+    assert.deepEqual(calls.find((call) => call[0] === 'range'), ['range', 20, 39]);
+    assert.deepEqual(calls.find((call) => call[0] === 'gte'), ['gte', 'created_at', '2026-10-01T00:00:00+08:00']);
+    assert.deepEqual(calls.find((call) => call[0] === 'lt'), ['lt', 'created_at', '2026-10-12T16:00:00.000Z']);
+    assert.ok(calls.find((call) => call[0] === 'or')[1].includes('product_name.ilike."%Farm, (Cebu)%"'));
+    assert.equal(calls.filter((call) => call[0] === 'select' && call[2]?.head).length, 5);
+    assert.equal(response.pageSize, 20);
+    assert.equal(response.total, 43);
+    assert.equal(response.donations[0].quantity, 10.5);
+    assert.deepEqual(Object.keys(response.counts), ['available', 'requested', 'scheduled', 'completed', 'cancelled']);
+  });
+
+  await t.test('paged overview rejects non-admin access and malformed query values', async () => {
+    const request = req();
+    request.query = { page: '1' };
+    await assert.rejects(api.listDonations(request, res), { status: 403 });
+    request.profile.role = 'admin';
+    for (const query of [{ page: '0' }, { page: '1.5' }, { page: '1', status: 'fake' }, { page: '1', from: '2026-02-30' }, { page: '1', from: '2026-10-12', to: '2026-10-01' }, { page: '1', search: 'x'.repeat(121) }]) {
+      request.query = query;
+      await assert.rejects(api.listDonations(request, res), { status: 400 });
+    }
+    assert.equal(calls.length, 0);
   });
 
   await t.test('invalid IDs and calendar dates never reach a transaction', async () => {

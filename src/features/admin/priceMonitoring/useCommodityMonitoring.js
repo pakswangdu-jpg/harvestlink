@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, getPriceOverride, matchCommodity, setPriceOverride,
+  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, fetchRawAnnualPriceTrend, getPriceOverride, matchCommodity, setPriceOverride,
 } from '../../../services/marketPriceService';
 import { getFixedKgPerUnit } from '../../../utils/unitConversion';
 import { getProducts, getPendingPriceReviews } from '../../../services/productService';
@@ -36,17 +36,22 @@ export function useCommodityMonitoring() {
   const [priceData, setPriceData] = useState({});
   const [products, setProducts] = useState(null);
   const [reviews, setReviews] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [pricesLoaded, setPricesLoaded] = useState(0);
 
   const loadCommodityPrice = useCallback(async (commodity) => {
     try {
       const points = await fetchAnnualPriceTrend(commodity.id, 5);
+      const rawPoints = await fetchRawAnnualPriceTrend(commodity.id, 5);
+      const psa = [...rawPoints].reverse().find((point) => point.price != null);
       const latest = [...points].reverse().find((point) => point.price != null);
       const override = await getPriceOverride(commodity.id);
       setPriceData((previous) => ({
         ...previous,
         [commodity.id]: {
           referencePrice: latest?.price ?? null,
+          psaPrice: psa?.price ?? null,
+          psaYear: psa?.year ?? null,
           referenceYear: latest?.year ?? null,
           isOverride: Boolean(latest?.isOverride),
           override,
@@ -61,6 +66,8 @@ export function useCommodityMonitoring() {
         ...previous,
         [commodity.id]: {
           referencePrice: override?.referencePrice ?? null,
+          psaPrice: null,
+          psaYear: null,
           referenceYear: override?.referenceYear ?? null,
           isOverride: Boolean(override),
           override,
@@ -90,8 +97,9 @@ export function useCommodityMonitoring() {
   }, [loadCommodityPrice]);
 
   const reloadListings = useCallback(() => {
-    getProducts().then(setProducts);
-    getPendingPriceReviews().then(setReviews);
+    Promise.all([getProducts(), getPendingPriceReviews()])
+      .then(([listings, pending]) => { setProducts(listings); setReviews(pending); setLoadError(''); })
+      .catch((error) => setLoadError(error.message || 'Could not load Farmer listings and price reviews.'));
   }, []);
 
   useEffect(() => { reloadListings(); }, [reloadListings]);
@@ -132,6 +140,9 @@ export function useCommodityMonitoring() {
         label: commodity.label,
         category: getCommodityCategory(commodity.id),
         referencePrice,
+        psaPrice: info?.psaPrice ?? null,
+        psaYear: info?.psaYear ?? null,
+        relatedListings: (products || []).filter((product) => matchCommodity(product.name)?.id === commodity.id),
         referenceYear: info?.referenceYear ?? null,
         isOverride: Boolean(info?.isOverride),
         override: info?.override ?? null,
@@ -147,7 +158,7 @@ export function useCommodityMonitoring() {
   }, [priceData, products, reviews]);
 
   const isInitialLoading = products === null || reviews === null;
-  const pricesProgress = pricesLoaded / MARKET_COMMODITIES.length;
+  const pricesProgress = Math.min(1, pricesLoaded / MARKET_COMMODITIES.length);
 
   const saveOverride = useCallback(async (commodityId, price, reason, baseline) => {
     await setPriceOverride(commodityId, price, { ...baseline, reason });
@@ -163,6 +174,7 @@ export function useCommodityMonitoring() {
     rows,
     products,
     reviews,
+    loadError,
     isInitialLoading,
     pricesProgress,
     saveOverride,

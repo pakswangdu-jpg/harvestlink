@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import {
   CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
-import StatCard from '../../../components/admin/StatCard';
+import Button from '../../../components/admin/Button';
 import Table from '../../../components/admin/Table';
 import LoadingState from '../../../components/admin/LoadingState';
 import { getOverrideHistory } from '../../../services/marketPriceService';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
+import { listingComparison, priceDifference } from './pricePresentation';
 
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -120,39 +121,61 @@ function PriceTrendChart({ points }) {
 
 
 
-export default function CommodityDetailPanel({ row }) {
+export default function CommodityDetailPanel({ row, onOpenOverride, onResetOverride }) {
   const [history, setHistory] = useState(null);
+  const [historyError, setHistoryError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    getOverrideHistory(row.id).then((data) => { if (!cancelled) setHistory(data); }).catch(() => { if (!cancelled) setHistory([]); });
+    getOverrideHistory(row.id).then((data) => { if (!cancelled) setHistory(data); }).catch((error) => { if (!cancelled) setHistoryError(error.message || 'Could not load override history.'); });
     return () => { cancelled = true; };
   }, [row.id]);
 
   return (
-    <div className="space-y-4 bg-[var(--soft)] px-5 py-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="PSA Reference" value={row.referencePrice == null ? '—' : `${formatCurrency(row.referencePrice)}/kg`} />
-        <StatCard label="Avg Farmer Price" value={row.avgFarmerPrice == null ? '—' : `${formatCurrency(row.avgFarmerPrice)}/kg`} />
-        <StatCard label="Highest Price" value={row.highFarmerPrice == null ? '—' : `${formatCurrency(row.highFarmerPrice)}/kg`} />
-        <StatCard label="Lowest Price" value={row.lowFarmerPrice == null ? '—' : `${formatCurrency(row.lowFarmerPrice)}/kg`} />
+    <div className="pm-details">
+      <dl className="pm-detail-prices">
+        {[
+          ['PSA reference', row.loading ? 'Loading...' : row.psaPrice == null ? 'No PSA data' : `${formatCurrency(row.psaPrice)}/kg (PSA ${row.psaYear})`],
+          ['Current Admin reference', row.isOverride ? `${formatCurrency(row.referencePrice)}/kg (${row.referenceYear})` : 'No override'],
+          ['Average Farmer price', row.avgFarmerPrice == null ? '-' : `${formatCurrency(row.avgFarmerPrice)}/kg`],
+          ['Lowest Farmer price', row.lowFarmerPrice == null ? '-' : `${formatCurrency(row.lowFarmerPrice)}/kg`],
+          ['Highest Farmer price', row.highFarmerPrice == null ? '-' : `${formatCurrency(row.highFarmerPrice)}/kg`],
+          ['Active listings', row.listingsCount],
+          ['Difference vs PSA', row.loading ? '-' : priceDifference(row.avgFarmerPrice, row.psaPrice)?.label || '-'],
+        ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+      <div className="pm-detail-actions">
+        <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row)}>{row.isOverride ? 'Edit override' : 'Set manual reference'}</Button>
+        {row.isOverride && <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row)}>Reset to PSA</Button>}
+        <a href={`#override-history-${row.id}`} className="pm-link">View history</a>
       </div>
+      <h3>Related Farmer listings</h3>
+      <Table columns={[
+        { key: 'name', label: 'Product' }, { key: 'farmerName', label: 'Farmer' },
+        { key: 'grade', label: 'Grade', render: (product) => product.grade || '-' },
+        { key: 'sellingType', label: 'Sales type', render: (product) => product.sellingType === 'wholesale' ? <>Wholesale<small>Min. {product.moq || 0} {product.unit}</small></> : 'Retail' },
+        { key: 'price', label: 'Price', render: (product) => <>{formatCurrency(product.price)}/{product.unit}<small>{listingComparison(product, row)?.label || 'No comparable reference'}</small></> },
+        { key: 'quantity', label: 'Stock', render: (product) => `${product.quantity} ${product.unit}` },
+        { key: 'status', label: 'Status' },
+      ]} rows={row.relatedListings || []} emptyMessage="No related Farmer listings." />
 
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
-        <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price trend (last 5 years)</p>
+      <div className="pm-history-section">
+        <h3>Reference trend (last 5 years)</h3>
         <PriceTrendChart points={row.trendPoints} />
       </div>
 
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-4">
-        <p className="mb-2 text-[13px] font-semibold text-[var(--text)]">Price history</p>
-        {history === null ? (
+      <div className="pm-history-section" id={`override-history-${row.id}`}>
+        <h3>Override history</h3>
+        {historyError ? <p role="alert">{historyError}</p> : history === null ? (
           <LoadingState rows={2} />
+        ) : !history.length ? (
+          <p className="pm-empty">No override changes recorded for this commodity yet.</p>
         ) : (
           <>
             <PriceHistoryChart history={history} />
             <Table
               columns={[
-                { key: 'createdAt', label: 'Date', render: (entry) => formatDate(entry.createdAt) },
+                { key: 'createdAt', label: 'Date / time', render: (entry) => entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '-' },
                 { key: 'previousPrice', label: 'Previous Price', render: (entry) => (entry.previousPrice == null ? '—' : `${formatCurrency(entry.previousPrice)}/kg`) },
                 { key: 'newPrice', label: 'New Price', render: (entry) => (entry.newPrice == null ? 'Reset to PSA' : `${formatCurrency(entry.newPrice)}/kg`) },
                 { key: 'updatedByName', label: 'Updated By', render: (entry) => entry.updatedByName || '—' },

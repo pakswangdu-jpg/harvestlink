@@ -9,6 +9,9 @@ import { createOrder } from '../../services/orderService';
 import { ORDERING_ROLES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import { useCart } from '../../contexts/CartContext';
+import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
+import { matchCommodity } from '../../services/marketPriceService';
+import AdminReferenceNotice from '../../components/market/AdminReferenceNotice';
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -18,6 +21,7 @@ export default function ProductDetails() {
   const { removeItem } = useCart();
   const [product, setProduct] = useState(null);
   const [loadedId, setLoadedId] = useState(null);
+  const { references, referenceError } = useAdminMarketReferences();
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +45,7 @@ export default function ProductDetails() {
   if (!product) return <Navigate to="/marketplace" replace />;
 
   const navItems = getNavItemsForRole(currentUser.role);
+  const adminReference = references.find((reference) => reference.commodityId === matchCommodity(product.name)?.id);
   const isPendingReview = product.priceReview?.status === 'pending';
   const isOutOfStock = !(Number(product.quantity) > 0);
   const canRequest = ORDERING_ROLES.includes(currentUser.role)
@@ -69,6 +74,8 @@ export default function ProductDetails() {
       subtitle="Review your order before placing it."
       pageClassName="checkout-page"
     >
+      {referenceError ? <p className="muted" role="status">{referenceError}</p> : null}
+      {adminReference ? <AdminReferenceNotice reference={adminReference} /> : null}
       {canRequest ? (
         <CheckoutForm
           product={product}

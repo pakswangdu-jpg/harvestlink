@@ -8,6 +8,7 @@ import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 import PrivacyPolicy from '../features/legal/PrivacyPolicy';
 import TermsOfService from '../features/legal/TermsOfService';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
+import AdminProtectedRoute from '../features/auth/AdminProtectedRoute';
 import FarmerDashboard from '../features/farmer/FarmerDashboard';
 import FarmerProducts from '../features/farmer/FarmerProducts';
 import FarmerOrders from '../features/farmer/FarmerOrders';
@@ -97,7 +98,8 @@ export default function AppRoutes() {
         <Route path="/profile" element={<Profile />} />
       </Route>
 
-      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+      <Route element={<AdminProtectedRoute />}>
+        <Route path="/harvestlinkadmin" element={<Navigate to="/admin-dashboard" replace />} />
         <Route path="/admin-dashboard" element={<AdminOverview />} />
         <Route path="/admin-users" element={<AdminUsers />} />
         <Route path="/admin-price-monitoring" element={<AdminPriceMonitoring />} />

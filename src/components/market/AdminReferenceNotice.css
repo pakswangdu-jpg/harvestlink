@@ -1,0 +1,6 @@
+.admin-reference-notice { padding: 10px 0; border-top: 1px solid var(--line); color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.admin-reference-notice > div { display: flex; align-items: flex-start; gap: 6px; color: var(--green-700); }
+.admin-reference-notice svg { flex-shrink: 0; margin-top: 2px; }
+.admin-reference-notice strong { font-size: 13px; font-weight: 600; }
+.admin-reference-notice p { margin: 4px 0 0; font-size: 12px; }
+.admin-reference-notice .admin-reference-reason { color: var(--text); }

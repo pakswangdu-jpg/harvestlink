@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Modal from '../../../components/admin/Modal';
 import Button from '../../../components/admin/Button';
 import Input from '../../../components/admin/Input';
@@ -15,8 +15,10 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false);
 
   const handleConfirm = async () => {
+    if (inFlight.current) return;
     const value = Number(price);
     if (!price || !Number.isFinite(value) || value <= 0) {
       setError('Override price must be greater than 0.');
@@ -30,6 +32,7 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
       setError('A reason is required.');
       return;
     }
+    inFlight.current = true;
     setSaving(true);
     setError('');
     try {
@@ -38,6 +41,7 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
     } catch (confirmError) {
       setError(confirmError.message || 'Could not save this override.');
       setSaving(false);
+      inFlight.current = false;
     }
   };
 
@@ -51,15 +55,15 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
       </div>
 
       <div>
-        <p className="text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]">Current PSA Price</p>
+        <p className="text-[12px] font-medium text-[var(--muted)]">PSA reference</p>
         <p className="mt-0.5 text-[14px] text-[var(--text)]">
-          {commodity.referencePrice == null ? 'No data available' : `${formatCurrency(commodity.referencePrice)} / kg (${commodity.referenceYear})`}
+          {commodity.psaPrice == null ? 'No PSA data available' : `${formatCurrency(commodity.psaPrice)} / kg (PSA ${commodity.psaYear})`}
         </p>
       </div>
 
       <div>
         <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="override-price-input">
-          New Override Price (₱/kg)
+          New Admin reference (₱/kg)
         </label>
         <Input
           id="override-price-input"
@@ -75,6 +79,12 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
       </div>
 
       <div>
+        <label htmlFor="override-reason-choice" className="mb-1 block text-[13px] font-medium">Reason for override</label>
+        <select id="override-reason-choice" className="pm-reason-choice" defaultValue="" disabled={saving} onChange={(event) => setReason(event.target.value)}>
+          <option value="" disabled>Select a reason</option>
+          {['Updated local market reference', 'PSA data unavailable', 'Temporary market condition', 'Data correction'].map((option) => <option key={option}>{option}</option>)}
+          <option value="">Other</option>
+        </select>
         <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="override-reason-input">
           Reason <span className="text-[var(--red-700)]">*</span>
         </label>
@@ -91,7 +101,7 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
 
       <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
         <Button variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button variant="primary" onClick={handleConfirm} disabled={saving}>{saving ? 'Saving…' : 'Confirm'}</Button>
+        <Button variant="primary" onClick={handleConfirm} disabled={saving}>{saving ? 'Saving...' : 'Save override'}</Button>
       </div>
     </div>
   );
@@ -105,15 +115,21 @@ function OverrideForm({ commodity, initialPrice, onClose, onConfirm }) {
 export default function OverrideModal({
   commodity, initialPrice, onClose, onConfirm,
 }) {
+  const saving = useRef(false);
+  const close = () => { if (!saving.current) onClose(); };
+  const confirm = async (...args) => {
+    saving.current = true;
+    try { await onConfirm(...args); } finally { saving.current = false; }
+  };
   return (
-    <Modal open={Boolean(commodity)} onClose={onClose} eyebrow="DTI oversight" title="Update Reference Price">
+    <Modal open={Boolean(commodity)} onClose={close} title="Set manual reference price?" className="pm-modal" dialogLabel="Set manual reference price">
       {commodity ? (
         <OverrideForm
           key={commodity.id}
           commodity={commodity}
           initialPrice={initialPrice}
-          onClose={onClose}
-          onConfirm={onConfirm}
+          onClose={close}
+          onConfirm={confirm}
         />
       ) : null}
     </Modal>

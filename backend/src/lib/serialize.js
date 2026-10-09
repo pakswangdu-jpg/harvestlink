@@ -40,6 +40,7 @@ export function serializeProfile(row) {
     verificationStatus: row.verification_status,
     verificationAcknowledged: row.verification_acknowledged,
     verifiedAt: row.verified_at,
+    verificationRejectionReason: row.verification_rejection_reason || null,
     organizationName: row.organization_name,
     organizationType: row.organization_type,
     contactPerson: row.contact_person,
@@ -126,6 +127,8 @@ export function serializeOrder(row) {
     deliveryFeeTier: row.delivery_fee_tier || null,
     totalAmount: Number(row.total_amount),
     message: row.message || '',
+    cancellationReason: row.cancellation_reason || null,
+    rejectionReason: row.rejection_reason || null,
     paymentMethod: row.payment_method,
     paymentStatus: row.payment_status,
 

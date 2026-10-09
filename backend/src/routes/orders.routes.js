@@ -5,6 +5,7 @@ import {
   cancelOrder,
   createOrder,
   getOrder,
+  getCheckoutQuote,
   listOrders,
   updateOrderLocation,
   updateOrderStatus,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.get('/', requireAuth, listOrders);
 router.post('/', requireAuth, createOrder);
+router.post('/quote', requireAuth, getCheckoutQuote);
 router.get('/:id', requireAuth, getOrder);
 router.patch('/:id/status', requireAuth, updateOrderStatus);
 router.patch('/:id/cancel', requireAuth, cancelOrder);

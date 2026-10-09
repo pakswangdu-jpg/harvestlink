@@ -1,5 +1,5 @@
 import {
-  BadgeAlert, FileBarChart2, Handshake, LayoutGrid, Package, UserRound, Users,
+  BadgeAlert, ChartColumn, Handshake, LayoutGrid, Package, UserRound, Users,
 } from 'lucide-react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import donationsNavIcon from '../../assets/icons/nav-donations-handshake.png';
@@ -16,6 +16,6 @@ export const adminNavItems = [
   { to: '/admin-price-monitoring', label: 'Price Monitoring', icon: BadgeAlert },
   { to: '/admin-orders', label: 'Orders', icon: Package },
   { to: '/admin-donations', label: 'Donations', icon: DonationsNavIcon, bottomIcon: Handshake },
-  { to: '/admin-reports', label: 'Reports', icon: FileBarChart2 },
+  { to: '/admin-reports', label: 'Reports', icon: ChartColumn },
   { to: '/admin-profile', label: 'Profile', icon: UserRound },
 ];

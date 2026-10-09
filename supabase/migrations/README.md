@@ -1,5 +1,28 @@
 # Registered profile coordinates
 
+## Marketplace order integrity
+
+Before deploying the new checkout/backend, run `20261010_order_integrity.sql`
+against the backend's Supabase project. For new installations, run it after
+`supabase/schema.sql` and the existing required migrations. It is rerunnable.
+
+This adds buyer-scoped checkout request keys, cancellation/rejection reasons,
+and a service-role-only order transition function. The function locks the order
+and product together: farmer confirmation deducts stock once, and eligible buyer
+cancellation restores it once. An event-history failure rolls back both writes.
+Stock is still deducted on farmer confirmation, not when a buyer places a
+pending order. This preserves the existing reservation business rule.
+
+Checkout uses `/orders/quote` for its current server-computed total. Submission
+includes that reviewed total and a stable request key. A changed price/fee is a
+conflict, not a silently changed charge; retrying an identical successful request
+returns its original order. Existing callers without a request key remain
+compatible but do not receive the new retry guarantee.
+
+Deploy the frontend and backend together after the migration. Without it, stock
+decisions intentionally fail closed rather than falling back to unsafe writes.
+No live database migration is performed by the application at startup.
+
 ## Shared donations
 
 Run `20261009_shared_donations.sql` in the Supabase SQL Editor for the project
@@ -111,3 +134,25 @@ device location. Distances are straight-line distances; accounts without valid
 saved coordinates have no claimed distance. Distant markers remain on the map,
 but initial framing includes the user and up to eight farmers within 25 km so
 remote directory entries do not force an unusably wide view.
+
+## Admin Account History
+
+Apply `20261010_admin_account_history.sql` before deploying the updated Admin Users flow. It adds rejection reasons and an append-only account action history, and makes status changes and audit writes atomic. Existing verification/account endpoints remain in use; they fail closed if the migration is missing. No accounts or transaction records are deleted. Existing historical actions are not backfilled or invented. `suspended` remains the stored value for the UI label Deactivated.
+
+If the migration has not been applied, User details remains read-only: profile,
+documents, and activity counts are available, but history is explicitly marked
+unavailable and account-change controls are disabled. This is not a substitute
+for applying the migration. Run the complete SQL file in the connected project's
+Supabase SQL Editor, then reopen User details. The migration reloads the schema
+cache; it does not create accounts or alter existing account statuses.
+
+## Admin Market Price Notifications
+
+Apply `20261010_market_price_notifications.sql` after the base schema. It adds
+the `market_price` notification type and an override trigger. Setting/changing a
+reference price sends an in-app notification to every active buyer, farmer, and
+stakeholder in the same transaction. Saving the same price/year again does not
+duplicate notifications. A failed notification insert rolls back the override.
+Existing overrides are not backfilled. Product selling prices are never changed.
+The migration is rerunnable and must be applied for automatic notifications;
+marketplace reference labels use the existing overrides API independently.

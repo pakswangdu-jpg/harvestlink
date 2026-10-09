@@ -26,11 +26,14 @@ const STATUS_COLORS = {
 };
 const DEFAULT_COLOR = 'var(--muted)';
 
-function AxisTick({ x, y, payload }) {
+function AxisTick({ x, y, payload, report = false, slanted = false }) {
+  if (slanted) {
+    return <g transform={`translate(${x},${y + 10})`}><text transform="rotate(-35)" textAnchor="end" fontSize={12} fill="var(--reports-secondary)">{payload.value}</text></g>;
+  }
   const words = String(payload.value).split(' ');
   return (
     <g transform={`translate(${x},${y})`}>
-      <text textAnchor="middle" fontSize={12} fill="var(--muted)">
+      <text textAnchor="middle" fontSize={12} fill={report ? 'var(--reports-secondary)' : 'var(--muted)'}>
         {words.map((word) => (
           <tspan key={word} x={0} dy={14}>{word}</tspan>
         ))}
@@ -70,28 +73,32 @@ function buildMonthOptions(records, dateKey) {
 
 
 
-export default function StatusDistributionChart({ records, dateKey = 'createdAt', computeBreakdown }) {
+export default function StatusDistributionChart({ records, dateKey = 'createdAt', computeBreakdown, presentation, title, description, emptyMessage, hidePeriodFilter = false }) {
+  const report = presentation === 'report';
   const [activeIndex, setActiveIndex] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(ALL_TIME);
+  const [plotWidth, setPlotWidth] = useState(0);
 
   const monthOptions = useMemo(() => buildMonthOptions(records, dateKey), [records, dateKey]);
 
   const filteredRecords = useMemo(() => {
-    if (selectedMonth === ALL_TIME) return records;
+    if (hidePeriodFilter || selectedMonth === ALL_TIME) return records;
     const option = monthOptions.find((item) => item.value === selectedMonth);
     if (!option) return records;
     return records.filter((record) => {
       const date = new Date(record[dateKey]);
       return date.getFullYear() === option.year && date.getMonth() === option.month;
     });
-  }, [records, monthOptions, selectedMonth, dateKey]);
+  }, [records, monthOptions, selectedMonth, dateKey, hidePeriodFilter]);
 
   const data = useMemo(() => computeBreakdown(filteredRecords), [computeBreakdown, filteredRecords]);
+  const slantedLabels = report && plotWidth > 0 && plotWidth < 380 && data.length > 3;
 
   return (
     <>
-      <div className="mb-3 flex justify-end">
-        <Select
+      <div className={report ? 'reports-chart-header' : 'mb-3 flex justify-end'}>
+        {report && title ? <div><h2>{title}</h2>{description ? <p className="reports-description">{description}</p> : null}</div> : null}
+        {!hidePeriodFilter ? <Select
           value={selectedMonth}
           onChange={(event) => setSelectedMonth(event.target.value)}
           aria-label="Filter by month"
@@ -101,14 +108,14 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
           {monthOptions.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
-        </Select>
+        </Select> : null}
       </div>
       {data.length ? (
-        <div style={{ height: CHART_HEIGHT }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div className={report ? 'reports-status-plot' : undefined} style={{ height: CHART_HEIGHT }}>
+          <ResponsiveContainer width="100%" height="100%" onResize={report ? (width) => setPlotWidth(width) : undefined}>
             <BarChart
               data={data}
-              margin={{ top: 20, right: 4, left: 4, bottom: 0 }}
+              margin={{ top: report ? 28 : 20, right: report ? 12 : 4, left: report ? 12 : 4, bottom: 0 }}
               onMouseMove={(state) => setActiveIndex(state?.isTooltipActive ? state.activeTooltipIndex : null)}
               onMouseLeave={() => setActiveIndex(null)}
             >
@@ -118,15 +125,15 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
                 axisLine={{ stroke: 'var(--line)' }}
                 tickLine={false}
                 interval={0}
-                height={36}
-                tick={<AxisTick />}
+                height={slantedLabels ? 62 : report ? 46 : 36}
+                tick={<AxisTick report={report} slanted={slantedLabels} />}
               />
               <Tooltip cursor={{ fill: 'var(--soft)' }} content={<ChartTooltip />} />
-              <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={40} animationDuration={300} animationEasing="ease-out">
+              <Bar dataKey="count" radius={[3, 3, 0, 0]} maxBarSize={40} isAnimationActive={!report} animationDuration={300} animationEasing="ease-out">
                 {data.map((entry, index) => (
                   <Cell
                     key={entry.key}
-                    fill={STATUS_COLORS[entry.status] || DEFAULT_COLOR}
+                    fill={report && STATUS_COLORS[entry.status] ? `var(--reports-${entry.status})` : STATUS_COLORS[entry.status] || DEFAULT_COLOR}
                     opacity={activeIndex === null || activeIndex === index ? 1 : 0.55}
                     style={{ transition: 'opacity 0.15s ease' }}
                   />
@@ -137,7 +144,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
           </ResponsiveContainer>
         </div>
       ) : (
-        <EmptyState title="No data yet" message="Nothing to report here for this period." />
+        <EmptyState compact={report} title="No data yet" message={emptyMessage || 'Nothing to report here for this period.'} />
       )}
     </>
   );

@@ -4,8 +4,10 @@ import apiRoutes from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { apiRateLimit } from './middleware/apiRateLimit.js';
 import { getAllowedOrigins } from './lib/appUrls.js';
+import { getTrustedProxies } from './lib/adminNetwork.js';
 
 const app = express();
+app.set('trust proxy', getTrustedProxies());
 
 function normalizeOrigin(value) {
   return value.trim().replace(/\/+$/, '').toLowerCase();

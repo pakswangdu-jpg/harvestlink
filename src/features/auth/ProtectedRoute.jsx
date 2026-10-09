@@ -33,7 +33,7 @@ export default function ProtectedRoute({ allowedRoles }) {
   }
 
   if (!allowedRoles.includes(currentUser.role)) {
-    return <Navigate to={ROLE_DASHBOARDS[currentUser.role] || '/'} replace />;
+    return <Navigate to={currentUser.role === 'admin' ? '/' : ROLE_DASHBOARDS[currentUser.role] || '/'} replace />;
   }
 
   return <Outlet />;

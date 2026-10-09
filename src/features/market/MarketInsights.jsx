@@ -16,6 +16,8 @@ import {
 } from '../../services/marketPriceService';
 import { formatCurrency } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
+import AdminReferenceNotice from '../../components/market/AdminReferenceNotice';
 
 export default function MarketInsights() {
   const { currentUser } = useAuth();
@@ -23,6 +25,8 @@ export default function MarketInsights() {
   const [commodityId, setCommodityId] = useState(MARKET_COMMODITIES[0].id);
   const [result, setResult] = useState({ commodityId: null, points: null, error: '' });
   const commodity = getCommodityById(commodityId);
+  const { references, referenceError } = useAdminMarketReferences();
+  const adminReference = references.find((reference) => reference.commodityId === commodityId);
   const isLoading = result.commodityId !== commodityId;
   const points = isLoading ? null : result.points;
   const error = isLoading ? '' : result.error;
@@ -43,7 +47,7 @@ export default function MarketInsights() {
     return () => {
       cancelled = true;
     };
-  }, [commodityId]);
+  }, [commodityId, adminReference?.updatedAt]);
 
 
 
@@ -95,9 +99,11 @@ export default function MarketInsights() {
         </div>
       </section>
 
+      {referenceError ? <p className="muted" role="status">{referenceError}</p> : null}
+      {adminReference ? <AdminReferenceNotice reference={adminReference} /> : null}
       <section className="stats-grid">
         <StatCard
-          label="Latest annual average"
+          label={latest?.isOverride ? 'Admin reference price' : 'Latest annual average'}
           value={latest ? formatCurrency(latest.price) : '—'}
           icon={<img src={annualAverageIcon} alt="" width={20} height={20} className="h-5 w-5 object-contain" />}
           iconClassName="stat-icon-transparent"

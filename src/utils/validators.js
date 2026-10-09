@@ -189,6 +189,7 @@ export function validateCheckoutForm(values, product, currentUser) {
   const quantity = toPositiveNumber(values.quantity);
 
   if (quantity === null) errors.quantity = 'Enter a positive request quantity.';
+  else if (Number(quantity.toFixed(2)) !== quantity) errors.quantity = 'Use no more than two decimal places for the quantity.';
   else if (product && quantity > Number(product.quantity)) {
     errors.quantity = `Only ${product.quantity} ${product.unit} available.`;
   } else if (product?.sellingType === 'wholesale' && product.moq && quantity < Number(product.moq)) {

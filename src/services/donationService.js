@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 
 export const getDonations = () => apiClient.get('/donations');
+export const getAdminDonationPage = (filters) => apiClient.get(`/donations?${new URLSearchParams(filters)}`);
 export const getDonationById = (id) => apiClient.get(`/donations/${encodeURIComponent(id)}`);
 export const getAvailableDonations = () => apiClient.get('/donations?status=available');
 export const getDonationsByFarmer = (id) => apiClient.get(`/donations?farmerId=${encodeURIComponent(id)}`);

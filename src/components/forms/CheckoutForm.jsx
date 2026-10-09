@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Banknote, Check, MapPin, Truck,
 } from 'lucide-react';
@@ -11,12 +11,13 @@ import QuantityStepper from '../checkout/QuantityStepper';
 import OrderSummaryPanel from '../checkout/OrderSummaryPanel';
 import CheckoutTrustRow from '../checkout/CheckoutTrustRow';
 import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
-import { estimateDeliveryFee, haversineKm } from '../../utils/geo';
+import { haversineKm } from '../../utils/geo';
 import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
-import { getLalamoveQuote } from '../../services/lalamoveService';
+import { getCheckoutQuote } from '../../services/orderService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
 import { formatQuantity } from '../../utils/formatters';
 import { getApplicableUnitPrice, isWholesaleQuantity } from '../../../backend/shared/pricing.js';
+import '../checkout/CheckoutReview.css';
 
 const MESSAGE_MAX_LENGTH = 200;
 
@@ -54,16 +55,6 @@ const PAYMENT_METHOD_DESCRIPTIONS = {
 
 
 
-
-function buildFallbackEstimate(originMunicipality, deliveryMunicipality) {
-  return {
-    fee: estimateDeliveryFee(originMunicipality, deliveryMunicipality, 'farmer_delivery'),
-    distanceKm: haversineKm(getMunicipalityCoords(originMunicipality), getMunicipalityCoords(deliveryMunicipality)),
-    durationMinutes: null,
-    tierLabel: 'Estimated',
-    source: 'straight-line',
-  };
-}
 
 
 
@@ -103,10 +94,20 @@ export default function CheckoutForm({
   }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const requestRef = useRef(null);
+  const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
+  const [quoted, setQuoted] = useState(null);
+  const [quoteError, setQuoteError] = useState('');
+  const [quoteRefresh, setQuoteRefresh] = useState(0);
+  const [reviewedKey, setReviewedKey] = useState('');
+  const quoteKey = JSON.stringify([product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality]);
+  const quote = quoted?.key === quoteKey ? quoted.data : null;
+  const reviewKey = JSON.stringify([quoteKey, quote?.total, values.paymentMethod, values.message]);
+  const isReviewed = Boolean(quote && reviewedKey === reviewKey);
 
   const originMunicipality = matchMunicipality(product.location);
   const isPickup = values.deliveryMethod === 'buyer_pickup';
-  const isCourier = values.deliveryMethod === 'courier';
   const stock = Number(product.quantity) || 0;
   const availablePaymentMethods = product.farmerGcashEnabled
     ? PAYMENT_METHODS
@@ -115,6 +116,19 @@ export default function CheckoutForm({
   const [feeEstimate, setFeeEstimate] = useState(null);
   const [isEstimating, setIsEstimating] = useState(false);
   const [estimateError, setEstimateError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setQuoteError('');
+    setQuoted(null);
+    if (!(Number(values.quantity) > 0)) return undefined;
+    const timer = setTimeout(() => {
+      getCheckoutQuote({ productId: product.id, quantity: values.quantity, deliveryMethod: values.deliveryMethod, deliveryMunicipality: values.deliveryMunicipality })
+        .then((data) => { if (!cancelled) setQuoted({ key: quoteKey, data }); })
+        .catch((error) => { if (!cancelled) setQuoteError(error.message || 'Unable to load the order total. Try again.'); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality, quoteKey, quoteRefresh]);
 
 
 
@@ -181,6 +195,7 @@ export default function CheckoutForm({
 
 
   useEffect(() => {
+    if (!isPickup) return undefined;
     if (isPickup && !buyerCoords) {
 
       setFeeEstimate(null);
@@ -195,33 +210,6 @@ export default function CheckoutForm({
 
 
 
-
-    if (isCourier) {
-      getLalamoveQuote(product.id, values.deliveryMunicipality)
-        .then((result) => {
-          if (cancelled) return;
-          setFeeEstimate({
-            fee: result.fee,
-            distanceKm: result.distanceKm,
-            durationMinutes: result.durationMinutes,
-            tierLabel: 'Lalamove',
-            source: 'lalamove',
-            quotationId: result.quotationId,
-          });
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setEstimateError('Delivery quotation unavailable. Please try again.');
-          setFeeEstimate(null);
-        })
-        .finally(() => {
-          if (!cancelled) setIsEstimating(false);
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }
 
     getDeliveryFeeEstimate({
       originMunicipality,
@@ -241,11 +229,7 @@ export default function CheckoutForm({
             ? 'Could not calculate the distance to the farm — showing a rough estimate instead.'
             : 'Could not reach the delivery pricing service — showing a rough estimate instead.'
         );
-        setFeeEstimate(
-          isPickup
-            ? buildPickupFallbackEstimate(originMunicipality, buyerCoords)
-            : buildFallbackEstimate(originMunicipality, values.deliveryMunicipality)
-        );
+        setFeeEstimate(buildPickupFallbackEstimate(originMunicipality, buyerCoords));
       })
       .finally(() => {
         if (!cancelled) setIsEstimating(false);
@@ -254,17 +238,18 @@ export default function CheckoutForm({
     return () => {
       cancelled = true;
     };
-  }, [originMunicipality, values.deliveryMunicipality, values.deliveryMethod, isPickup, isCourier, buyerCoords, product.id]);
+  }, [originMunicipality, values.deliveryMunicipality, values.deliveryMethod, isPickup, buyerCoords, product.id]);
 
   const updateField = (field, value) => {
+    if (submittingRef.current || hasPlacedOrder) return;
     setValues((previous) => ({ ...previous, [field]: value }));
     setErrors((previous) => ({ ...previous, [field]: undefined, form: undefined }));
   };
 
   const quantityNumber = Number(values.quantity) || 0;
-  const unitPrice = getApplicableUnitPrice(product, quantityNumber);
-  const isWholesalePrice = isWholesaleQuantity(product, quantityNumber);
-  const subtotal = quantityNumber * unitPrice;
+  const unitPrice = quote?.unitPrice ?? getApplicableUnitPrice(product, quantityNumber);
+  const isWholesalePrice = quote?.isWholesalePrice ?? isWholesaleQuantity(product, quantityNumber);
+  const subtotal = quote?.subtotal ?? quantityNumber * unitPrice;
   const isGcash = values.paymentMethod === 'gcash';
   const deliveryMethodLabel = DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
 
@@ -279,16 +264,27 @@ export default function CheckoutForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current || hasPlacedOrder || orderPlaced) return;
     const nextErrors = validateCheckoutForm(values, product, currentUser);
     if (hasErrors(nextErrors)) {
       setErrors(nextErrors);
       return;
     }
+    if (!quote || !isReviewed) {
+      setErrors((previous) => ({ ...previous, form: 'Review the current order total before placing your order.' }));
+      return;
+    }
+    const signature = JSON.stringify(values);
+    if (requestRef.current?.signature !== signature) requestRef.current = { signature, key: crypto.randomUUID() };
+    submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onSubmit(values);
+      await onSubmit({ ...values, checkoutKey: requestRef.current.key, expectedTotal: quote.total });
+      setHasPlacedOrder(true);
       setIsSubmitting(false);
     } catch (error) {
+      submittingRef.current = false;
+      if (error.status === 409) { setReviewedKey(''); setQuoteRefresh((value) => value + 1); }
       setErrors((previous) => ({ ...previous, form: error.message }));
       setIsSubmitting(false);
     }
@@ -296,6 +292,9 @@ export default function CheckoutForm({
 
   return (
     <form className="checkout-grid" onSubmit={handleSubmit}>
+      <ol className="checkout-flow" aria-label="Checkout steps">
+        {['Cart', 'Delivery method', 'Payment', 'Review order', 'Place order'].map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}
+      </ol>
       <div className="checkout-main">
         <CheckoutProductCard product={product} />
 
@@ -429,17 +428,21 @@ export default function CheckoutForm({
         deliveryMethod={values.deliveryMethod}
         deliveryMethodLabel={deliveryMethodLabel}
         deliveryMunicipality={!isPickup ? values.deliveryMunicipality : null}
-        estimate={feeEstimate}
-        isLoading={isEstimating}
-        error={estimateError}
+        estimate={isPickup ? feeEstimate || quote?.estimate : quote?.estimate}
+        isLoading={!quote && !quoteError && quantityNumber > 0 || isPickup && isEstimating}
+        error={quoteError || (isPickup ? estimateError : '')}
         isPickup={isPickup}
         locationStatus={locationStatus}
         locationNotice={locationNotice}
         onRetryLocation={requestBuyerLocation}
         isSubmitting={isSubmitting}
-        orderPlaced={orderPlaced}
+        orderPlaced={orderPlaced || hasPlacedOrder}
         isGcash={isGcash}
         paymentMethod={values.paymentMethod}
+        quote={quote}
+        isReviewed={isReviewed}
+        onReview={(checked) => setReviewedKey(checked ? reviewKey : '')}
+        onRetryQuote={() => setQuoteRefresh((value) => value + 1)}
       />
 
       <CheckoutTrustRow />

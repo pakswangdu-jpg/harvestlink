@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 
 
 
-export default function Modal({ open, onClose, eyebrow, title, children }) {
+export default function Modal({ open, onClose, eyebrow, title, children, className = '', dialogLabel }) {
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -19,7 +19,7 @@ export default function Modal({ open, onClose, eyebrow, title, children }) {
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="fixed inset-0 z-50 bg-black/30"
+          className={`fixed inset-0 z-50 bg-black/30 ${className}`.trim()}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -27,6 +27,9 @@ export default function Modal({ open, onClose, eyebrow, title, children }) {
           onClick={onClose}
         >
           <motion.div
+            role={dialogLabel ? 'dialog' : undefined}
+            aria-modal={dialogLabel ? true : undefined}
+            aria-label={dialogLabel}
             className="absolute right-0 top-0 flex h-full w-full max-w-[520px] flex-col border-l border-[var(--line)] bg-[var(--surface-elevated)]"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}

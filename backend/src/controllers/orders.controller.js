@@ -1,14 +1,33 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeOrder, serializeDeliveryEvent } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
-import { reduceProductQuantity, restoreProductQuantity } from './products.controller.js';
+import { createHash } from 'node:crypto';
 import { getDeliverySequence, getNextDeliveryStatus, isCancellable } from '../lib/deliverySequence.js';
-import { matchMunicipality } from '../lib/geo.js';
-import { calculateDeliveryFee } from '../lib/deliveryFee.js';
 import { createLalamoveDeliveryForOrder } from './lalamove.controller.js';
 import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
-import { getApplicableUnitPrice } from '../../shared/pricing.js';
+import { buildCheckoutQuote } from '../lib/checkoutQuote.js';
+import { queryAdminOrders } from '../lib/adminOrderQuery.js';
+
+async function transitionOrder(actor, orderId, action, reason) {
+  const { data, error } = await supabaseAdmin.rpc('transition_marketplace_order', {
+    p_actor: actor, p_order: orderId, p_action: action, p_reason: reason || null,
+  });
+  if (error) {
+    if (error.code === 'PGRST202' || error.code === '42883') {
+      throw new ApiError('Order safeguards are not configured. Please contact support.', 503);
+    }
+    throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+  }
+  return data;
+}
+
+export async function getCheckoutQuote(req, res) {
+  const { data: product, error } = await supabaseAdmin.from('products').select('*').eq('id', req.body.productId).single();
+  if (error || !product) throw new ApiError('Product was not found.', 404);
+  if (req.profile.role === 'admin' || product.farmer_id === req.profile.id) throw new ApiError('You cannot order this product.', 403);
+  res.json(await buildCheckoutQuote(product, req.body));
+}
 
 async function hydrateFarmerProfiles(orders) {
   const farmerIds = [...new Set(orders.map((order) => order.farmer_id).filter(Boolean))];
@@ -63,6 +82,10 @@ function assertParty(req, order) {
 
 
 export async function listOrders(req, res) {
+  if (req.query.page !== undefined) {
+    const { rows, ...page } = await queryAdminOrders(req.profile, req.query);
+    return res.json({ ...page, orders: (await hydrateFarmerProfiles(rows)).map(serializeOrder) });
+  }
   let query = supabaseAdmin.from('orders').select('*').order('created_at', { ascending: false });
 
   if (req.profile.role === 'admin') {
@@ -84,12 +107,13 @@ export async function getOrder(req, res) {
 
 
 
-  const { data: events } = await supabaseAdmin
+  const { data: events, error: eventsError } = await supabaseAdmin
     .from('order_delivery_events')
     .select('*')
     .eq('order_id', order.id)
     .order('occurred_at', { ascending: true });
 
+  if (eventsError) throw new ApiError('Unable to load order history. Try again.', 500);
   res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
 }
 
@@ -101,6 +125,24 @@ export async function createOrder(req, res) {
   if (req.profile.role === 'admin') throw new ApiError('Admin accounts cannot place orders.', 403);
 
   const values = req.body;
+  const checkoutKey = values.checkoutKey;
+  if (checkoutKey && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutKey)) {
+    throw new ApiError('Invalid checkout request key.', 400);
+  }
+  const fingerprint = createHash('sha256').update(JSON.stringify([
+    values.productId, Number(values.quantity), values.paymentMethod, values.deliveryMethod,
+    values.deliveryMethod === 'buyer_pickup' ? null : values.deliveryMunicipality, values.message?.trim() || '',
+  ])).digest('hex');
+  const findPrevious = async () => {
+    const { data, error } = await supabaseAdmin.from('orders').select('*').eq('buyer_id', req.profile.id).eq('checkout_key', checkoutKey).maybeSingle();
+    if (error) throw new ApiError(error.message, 400);
+    if (data && data.checkout_fingerprint !== fingerprint) throw new ApiError('This checkout request was already used for another order.', 409);
+    return data;
+  };
+  if (checkoutKey) {
+    const previous = await findPrevious();
+    if (previous) return res.json(serializeOrder(previous));
+  }
   const { data: product, error: productError } = await supabaseAdmin
     .from('products')
     .select('*')
@@ -116,7 +158,7 @@ export async function createOrder(req, res) {
   }
 
   const quantity = Number(values.quantity);
-  if (!(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
+  if (!Number.isFinite(quantity) || !(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
   if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
   if (product.selling_type === 'wholesale' && product.moq && quantity < Number(product.moq)) {
     throw new ApiError(`Minimum order quantity is ${product.moq} ${product.unit}.`, 400);
@@ -125,15 +167,19 @@ export async function createOrder(req, res) {
 
   const { data: farmer } = await supabaseAdmin
     .from('profiles')
-    .select('name, avatar_url, farm_name, verification_status, gcash_account_name, gcash_qr_url')
+    .select('name, avatar_url, farm_name, verification_status, account_status, gcash_account_name, gcash_qr_url')
     .eq('id', product.farmer_id)
     .single();
+  if (farmer?.account_status === 'suspended') throw new ApiError('This farmer is not currently accepting orders.', 400);
   if (values.paymentMethod === 'gcash' && (!farmer?.gcash_account_name || !farmer?.gcash_qr_url)) {
     throw new ApiError('This farmer has not finished setting up GCash payments. Please choose COD.', 400);
   }
 
-  const originMunicipality = matchMunicipality(product.location);
-  const deliveryMunicipality = values.deliveryMethod === 'buyer_pickup' ? originMunicipality : values.deliveryMunicipality;
+  const quote = await buildCheckoutQuote(product, values);
+  const { originMunicipality, deliveryMunicipality, unitPrice } = quote;
+  if (values.expectedTotal !== undefined && (!Number.isFinite(Number(values.expectedTotal)) || Math.abs(Number(values.expectedTotal) - quote.total) > 0.001)) {
+    throw new ApiError('The price or delivery fee changed. Refresh the order summary and review the updated total before placing your order.', 409);
+  }
 
 
 
@@ -142,13 +188,8 @@ export async function createOrder(req, res) {
     distanceKm: deliveryDistanceKm,
     durationMinutes: deliveryDurationMinutes,
     tierLabel: deliveryFeeTier,
-  } = await calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
+  } = quote.estimate;
   const now = new Date().toISOString();
-  const unitPrice = getApplicableUnitPrice({
-    price: product.price,
-    wholesalePrice: product.wholesale_price,
-    wholesaleMinQuantity: product.wholesale_min_quantity,
-  }, quantity);
 
   const row = {
     product_id: product.id,
@@ -175,7 +216,8 @@ export async function createOrder(req, res) {
     delivery_distance_km: deliveryDistanceKm,
     delivery_duration_minutes: deliveryDurationMinutes,
     delivery_fee_tier: deliveryFeeTier,
-    total_amount: quantity * unitPrice + deliveryFee,
+    total_amount: quote.total,
+    ...(checkoutKey ? { checkout_key: checkoutKey, checkout_fingerprint: fingerprint } : {}),
     message: values.message?.trim() || '',
     payment_method: values.paymentMethod,
 
@@ -192,7 +234,13 @@ export async function createOrder(req, res) {
   };
 
   const { data: order, error } = await supabaseAdmin.from('orders').insert(row).select().single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) {
+    if (checkoutKey && error.code === '23505') {
+      const previous = await findPrevious();
+      if (previous) return res.json(serializeOrder(previous));
+    }
+    throw new ApiError(error.message, 400);
+  }
 
   await supabaseAdmin.from('order_delivery_events').insert({
     order_id: order.id,
@@ -222,17 +270,7 @@ export async function updateOrderStatus(req, res) {
   const { status } = req.body;
   if (!['confirmed', 'rejected'].includes(status)) throw new ApiError('Invalid order status.', 400);
 
-  if (status === 'confirmed') {
-    await reduceProductQuantity(existing.product_id, existing.quantity);
-  }
-
-  const { data: order, error } = await supabaseAdmin
-    .from('orders')
-    .update({ status })
-    .eq('id', existing.id)
-    .select()
-    .single();
-  if (error) throw new ApiError(error.message, 400);
+  const order = await transitionOrder(req.profile.id, existing.id, status, req.body.reason);
 
   await createNotification({
     userId: order.buyer_id,
@@ -270,17 +308,8 @@ export async function cancelOrder(req, res) {
   if (req.profile.id !== existing.buyer_id) throw new ApiError('You do not have permission to cancel this order.', 403);
   if (!isCancellable(existing)) throw new ApiError('This order can no longer be cancelled.', 400);
 
-  if (existing.status === 'confirmed') {
-    await restoreProductQuantity(existing.product_id, existing.quantity);
-  }
-
-  const { data: order, error } = await supabaseAdmin
-    .from('orders')
-    .update({ status: 'cancelled', delivery_status: 'cancelled', current_lat: null, current_lng: null, location_updated_at: null })
-    .eq('id', existing.id)
-    .select()
-    .single();
-  if (error) throw new ApiError(error.message, 400);
+  const order = await transitionOrder(req.profile.id, existing.id, 'cancelled', req.body?.reason);
+  await createNotification({ userId: order.farmer_id, type: 'order', title: 'Order cancelled', message: `${order.buyer_name} cancelled their order for ${order.product_name}.`, link: `/orders/${order.id}` });
   res.json(serializeOrder(order));
 }
 
@@ -327,8 +356,10 @@ export async function advanceDelivery(req, res) {
     ...(isFinalStep ? { current_lat: null, current_lng: null, location_updated_at: null } : null),
   };
 
-  const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id).select().single();
+  const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id)
+    .eq('status', existing.status).eq('delivery_status', existing.delivery_status).select().maybeSingle();
   if (error) throw new ApiError(error.message, 400);
+  if (!order) throw new ApiError('Order progress changed. Refresh before trying again.', 409);
 
 
 
@@ -368,6 +399,9 @@ export async function advanceDelivery(req, res) {
       message: `Your order from ${order.farmer_name} is ready for pickup.`,
       link: `/orders/${order.id}`,
     });
+  }
+  if (nextStatus === 'packed') {
+    await createNotification({ userId: order.buyer_id, type: 'order', title: 'Order packed', message: `${order.farmer_name} packed your order for ${order.product_name}.`, link: `/orders/${order.id}` });
   }
   if (isTransitStep) {
     await createNotification({

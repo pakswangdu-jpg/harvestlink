@@ -87,7 +87,76 @@ it reads `rootDir: backend` automatically) or configure manually:
 - **Environment variables**: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
   `CORS_ALLOWED_ORIGIN` (your deployed Vercel URL), `NODE_ENV=production`
 
-## Folder structure
+## Admin Network Allowlist
+
+Admin API access now requires a valid Supabase session, an active Admin profile,
+and an exact match against backend-only `ADMIN_ALLOWED_IPS`. Missing, malformed,
+private, wildcard or empty production entries deny access. The frontend does not
+receive the allowlist. No database migration is needed.
+
+Set these in the **Render backend service**, not Vercel:
+
+```env
+ADMIN_ALLOWED_IPS=YOUR.PUBLIC.IPV4
+TRUSTED_PROXY_IPS=VERIFIED.INGRESS.PROXY.IP/32
+```
+
+Comma-separated public IPv4 addresses are supported, with optional whitespace.
+The allowed address is the Admin client's public network address, not the backend
+server address. `192.168.1.9` is a private LAN address and is not a production entry.
+The current requested address was saved in the gitignored local backend `.env`;
+this does **not** configure Render. Save the corresponding Render variables and
+restart/redeploy the backend. Recheck the public address when the ISP changes it.
+
+**Proxy trust must be verified for the deployed Render ingress.** Set only the
+actual ingress proxy addresses/CIDRs that sanitize or append forwarded headers.
+Include any verified intermediate proxies needed by that ingress chain. Do not
+guess Render outbound ranges, trust every proxy, or use a fixed hop count without
+a verified topology. Express resolves `req.ip` right-to-left through this trusted
+chain; `x-admin-ip` and arbitrary leftmost `X-Forwarded-For` entries are not used.
+See [Express proxy guidance](https://expressjs.com/en/guide/behind-proxies/) and
+[Render's ingress overview](https://render.com/articles/how-render-handles-ddos-attacks).
+With no trusted proxies, Express uses the socket peer and ignores forwarded
+headers. On Render, missing proxy configuration additionally denies Admin access.
+Invalid proxy settings fail backend startup instead of enabling blanket trust.
+
+Verify from the deployed backend with both an allowed and a different public
+network, including spoofed `X-Forwarded-For` headers, before relying on this gate.
+Never add the proxy's address to `ADMIN_ALLOWED_IPS` just to make access work:
+that would authorize other visitors using the same proxy. This repository cannot
+verify or update the live Render proxy chain automatically.
+
+`/harvestlinkadmin` displays the existing login form for signed-out users, then checks
+`/api/auth/admin-access` before redirecting into the Admin dashboard. An Admin session
+on `/` does not redirect the public site. Normal `/login` with an Admin account shows
+the Admin portal prompt instead of entering the workspace. Internal Admin routes
+remain available after authorization; signed-out deep links return to the dedicated
+entry. Every Admin route has the same security gate;
+every authenticated Admin API request is checked, including shared list endpoints.
+The only bootstrap exception is **GET `/api/profiles/me`**, which returns the
+caller's own profile so existing session restoration works; it never returns
+marketplace Admin records. Profile writes are not exempt. Denials return a generic
+403 `ADMIN_NETWORK_NOT_ALLOWED`, clear frontend read caches, and show the restricted
+screen without disclosing IP addresses. Background/focus checks do not reset an
+already-authorized page's forms, but a failed check removes Admin content.
+
+For explicit local development only:
+
+```env
+ADMIN_ALLOWED_IPS=127.0.0.1,192.168.1.9
+ADMIN_ALLOW_LOCAL_IPS=true
+```
+
+List the connecting Admin device's address, not just the local server's address.
+This option is ignored when `NODE_ENV=production` or `RENDER=true`. It does not
+allow every IP, and cannot make LAN addresses work through public Render ingress.
+
+This gate protects the HarvestLink HTTP API and Admin route UI. Supabase Auth
+remains the session provider. Direct Supabase/storage access continues to depend
+on its existing RLS/storage policies; this Express gate is not a replacement for
+those policies or infrastructure-level security.
+
+## Folder Structure
 
 ```
 backend/

@@ -7,6 +7,7 @@ import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import OrderReasonDialog from '../../components/orders/OrderReasonDialog';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
@@ -459,10 +460,11 @@ export default function FarmerOrders() {
     }
   };
 
-  const confirmReject = () => {
+  const confirmReject = async (reason) => {
     if (!rejectTarget) return;
-    run(() => updateOrderStatus(rejectTarget.id, 'rejected'), 'Order rejected.');
-    setRejectTarget(null);
+    const success = await run(() => updateOrderStatus(rejectTarget.id, 'rejected', reason), 'Order rejected.');
+    if (success) setRejectTarget(null);
+    return success;
   };
 
   const confirmPurchase = async () => {
@@ -745,11 +747,10 @@ export default function FarmerOrders() {
 
       <ConfirmPurchaseDialog order={confirmTarget} onCancel={() => setConfirmTarget(null)} onConfirm={confirmPurchase} submitting={confirming} />
 
-      <ConfirmDialog
+      <OrderReasonDialog
         open={Boolean(rejectTarget)}
+        kind="reject"
         title={rejectTarget ? `Reject order from ${rejectTarget.buyerName}?` : ''}
-        message="This order will be marked as rejected and the buyer will be notified. This action cannot be undone."
-        confirmLabel="Reject Order"
         onConfirm={confirmReject}
         onCancel={() => setRejectTarget(null)}
       />

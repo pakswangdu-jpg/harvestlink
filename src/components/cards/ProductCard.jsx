@@ -10,6 +10,7 @@ import { getExpiryStatus, ORDERING_ROLES } from '../../utils/constants';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
+import AdminReferenceNotice from '../market/AdminReferenceNotice';
 
 
 
@@ -28,7 +29,7 @@ const ADDED_FEEDBACK_MS = 1500;
 
 
 
-export default function ProductCard({ product, actions, showStatus = false, className = '' }) {
+export default function ProductCard({ product, actions, showStatus = false, className = '', marketReference }) {
   const { currentUser } = useAuth();
   const { addItem, removeItem, isInCart } = useCart();
   const { showToast } = useToast();
@@ -177,6 +178,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
             </div>
           </div>
 
+          {marketReference ? <AdminReferenceNotice reference={marketReference} /> : null}
           {hasWholesalePricing(product) ? (
             <p className="product-card-wholesale-price">
               Wholesale available: {formatCurrency(product.wholesalePrice)}/{product.unit} for {formatQuantity(product.wholesaleMinQuantity)}+ {product.unit}

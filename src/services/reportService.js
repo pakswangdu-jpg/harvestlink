@@ -3,6 +3,61 @@ const ORDER_STATUSES = ['pending', 'confirmed', 'completed', 'rejected', 'cancel
 const DONATION_STATUSES = ['available', 'requested', 'scheduled', 'completed', 'cancelled'];
 const USER_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
+export const REPORT_PERIODS = [['7d', '7 days'], ['30d', '30 days'], ['6m', 'Last 6 months'], ['1y', '1 year'], ['all', 'All time']];
+const MANILA_OFFSET = 8 * 60 * 60 * 1000;
+const manilaDate = (value) => new Date(new Date(value).getTime() + MANILA_OFFSET);
+const dateKey = (date) => date.toISOString().slice(0, 10);
+
+export function getReportPeriodStart(period, now = new Date()) {
+  const local = manilaDate(now);
+  if (period === 'all') return null;
+  if (period === '7d' || period === '30d') {
+    local.setUTCHours(0, 0, 0, 0);
+    local.setUTCDate(local.getUTCDate() - (period === '7d' ? 6 : 29));
+  } else {
+    local.setUTCDate(1); local.setUTCHours(0, 0, 0, 0);
+    local.setUTCMonth(local.getUTCMonth() - (period === '1y' ? 11 : 5));
+  }
+  return new Date(local.getTime() - MANILA_OFFSET);
+}
+
+export function filterReportRecords(records, period, now = new Date()) {
+  if (period === 'all') return records;
+  const start = getReportPeriodStart(period, now).getTime();
+  return records.filter((record) => { const date = Date.parse(record.createdAt); return date >= start && date <= now.getTime(); });
+}
+
+export function getReportRevenue(orders, period, now = new Date()) {
+  const paid = filterReportRecords(orders, period, now).filter((order) => order.paymentStatus === PAID_STATUS && Number.isFinite(Date.parse(order.createdAt)));
+  const daily = period === '7d' || period === '30d';
+  let start = getReportPeriodStart(period, now);
+  if (!start) {
+    if (!paid.length) return [];
+    start = new Date(paid.reduce((first, order) => Math.min(first, Date.parse(order.createdAt)), Infinity));
+  }
+  const cursor = manilaDate(start);
+  cursor.setUTCHours(0, 0, 0, 0);
+  if (!daily) cursor.setUTCDate(1);
+  const end = manilaDate(now);
+  const totals = new Map();
+  for (const order of paid) {
+    const key = dateKey(manilaDate(order.createdAt)).slice(0, daily ? 10 : 7);
+    totals.set(key, (totals.get(key) || 0) + Number(order.totalAmount || 0));
+  }
+  const points = [];
+  while (cursor <= end) {
+    const key = dateKey(cursor).slice(0, daily ? 10 : 7);
+    points.push({
+      label: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', ...(daily ? { day: 'numeric' } : {}) }),
+      fullLabel: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', year: 'numeric', ...(daily ? { day: 'numeric' } : {}) }),
+      revenue: totals.get(key) || 0,
+    });
+    if (daily) cursor.setUTCDate(cursor.getUTCDate() + 1);
+    else cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return points;
+}
+
 export function getTotalRevenue(orders) {
   return orders
     .filter((order) => order.paymentStatus === PAID_STATUS)

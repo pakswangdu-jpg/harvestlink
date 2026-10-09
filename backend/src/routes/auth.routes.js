@@ -2,8 +2,14 @@ import { Router } from 'express';
 import { checkContactNumber, register, verifyRegistrationCode, resendRegistrationCode } from '../controllers/auth.controller.js';
 import { emailAndIpKey, rateLimit } from '../middleware/rateLimit.js';
 import { requestPasswordReset } from '../controllers/passwordRecovery.controller.js';
+import { requireAuth } from '../middleware/requireAuth.js';
+import { requireRole } from '../middleware/requireRole.js';
 
 const router = Router();
+router.get('/admin-access', requireAuth, requireRole('admin'), (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ allowed: true });
+});
 
 router.post('/register', rateLimit({ name: 'registration', limit: 5, windowMs: 60 * 60 * 1000 }), register);
 router.post('/verify-registration-code', rateLimit({ name: 'verification', limit: 5, windowMs: 10 * 60 * 1000, key: emailAndIpKey }), verifyRegistrationCode);

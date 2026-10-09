@@ -19,11 +19,11 @@ export default function SidebarUserCard({ user, isCollapsed = false }) {
       title={user.name}
       className={`sidebar-user-card${isCollapsed ? ' is-collapsed' : ''}`}
     >
-      <span className="sidebar-user-avatar-slot" aria-hidden="true">
+      {!isAdmin ? <span className="sidebar-user-avatar-slot" aria-hidden="true">
         <span className="sidebar-user-avatar flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-700)] text-[11.5px] font-semibold text-white">
           {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : getInitials(user.name)}
         </span>
-      </span>
+      </span> : isCollapsed ? <span className="sidebar-user-role sidebar-admin-role-collapsed" title="Administrator" aria-label="Administrator"><Shield size={16} aria-hidden="true" /></span> : null}
       {!isCollapsed ? (
         <span className="sidebar-user-details">
           <span className="sidebar-user-name block truncate text-[13px] font-semibold text-[var(--text)]">{user.name}</span>

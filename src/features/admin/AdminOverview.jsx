@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
-import StatCard from '../../components/admin/StatCard';
 import { Card, CardHeader } from '../../components/admin/Card';
 import Table from '../../components/admin/Table';
 import EmptyState from '../../components/admin/EmptyState';
@@ -19,19 +18,29 @@ import { MARKET_COMMODITIES, getAllPriceOverrides, matchCommodity } from '../../
 import { getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
+import './AdminOverview.css';
+
+function OverviewMetric({ label, value, icon: Icon, tone }) {
+  return (
+    <div className={`overview-metric overview-metric-${tone}`}>
+      <strong>{value}</strong>
+      <span><Icon size={17} strokeWidth={1.8} aria-hidden="true" />{label}</span>
+    </div>
+  );
+}
 
 function ReviewQueueBanner({ count, label, to }) {
   if (!count) return null;
   return (
     <Link
       to={to}
-      className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] bg-[var(--amber-100)] px-4 py-3 text-[13px] text-[var(--text)] transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--amber-700)_15%,var(--amber-100))]"
+      className="overview-review-banner"
     >
       <span className="flex items-center gap-2 font-medium">
-        <BadgeAlert size={16} className="text-[var(--amber-700)]" />
-        {count} {label}{count === 1 ? '' : 's'} awaiting review
+        <BadgeAlert size={16} aria-hidden="true" />
+        <span><strong>{count}</strong> {label}{count === 1 ? '' : 's'} awaiting review</span>
       </span>
-      <span className="text-[12px] font-semibold text-[var(--amber-700)]">Review →</span>
+      <span className="overview-review-action">Review →</span>
     </Link>
   );
 }
@@ -47,7 +56,7 @@ function MiniStat({ label, value, tone }) {
     muted: 'text-[var(--text)]',
   };
   return (
-    <div>
+    <div className={`overview-mini-stat overview-mini-stat-${tone}`}>
       <p className="text-[12px] text-[var(--muted)]">{label}</p>
       <p className={`text-[18px] font-medium leading-tight tabular-nums ${TONE_TEXT[tone] || TONE_TEXT.muted}`}>{value}</p>
     </div>
@@ -63,8 +72,8 @@ const ACTIVITY_TONE_CLASSES = {
 
 function ActivityRow({ icon: Icon, tone, message, at }) {
   return (
-    <div className="flex items-start gap-3 py-2.5">
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${ACTIVITY_TONE_CLASSES[tone]}`}>
+    <div className="overview-activity-row">
+      <div className={`overview-activity-icon overview-activity-icon-${tone} ${ACTIVITY_TONE_CLASSES[tone]}`}>
         <Icon size={16} strokeWidth={2} aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
@@ -141,7 +150,7 @@ export default function AdminOverview() {
   }, [users, orders, donations, priceOverrides]);
 
   return (
-    <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" hideHeader>
+    <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" hideHeader pageClassName="admin-overview-page">
       <PageHeader title="Dashboard" description="Monitor HarvestLink activity across users, products, orders, and surplus donations." />
       {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
@@ -152,15 +161,15 @@ export default function AdminOverview() {
           <ReviewQueueBanner count={pendingVerifications.length} label="account" to="/admin-users" />
           <ReviewQueueBanner count={pendingPriceReviews.length} label="price review" to="/admin-price-monitoring" />
 
-          <div className="mb-4 grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
-            <StatCard label="Total sales" value={formatCurrency(totalRevenue)} icon={TrendingUp} tone="green" />
-            <StatCard label="Total orders" value={orders.length} icon={ClipboardList} tone="blue" />
-            <StatCard label="Registered users" value={users.length} icon={Users} tone="slate" />
-            <StatCard label="Donations completed" value={donationError || donationsLoading ? '--' : completedDonations} icon={Gift} tone="amber" />
+          <div className="overview-metrics">
+            <OverviewMetric label="Total sales" value={formatCurrency(totalRevenue)} icon={TrendingUp} tone="green" />
+            <OverviewMetric label="Total orders" value={orders.length} icon={ClipboardList} tone="blue" />
+            <OverviewMetric label="Registered users" value={users.length} icon={Users} tone="slate" />
+            <OverviewMetric label="Donations completed" value={donationError || donationsLoading ? '--' : completedDonations} icon={Gift} tone="amber" />
           </div>
 
-          <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
+          <div className="overview-grid">
+            <Card className="overview-panel overview-orders">
               <CardHeader title="Recent orders" action={<Link to="/admin-orders" className="text-[13px] font-medium text-[var(--green-800)] hover:underline">View all</Link>} />
               <Table
                 columns={[
@@ -174,7 +183,7 @@ export default function AdminOverview() {
               />
             </Card>
 
-            <Card>
+            <Card className="overview-panel overview-activity">
               <CardHeader title="Recent activity" />
               {recentActivity.length ? (
                 <div className="divide-y divide-[var(--line)]">
@@ -186,14 +195,14 @@ export default function AdminOverview() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card>
+          <div className="overview-grid">
+            <Card className="overview-panel">
               <CardHeader
                 eyebrow="DTI oversight"
                 title="Price monitoring"
                 action={<Link to="/admin-price-monitoring" className="text-[13px] font-medium text-[var(--green-800)] hover:underline">View all</Link>}
               />
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="overview-price-stats">
                 <MiniStat label="PSA commodities" value={MARKET_COMMODITIES.length} tone="muted" />
                 <MiniStat label="Farmer listings" value={farmerListingsCount} tone="blue" />
                 <MiniStat label="Price alerts" value={pendingPriceReviews.length} tone={pendingPriceReviews.length ? 'amber' : 'muted'} />
@@ -201,13 +210,13 @@ export default function AdminOverview() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="overview-panel">
               <CardHeader
                 eyebrow="Surplus"
                 title="Donations"
                 action={<Link to="/admin-donations" className="text-[13px] font-medium text-[var(--green-800)] hover:underline">View all</Link>}
               />
-              {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : <div className="grid grid-cols-3 gap-4">
+              {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : <div className="overview-donation-stats">
                 <MiniStat label="Completed" value={completedDonations} tone="green" />
                 <MiniStat label="Pending" value={donations.filter((donation) => donation.status === 'requested' || donation.status === 'scheduled').length} tone="amber" />
                 <MiniStat label="Available" value={donations.filter((donation) => donation.status === 'available').length} tone="muted" />
