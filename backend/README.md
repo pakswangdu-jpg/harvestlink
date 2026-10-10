@@ -142,7 +142,7 @@ not update the live Render `ADMIN_ALLOWED_IPS` setting; save the allowed public 
 there and redeploy. Valid Admin credentials, role, and active account status remain
 required before the allowed network can enter the Admin dashboard.
 
-`/harvestlinkadmin` displays the existing login form for signed-out users, then checks
+`/admin` displays the existing login form for signed-out users, then checks
 `/api/auth/admin-access` before redirecting into the Admin dashboard. An Admin session
 on `/` does not redirect the public site. Normal `/login` with an Admin account shows
 the Admin portal prompt instead of entering the workspace. Internal Admin routes

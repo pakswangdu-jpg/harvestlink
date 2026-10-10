@@ -8,17 +8,17 @@ async function compile(scope) {
   const original = await readFile(new URL('../src/features/auth/AdminProtectedRoute.jsx',import.meta.url),'utf8');
   const source = original.replace(/import[^;]+;/g,'').replace('export default ','');
   const {code}=await transformWithOxc(source,'AdminProtectedRoute.jsx',{jsx:{runtime:'classic'}});
-  return new Function('scope',`with(scope){${code};return {AdminProtectedRoute,AdminNetworkGate};}`)({React:{createElement:element},Link:'Link',Navigate:'Navigate',Outlet:'Outlet',AuthPage:'AuthPage',ADMIN_ENTRY_PATH:'/harvestlinkadmin',...scope});
+  return new Function('scope',`with(scope){${code};return {AdminProtectedRoute,AdminNetworkGate};}`)({React:{createElement:element},Link:'Link',Navigate:'Navigate',Outlet:'Outlet',AuthPage:'AuthPage',ADMIN_ENTRY_PATH:'/admin',...scope});
 }
 
 test('Admin routing waits for the session, uses existing login, and rejects non-admin roles',async()=>{
   let auth={loading:true,currentUser:null};
-  let pathname='/harvestlinkadmin';
+  let pathname='/admin';
   const {AdminProtectedRoute}=await compile({useAuth:()=>auth,useLocation:()=>({pathname})});
   assert.equal(AdminProtectedRoute().props.title,'Checking Admin access');
   auth={loading:false,currentUser:null};
   const login=AdminProtectedRoute();assert.equal(login.type,'AuthPage');assert.equal(login.props.mode,'login');assert.equal(login.props.adminPortal,true);
-  pathname='/admin-users';assert.equal(AdminProtectedRoute().props.to,'/harvestlinkadmin');
+  pathname='/admin-users';assert.equal(AdminProtectedRoute().props.to,'/admin');
   auth.currentUser={id:'buyer',role:'buyer'};assert.equal(AdminProtectedRoute().props.title,'Admin access restricted');
   assert.equal(AdminProtectedRoute().props.message,'You do not have permission to access the HarvestLink Admin Portal.');
 });
