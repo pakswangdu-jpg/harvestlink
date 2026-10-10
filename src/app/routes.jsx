@@ -99,7 +99,7 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<AdminProtectedRoute />}>
-        <Route path="/harvestlinkadmin" element={<Navigate to="/admin-dashboard" replace />} />
+        <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
         <Route path="/admin-dashboard" element={<AdminOverview />} />
         <Route path="/admin-users" element={<AdminUsers />} />
         <Route path="/admin-price-monitoring" element={<AdminPriceMonitoring />} />
