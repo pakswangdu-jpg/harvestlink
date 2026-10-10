@@ -40,3 +40,20 @@ export function getTrustedProxies(env = process.env) {
   }
   return entries.length ? entries : false;
 }
+
+export function hasRenderPublicIngress(env = process.env) {
+  return env.RENDER === 'true' && env.RENDER_SERVICE_TYPE === 'web'
+    && /^[a-z0-9-]+\.onrender\.com$/i.test(env.RENDER_EXTERNAL_HOSTNAME || '');
+}
+
+export function getAdminClientIPv4(req, env = process.env) {
+  if (hasRenderPublicIngress(env)) {
+    // Render's public Cloudflare ingress overwrites this single-address header.
+    // Never use it on local servers, private services, or arbitrary hostnames.
+    const host = req.headers?.host;
+    if (typeof host !== 'string' || host.toLowerCase() !== env.RENDER_EXTERNAL_HOSTNAME.toLowerCase()) return null;
+    const address = normalizeIPv4(req.headers?.['cf-connecting-ip']);
+    return address && !nonPublic.check(address, 'ipv4') ? address : null;
+  }
+  return normalizeIPv4(req.ip);
+}

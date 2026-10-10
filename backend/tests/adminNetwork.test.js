@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { request as httpRequest } from 'node:http';
 import express from 'express';
-import { getTrustedProxies, normalizeIPv4, parseAdminAllowedIps } from '../src/lib/adminNetwork.js';
+import { getAdminClientIPv4, getTrustedProxies, hasRenderPublicIngress, normalizeIPv4, parseAdminAllowedIps } from '../src/lib/adminNetwork.js';
 import { errorHandler } from '../src/middleware/errorHandler.js';
 
 process.env.ADMIN_ALLOWED_IPS = '143.44.164.23';
@@ -32,6 +33,84 @@ test('proxy configuration defaults to no trust and rejects blanket trust', () =>
   assert.equal(getTrustedProxies({}), false);
   assert.deepEqual(getTrustedProxies({ TRUSTED_PROXY_IPS: '10.2.3.4/32, ::1/128' }), ['10.2.3.4/32', '::1/128']);
   for (const value of ['*','true','1','0.0.0.0/0','::/0','10.0.0.1/33','::1/129','10.0.0.1/no','10.0.0.1/8/extra']) assert.throws(() => getTrustedProxies({ TRUSTED_PROXY_IPS: value }));
+});
+
+const renderWeb = {
+  NODE_ENV: 'production', RENDER: 'true', RENDER_SERVICE_TYPE: 'web',
+  RENDER_EXTERNAL_HOSTNAME: 'harvestlink-backend-t1t2.onrender.com',
+  ADMIN_ALLOWED_IPS: '143.44.164.23',
+};
+
+test('Render public ingress uses the overwritten client IP, not a forwarded chain or server address', () => {
+  const req = { ip: '10.0.0.4', headers: { host: renderWeb.RENDER_EXTERNAL_HOSTNAME, 'cf-connecting-ip': '143.44.164.23', 'x-forwarded-for': '8.8.8.8' } };
+  assert.equal(hasRenderPublicIngress(renderWeb), true);
+  assert.equal(getAdminClientIPv4(req, renderWeb), '143.44.164.23');
+  for (const address of [undefined, '', '143.44.164.23, 8.8.8.8', 'invalid', '192.168.1.9', '127.0.0.1', '::1', ['143.44.164.23']]) {
+    assert.equal(getAdminClientIPv4({ ...req, headers: { ...req.headers, 'cf-connecting-ip': address } }, renderWeb), null);
+  }
+  for (const host of [undefined, 'other.onrender.com', 'localhost', ['harvestlink-backend-t1t2.onrender.com']]) {
+    assert.equal(getAdminClientIPv4({ ...req, headers: { ...req.headers, host } }, renderWeb), null);
+  }
+  for (const env of [{}, { ...renderWeb, RENDER: 'false' }, { ...renderWeb, RENDER_SERVICE_TYPE: 'pserv' }, { ...renderWeb, RENDER_EXTERNAL_HOSTNAME: '' }]) {
+    assert.equal(hasRenderPublicIngress(env), false);
+    assert.equal(getAdminClientIPv4(req, env), '10.0.0.4', 'client headers cannot activate Render mode');
+  }
+});
+
+test('allowed deployed clients pass, while other networks, missing configuration, and inactive accounts stay blocked', () => {
+  const guard = createAdminNetworkGuard({ env: renderWeb, logger: { warn() {} } });
+  const req = { ip: '10.0.0.4', headers: { host: renderWeb.RENDER_EXTERNAL_HOSTNAME, 'cf-connecting-ip': '143.44.164.23' }, profile: { id: 'admin', role: 'admin', account_status: 'active' } };
+  let error;
+  guard(req, {}, value => { error = value; });
+  assert.equal(error, undefined);
+  for (const address of ['8.8.8.8', undefined, '143.44.164.230']) {
+    guard({ ...req, headers: { ...req.headers, 'cf-connecting-ip': address, 'x-forwarded-for': '143.44.164.23', 'x-admin-ip': '143.44.164.23' } }, {}, value => { error = value; });
+    assert.equal(error.code, 'ADMIN_NETWORK_NOT_ALLOWED');
+  }
+  guard({ ...req, profile: { ...req.profile, account_status: 'suspended' } }, {}, value => { error = value; });
+  assert.equal(error.status, 403);
+  const unconfigured = createAdminNetworkGuard({ env: { ...renderWeb, ADMIN_ALLOWED_IPS: '' }, logger: { warn() {} } });
+  unconfigured(req, {}, value => { error = value; });
+  assert.equal(error.code, 'ADMIN_NETWORK_NOT_ALLOWED');
+});
+
+test('Render edge request fixtures permit allowed Admin endpoints and reject a different client despite spoofed forwarding', async () => {
+  const app = express();
+  app.set('trust proxy', false);
+  // Session validation is covered below; this fixture models requests after it.
+  app.use((req, res, next) => { req.profile = { id: 'admin', role: 'admin', account_status: 'active' }; next(); });
+  app.use(createAdminNetworkGuard({ env: renderWeb, logger: { warn() {} } }));
+  app.get('/admin-access', (req, res) => res.json({ allowed: true }));
+  app.get('/orders', (req, res) => res.json({ rows: ['protected'] }));
+  app.use(errorHandler);
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const headers = { Host: renderWeb.RENDER_EXTERNAL_HOSTNAME, 'CF-Connecting-IP': '143.44.164.23' };
+  const request = (path, headers) => new Promise((resolve, reject) => {
+    // Node fetch replaces Host; native HTTP preserves the Render edge fixture.
+    const req = httpRequest(`${base}${path}`, { headers }, res => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.end();
+  });
+  try {
+    const allowed = await request('/admin-access', headers);
+    assert.equal(allowed.status, 200);
+    assert.deepEqual(allowed.body, { allowed: true });
+    assert.equal((await request('/orders', headers)).status, 200);
+    const denied = await request('/orders', { ...headers, 'CF-Connecting-IP': '8.8.8.8', 'X-Forwarded-For': '143.44.164.23', 'X-Admin-IP': '143.44.164.23' });
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.error, 'ADMIN_NETWORK_NOT_ALLOWED');
+    assert.equal((await request('/admin-access', { Host: renderWeb.RENDER_EXTERNAL_HOSTNAME })).status, 403);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
 });
 
 test('network guard fails closed, checks active accounts, and logs no secrets or addresses', () => {
