@@ -60,12 +60,22 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
   )), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_URL}${path}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-    });
+    let response;
+    try {
+      response = await fetch(`${API_URL}${path}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error.name === 'TypeError' && !controller.signal.aborted) {
+        const connectionError = new Error('Unable to connect to the HarvestLink server. Please check your connection and try again.', { cause: error });
+        connectionError.code = 'API_UNREACHABLE';
+        throw connectionError;
+      }
+      throw error;
+    }
 
 
     const payload = response.status === 204 ? null : await response.json().catch((error) => {

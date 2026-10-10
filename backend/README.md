@@ -54,6 +54,13 @@ npm run dev             # http://localhost:4000, auto-restarts on file changes
 The frontend expects `VITE_API_URL=http://localhost:4000/api` in the root `.env` for
 local dev (see the root README for the full frontend env var list).
 
+If sign-in reports a connection error, compare `VITE_API_URL` with the port
+printed by the backend at startup. The server may choose the next port when
+the requested port is already occupied. Update the root `.env` to the actual
+port and restart Vite. For LAN access, use the PC's LAN address and include
+the frontend origin in `CORS_ALLOWED_ORIGIN`; keep the Admin allowlist enabled.
+Use the deployed HTTPS API URL in production, never a local/LAN API address.
+
 ## Password recovery
 
 `POST /api/auth/request-password-reset` checks both the application profile and
