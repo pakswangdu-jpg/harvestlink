@@ -120,7 +120,7 @@ test('the deadline also covers reading the body and identifies its abort as a ti
   await result;
 });
 
-test('network failures and unrelated aborts are preserved and their timers are cleared', async (t) => {
+test('connection failures are actionable, unrelated aborts are preserved, and timers are cleared', async (t) => {
   const failures = [new TypeError('Failed to fetch'), new DOMException('Request cancelled', 'AbortError')];
   const signals = [];
   let failure;
@@ -129,10 +129,25 @@ test('network failures and unrelated aborts are preserved and their timers are c
     throw failure;
   });
   for (failure of failures) {
-    await assert.rejects(client.get('/products'), (error) => error === failure);
+    await assert.rejects(client.get('/products'), (error) => failure.name === 'TypeError'
+      ? error.code === 'API_UNREACHABLE' && error.cause === failure && /Unable to connect to the HarvestLink server/.test(error.message)
+      : error === failure);
   }
   t.mock.timers.tick(90000);
   assert.ok(signals.every((signal) => !signal.aborted));
+});
+
+test('a failed profile connection can be retried without a cached failure or duplicate write', async (t) => {
+  let calls = 0;
+  const client = await loadClient(t, async () => {
+    calls += 1;
+    if (calls === 1) throw new TypeError('Failed to fetch');
+    return Response.json({ id: 'admin', role: 'admin' });
+  });
+  await assert.rejects(client.get('/profiles/me'), { code: 'API_UNREACHABLE' });
+  assert.equal(calls, 1, 'connection errors do not trigger automatic retries');
+  assert.deepEqual(await client.get('/profiles/me'), { id: 'admin', role: 'admin' });
+  assert.equal(calls, 2);
 });
 
 test('API errors retain their status and message, including non-JSON proxy errors', async (t) => {
