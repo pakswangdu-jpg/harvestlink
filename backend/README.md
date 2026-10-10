@@ -105,7 +105,6 @@ Set these in the **Render backend service**, not Vercel:
 
 ```env
 ADMIN_ALLOWED_IPS=YOUR.PUBLIC.IPV4
-TRUSTED_PROXY_IPS=VERIFIED.INGRESS.PROXY.IP/32
 ```
 
 Comma-separated public IPv4 addresses are supported, with optional whitespace.
@@ -115,23 +114,33 @@ The current requested address was saved in the gitignored local backend `.env`;
 this does **not** configure Render. Save the corresponding Render variables and
 restart/redeploy the backend. Recheck the public address when the ISP changes it.
 
-**Proxy trust must be verified for the deployed Render ingress.** Set only the
-actual ingress proxy addresses/CIDRs that sanitize or append forwarded headers.
-Include any verified intermediate proxies needed by that ingress chain. Do not
-guess Render outbound ranges, trust every proxy, or use a fixed hop count without
-a verified topology. Express resolves `req.ip` right-to-left through this trusted
-chain; `x-admin-ip` and arbitrary leftmost `X-Forwarded-For` entries are not used.
-See [Express proxy guidance](https://expressjs.com/en/guide/behind-proxies/) and
-[Render's ingress overview](https://render.com/articles/how-render-handles-ddos-attacks).
-With no trusted proxies, Express uses the socket peer and ignores forwarded
-headers. On Render, missing proxy configuration additionally denies Admin access.
-Invalid proxy settings fail backend startup instead of enabling blanket trust.
+**Render public web services:** the Admin guard uses `CF-Connecting-IP`, which
+[Render documents as overwritten by its Cloudflare ingress](https://render.com/articles/host-pocketbase-on-render).
+This mode requires Render's server-provided `RENDER=true`, `RENDER_SERVICE_TYPE=web`,
+and `RENDER_EXTERNAL_HOSTNAME` metadata, plus a request Host matching that hostname.
+Missing, multiple, malformed, private, or non-IPv4 client addresses deny access.
+Do not manually set Render metadata on local or other hosting environments.
+The guard never uses an arbitrary leftmost `X-Forwarded-For` or `X-Admin-IP` value.
+No guessed proxy addresses or hop count are needed for the existing public
+`onrender.com` API. This assumes the service is reached through Render's public
+ingress; do not relay caller-supplied Cloudflare headers through private services.
+
+**Custom ingress / other hosts:** set `TRUSTED_PROXY_IPS` only to verified proxy
+addresses/CIDRs that sanitize or append forwarded headers. Include verified
+intermediate proxies as needed. Express resolves `req.ip` right-to-left through
+this chain; see [Express proxy guidance](https://expressjs.com/en/guide/behind-proxies/).
+Do not guess outbound ranges, trust every proxy, or use a fixed hop count without
+a verified topology. Without trusted proxies, forwarded headers are ignored.
+Unsupported Render services require explicit proxy configuration and otherwise
+deny Admin access. Invalid proxy settings fail backend startup.
 
 Verify from the deployed backend with both an allowed and a different public
 network, including spoofed `X-Forwarded-For` headers, before relying on this gate.
 Never add the proxy's address to `ADMIN_ALLOWED_IPS` just to make access work:
-that would authorize other visitors using the same proxy. This repository cannot
-verify or update the live Render proxy chain automatically.
+that would authorize other visitors using the same proxy. Updating this code does
+not update the live Render `ADMIN_ALLOWED_IPS` setting; save the allowed public IP
+there and redeploy. Valid Admin credentials, role, and active account status remain
+required before the allowed network can enter the Admin dashboard.
 
 `/harvestlinkadmin` displays the existing login form for signed-out users, then checks
 `/api/auth/admin-access` before redirecting into the Admin dashboard. An Admin session
