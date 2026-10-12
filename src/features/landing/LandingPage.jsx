@@ -262,7 +262,7 @@ export default function LandingPage() {
           <h1>Sell your harvest<br />directly to more buyers</h1>
           <p>Reach customers across Cebu, manage orders easily, and get more value from every harvest.</p>
           <div className="hero-actions">
-            <Link className="btn btn-primary btn-lg" to="/register">
+            <Link className="btn btn-primary btn-lg" to="/farmer-products">
               Start selling <ArrowRight size={18} aria-hidden="true" />
             </Link>
             <Link className="btn btn-secondary btn-lg" to="/marketplace">Browse marketplace</Link>

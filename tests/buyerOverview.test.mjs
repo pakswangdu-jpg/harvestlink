@@ -25,15 +25,15 @@ function render(isLoading = false) {
 
 test('buyer overview retains live values and existing currency formatting', () => {
   const tree = render();
-  assert.deepEqual(nodes(tree).filter((node) => node.type === 'strong').map(text), ['108', '41', '27', formatCurrency(2584.94)]);
-  assert.deepEqual(nodes(tree).filter((node) => node.type === 'small').map(text), ['View all orders ', 'Needs attention ', 'Orders received', 'Paid orders']);
+  assert.deepEqual(nodes(tree).filter((node) => node.type === 'strong').map(text), [formatCurrency(2584.94), '108', '41', '27']);
+  assert.deepEqual(nodes(tree).filter((node) => node.type === 'small').map(text), ['Paid orders', 'View all orders ', 'Needs attention ', 'Orders received']);
 });
 
 test('every card retains its existing destination and filter state', () => {
   const links = nodes(render()).filter((node) => node.type === 'link');
   assert.equal(links.length, 4);
   assert.ok(links.every((node) => node.props.to === '/buyer-orders'));
-  assert.deepEqual(links.map((node) => node.props.state), [undefined, { stage: 'pending' }, { stage: 'completed' }, { paymentFilter: 'paid' }]);
+  assert.deepEqual(links.map((node) => node.props.state), [{ paymentFilter: 'paid' }, undefined, { stage: 'pending' }, { stage: 'completed' }]);
 });
 
 test('loading still displays placeholders instead of example values', () => {
