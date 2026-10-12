@@ -1,0 +1,9 @@
+.auth-administrator-notice { display: flex; align-items: flex-start; gap: 10px; width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 16px; border: 1px solid #efe2ad; border-radius: 8px; background: #fffbea; }
+.auth-administrator-notice > svg { flex-shrink: 0; margin-top: 2px; color: #68776f; }
+.auth-administrator-notice > div { min-width: 0; }
+.auth-administrator-notice strong { display: block; color: #29312d; font-size: 14px; font-weight: 600; line-height: 1.5; }
+.auth-administrator-notice p { margin: 4px 0 0; color: #626861; font-size: 13px; font-weight: 400; line-height: 1.5; }
+[data-theme="dark"] .auth-administrator-notice { background: #2b291e; border-color: #514a30; }
+[data-theme="dark"] .auth-administrator-notice strong { color: #eeeae2; }
+[data-theme="dark"] .auth-administrator-notice p { color: #bab8ae; }
+[data-theme="dark"] .auth-administrator-notice > svg { color: #a4b2a9; }

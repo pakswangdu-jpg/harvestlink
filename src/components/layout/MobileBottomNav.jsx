@@ -2,12 +2,13 @@ import { useId, useLayoutEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import Button from '../common/Button';
+import LogoutConfirmDialog from '../common/LogoutConfirmDialog';
 import { useLogout } from '../../hooks/useLogout';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
 import NotificationBadge from '../common/NotificationBadge';
 
 export default function MobileBottomNav({ user, navItems }) {
-  const { handleLogout, isLoggingOut } = useLogout();
+  const { handleLogout, isLoggingOut, isConfirmOpen, confirmLogout, cancelLogout } = useLogout();
   const { pathname } = useLocation();
   const navItemsWithBadges = useNavItemsWithBadges(user, navItems);
   const navRef = useRef(null);
@@ -95,6 +96,7 @@ export default function MobileBottomNav({ user, navItems }) {
         </Button>
       </div>
       <span className="mobile-bottom-nav-edge mobile-bottom-nav-edge-end" aria-hidden="true"><ChevronRight size={12} /></span>
+      <LogoutConfirmDialog open={isConfirmOpen} busy={isLoggingOut} onConfirm={confirmLogout} onCancel={cancelLogout} />
     </nav>
   );
 }

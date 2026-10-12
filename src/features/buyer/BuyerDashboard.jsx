@@ -20,7 +20,7 @@ import {
 import { getActiveProducts } from '../../services/productService';
 import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { getTotalRevenue } from '../../services/reportService';
+import { getReportRevenue, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
@@ -63,6 +63,42 @@ function RecommendedFarmerLink({ farmer, onClick }) {
       </span>
       <span className="buyer-recommendation-action">View farm <ArrowRight size={14} aria-hidden="true" /></span>
     </Link>
+  );
+}
+
+function BuyerSpendTrend({ points }) {
+  const chartPoints = points.map((point, index) => ({
+    x: points.length > 1 ? (index / (points.length - 1)) * 280 : 140,
+    value: Number.isFinite(point.revenue) ? Math.max(0, point.revenue) : 0,
+  }));
+  const maxValue = Math.max(...chartPoints.map((point) => point.value), 0);
+  const coordinates = chartPoints.map(({ x, value }) => ({
+    x,
+    y: 52 - (maxValue ? (value / maxValue) * 42 : 0),
+  }));
+  const linePath = coordinates.map(({ x, y }, index) => `${index ? 'L' : 'M'} ${x} ${y}`).join(' ');
+  const areaPath = coordinates.length
+    ? `${linePath} L ${coordinates.at(-1).x} 58 L ${coordinates[0].x} 58 Z`
+    : '';
+
+  return (
+    <div className="buyer-spend-chart">
+      <span>Last 7 days</span>
+      <svg viewBox="0 0 280 64" preserveAspectRatio="none" role="img" aria-label="Paid order spending over the last 7 days">
+        <path d="M 0 10 H 280 M 0 31 H 280 M 0 52 H 280" className="buyer-spend-chart-grid" />
+        {areaPath ? <path d={areaPath} className="buyer-spend-chart-area" /> : null}
+        {linePath ? <path d={linePath} className="buyer-spend-chart-line" /> : null}
+        {coordinates.map(({ x, y }, index) => (
+          <circle
+            key={`${x}-${index}`}
+            cx={x}
+            cy={y}
+            r={index === coordinates.length - 1 ? 3 : 2}
+            className="buyer-spend-chart-point"
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
@@ -194,6 +230,7 @@ export default function BuyerDashboard() {
     ].some((value) => String(value || '').toLowerCase().includes(query));
   });
   const totalSpend = getTotalRevenue(orders);
+  const spendTrend = getReportRevenue(orders, '7d');
   const sortedNearbyFarmers = sortByRegisteredDistance(nearbyOrigin, verifiedFarmers);
   const nearbyFarmersWithDistance = sortedNearbyFarmers
     .slice(0, NEARBY_FARMERS_LIMIT)
@@ -259,6 +296,7 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Wallet size={18} strokeWidth={2} aria-hidden="true" /> Total Spent</span>
             <strong>{isLoading ? '...' : formatCurrency(totalSpend)}</strong>
+            <BuyerSpendTrend points={spendTrend} />
             <small>Paid orders</small>
           </Link>
         </div>

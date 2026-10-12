@@ -50,3 +50,22 @@ test('expired donations retain the expired badge', () => {
   assert.ok(nodes(tree).some((node) => node.props.className === 'badge badge-expired' && text(node) === 'Expired'));
   assert.ok(!text(tree).includes('Expiring soon'));
 });
+
+test('Stakeholder discovery variant keeps the saved status and action with compact date copy', () => {
+  const action = { type: 'button', props: { children: ['Request donation'] } };
+  const tree = DonationCard({ donation, actions: action, variant: 'discovery' });
+  assert.equal(tree.props.className, 'donation-card donation-card-discovery');
+  assert.ok(text(tree).includes('Available until soon'));
+  assert.ok(!text(tree).includes('Expiring soon'));
+  assert.equal(nodes(tree).find(node => node.type === 'status').props.value, 'available');
+  assert.ok(nodes(tree).some(node => node.props.className === 'donation-date-expiring_soon'));
+  assert.equal(tree.props.children.at(-1).props.children[0], action);
+});
+
+test('discovery expiry warning remains tied to the existing expiry resolver', () => {
+  const expired = DonationCard({ donation: { ...donation, expirationDate: 'past' }, variant: 'discovery' });
+  assert.ok(text(expired).includes('Available until past (Expired)'));
+  assert.ok(nodes(expired).some(node => node.props.className === 'donation-date-expired'));
+  const noDate = DonationCard({ donation: { ...donation, expirationDate: null }, variant: 'discovery' });
+  assert.ok(!text(noDate).includes('Available until'));
+});

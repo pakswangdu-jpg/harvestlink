@@ -7,9 +7,18 @@ export function useLogout() {
   const { showToast } = useToast();
   const pendingRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const handleLogout = async () => {
-    if (pendingRef.current) return;
+  const handleLogout = () => {
+    if (!pendingRef.current) setIsConfirmOpen(true);
+  };
+
+  const cancelLogout = () => {
+    if (!pendingRef.current) setIsConfirmOpen(false);
+  };
+
+  const confirmLogout = async () => {
+    if (!isConfirmOpen || pendingRef.current) return;
     pendingRef.current = true;
     setIsLoggingOut(true);
     try {
@@ -22,5 +31,5 @@ export function useLogout() {
     }
   };
 
-  return { handleLogout, isLoggingOut };
+  return { handleLogout, isLoggingOut, isConfirmOpen, confirmLogout, cancelLogout };
 }

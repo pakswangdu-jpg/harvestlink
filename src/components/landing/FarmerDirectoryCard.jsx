@@ -18,23 +18,16 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
 
   return (
     <motion.article
-      whileHover={shouldReduceMotion ? undefined : { y: -8 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-
-
-
-
-
-      className="group relative z-0 flex h-full flex-col rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-shadow duration-300 hover:z-10 hover:shadow-[0_20px_40px_rgba(16,24,40,0.14)]"
+      className="farmer-directory-card group relative z-0 flex h-full flex-col rounded-[24px] border border-[var(--line)] bg-[var(--panel)] p-6 shadow-[0_1px_3px_rgba(16,24,40,0.08)] transition-shadow duration-300 hover:z-10 hover:shadow-[0_20px_40px_rgba(16,24,40,0.14)]"
     >
-      <div className="flex items-center gap-3">
-        <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-100)] text-base font-bold text-[var(--green-800)]">
+      <div className="farmer-directory-identity flex items-center gap-3">
+        <span className="farmer-directory-avatar relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-100)] text-base font-bold text-[var(--green-800)]">
           {farmer.avatarUrl ? (
             <img
               src={farmer.avatarUrl}
               alt=""
               loading="lazy"
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-cover"
             />
           ) : (
             getInitials(farmer.name)
@@ -53,37 +46,27 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
               alt="Verified farmer"
               width={15}
               height={15}
-              className="mt-0.5 h-[15px] w-[15px] shrink-0 object-contain transition-transform duration-300 group-hover:scale-110"
+              className="mt-0.5 h-[15px] w-[15px] shrink-0 object-contain"
             />
           </div>
           {farmer.farmName ? <p className="truncate text-[13px] font-medium text-[var(--green-700)]">{farmer.farmName}</p> : null}
         </div>
       </div>
 
-      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
+      <p className="farmer-directory-location mt-3 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
         <MapPin size={14} className="shrink-0 text-[var(--muted)]" /> {farmer.municipality}
       </p>
 
-      <div className="relative mt-4 flex items-center gap-2 overflow-hidden">
+      <div className="farmer-directory-rating mt-4 flex items-center gap-2">
         <StarRating value={farmer.avgRating} size={15} />
         <span className="text-[13px] font-semibold text-[var(--text-secondary)]">{farmer.avgRating.toFixed(1)}</span>
         <span className="text-[12px] text-[var(--muted)]">({farmer.ratingCount} review{farmer.ratingCount === 1 ? '' : 's'})</span>
-        {shouldReduceMotion ? null : (
-          <motion.span
-            aria-hidden="true"
-            initial={{ x: '-120%' }}
-            whileInView={{ x: '220%' }}
-            viewport={{ once: true, amount: 0.6 }}
-            transition={{ duration: 0.9, ease: 'easeOut', delay: 0.2 }}
-            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/70 to-transparent"
-          />
-        )}
       </div>
 
       {
                                                                                                    }
       {farmer.ratingCount > 0 ? (
-        <div className="mt-3 space-y-1" aria-label="Rating breakdown">
+        <div className="farmer-directory-breakdown mt-3" aria-label="Rating breakdown">
           {STAR_LEVELS.map((star) => {
             const count = farmer.ratingBreakdown?.[star] || 0;
             const percent = farmer.ratingCount ? (count / farmer.ratingCount) * 100 : 0;
@@ -112,14 +95,14 @@ export const FarmerDirectoryCard = memo(function FarmerDirectoryCard({ farmer })
         </div>
       ) : null}
 
-      <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
+      <p className="farmer-directory-completed mt-1.5 flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
         <PackageCheck size={14} className="shrink-0 text-[var(--muted)]" />
         {farmer.completedOrders} completed order{farmer.completedOrders === 1 ? '' : 's'}
       </p>
 
       <Link
         to={`/farmers/${farmer.id}`}
-        className="mt-5 inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-[var(--green-600)] px-4 py-2 text-sm font-semibold text-[var(--green-700)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[var(--green-600)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
+        className="farmer-directory-action mt-5 inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-[var(--green-600)] px-4 py-2 text-sm font-semibold text-[var(--green-700)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[var(--green-600)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
       >
         View Profile
       </Link>

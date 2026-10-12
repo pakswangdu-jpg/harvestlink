@@ -1,0 +1,152 @@
+.landing-farmer-friendly .landing-nav {
+  --public-header-accent: #17763d;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 1280px;
+  min-height: 90px;
+  padding: 10px clamp(24px, 3vw, 32px);
+  isolation: isolate;
+  background: var(--panel);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.landing-farmer-friendly .landing-nav::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: calc((100% - 100vw) / 2);
+  width: 100vw;
+  z-index: -1;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  pointer-events: none;
+}
+
+.landing-farmer-friendly .landing-nav .brand {
+  justify-self: start;
+  gap: 10px;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.landing-farmer-friendly .landing-nav .brand-mark { width: 38px; height: 38px; padding: 0; background: transparent; }
+.landing-farmer-friendly .landing-nav .brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.landing-farmer-friendly .landing-nav .brand strong {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 29px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-kerning: normal;
+}
+.landing-farmer-friendly .landing-nav .brand-wordmark-harvest { color: #315c3c; }
+.landing-farmer-friendly .landing-nav .brand-wordmark-link { color: #80652e; }
+.landing-farmer-friendly .landing-nav .brand small {
+  margin-top: 5px;
+  color: #68776d;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+.landing-farmer-friendly .landing-nav .landing-links { justify-self: center; align-items: center; gap: 30px; }
+.landing-farmer-friendly .landing-nav .landing-links a { font-size: 15px; font-weight: 500; }
+.landing-farmer-friendly .landing-nav .landing-links a { padding: 8px 0; white-space: nowrap; }
+.landing-farmer-friendly .landing-nav .landing-links a:hover,
+.landing-farmer-friendly .landing-nav .landing-links a.active { color: var(--public-header-accent); }
+.landing-farmer-friendly .landing-nav .landing-links a::after {
+  left: 50%;
+  right: auto;
+  bottom: 4px;
+  width: 16px;
+  height: 2px;
+  margin-left: -8px;
+  background: var(--public-header-accent);
+  opacity: 0;
+  transition: none;
+}
+.landing-farmer-friendly .landing-nav .landing-links a.active::after { opacity: 1; }
+.landing-farmer-friendly .landing-nav .landing-links a:focus-visible { outline: 2px solid var(--public-header-accent); outline-offset: 4px; }
+.landing-farmer-friendly .landing-nav .landing-actions { justify-self: end; align-items: center; gap: 22px; }
+.landing-farmer-friendly .landing-nav .btn-secondary {
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+.landing-farmer-friendly .landing-nav .btn-secondary:hover { background: transparent; color: var(--public-header-accent); }
+.landing-farmer-friendly .landing-nav .btn-primary {
+  height: 45px;
+  padding-inline: 23px;
+  border-radius: 8px;
+  border-color: #17763d;
+  background: #17763d;
+  color: #fff;
+}
+.landing-farmer-friendly .landing-nav .btn-primary:hover { border-color: #126332; background: #126332; }
+.landing-farmer-friendly .landing-nav .btn:hover { transform: none; box-shadow: none; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu { justify-self: end; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-toggle { width: 44px; height: 44px; border-radius: 6px; background: transparent; border-color: transparent; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-toggle:hover { border-color: var(--line); }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel { width: min(300px, calc(100vw - 32px)); min-width: 0; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgb(0 0 0 / 8%); }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 10px 8px; border-radius: 0; font-size: 14px; font-weight: 500; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a:hover { background: transparent; color: var(--public-header-accent); }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-actions { align-items: center; gap: 12px; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-actions .btn { flex: 0 1 auto; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-actions .btn-primary { flex: 1; }
+
+[data-theme="dark"] .landing-farmer-friendly .landing-nav { --public-header-accent: #a5d7b2; }
+
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .brand-wordmark-harvest { color: #eef3ef; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .brand-wordmark-link { color: #c8d9cb; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .brand small { color: #bac7be; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-links a,
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a { color: #edf3ef; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-links a:hover,
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-links a.active,
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a:hover { color: var(--public-header-accent); }
+
+@media (max-width: 1100px) {
+  .landing-farmer-friendly .landing-nav {
+    grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 1fr);
+    gap: 12px;
+    padding-inline: 24px;
+  }
+  .landing-farmer-friendly .landing-nav .brand { gap: 8px; }
+  .landing-farmer-friendly .landing-nav .brand strong { font-size: 25px; }
+  .landing-farmer-friendly .landing-nav .brand-mark { width: 36px; height: 36px; }
+  .landing-farmer-friendly .landing-nav .landing-links { gap: 16px; }
+  .landing-farmer-friendly .landing-nav .landing-links a { font-size: 14px; }
+  .landing-farmer-friendly .landing-nav .landing-actions { gap: 12px; }
+  .landing-farmer-friendly .landing-nav .btn-primary { padding-inline: 16px; }
+}
+
+@media (max-width: 900px) {
+  .landing-farmer-friendly .landing-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 76px;
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-farmer-friendly .landing-nav { min-height: 68px; gap: 12px; }
+  .landing-farmer-friendly .landing-nav .brand { min-width: 0; gap: 8px; }
+  .landing-farmer-friendly .landing-nav .brand > span:last-child { min-width: 0; }
+  .landing-farmer-friendly .landing-nav .brand strong { font-size: 18px; }
+  .landing-farmer-friendly .landing-nav .brand small { font-size: 11px; }
+  .landing-farmer-friendly .landing-nav .landing-mobile-menu { flex: 0 0 44px; }
+  .landing-farmer-friendly .landing-nav .landing-mobile-menu-toggle { width: 44px; min-width: 44px; }
+}
+
+@media (max-width: 360px) {
+  .landing-farmer-friendly .landing-nav { gap: 8px; }
+  .landing-farmer-friendly .landing-nav .brand strong { font-size: 17px; }
+  .landing-farmer-friendly .landing-nav .brand small { font-size: 10px; }
+}

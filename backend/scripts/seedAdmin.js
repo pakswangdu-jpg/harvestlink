@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 import 'dotenv/config';
 import { supabaseAdmin } from '../src/lib/supabaseClient.js';
 

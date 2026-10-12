@@ -25,9 +25,6 @@ function resolveWholesalePricing(values, { price, quantity, unit, sellingType, k
   return { wholesalePrice, wholesaleMinQuantity };
 }
 
-
-
-
 function titleCaseName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -49,17 +46,6 @@ function isExpiredDate(value) {
   return !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) || expirationDate < todayInCebu();
 }
 
-
-
-
-
-
-
-
-
-
-
-
 async function assertValidCategoryAndUnit(values, existing) {
   const catalog = await getCatalog();
   const category = catalog.categories.find((entry) => entry.name === values.category);
@@ -72,10 +58,6 @@ async function assertValidCategoryAndUnit(values, existing) {
     throw new ApiError('Choose a valid unit.', 400);
   }
 }
-
-
-
-
 
 async function withFarmerNames(rows) {
   const farmerIds = [...new Set(rows.map((row) => row.farmer_id))];
@@ -232,10 +214,6 @@ async function findMergeTarget(farmerId, row) {
 
 export async function createProduct(req, res) {
   const values = req.body;
-  const quantity = Number(values.quantity);
-  if (!Number.isFinite(quantity) || quantity <= 0 || Number(quantity.toFixed(2)) !== quantity) {
-    throw new ApiError('Enter positive stock with no more than two decimal places.', 400);
-  }
   await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
@@ -290,7 +268,7 @@ export async function createProduct(req, res) {
     location: values.location.trim(),
     description: values.description?.trim() || '',
     image_url: values.image || null,
-    status: values.isDonation ? 'inactive' : 'active',
+    status: 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
     original_price: originalPrice,
@@ -367,9 +345,6 @@ export async function updateProduct(req, res) {
   const kgPerUnit = resolveKgPerUnit(unit, values.kgPerUnit ?? existing.kg_per_unit);
   const price = values.price !== undefined ? Number(values.price) : Number(existing.price);
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
-  if (!Number.isFinite(quantity) || quantity < 0 || Number(quantity.toFixed(2)) !== quantity) {
-    throw new ApiError('Stock must be zero or positive with no more than two decimal places.', 400);
-  }
   const sellingType = values.sellingType ?? existing.selling_type;
   const costPrice = values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price;
   const { wholesalePrice, wholesaleMinQuantity } = resolveWholesalePricing(values, {
@@ -569,15 +544,7 @@ export async function reactivatePriceReview(req, res) {
     .from('products')
     .update({
       status: 'active',
-      price_review: {
-        ...existing.price_review,
-        previousDecisions: [
-          ...(existing.price_review.previousDecisions || []),
-          { status: existing.price_review.status, decidedAt: existing.price_review.decidedAt, reason: existing.price_review.declineReason || existing.price_review.reason || null },
-        ],
-        status: 'approved',
-        decidedAt: new Date().toISOString(),
-      },
+      price_review: { ...existing.price_review, status: 'approved', decidedAt: new Date().toISOString() },
     })
     .eq('id', existing.id)
     .select()

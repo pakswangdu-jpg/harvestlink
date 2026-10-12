@@ -1,7 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle, Building2, CheckCircle, ClipboardCheck, Clock3, FileText, Handshake,
-  ArrowLeft, LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, XCircle,
+  ArrowLeft, Info, LocateFixed, Mail, MapPin, ShieldCheck, UploadCloud, Users, XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
@@ -10,6 +10,7 @@ import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import { setAuthPersistence } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { getProfileLocationFromPlace } from '../../utils/profileLocation';
@@ -23,6 +24,7 @@ import { getAuthDestination } from '../../utils/authDestination';
 import logo from '../../assets/logo.png';
 import './AuthorizedRepresentative.css';
 import './AdminPortal.css';
+import './AdministratorNotice.css';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
@@ -1161,6 +1163,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
       </section> : null}
 
       <section className={`auth-card ${isRegister ? 'auth-card-register' : 'auth-card-login'} ${isStakeholderRegister ? 'auth-card-glass' : ''}`}>
+        <div className={adminPortal ? 'admin-portal-toolbar' : undefined}>
         <Button
           variant="ghost"
           size="sm"
@@ -1170,6 +1173,8 @@ export default function AuthPage({ mode, adminPortal = false }) {
           <ArrowLeft size={16} aria-hidden="true" />
           Back
         </Button>
+        {adminPortal ? <ThemeToggle compact /> : null}
+        </div>
         <Link to="/" className="auth-card-brand">
           <span className="brand-mark">
             <img src={logo} alt="" />
@@ -1200,7 +1205,15 @@ export default function AuthPage({ mode, adminPortal = false }) {
           className={`form-stack ${isRegister && authStage !== 'otp' ? 'register-form' : ''}`}
           onSubmit={authStage === 'otp' ? handleVerifyOtp : handleSubmit}
         >
-          {isGeneralAdminSession && !isRegister && authStage === 'form' ? <FormAlert type="info" title="Administrator account" message="Please use the HarvestLink Admin portal to sign in." /> : null}
+          {isGeneralAdminSession && !isRegister && authStage === 'form' ? (
+            <div className="auth-administrator-notice" role="status">
+              <Info size={17} strokeWidth={1.8} aria-hidden="true" />
+              <div>
+                <strong>Admin account detected</strong>
+                <p>This account uses the HarvestLink Admin Portal.</p>
+              </div>
+            </div>
+          ) : null}
           {errors.form ? (
             <FormAlert
               type="error"

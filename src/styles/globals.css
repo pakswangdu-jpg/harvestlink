@@ -7240,23 +7240,32 @@ a.user-chip:hover {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  width: 100vw;
-  height: 100dvh;
-  min-height: 0;
-  max-width: none;
+  /* Fullscreen sizing must override dashboard and mobile inline-map dimensions. */
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  max-width: none !important;
   box-sizing: border-box;
   background: var(--panel);
-  padding: 12px;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 
 .delivery-map-wrapper.fullscreen .delivery-map,
 .farmer-map-wrapper.fullscreen .farmer-map,
 .delivery-map-wrapper:fullscreen .delivery-map,
 .farmer-map-wrapper:fullscreen .farmer-map {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border-radius: var(--radius);
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  max-width: none !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 
 .map-fullscreen-toggle {
@@ -16442,6 +16451,99 @@ td {
   height: 34px;
 }
 
+.app-shell:not(.sidebar-collapsed) .sidebar-brand-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-shell:not(.sidebar-collapsed) .sidebar .brand {
+  width: max-content;
+  max-width: calc(100% - 42px);
+  min-width: 0;
+  gap: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app-shell:not(.sidebar-collapsed) .sidebar .brand > span:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.app-shell:not(.sidebar-collapsed) .sidebar .brand strong {
+  font-size: clamp(14px, 5vw, 18px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.app-shell:not(.sidebar-collapsed) .sidebar .brand small {
+  font-size: clamp(10px, 3.4vw, 12px);
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.app-shell:not(.sidebar-collapsed) .sidebar-collapse-toggle {
+  position: absolute;
+  top: calc((100% - 18px) / 2);
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand {
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand > span:last-child {
+  flex: 0 1 auto;
+  width: 100%;
+  text-align: center;
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand strong,
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand small {
+  text-align: center;
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar-brand-row {
+  min-height: 58px;
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand-mark {
+  position: absolute;
+  left: 6px;
+  top: calc((100% - 18px) / 2);
+  width: 34px;
+  height: 34px;
+  transform: translateY(-50%);
+}
+
+.app-shell:is(.role-buyer, .role-farmer, .role-stakeholder):not(.sidebar-collapsed) .sidebar .brand > span:last-child {
+  position: absolute;
+  top: calc((100% - 18px) / 2);
+  left: 50%;
+  width: calc(100% - 88px);
+  transform: translate(-50%, -50%);
+}
+
+[data-theme="dark"] .app-shell .sidebar-brand-row {
+  border-bottom-color: rgba(120, 150, 130, 0.2);
+}
+
+[data-theme="dark"] .app-shell .sidebar .brand-wordmark-harvest,
+[data-theme="dark"] .app-shell .sidebar .brand-wordmark-link {
+  color: #e8eee9;
+}
+
+[data-theme="dark"] .app-shell .sidebar .brand small {
+  color: #b4c0b8;
+}
+
 .sidebar-scroll nav > div > p,
 .sidebar-scroll > div > p {
   padding-bottom: 6px;
@@ -21480,6 +21582,11 @@ textarea {
   background: #f3f8f4;
 }
 
+.buyer-orders-page .buyer-order-overview,
+.buyer-orders-page .buyer-order-overview-heading {
+  background: transparent;
+}
+
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview,
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview-heading,
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview .product-stats-item {
@@ -21570,13 +21677,17 @@ button,
 
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview {
   border-color: #33443a;
-  background: #17211b;
+  background: transparent;
 }
 
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview-heading,
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview .product-stats-item {
   border-color: #33443a;
   background: #17211b;
+}
+
+[data-theme='dark'] .buyer-orders-page .buyer-order-overview-heading {
+  background: transparent;
 }
 
 [data-theme='dark'] .buyer-orders-page .buyer-order-overview-heading > p:last-child,
@@ -23487,16 +23598,16 @@ button,
 }
 
 .auth-page-login .auth-hero h1 {
-  font-size: 48px;
+  font-size: 46px;
   font-weight: 600;
-  line-height: 1.12;
+  line-height: 1.16;
   letter-spacing: 0;
 }
 
 .auth-page-login .auth-hero p {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.65;
   letter-spacing: 0;
 }
 
@@ -23514,7 +23625,7 @@ button,
 }
 
 .auth-page-login .auth-card-header h2 {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0;
@@ -23523,6 +23634,7 @@ button,
 .auth-page-login .auth-card-header p {
   font-size: 15px;
   font-weight: 400;
+  line-height: 1.5;
   letter-spacing: 0;
 }
 

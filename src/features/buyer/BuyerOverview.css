@@ -4,7 +4,7 @@
 
 .buyer-dashboard-page .buyer-overview .buyer-order-summary.buyer-summary-cards {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -20,15 +20,15 @@
   --summary-hover-border: #d2dce4;
   --summary-icon: #667b8c;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  align-content: start;
+  grid-template-rows: 21px 34px auto;
+  align-content: stretch;
   gap: 0;
-  min-height: 140px;
-  padding: 18px;
+  min-height: 150px;
+  padding: 14px 18px;
   border: 1px solid var(--summary-border);
-  border-radius: 8px;
-  background: var(--summary-tint);
-  box-shadow: none;
+  border-radius: 10px;
+  background: var(--summary-background, var(--summary-tint));
+  box-shadow: var(--summary-shadow, none);
   font-family: inherit;
   transition: border-color 160ms ease, background-color 160ms ease;
 }
@@ -59,7 +59,7 @@
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item:hover {
   border-color: var(--summary-hover-border);
-  background: var(--summary-hover-tint);
+  background: var(--summary-hover-background, var(--summary-hover-tint));
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item:focus-visible {
@@ -84,10 +84,11 @@
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-label svg {
   flex: none;
-  width: 17px;
-  height: 17px;
-  stroke-width: 2.75;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
   color: var(--summary-icon);
+  opacity: 0.85;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .is-pending .buyer-summary-label svg {
@@ -102,30 +103,97 @@
   grid-column: 1;
   grid-row: 2;
   align-self: center;
-  margin-block: 12px 10px;
+  margin: 0;
   color: #24332d;
   font-family: inherit;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend > strong {
-  font-size: 32px;
+  font-size: 28px;
+}
+
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
+  grid-template-rows: 21px 34px minmax(39px, 1fr) 21px;
+  min-height: 150px;
+  padding-block: 14px;
+}
+
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .is-spend > strong {
+  grid-row: 2;
+}
+
+.buyer-dashboard-page .buyer-summary-item.is-spend .buyer-spend-chart {
+  grid-column: 1;
+  grid-row: 3;
+  display: grid;
+  align-content: end;
+  gap: 0;
+  min-width: 0;
+  color: var(--summary-icon);
+}
+
+.buyer-dashboard-page .buyer-spend-chart > span {
+  color: #68766c;
+  font-size: 11px;
+  line-height: 13px;
+}
+
+.buyer-dashboard-page .buyer-spend-chart svg {
+  display: block;
+  width: 100%;
+  height: 26px;
+  overflow: visible;
+}
+
+.buyer-dashboard-page .buyer-spend-chart-grid {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.16;
+  stroke-width: 1;
+}
+
+.buyer-dashboard-page .buyer-spend-chart-area {
+  fill: var(--summary-icon);
+  fill-opacity: 0.12;
+}
+
+.buyer-dashboard-page .buyer-spend-chart-line {
+  fill: none;
+  stroke: var(--summary-icon);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.buyer-dashboard-page .buyer-spend-chart-point {
+  fill: var(--summary-icon);
+  stroke: var(--summary-tint);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend > small {
+  grid-row: 4;
+  align-self: center;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item > small {
   grid-column: 1;
   grid-row: 3;
-  align-self: end;
+  align-self: start;
   color: #59635e;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.5;
   letter-spacing: 0;
 }
 
@@ -148,6 +216,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item {
+  --summary-background: #252c28;
+  --summary-hover-background: #2b342e;
   --summary-tint: #242a2f;
   --summary-border: #374148;
   --summary-hover-tint: #2b3339;
@@ -155,7 +225,13 @@
   --summary-icon: #9badbc;
 }
 
+[data-theme='dark'] .buyer-dashboard-page .buyer-spend-chart > span {
+  color: #a8b4ac;
+}
+
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-pending {
+  --summary-background: #2d2b25;
+  --summary-hover-background: #353128;
   --summary-tint: #2b2923;
   --summary-border: #423e33;
   --summary-hover-tint: #343128;
@@ -164,6 +240,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-complete {
+  --summary-background: #25302a;
+  --summary-hover-background: #2b3930;
   --summary-tint: #232d28;
   --summary-border: #35473d;
   --summary-hover-tint: #2b3730;
@@ -172,11 +250,25 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
+  --summary-background: #2b2f27;
+  --summary-hover-background: #34392d;
   --summary-tint: #292d26;
   --summary-border: #3d4538;
   --summary-hover-tint: #31382d;
   --summary-hover-border: #515d48;
   --summary-icon: #a8b69c;
+}
+
+@media (max-width: 640px) {
+  .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item {
+    min-height: 140px;
+    padding: 12px 16px;
+  }
+
+  .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
+    min-height: 150px;
+    padding-block: 12px;
+  }
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-label,

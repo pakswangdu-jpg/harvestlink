@@ -47,6 +47,43 @@
   color: var(--admin-portal-muted);
 }
 
+.auth-page-admin .admin-portal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.auth-page-admin.auth-page-login .admin-portal-toolbar .auth-back-button {
+  margin-bottom: 0;
+}
+
+.auth-page-admin .admin-portal-toolbar .theme-toggle-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--admin-portal-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-portal-muted);
+  cursor: pointer;
+}
+
+.auth-page-admin .admin-portal-toolbar .theme-toggle-compact:hover {
+  background: color-mix(in srgb, var(--admin-portal-text) 6%, transparent);
+  color: var(--admin-portal-text);
+}
+
+.auth-page-admin .admin-portal-toolbar .theme-toggle-compact:focus-visible {
+  outline: 2px solid var(--admin-portal-muted);
+  outline-offset: 3px;
+}
+
 .auth-page-admin.auth-page-login .auth-card-brand {
   display: flex;
   align-items: center;

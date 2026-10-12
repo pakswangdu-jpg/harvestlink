@@ -1,0 +1,129 @@
+.landing-page.landing-farmer-friendly .lp-about {
+  grid-template-columns: minmax(0, 0.44fr) minmax(0, 0.56fr);
+  gap: 32px;
+  align-items: center;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-image {
+  width: 100%;
+  max-width: none;
+  max-height: 420px;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--lp-radius-lg);
+  box-shadow: var(--lp-shadow-sm);
+}
+
+.landing-page.landing-farmer-friendly .lp-about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-content {
+  min-width: 0;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-content > .eyebrow {
+  margin: 0;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-content h2 {
+  margin-top: 3px;
+  line-height: 1.25;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-block {
+  margin-top: 18px;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-block h4 {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-block p {
+  max-width: 620px;
+  margin-top: 5px;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-highlights {
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-highlights li {
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.landing-page.landing-farmer-friendly .lp-about-highlights svg {
+  width: 15px;
+  height: 15px;
+  margin-top: 3px;
+}
+
+.landing-page.landing-farmer-friendly .lp-badge-row {
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.landing-page.landing-farmer-friendly .lp-pill-badge {
+  min-height: 30px;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.landing-page.landing-farmer-friendly .lp-pill-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (max-width: 900px) {
+  .landing-page.landing-farmer-friendly .lp-about {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .landing-page.landing-farmer-friendly .lp-about-image {
+    width: 100%;
+    max-width: 640px;
+    max-height: 380px;
+    aspect-ratio: 16 / 10;
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-page.landing-farmer-friendly .lp-about {
+    gap: 20px;
+  }
+
+  .landing-page.landing-farmer-friendly .lp-about-image {
+    max-width: none;
+    max-height: 320px;
+    aspect-ratio: 16 / 10;
+  }
+
+  .landing-page.landing-farmer-friendly .lp-about-block {
+    margin-top: 16px;
+  }
+
+  .landing-page.landing-farmer-friendly .lp-about-block p {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .landing-page.landing-farmer-friendly .lp-badge-row {
+    gap: 8px;
+  }
+}

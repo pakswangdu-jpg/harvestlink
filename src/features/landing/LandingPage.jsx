@@ -7,20 +7,17 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
-  CloudSun,
   CreditCard,
   Gift,
   HeartHandshake,
   LayoutDashboard,
   Mail,
   Menu,
-  Package,
   Phone,
   Search,
   Send,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   Truck,
   UserPlus,
   Users,
@@ -29,14 +26,20 @@ import {
 import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCarousel';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import logo from '../../assets/logo.png';
-import verifiedIcon from '../../assets/icons/verified-farmer.png';
 import { apiClient } from '../../services/apiClient';
 import directTradingIcon from '../../assets/icons/feature-direct-trading.png';
 import secureCheckoutIcon from '../../assets/icons/feature-secure-checkout.png';
 import deliveryTrackingIcon from '../../assets/icons/feature-delivery-tracking.png';
 import surplusDonationIcon from '../../assets/icons/feature-surplus-donation.png';
 import adminOversightIcon from '../../assets/icons/feature-admin-oversight.png';
-import kathrynBernardoPhoto from '../../assets/kathryn-bernardo.jpg';
+import cabbagePhoto from '../../assets/landing-cabbage-basket.jpg';
+import farmPhoto from '../../assets/landing-farm.jpg';
+import farmPhotoEnhanced from '../../assets/landing-farm-enhanced.png';
+import './LandingHero.css';
+import './LandingLayout.css';
+import './LandingHeader.css';
+import './ExampleListing.css';
+import './LandingAbout.css';
 
 
 
@@ -113,13 +116,19 @@ const NAV_LINKS = [
   { id: 'contact', label: 'Contact' },
 ];
 
-const TRUST_INDICATORS = ['AI Price Recommendation', 'Secure Payments', 'Live Delivery Tracking', 'Donation Platform'];
+const TRUST_INDICATORS = ['Fair price guidance', 'Simple payment options', 'Live delivery tracking', 'Donate unsold produce'];
 
-const HERO_STATS = [
-  { value: '500+', label: 'Farmers' },
-  { value: '2,000+', label: 'Orders' },
-  { value: '98%', label: 'Satisfaction' },
-  { value: 'Real-time', label: 'Tracking' },
+const FARMER_STEPS = [
+  { title: 'List your produce', text: 'Add your product, quantity, price, and harvest details.' },
+  { title: 'Receive orders', text: 'Buyers can find your products and order directly from you.' },
+  { title: 'Deliver and get paid', text: 'Manage the order and choose your available delivery or pickup option.' },
+];
+
+const FARMER_BENEFITS = [
+  { title: 'Reach more buyers', text: 'Make your produce visible beyond your local market.' },
+  { title: 'Set your own selling price', text: 'Keep control of your retail and wholesale prices.' },
+  { title: 'Manage orders easily', text: 'Track incoming orders and delivery progress in one place.' },
+  { title: 'Reduce food waste', text: 'Offer eligible unsold produce to community partners.' },
 ];
 
 const FEATURES = [
@@ -194,7 +203,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="landing-page">
+    <main className="landing-page landing-farmer-friendly">
       <nav className={`landing-nav ${isScrolled ? 'is-scrolled' : ''}`}>
         <Link className="brand" to="/">
           <span className="brand-mark"><img src={logo} alt="" /></span>
@@ -212,25 +221,27 @@ export default function LandingPage() {
         </div>
         <div className="landing-actions">
           <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-          <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+          <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
         </div>
         <div className="landing-mobile-menu" ref={mobileMenuRef}>
           <button
             type="button"
             className="landing-mobile-menu-toggle"
             aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="harvestlink-public-menu"
             onClick={() => setIsMobileMenuOpen((previous) => !previous)}
           >
             {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           {isMobileMenuOpen ? (
-            <div className="landing-mobile-menu-panel">
+            <div className="landing-mobile-menu-panel" id="harvestlink-public-menu">
               {NAV_LINKS.map((link) => (
                 <a key={link.id} href={`#${link.id}`} onClick={() => setIsMobileMenuOpen(false)}>{link.label}</a>
               ))}
               <div className="landing-mobile-menu-actions">
                 <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-                <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+                <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
               </div>
             </div>
           ) : null}
@@ -238,83 +249,71 @@ export default function LandingPage() {
       </nav>
 
       <section id="home" className="landing-hero">
+        <img
+          className="farmer-hero-photo"
+          src={farmPhotoEnhanced}
+          srcSet={`${farmPhoto} 1085w, ${farmPhotoEnhanced} 1539w`}
+          sizes="100vw"
+          alt="Farmers harvesting a rice field with a red and white combine harvester"
+          fetchPriority="high"
+        />
         <div className="hero-copy-block">
-          <span className="lp-badge"><Sparkles size={14} /> AI-Assisted Farm-to-Market Platform</span>
-          <h1>Connect Cebu Farmers and Buyers Through Smart Agricultural Commerce</h1>
-          <p>
-            Farmers sell directly to buyers with secure checkout and real-time delivery tracking — while unsold
-            produce gets a second life through discounts or donations to local community partners.
-          </p>
+          <span className="farmer-hero-label">Built for Cebu farmers and buyers</span>
+          <h1>Sell your harvest<br />directly to more buyers</h1>
+          <p>Reach customers across Cebu, manage orders easily, and get more value from every harvest.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary btn-lg" to="/register">
-              Get Started <ArrowRight size={18} />
+              Start selling <ArrowRight size={18} aria-hidden="true" />
             </Link>
-            <a className="btn btn-secondary btn-lg" href="#features">Learn More</a>
+            <Link className="btn btn-secondary btn-lg" to="/marketplace">Browse marketplace</Link>
           </div>
+          <p className="farmer-hero-reassurance">Easy to use &middot; Mobile friendly &middot; Built for Cebu agriculture</p>
           <ul className="lp-trust-list">
             {TRUST_INDICATORS.map((item) => (
-              <li key={item}><CheckCircle2 size={16} /> {item}</li>
+              <li key={item}><CheckCircle2 size={16} aria-hidden="true" /> {item}</li>
             ))}
           </ul>
         </div>
 
-        <div className="lp-preview" aria-label="HarvestLink dashboard preview">
-          <div className="lp-preview-card">
-            <div className="lp-preview-header">
-              <span className="lp-preview-avatar">
-                <img src={kathrynBernardoPhoto} alt="Kathryn Bernardo" />
-              </span>
-              <div>
-                <strong>Kathryn Bernardo</strong>
-                <span className="lp-preview-farm"><img src={verifiedIcon} alt="" width={13} height={13} className="h-[13px] w-[13px] object-contain" /> Bernardo Farm · Verified farmer</span>
-              </div>
-            </div>
+      </section>
 
-            <div className="lp-preview-product">
-              <span className="category-pill">Vegetables</span>
-              <h3>Fresh Cabbage</h3>
-              <p>Carcar City, Cebu · Grade A</p>
-            </div>
+      <section className="farmer-start-section" aria-labelledby="farmer-start-title">
+        <h2 id="farmer-start-title">How HarvestLink helps farmers</h2>
+        <p className="farmer-start-description">HarvestLink helps farmers list fresh produce, connect directly with buyers, manage orders, and track deliveries in one simple place. Unsold produce can also be offered to community partners instead of going to waste.</p>
+        <ol className="farmer-start-steps">
+          {FARMER_STEPS.map((step, index) => <li key={step.title}>
+            <span className="farmer-step-number">{index + 1}.</span>
+            <div><h3>{step.title}</h3><p>{step.text}</p></div>
+          </li>)}
+        </ol>
+      </section>
 
-            <div className="lp-preview-price-row">
-              <div className="lp-preview-price ai">
-                <span>AI Recommended</span>
-                <strong>₱55.00/kg</strong>
-              </div>
-              <div className="lp-preview-price">
-                <span>Market Price</span>
-                <strong>₱52.00/kg</strong>
-              </div>
-            </div>
-
-            <div className="lp-preview-chips">
-              <span className="lp-preview-chip"><CloudSun size={14} /> 29°C · Sunny</span>
-              <span className="lp-preview-chip"><TrendingUp size={14} /> High demand</span>
-              <span className="lp-preview-chip"><Package size={14} /> 120kg in stock</span>
-            </div>
-
-            <div className="lp-preview-steps">
-              {['Preparing', 'Packed', 'Out for delivery', 'Delivered'].map((step, index) => (
-                <div key={step} className={`lp-preview-step ${index <= 2 ? 'done' : ''} ${index === 2 ? 'current' : ''}`}>
-                  <span className="lp-preview-step-dot" />
-                  {step}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lp-float-stat top">
-            <strong>{HERO_STATS[0].value}</strong> {HERO_STATS[0].label}
-            <em />
-            <strong>{HERO_STATS[1].value}</strong> {HERO_STATS[1].label}
-          </div>
-
-          <div className="lp-float-stat bottom">
-            <strong>{HERO_STATS[2].value}</strong> {HERO_STATS[2].label}
-            <em />
-            <strong>{HERO_STATS[3].value}</strong> {HERO_STATS[3].label}
+      <section className="farmer-benefits-section" aria-labelledby="farmer-benefits-title">
+        <div className="farmer-benefits-copy">
+          <h2 id="farmer-benefits-title">Your harvest. More possibilities.</h2>
+          <div className="farmer-benefits-list">
+            {FARMER_BENEFITS.map(item => <div key={item.title}>
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <div><h3>{item.title}</h3><p>{item.text}</p></div>
+            </div>)}
           </div>
         </div>
+        <article className="farmer-listing-example" aria-label="Example produce listing">
+          <div className="farmer-example-image"><img src={cabbagePhoto} alt="Whole and halved fresh green cabbages in a woven basket" loading="lazy" width="1500" height="1125" /></div>
+          <div className="farmer-listing-details">
+            <header className="farmer-example-header">
+              <span className="farmer-example-label">Example listing</span>
+              <span className="farmer-example-identity"><CheckCircle2 size={15} aria-hidden="true" /> Verified farmer &middot; John Dela Cruz</span>
+            </header>
+            <div className="farmer-example-product">
+              <h3>Fresh cabbage</h3>
+              <p>Grade A &middot; Carcar City, Cebu</p>
+            </div>
+            <div className="farmer-example-price"><strong>&#8369;55/kg</strong><span>120 kg available</span></div>
+            <p className="farmer-example-reference"><span>Market reference</span><span>&#8369;52/kg</span></p>
+            <Link to="/marketplace" className="farmer-example-link">Browse fresh produce <ArrowRight size={16} aria-hidden="true" /></Link>
+          </div>
+        </article>
       </section>
 
       <section id="features" className="landing-feature-grid">

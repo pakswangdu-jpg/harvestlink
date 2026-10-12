@@ -9,6 +9,7 @@ import SidebarNavItem, { SIDEBAR_ICON_STROKE } from './SidebarNavItem';
 import SidebarUserCard from './SidebarUserCard';
 import MobileBottomNav from './MobileBottomNav';
 import ThemeToggle from '../common/ThemeToggle';
+import LogoutConfirmDialog from '../common/LogoutConfirmDialog';
 import LocationPermissionNotice from '../common/LocationPermissionNotice';
 import { useLocationPermission } from '../../hooks/useLocationPermission';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
@@ -39,7 +40,7 @@ const SIDEBAR_COLLAPSED_KEY = 'harvestlink:sidebarCollapsed';
 export default function AppShell({
   user, navItems, title, subtitle, eyebrow = 'Cebu farm-to-market', children, fullBleed = false, wide = false, hideHeader = false, headerActions = null, pageClassName = '',
 }) {
-  const { handleLogout, isLoggingOut } = useLogout();
+  const { handleLogout, isLoggingOut, isConfirmOpen, confirmLogout, cancelLogout } = useLogout();
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
@@ -82,6 +83,14 @@ export default function AppShell({
 
 
   const menuGroups = useMemo(() => {
+    if (user.role === 'admin') {
+      const dashboard = menuItems.filter((item) => item.label === 'Dashboard');
+      const management = menuItems.filter((item) => item.label !== 'Dashboard');
+      return [
+        ...(dashboard.length ? [{ label: 'Overview', items: dashboard }] : []),
+        ...(management.length ? [{ label: 'Management', items: management }] : []),
+      ];
+    }
     const byLabel = new Map();
     menuItems.forEach((item) => {
       const label = item.group || 'Menu';
@@ -93,7 +102,7 @@ export default function AppShell({
       ...[...byLabel.keys()].filter((label) => !NAV_GROUP_ORDER.includes(label)),
     ];
     return orderedLabels.map((label) => ({ label, items: byLabel.get(label) }));
-  }, [menuItems]);
+  }, [menuItems, user.role]);
 
   return (
     <div className={`app-shell role-${user.role} ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`.trim()}>
@@ -110,8 +119,8 @@ export default function AppShell({
             </span>
             {!isSidebarCollapsed ? (
               <span>
-                <strong><BrandWordmark /></strong>
-                <small>{user.role === 'admin' ? 'Admin Portal' : `${user.role} workspace`}</small>
+                <strong>{user.role === 'admin' ? 'Admin Portal' : <BrandWordmark />}</strong>
+                {user.role !== 'admin' ? <small>{`${user.role} workspace`}</small> : null}
               </span>
             ) : null}
           </Link>
@@ -153,7 +162,7 @@ export default function AppShell({
         <div className="sidebar-footer">
           <div className="sidebar-general flex flex-col gap-1">
             {!isSidebarCollapsed ? (
-              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">General</p>
+              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{user.role === 'admin' ? 'Account' : 'General'}</p>
             ) : null}
             {profileItem ? (
               <SidebarNavItem to={profileItem.to} label={user.role === 'admin' ? 'Profile' : 'Settings'} icon={user.role === 'admin' ? profileItem.icon : Settings} isCollapsed={isSidebarCollapsed} />
@@ -270,6 +279,7 @@ export default function AppShell({
       </main>
 
       <MobileBottomNav user={user} navItems={navItems} />
+      <LogoutConfirmDialog open={isConfirmOpen} busy={isLoggingOut} onConfirm={confirmLogout} onCancel={cancelLogout} />
     </div>
   );
 }

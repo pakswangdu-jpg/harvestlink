@@ -14,7 +14,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'name',
       label: 'Product',
-      width: '31%',
+      width: '35%',
       render: (product) => (
         <div className="flex items-center gap-3">
           <div className="product-row-thumb">
@@ -34,7 +34,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'price',
       label: 'Price',
-      width: '16%',
+      width: '14%',
       render: (product) => (
         <span>
           {product.discountPercent ? <span className="muted price-original">{formatCurrency(product.originalPrice)}</span> : null}
@@ -45,19 +45,19 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
     {
       key: 'quantity',
       label: 'Stock',
-      width: '14%',
+      width: '12%',
       render: (product) => <span>{product.quantity} {product.unit}</span>,
     },
     {
       key: 'status',
       label: 'Status',
-      width: '15%',
+      width: '14%',
       render: (product) => {
         const { value, label } = getProductStatusInfo(product);
         return <span className={`badge badge-${value}`}>{label}</span>;
       },
     },
-    { key: 'updatedAt', label: 'Updated', width: '14%', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
+    { key: 'updatedAt', label: 'Updated', width: '15%', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
     {
       key: 'actions',
       label: 'Action',

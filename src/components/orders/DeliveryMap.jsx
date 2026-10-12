@@ -10,6 +10,7 @@ import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { buildMapPopup, buildPresenceMarkup } from '../map/mapPopupMarkup';
 
 import { buildViewerIcon, buildViewerPopup } from '../map/userLocationMarker';
+import { DONATION_MARKER_COLOR, donationAnimation, isDonationAlert } from '../map/donationMarker';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -255,7 +256,7 @@ export default function DeliveryMap({
 
     const signature = farmers.map((farmer) => {
       const coords = farmerCoordsById[farmer.id];
-      return `${farmer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
+      return `${farmer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}:${farmer.hasAvailableDonations === true}`;
     }).join('|') + `:${alertStyle}`;
     if (signature === markerSignaturesRef.current.farmers) return;
     markerSignaturesRef.current.farmers = signature;
@@ -266,11 +267,14 @@ export default function DeliveryMap({
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
       const displayName = farmer.farmName || farmer.name;
+      const donationAlert = isDonationAlert(farmer, coords);
       const marker = new mapsApi.Marker({
         position: coords,
         map,
-        icon: buildPinIcon(mapsApi, MAP_COLORS.farmer, { alert: alertStyle }),
-        title: displayName,
+        icon: buildPinIcon(mapsApi, donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer, { alert: alertStyle }),
+        title: donationAlert ? `${displayName}: surplus donation available` : displayName,
+        animation: donationAnimation(mapsApi, donationAlert),
+        zIndex: donationAlert ? 750 : undefined,
       });
       const infoWindow = new mapsApi.InfoWindow({
         content: buildMapPopup({
@@ -282,6 +286,7 @@ export default function DeliveryMap({
           coords,
           presence: buildPresenceMarkup(farmer),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+          products: donationAlert ? '<strong>Surplus donation available</strong>' : '',
           links: [
             { href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}`, label: 'View products' },
             { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' },
