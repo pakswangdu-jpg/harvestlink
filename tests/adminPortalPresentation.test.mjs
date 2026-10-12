@@ -12,14 +12,25 @@ test('Admin login identity is conditional and does not replace the shared authen
   assert.match(source, /onSubmit=\{authStage === 'otp' \? handleVerifyOtp : handleSubmit\}/);
 });
 
-test('Portal surfaces are scoped, neutral, and support dark mode', async () => {
+test('Admin login portal uses a fixed light appearance', async () => {
   const css = await readFile(new URL('../src/features/auth/AdminPortal.css', import.meta.url), 'utf8');
   for (const match of css.matchAll(/([^{}]+)\{/g)) {
     const selector = match[1].trim();
     if (selector.startsWith('@')) continue;
     assert.ok(selector.includes('.auth-page-admin'), selector);
   }
-  assert.match(css, /\[data-theme="dark"\]/);
+  assert.doesNotMatch(css, /\[data-theme="dark"\]/);
+  assert.match(css, /background: #f3f5f4/);
+  assert.match(css, /background: #fff/);
+  assert.match(css, /box-sizing: border-box/);
+  assert.match(css, /input:-webkit-autofill/);
+  assert.match(css, /-webkit-text-fill-color: var\(--admin-portal-text\)/);
+  assert.match(css, /-webkit-box-shadow: 0 0 0 1000px #fff inset/);
+  assert.match(css, /max-width: 420px/);
+  assert.match(css, /overflow-y: auto/);
+  assert.match(css, /brightness\(0\.78\) saturate\(0\.78\)/);
+  assert.match(css, /admin-portal-restriction \{ color: #557262/);
+  assert.match(css, /auth-checkbox input \{[\s\S]*?color-scheme: light;[\s\S]*?accent-color: #438f68/);
   assert.match(css, /Segoe UI/);
   assert.doesNotMatch(css, /gradient\(/);
   assert.match(css, /auth-page-admin::before/);
@@ -30,13 +41,9 @@ test('Portal surfaces are scoped, neutral, and support dark mode', async () => {
   assert.ok(image.length > 0);
 });
 
-test('Admin sign-in reuses the saved light/dark control without changing authentication', async () => {
+test('Admin sign-in has no theme toggle and keeps shared theme controls available elsewhere', async () => {
   const source = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
   const toggle = await readFile(new URL('../src/components/common/ThemeToggle.jsx', import.meta.url), 'utf8');
-  const context = await readFile(new URL('../src/contexts/ThemeContext.jsx', import.meta.url), 'utf8');
-  assert.match(source, /adminPortal \? <ThemeToggle compact \/> : null/);
+  assert.doesNotMatch(source, /ThemeToggle/);
   assert.match(toggle, /setTheme\(isDark \? 'light' : 'dark'\)/);
-  assert.match(toggle, /Switch to light mode/);
-  assert.match(toggle, /Switch to dark mode/);
-  assert.match(context, /localStorage\.setItem\(STORAGE_KEY, nextTheme\)/);
 });

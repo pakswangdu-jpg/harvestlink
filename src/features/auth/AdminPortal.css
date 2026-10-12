@@ -4,7 +4,8 @@
   --admin-portal-border: #dce2de;
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -21,7 +22,7 @@
   z-index: -1;
   pointer-events: none;
   background: url('../../assets/admin-login-background.jpg') center / cover no-repeat;
-  filter: blur(8px);
+  filter: blur(8px) brightness(0.78) saturate(0.78);
 }
 
 .auth-page-admin.auth-page-login,
@@ -31,18 +32,19 @@
 }
 
 .auth-page-admin.auth-page-login .auth-card-login {
+  box-sizing: border-box;
   width: 100%;
   max-width: 420px;
   min-width: 0;
-  padding: 24px;
+  padding: 22px;
   border: 1px solid var(--admin-portal-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: none;
+  box-shadow: 0 16px 48px rgb(24 42 32 / 18%);
 }
 
 .auth-page-admin.auth-page-login .auth-back-button {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
   font-size: 13px;
   color: var(--admin-portal-muted);
 }
@@ -52,36 +54,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .auth-page-admin.auth-page-login .admin-portal-toolbar .auth-back-button {
   margin-bottom: 0;
-}
-
-.auth-page-admin .admin-portal-toolbar .theme-toggle-compact {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid var(--admin-portal-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--admin-portal-muted);
-  cursor: pointer;
-}
-
-.auth-page-admin .admin-portal-toolbar .theme-toggle-compact:hover {
-  background: color-mix(in srgb, var(--admin-portal-text) 6%, transparent);
-  color: var(--admin-portal-text);
-}
-
-.auth-page-admin .admin-portal-toolbar .theme-toggle-compact:focus-visible {
-  outline: 2px solid var(--admin-portal-muted);
-  outline-offset: 3px;
 }
 
 .auth-page-admin.auth-page-login .auth-card-brand {
@@ -89,14 +66,12 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 20px;
-  position: relative;
-  left: -17.6px;
+  margin-bottom: 16px;
 }
 
 .auth-page-admin.auth-page-login .auth-card-brand .brand-mark { height: 32px; }
 .auth-page-admin.auth-page-login .auth-card-brand strong { font-size: 17px; font-weight: 600; }
-.auth-page-admin.auth-page-login .auth-card-header { text-align: center; margin-bottom: 24px; }
+.auth-page-admin.auth-page-login .auth-card-header { text-align: center; margin-bottom: 20px; }
 .auth-page-admin.auth-page-login .auth-card-header h2 {
   font-size: 24px;
   font-weight: 600;
@@ -109,30 +84,35 @@
   margin-top: 6px;
   color: var(--admin-portal-muted);
 }
-.auth-page-admin.auth-page-login .auth-card-header .admin-portal-restriction { color: #b42318; }
+.auth-page-admin.auth-page-login .auth-card-header .admin-portal-restriction { color: #557262; }
 .auth-page-admin.auth-page-login .form-field > span:first-child { font-size: 14px; font-weight: 500; color: var(--admin-portal-text); }
 .auth-page-admin.auth-page-login .form-field input {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 44px;
   font-size: 16px;
   border-color: var(--admin-portal-border);
   background: #fff;
   color: var(--admin-portal-text);
+  color-scheme: light;
+}
+.auth-page-admin.auth-page-login .form-field input:-webkit-autofill,
+.auth-page-admin.auth-page-login .form-field input:-webkit-autofill:hover,
+.auth-page-admin.auth-page-login .form-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--admin-portal-text);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  caret-color: var(--admin-portal-text);
+}
+.auth-page-admin.auth-page-login .input-icon-trailing-btn {
+  color: var(--admin-portal-muted);
 }
 .auth-page-admin.auth-page-login .auth-checkbox { font-size: 13px; color: var(--admin-portal-muted); }
+.auth-page-admin.auth-page-login .auth-checkbox input {
+  color-scheme: light;
+  accent-color: #438f68;
+}
 .auth-page-admin.auth-page-login .auth-forgot-link { font-size: 13px; font-weight: 500; }
 .auth-page-admin.auth-page-login .auth-submit { min-height: 44px; font-size: 14px; font-weight: 600; box-shadow: none; }
-
-[data-theme="dark"] .auth-page.auth-page-login.auth-page-admin {
-  --admin-portal-text: #e5eae7;
-  --admin-portal-muted: #a7b2ab;
-  --admin-portal-border: #38413b;
-  background: #191d1b;
-}
-[data-theme="dark"] .auth-page.auth-page-login.auth-page-admin::before { filter: blur(8px) brightness(0.55); }
-[data-theme="dark"] .auth-page-admin.auth-page-login .auth-card-login { background: #232825; box-shadow: none; }
-[data-theme="dark"] .auth-page-admin.auth-page-login .form-field input { background: #1d221f; }
-[data-theme="dark"] .auth-page-admin.auth-page-login .auth-forgot-link { color: #90cba8; }
-[data-theme="dark"] .auth-page-admin.auth-page-login .auth-card-header .admin-portal-restriction { color: #fda29b; }
 
 @media (max-width: 480px) {
   .auth-page.auth-page-login.auth-page-admin { padding: 24px 16px; }
