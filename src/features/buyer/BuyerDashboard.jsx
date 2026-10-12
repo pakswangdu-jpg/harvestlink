@@ -263,6 +263,17 @@ export default function BuyerDashboard() {
           </Link>
         </div>
         <div className="buyer-order-summary buyer-summary-cards" aria-label="Buyer order summary">
+          <Link
+            className="buyer-summary-item is-spend"
+            to="/buyer-orders"
+            state={{ paymentFilter: 'paid' }}
+            aria-label={`View paid orders totaling ${formatCurrency(totalSpend)}`}
+          >
+            <span className="buyer-summary-label"><Wallet size={18} strokeWidth={2} aria-hidden="true" /> Total Spent</span>
+            <strong>{isLoading ? '...' : formatCurrency(totalSpend)}</strong>
+            <BuyerSpendTrend points={spendTrend} />
+            <small>Paid orders</small>
+          </Link>
           <Link className="buyer-summary-item" to="/buyer-orders" aria-label="View all buyer orders">
             <span className="buyer-summary-label"><ClipboardList size={18} strokeWidth={2} aria-hidden="true" /> My Orders</span>
             <strong>{isLoading ? '...' : orders.length}</strong>
@@ -287,17 +298,6 @@ export default function BuyerDashboard() {
             <span className="buyer-summary-label"><CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" /> Completed</span>
             <strong>{isLoading ? '...' : completedOrders.length}</strong>
             <small>Orders received</small>
-          </Link>
-          <Link
-            className="buyer-summary-item is-spend"
-            to="/buyer-orders"
-            state={{ paymentFilter: 'paid' }}
-            aria-label={`View paid orders totaling ${formatCurrency(totalSpend)}`}
-          >
-            <span className="buyer-summary-label"><Wallet size={18} strokeWidth={2} aria-hidden="true" /> Total Spent</span>
-            <strong>{isLoading ? '...' : formatCurrency(totalSpend)}</strong>
-            <BuyerSpendTrend points={spendTrend} />
-            <small>Paid orders</small>
           </Link>
         </div>
       </section>

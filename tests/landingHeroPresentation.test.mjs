@@ -8,8 +8,8 @@ test('Public hero uses farmer-friendly copy and existing account and marketplace
   assert.match(hero, /Built for Cebu farmers and buyers/);
   assert.match(hero, /Sell your harvest/);
   assert.match(hero, /directly to more buyers/);
-  assert.match(hero, /to="\/register"/);
   assert.match(hero, /Start selling/);
+  assert.match(hero, /<Link className="btn btn-primary btn-lg" to="\/farmer-products">/);
   assert.match(hero, /to="\/marketplace"/);
   assert.match(hero, /Browse marketplace/);
   assert.match(hero, /farmPhoto\} 1085w/);

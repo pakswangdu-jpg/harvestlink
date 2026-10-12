@@ -734,6 +734,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
   const isRegister = mode === 'register';
   const navigate = useNavigate();
   const location = useLocation();
+  const authSwitchDestination = isRegister
+    ? '/login'
+    : location.state?.from === '/farmer-products'
+      ? '/register?role=farmer'
+      : '/register';
   const [searchParams] = useSearchParams();
   const { currentUser, loading: authLoading, login, register, verifyOtp, resendOtp } = useAuth();
   const isGeneralAdminSession = !adminPortal && currentUser?.role === 'admin';
@@ -859,7 +864,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
 
 
   if (!authLoading && currentUser && authStage !== 'submitted') {
-    const destination = getAuthDestination(currentUser.role, { adminPortal });
+    const destination = getAuthDestination(currentUser.role, { adminPortal, from: location.state?.from });
     if (destination) return <Navigate to={destination} replace />;
   }
 
@@ -1553,7 +1558,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
         {authStage === 'form' && !adminPortal ? (
           <p className="auth-switch">
             {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
-            <Link to={isRegister ? '/login' : '/register'}>
+            <Link to={authSwitchDestination} state={location.state}>
               {isRegister ? (isStakeholderRegister ? 'Sign In' : 'Login') : 'Register'}
             </Link>
           </p>
