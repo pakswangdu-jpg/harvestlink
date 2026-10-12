@@ -225,7 +225,17 @@ export async function getNearbyMapProfiles(req, res) {
 
   if (error) throw new ApiError(error.message, 400);
 
-  res.json(data.map(serializeProfile).filter((profile) => (
+  const farmerIds = data.filter(profile => profile.role === 'farmer').map(profile => profile.id);
+  let donationFarmerIds = new Set();
+  if (farmerIds.length) {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    const result = await supabaseAdmin.from('donations').select('farmer_id')
+      .in('farmer_id', farmerIds).eq('status', 'available')
+      .or(`expiration_date.is.null,expiration_date.gte.${today}`);
+    if (result.error) console.warn('Unable to refresh map donation indicators:', result.error.code || 'unknown');
+    else donationFarmerIds = new Set((result.data || []).map(item => item.farmer_id));
+  }
+  res.json(data.map(row => ({ ...serializeProfile(row), hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) })).filter(profile => (
     profile.latitude !== null && profile.longitude !== null
   )));
 }

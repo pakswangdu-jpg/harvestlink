@@ -4,11 +4,12 @@ import { formatDate } from '../../utils/formatters';
 import { getExpiryStatus } from '../../utils/constants';
 import './DonationCard.css';
 
-export default function DonationCard({ donation, actions }) {
+export default function DonationCard({ donation, actions, variant = 'default' }) {
   const expiryStatus = getExpiryStatus(donation.expirationDate);
+  const discovery = variant === 'discovery';
 
   return (
-    <article className="donation-card">
+    <article className={`donation-card${discovery ? ' donation-card-discovery' : ''}`}>
       <div className="donation-card-image">
         {donation.image ? <img src={donation.image} alt={donation.productName} /> : <Package size={42} />}
       </div>
@@ -16,8 +17,8 @@ export default function DonationCard({ donation, actions }) {
         <div className="donation-card-statuses">
           <span className="donation-card-category">Surplus donation</span>
           <StatusBadge value={donation.status} type="donation" />
-          {expiryStatus === 'expiring_soon' ? <span className="badge badge-expiring-soon">Expiring soon</span> : null}
-          {expiryStatus === 'expired' ? <span className="badge badge-expired">Expired</span> : null}
+          {!discovery && expiryStatus === 'expiring_soon' ? <span className="badge badge-expiring-soon">Expiring soon</span> : null}
+          {!discovery && expiryStatus === 'expired' ? <span className="badge badge-expired">Expired</span> : null}
         </div>
         <div className="donation-card-heading">
           <h3>{donation.productName}</h3>
@@ -26,7 +27,7 @@ export default function DonationCard({ donation, actions }) {
         <div className="donation-card-meta">
           <p><MapPin size={16} aria-hidden="true" /><span>{donation.location}</span></p>
           <p><Package size={16} aria-hidden="true" /><span>{donation.quantity} {donation.unit} available</span></p>
-          {donation.expirationDate ? <p><CalendarDays size={16} aria-hidden="true" /><span>Expires: {formatDate(donation.expirationDate)}</span></p> : null}
+          {donation.expirationDate ? <p className={discovery && expiryStatus ? `donation-date-${expiryStatus}` : undefined}><CalendarDays size={16} aria-hidden="true" /><span>{discovery ? 'Available until ' : 'Expires: '}{formatDate(donation.expirationDate)}{discovery && expiryStatus === 'expired' ? ' (Expired)' : ''}</span></p> : null}
           {donation.pickupDate ? <p><CalendarDays size={16} aria-hidden="true" /><span>Pickup: {formatDate(donation.pickupDate)}</span></p> : null}
           {donation.requestedByName ? <p><UserRound size={16} aria-hidden="true" /><span>Requested by: {donation.requestedByName}</span></p> : null}
         </div>

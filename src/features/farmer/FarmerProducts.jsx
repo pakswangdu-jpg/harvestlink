@@ -13,6 +13,7 @@ import ActionMenu from '../../components/products/ActionMenu';
 import ProductFilters from '../../components/products/ProductFilters';
 import ProductTable, { ProductTableSkeleton } from '../../components/products/ProductTable';
 import ProductDrawer from '../../components/products/ProductDrawer';
+import './FarmerProducts.css';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {

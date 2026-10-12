@@ -3,23 +3,23 @@
 }
 
 :root:not([data-theme='dark']) .inventory-metric:nth-child(1) {
-  border-color: #d9e1e6;
-  background: #f3f6f8;
+  border-color: #e0e6e9;
+  background: #fafbfc;
 }
 
 :root:not([data-theme='dark']) .inventory-metric:nth-child(2) {
-  border-color: #d8e3d5;
-  background: #f2f7f1;
+  border-color: #dfe8df;
+  background: #fafcf9;
 }
 
 :root:not([data-theme='dark']) .inventory-metric:nth-child(3) {
-  border-color: #e8dfcc;
-  background: #fbf7ee;
+  border-color: #ece4d6;
+  background: #fdfbf7;
 }
 
 :root:not([data-theme='dark']) .inventory-metric:nth-child(4) {
-  border-color: #dde2d3;
-  background: #f4f6ef;
+  border-color: #e3e6dc;
+  background: #fbfcf9;
 }
 
 .inventory-overview {
@@ -88,10 +88,13 @@
 
 .inventory-metric {
   min-width: 0;
-  padding: 18px;
+  min-height: 136px;
+  padding: 17px 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--panel);
+  box-shadow: none;
+  font-family: var(--font-ui);
 }
 
 .inventory-metric-label {
@@ -100,41 +103,95 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-family: inherit;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 1.35;
 }
 
 .inventory-metric-icon {
   flex-shrink: 0;
+  width: 19px;
+  height: 19px;
   color: var(--icon-muted);
 }
 
 .inventory-metric-value {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--text);
-  font-size: 28px;
+  font-family: inherit;
+  font-size: 34px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1.15;
+  letter-spacing: 0;
   overflow-wrap: anywhere;
 }
 
 .inventory-metric-hint {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 18px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
 }
 
 .inventory-metric-active .inventory-metric-icon {
-  color: color-mix(in srgb, var(--green-800) 65%, var(--icon-muted));
+  color: #567b5f;
 }
 
 .inventory-metric-warning .inventory-metric-icon,
 .inventory-metric-warning .inventory-metric-value {
-  color: var(--amber-700);
+  color: #9a7135;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric {
+  border-color: #39443d;
+  background: #202923;
+  color: #e5ebe6;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(1) {
+  border-color: #39444a;
+  background: #20282d;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(2) {
+  border-color: #39483e;
+  background: #202a24;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(3) {
+  border-color: #4a4335;
+  background: #2a2822;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(4) {
+  border-color: #41473a;
+  background: #252a23;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-label,
+[data-theme='dark'] .farmer-products-page .inventory-metric-value {
+  color: #e5ebe6;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-hint {
+  color: #aebbb2;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-icon {
+  color: #a1b0a6;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-active .inventory-metric-icon {
+  color: #8eb69a;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-icon,
+[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-value {
+  color: #d2ae70;
 }
 
 @container (min-width: 380px) {

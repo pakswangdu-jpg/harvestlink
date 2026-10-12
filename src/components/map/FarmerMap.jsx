@@ -8,6 +8,7 @@ import { buildMapPopup, buildPresenceMarkup } from './mapPopupMarkup';
 
 import { buildViewerIcon, buildViewerPopup } from './userLocationMarker';
 import { validateCoordinates, nearbyMapPoints } from '../../utils/geo';
+import { DONATION_MARKER_COLOR, donationAnimation, isDonationAlert } from './donationMarker';
 
 const PRECISION_LABELS = {
   registered: 'Registered location',
@@ -67,7 +68,7 @@ export default function FarmerMap({
   const farmerCoordsById = useMapCoordinates(farmers, { registeredOnly: nearbyView });
   const buyerCoordsById = useMapCoordinates(buyers, { registeredOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(stakeholders, { registeredOnly: nearbyView });
-  const donationFarmerCoordsById = useMapCoordinates(donationFarmers, { registeredOnly: nearbyView });
+  const donationFarmerCoordsById = useMapCoordinates(donationFarmers, { registeredOnly: true });
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -159,11 +160,18 @@ export default function FarmerMap({
 
 
 
-    function upsertMarker(id, coords, buildIcon, popupHtml, onClick, title) {
+    function upsertMarker(id, coords, buildIcon, popupHtml, onClick, title, donationAlert = false) {
       seenIds.add(id);
       allPoints.push(coords);
       const existing = markersRef.current[id];
       if (existing) {
+        if (existing.donationAlert !== donationAlert) {
+          existing.marker.setIcon(buildIcon());
+          existing.marker.setTitle(title || '');
+          existing.marker.setAnimation(donationAnimation(mapsApi, donationAlert));
+          existing.marker.setZIndex(donationAlert ? 750 : title === 'Your location' ? 900 : undefined);
+          existing.donationAlert = donationAlert;
+        }
         const positionChanged =
           existing.position.lat !== coords.lat || existing.position.lng !== coords.lng;
         if (positionChanged) {
@@ -176,19 +184,20 @@ export default function FarmerMap({
         }
         return;
       }
-      const marker = new mapsApi.Marker({ position: coords, map, icon: buildIcon(), title, zIndex: title === 'Your location' ? 900 : undefined });
+      const marker = new mapsApi.Marker({ position: coords, map, icon: buildIcon(), title, animation: donationAnimation(mapsApi, donationAlert), zIndex: title === 'Your location' ? 900 : donationAlert ? 750 : undefined });
       const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
       marker.addListener('click', () => {
         openInfoWindow(marker, infoWindow);
         if (onClick) onClick();
       });
-      markersRef.current[id] = { marker, infoWindow, position: coords, popupHtml };
+      markersRef.current[id] = { marker, infoWindow, position: coords, popupHtml, donationAlert };
     }
 
     farmers.forEach((farmer) => {
-      if (nearbyView && currentUserId && farmer.id === currentUserId) return;
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
+      const donationAlert = isDonationAlert(farmer, coords);
+      if (nearbyView && currentUserId && farmer.id === currentUserId && !donationAlert) return;
 
       const isYou = farmer.id === currentUserId;
       const realDisplayName = farmer.farmName || farmer.name;
@@ -210,10 +219,10 @@ export default function FarmerMap({
         contactNumber: farmer.contactNumber,
         presence: buildPresenceMarkup(farmer),
         precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-        products: productsLine.replace('<br/>', ''),
+        products: `${donationAlert ? '<strong>Surplus donation available</strong><br/>' : ''}${productsLine.replace('<br/>', '')}`,
         links: isYou ? [] : [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
       });
-      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.farmer), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), donationAlert ? `${realDisplayName}: surplus donation available` : realDisplayName, donationAlert);
     });
 
     buyers.forEach((buyer) => {
@@ -259,7 +268,6 @@ export default function FarmerMap({
     });
 
     donationFarmers.forEach((farmer) => {
-      if (nearbyView && currentUserId && farmer.id === currentUserId) return;
       const coords = donationFarmerCoordsById[farmer.id];
       if (!coords) return;
 
@@ -276,11 +284,11 @@ export default function FarmerMap({
         coords,
         contactNumber: farmer.contactNumber,
         presence: buildPresenceMarkup(farmer),
-        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
+        precision: [PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback, farmer.distanceLabel ? `Approx. ${farmer.distanceLabel}` : ''].filter(Boolean).join(' / '),
         products: `<strong>Available donations</strong><br/>${donationList}`,
-        links: [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
+        links: [...(farmer.donationDetailsHref === '/stakeholder-donations' ? [{ href: '/stakeholder-donations', label: 'View donation' }] : []), { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
       });
-      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, MAP_COLORS.stakeholder, { alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)));
+      upsertMarker(farmer.id, coords, () => buildPinIcon(mapsApi, DONATION_MARKER_COLOR), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), `${displayName}: surplus donation available`, true);
     });
 
 

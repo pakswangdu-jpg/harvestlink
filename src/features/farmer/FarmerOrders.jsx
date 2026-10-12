@@ -12,6 +12,8 @@ import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
 import OrderStatusSummary from '../../components/orders/OrderStatusSummary';
+import Pagination from '../../components/admin/Pagination';
+import { usePagination } from '../../components/admin/usePagination';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
@@ -42,6 +44,7 @@ function getOrderStage(order) {
 
 
 const VISIBLE_VERIFICATION_LIMIT = 5;
+const ORDERS_PER_PAGE = 20;
 
 const STAGE_LABELS = {
   pending: 'Pending',
@@ -574,6 +577,13 @@ export default function FarmerOrders() {
       return true;
     }).sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'));
   }, [orders, activeStage, search, paymentFilter, deliveryFilter, dateFilter, exactDateTime]);
+  const {
+    page, setPage, pageRows, pageSize, total,
+  } = usePagination(filteredOrders, ORDERS_PER_PAGE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeStage, search, paymentFilter, deliveryFilter, dateFilter, exactDateTime, setPage]);
 
   return (
     <AppShell
@@ -698,32 +708,35 @@ export default function FarmerOrders() {
             </div>
 
             {filteredOrders.length ? (
-              <div className="farmer-purchase-list" role="list" aria-label="Orders">
-                {filteredOrders.map((order) => (
-                  <article key={order.id} role="listitem" className={`farmer-purchase-row${order.status === 'pending' ? ' is-pending' : ''}${getOrderStage(order) === 'completed' ? ' is-completed' : ''}`} aria-label={`Order from ${order.buyerName}: ${order.productName}`}>
-                    <div className="farmer-purchase-buyer">
-                      <BuyerCell order={order} />
-                      <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
-                    </div>
-                    <div className="farmer-purchase-summary">
-                      <div className="farmer-purchase-product">
-                        <ProductCell order={order} />
-                        <div className="farmer-purchase-total"><span>Order total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+              <>
+                <div className="farmer-purchase-list" role="list" aria-label="Orders">
+                  {pageRows.map((order) => (
+                    <article key={order.id} role="listitem" className={`farmer-purchase-row${order.status === 'pending' ? ' is-pending' : ''}${getOrderStage(order) === 'completed' ? ' is-completed' : ''}`} aria-label={`Order from ${order.buyerName}: ${order.productName}`}>
+                      <div className="farmer-purchase-buyer">
+                        <BuyerCell order={order} />
+                        <OrderIdCell order={order} copiedOrderId={copiedOrderId} onCopy={copyOrderId} />
                       </div>
-                      <div className="farmer-purchase-logistics">
-                        <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
-                        <DeliveryCell order={order} />
+                      <div className="farmer-purchase-summary">
+                        <div className="farmer-purchase-product">
+                          <ProductCell order={order} />
+                          <div className="farmer-purchase-total"><span>Order total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+                        </div>
+                        <div className="farmer-purchase-logistics">
+                          <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
+                          <DeliveryCell order={order} />
+                        </div>
+                        <time className="farmer-purchase-date" dateTime={order.createdAt}>{formatDate(order.createdAt)} &middot; {formatTime(order.createdAt)}</time>
                       </div>
-                      <time className="farmer-purchase-date" dateTime={order.createdAt}>{formatDate(order.createdAt)} &middot; {formatTime(order.createdAt)}</time>
-                    </div>
-                    <div className="farmer-purchase-decision">
-                      <OrderStageBadge order={order} />
-                      <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
-                      {order.status === 'pending' ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link> : null}
-                    </div>
-                  </article>
-                ))}
-              </div>
+                      <div className="farmer-purchase-decision">
+                        <OrderStageBadge order={order} />
+                        <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
+                        {order.status === 'pending' ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
+              </>
             ) : (
               <EmptyState
                 icon={Package}

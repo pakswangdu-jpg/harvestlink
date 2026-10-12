@@ -1,4 +1,4 @@
-import { Check, ClipboardList, MapPin, Package, Truck } from 'lucide-react';
+import { AlertTriangle, Check, MapPin, Package, Truck } from 'lucide-react';
 import './OrderStatusSummary.css';
 
 export default function OrderStatusSummary({ stageCounts, activeStage, onSelectStage }) {
@@ -6,7 +6,7 @@ export default function OrderStatusSummary({ stageCounts, activeStage, onSelectS
     {
       status: 'pending', label: 'New orders', count: stageCounts.pending,
       description: 'Awaiting confirmation', emptyDescription: 'No new orders',
-      icon: ClipboardList, tone: 'attention',
+      icon: AlertTriangle, tone: 'attention',
     },
     {
       status: 'to_prepare', label: 'To prepare', count: stageCounts.confirmed + stageCounts.preparing,
@@ -38,15 +38,15 @@ export default function OrderStatusSummary({ stageCounts, activeStage, onSelectS
           <button
             key={status}
             type="button"
-            className={`order-status-summary-item${count > 0 ? ` order-status-summary-${tone}` : ''}`}
+            className={`order-status-summary-item order-status-summary-${tone}`}
             aria-pressed={activeStage === status}
             onClick={() => onSelectStage(status)}
           >
-            <span className="order-status-summary-count">{count}</span>
-            <span className="order-status-summary-label">
-              <Icon size={16} strokeWidth={2} aria-hidden="true" />
-              <span>{label}</span>
+            <span className="order-status-summary-icon">
+              <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
             </span>
+            <span className="order-status-summary-count">{count}</span>
+            <span className="order-status-summary-label">{label}</span>
             <span className="order-status-summary-description">{count > 0 ? description : emptyDescription}</span>
           </button>
         ))}

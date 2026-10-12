@@ -29,3 +29,14 @@ test('Portal surfaces are scoped, neutral, and support dark mode', async () => {
   const image = await readFile(new URL('../src/assets/admin-login-background.jpg', import.meta.url));
   assert.ok(image.length > 0);
 });
+
+test('Admin sign-in reuses the saved light/dark control without changing authentication', async () => {
+  const source = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
+  const toggle = await readFile(new URL('../src/components/common/ThemeToggle.jsx', import.meta.url), 'utf8');
+  const context = await readFile(new URL('../src/contexts/ThemeContext.jsx', import.meta.url), 'utf8');
+  assert.match(source, /adminPortal \? <ThemeToggle compact \/> : null/);
+  assert.match(toggle, /setTheme\(isDark \? 'light' : 'dark'\)/);
+  assert.match(toggle, /Switch to light mode/);
+  assert.match(toggle, /Switch to dark mode/);
+  assert.match(context, /localStorage\.setItem\(STORAGE_KEY, nextTheme\)/);
+});

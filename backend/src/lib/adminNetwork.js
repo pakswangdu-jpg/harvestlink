@@ -55,5 +55,12 @@ export function getAdminClientIPv4(req, env = process.env) {
     const address = normalizeIPv4(req.headers?.['cf-connecting-ip']);
     return address && !nonPublic.check(address, 'ipv4') ? address : null;
   }
-  return normalizeIPv4(req.ip);
+  const address = normalizeIPv4(req.ip);
+  if (address) return address;
+
+  const production = env.NODE_ENV === 'production' || env.RENDER === 'true';
+  if (!production && env.ADMIN_ALLOW_LOCAL_IPS === 'true' && req.ip?.toLowerCase() === '::1') {
+    return '127.0.0.1';
+  }
+  return null;
 }

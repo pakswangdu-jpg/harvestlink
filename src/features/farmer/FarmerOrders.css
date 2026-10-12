@@ -332,6 +332,56 @@
   min-width: 0;
 }
 
+.farmer-orders-page .farmer-orders-workspace > .filter-tabs {
+  gap: 4px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.farmer-orders-page .farmer-orders-workspace .filter-tab {
+  min-height: 38px;
+  height: auto;
+  padding: 0 9px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.farmer-orders-page .farmer-orders-workspace .filter-tab:hover {
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
+.farmer-orders-page .farmer-orders-workspace .filter-tab.active {
+  border-bottom-color: var(--green-700);
+  color: var(--green-800);
+  background: transparent;
+  box-shadow: none;
+}
+
+.farmer-orders-page .farmer-orders-workspace .filter-tab-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.farmer-orders-page .farmer-orders-workspace .filter-tab.active .filter-tab-count {
+  color: var(--green-800);
+  background: transparent;
+}
+
 .farmer-orders-workspace > .order-toolbar {
   margin: 0;
 }

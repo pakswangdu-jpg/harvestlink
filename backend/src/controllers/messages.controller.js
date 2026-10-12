@@ -11,10 +11,6 @@ async function assertDirectRecipient(recipientId, senderId) {
   if (error || !data) throw new ApiError('Recipient was not found.', 404);
   if (data.role === 'admin') throw new ApiError('You cannot message an admin account.', 400);
 }
-
-
-
-
 async function sharedOrderIds(userIdA, userIdB) {
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -23,11 +19,6 @@ async function sharedOrderIds(userIdA, userIdB) {
   if (error) throw new ApiError(error.message, 400);
   return data.map((order) => order.id);
 }
-
-
-
-
-
 export async function listMessages(req, res) {
   const { otherUserId, before, limit } = req.query;
   if (!otherUserId) throw new ApiError('otherUserId is required.', 400);
@@ -46,11 +37,6 @@ export async function listMessages(req, res) {
   if (error) throw new ApiError(error.message, 400);
   res.json({ messages: data.reverse().map(serializeMessage), hasMore: data.length === pageSize });
 }
-
-
-
-
-
 export async function listDirectThreads(req, res) {
   const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
@@ -116,14 +102,6 @@ export async function listDirectThreads(req, res) {
   threads.sort((a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt));
   res.json(threads);
 }
-
-
-
-
-
-
-
-
 export async function sendMessage(req, res) {
   const {
     recipientId, text, messageType, imageUrl, fileUrl, fileName, replyToId,
@@ -150,8 +128,6 @@ export async function sendMessage(req, res) {
     reply_to_id: replyToId || null,
   }).select().single();
   if (error) throw new ApiError(error.message, 400);
-
-
 
   const preview = type === 'image'
     ? 'Sent a photo'

@@ -7,8 +7,13 @@ import FarmerMap from '../../components/map/FarmerMap';
 import { useAuth } from '../auth/AuthContext';
 import { getUserById } from '../../services/authService';
 import { getAvailableDonations, getDonationsForStakeholder } from '../../services/donationService';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatRelativeTime } from '../../utils/formatters';
+import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
+import { activityTitle, partnerDashboardOverview, requestNextStep } from './dashboardPresentation';
 import { stakeholderNavItems } from './stakeholderNav';
+import { MAP_COLORS } from '../../lib/mapMarkerColors';
+import { DONATION_MARKER_COLOR } from '../../components/map/donationMarker';
+import './StakeholderDashboard.css';
 
 async function buildDonationFarmers(donations) {
   const ids = [...new Set(donations.map((donation) => donation.farmerId))];
@@ -18,7 +23,7 @@ async function buildDonationFarmers(donations) {
     const farmer = byId.get(id);
     if (!farmer) return [];
     const farmerDonations = donations.filter((donation) => donation.farmerId === id);
-    return [{ id: farmer.id, name: farmer.name, farmName: farmer.farmName, municipality: farmer.municipality, address: farmer.address, contactNumber: farmer.contactNumber, donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })) }];
+    return [{ id: farmer.id, name: farmer.name, farmName: farmer.farmName, municipality: farmer.municipality, address: farmer.address, latitude: farmer.latitude, longitude: farmer.longitude, contactNumber: farmer.contactNumber, donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })) }];
   });
 }
 
@@ -43,40 +48,41 @@ export default function StakeholderDashboard() {
   }, [currentUser.id]);
 
   const { available, myRequests, donationFarmers } = state;
-  const scheduled = myRequests.filter((item) => item.status === 'scheduled');
-  const completed = myRequests.filter((item) => item.status === 'completed');
-  const awaitingApproval = myRequests.filter((item) => item.status === 'requested');
-  const latestActivity = [...myRequests].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
+  const { scheduled, completed, awaitingApproval, latestActivity, recentRequests, nextPickup, attention } = partnerDashboardOverview(myRequests);
+  const nearbyFarmers = sortByRegisteredDistance(getRegisteredCoordinates(currentUser), donationFarmers);
+  const farmersById = new Map(nearbyFarmers.map(farmer => [farmer.id, farmer]));
+  const discoveryDonations = [...available].sort((a, b) => (farmersById.get(a.farmerId)?.distanceKm ?? Infinity) - (farmersById.get(b.farmerId)?.distanceKm ?? Infinity));
+  const mapFarmers = nearbyFarmers.map(farmer => ({ ...farmer, donationDetailsHref: '/stakeholder-donations', distanceLabel: Number.isFinite(farmer.distanceKm) ? formatNearbyDistance(farmer.distanceKm) : '' }));
 
-  return <AppShell user={currentUser} navItems={stakeholderNavItems} title="Partner dashboard" subtitle="Browse surplus produce donations from Cebu farmers and track your pickup requests." pageClassName="stakeholder-dashboard-page stakeholder-operations-dashboard">
+  return <AppShell user={currentUser} navItems={stakeholderNavItems} title="Partner dashboard" subtitle="Find available surplus produce, manage donation requests, and track scheduled pickups." pageClassName="stakeholder-dashboard-page stakeholder-operations-dashboard">
     <VerificationBanner user={currentUser} onDismiss={acknowledgeVerification} />
     {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
     <section className="stakeholder-quick-actions" aria-label="Quick actions">
-      <Link to="/marketplace"><Wheat aria-hidden="true" />Browse produce</Link><Link to="/stakeholder-donations"><HandHeart aria-hidden="true" />Browse donations</Link><Link to="/stakeholder-requests"><ClipboardList aria-hidden="true" />View requests</Link><Link to="/messages"><MessageSquare aria-hidden="true" />Open messages</Link>
+      <Link className="is-primary" to="/stakeholder-donations" title="Find surplus produce offered for donation."><HandHeart aria-hidden="true" />Browse donations</Link><Link to="/marketplace" title="Explore marketplace products available for purchase."><Wheat aria-hidden="true" />Browse produce</Link><Link to="/stakeholder-requests"><ClipboardList aria-hidden="true" />My requests</Link><Link to="/messages"><MessageSquare aria-hidden="true" />Messages</Link>
     </section>
     <section className="stakeholder-summary" aria-label="Donation overview">
       <SummaryStat icon={PackageOpen} label="Available donations" value={available.length} hint="Ready to request" />
-      <SummaryStat icon={ClipboardList} label="My requests" value={myRequests.length} hint={awaitingApproval.length ? `${awaitingApproval.length} awaiting approval` : 'No requests awaiting approval'} tone="blue" />
-      <SummaryStat icon={CalendarClock} label="Scheduled pickups" value={scheduled.length} hint={scheduled.length ? 'Pickup details are ready' : 'No pickup scheduled'} tone="amber" />
+      <SummaryStat icon={ClipboardList} label="My requests" value={myRequests.length} hint={awaitingApproval.length ? `${awaitingApproval.length} awaiting Farmer response` : 'No requests awaiting approval'} tone="blue" />
+      <SummaryStat icon={CalendarClock} label="Scheduled pickups" value={scheduled.length} hint={nextPickup ? `Next pickup ${formatDate(nextPickup.pickupDate)}` : scheduled.length ? 'Review pickup details' : 'No pickup scheduled'} tone="amber" />
       <SummaryStat icon={CheckCircle2} label="Completed" value={completed.length} hint="Successful donations" tone="green" />
     </section>
-    <section className="stakeholder-primary-grid">
+    {attention.length ? <section className="stakeholder-attention" aria-label="Needs your attention"><h2>Needs your attention</h2>{attention.slice(0, 3).map(item => <div className="stakeholder-attention-row" key={item.id}><CalendarClock size={17} aria-hidden="true" /><div><strong>{item.productName}: {item.attentionTitle}</strong><p>{item.farmerName} &middot; {item.attentionMessage}</p></div><Link to="/stakeholder-requests">View request <ArrowRight size={14} aria-hidden="true" /></Link></div>)}</section> : null}
+    <div className={`stakeholder-workspace-grid${nextPickup ? ' has-pickup' : ''}`}>
       <section className="stakeholder-section"><SectionHeader title="Available donations" description="Surplus produce from Cebu farmers" actionTo="/stakeholder-donations" actionLabel="Browse all" />
-        {available.length ? <div className="stakeholder-donation-list">{available.slice(0, 4).map((donation) => <DonationRow key={donation.id} donation={donation} />)}</div> : <CompactEmpty icon={Gift} title="No surplus donations available" message="New surplus produce from verified farmers will appear here." actionTo="/stakeholder-donations" actionLabel="Browse all donations" />}
+        {available.length ? <div className="stakeholder-donation-list">{discoveryDonations.slice(0, 4).map((donation) => <DonationRow key={donation.id} donation={donation} farmer={farmersById.get(donation.farmerId)} />)}</div> : <CompactEmpty icon={Gift} title="No donations available nearby" message="New surplus produce from verified Farmers will appear here." actionTo="/stakeholder-donations" actionLabel="Browse all donations" />}
       </section>
       <section className="stakeholder-section stakeholder-requests-panel"><SectionHeader title="Recent requests" description="Your latest donation activity" actionTo="/stakeholder-requests" actionLabel="View all requests" />
-        {myRequests.length ? <RequestList requests={myRequests.slice(0, 5)} /> : <CompactEmpty icon={ClipboardList} title="No donation requests yet" message="Once you request surplus produce, your pickup schedule will appear here." actionTo="/stakeholder-donations" actionLabel="Browse donations" />}
+        {myRequests.length ? <RequestList requests={recentRequests} /> : <CompactEmpty icon={ClipboardList} title="No donation requests yet" message="Once you request surplus produce, your pickup schedule will appear here." actionTo="/stakeholder-donations" actionLabel="Browse donations" />}
       </section>
-    </section>
-    <section className="stakeholder-lower-grid">
-      <section className="stakeholder-section stakeholder-map-panel"><SectionHeader title="Nearby surplus" description="Available donations around Cebu" actionTo="/farmer-map" actionLabel="View map" />
-        <div className="stakeholder-map-legend"><span><i className="is-available" />Available donation</span><span><i className="is-organization" />Your organization</span></div><FarmerMap farmers={[]} stakeholders={[currentUser]} donationFarmers={donationFarmers} currentUserId={currentUser.id} />
+      {nextPickup ? <section className="stakeholder-section stakeholder-pickup-panel"><SectionHeader title="Next pickup" description="Your nearest upcoming collection" /><div className="stakeholder-pickup-details"><strong>{nextPickup.productName} &middot; {nextPickup.quantity} {nextPickup.unit}</strong><p>{nextPickup.farmerName}</p><time dateTime={nextPickup.pickupDate}><CalendarClock size={16} aria-hidden="true" />{formatDate(nextPickup.pickupDate)}</time>{nextPickup.location ? <p><MapPin size={15} aria-hidden="true" />{nextPickup.location}</p> : null}<div><Link to="/stakeholder-requests">View pickup <ArrowRight size={14} aria-hidden="true" /></Link><Link to="/farmer-map">Open map</Link></div></div></section> : null}
+      <section className="stakeholder-section stakeholder-map-panel"><SectionHeader title="Nearby surplus" description="Donations available around your saved location" actionTo="/farmer-map" actionLabel="View map" />
+        <div className="stakeholder-map-legend"><span><i className="is-available" style={{ background: DONATION_MARKER_COLOR }} />Available donation</span><span><i className="is-organization" style={{ background: MAP_COLORS.stakeholder }} />Your organization</span></div><FarmerMap farmers={[]} stakeholders={[currentUser]} donationFarmers={mapFarmers} currentUserId={currentUser.id} />
         {!donationFarmers.length ? <p className="stakeholder-map-note">No nearby surplus is available right now. This map updates when farmers list a donation.</p> : null}
       </section>
       <section className="stakeholder-section stakeholder-activity-panel"><SectionHeader title="Recent activity" description="Updates to your donation requests" />
-        {latestActivity.length ? <ActivityList items={latestActivity} /> : <CompactEmpty icon={ShoppingBasket} title="No activity yet" message="Donation updates and pickup schedules will appear here." />}
+        {latestActivity.length ? <ActivityList items={latestActivity} /> : <CompactEmpty icon={ShoppingBasket} title="No recent activity" message="Updates to your donation requests and pickups will appear here." />}
       </section>
-    </section>
+    </div>
   </AppShell>;
 }
 
@@ -89,7 +95,21 @@ function VerificationBanner({ user, onDismiss }) {
 
 function SummaryStat({ icon: Icon, label, value, hint, tone = 'default' }) { return <article className={`stakeholder-summary-stat tone-${tone}`}><Icon aria-hidden="true" /><div><p>{label}</p><strong>{value}</strong><span>{hint}</span></div></article>; }
 function SectionHeader({ title, description, actionTo, actionLabel }) { return <header className="stakeholder-section-header"><div><h2>{title}</h2><p>{description}</p></div>{actionTo ? <Link to={actionTo}>{actionLabel}<ArrowRight size={15} aria-hidden="true" /></Link> : null}</header>; }
-function DonationRow({ donation }) { return <article className="stakeholder-donation-row"><div className="stakeholder-donation-image">{donation.image ? <img src={donation.image} alt="" /> : <PackageOpen aria-hidden="true" />}</div><div className="stakeholder-donation-copy"><strong>{donation.productName}</strong><span>{donation.quantity} {donation.unit} available</span><small><MapPin size={13} aria-hidden="true" />{donation.location || donation.farmerName}</small></div><div className="stakeholder-donation-freshness"><span>{donation.expirationDate ? `Available until ${formatDate(donation.expirationDate)}` : 'Freshly listed'}</span><small>From {donation.farmerName}</small></div><Link to="/stakeholder-donations" className="stakeholder-row-action">Request</Link></article>; }
-function RequestList({ requests }) { return <div className="stakeholder-request-list"><div className="stakeholder-request-head"><span>Produce</span><span>Farmer</span><span>Pickup date</span><span>Status</span></div>{requests.map((request) => <div className="stakeholder-request-row" key={request.id}><div><strong>{request.productName}</strong><small>{request.quantity} {request.unit}</small></div><span>{request.farmerName}</span><span>{request.pickupDate ? formatDate(request.pickupDate) : 'Awaiting schedule'}</span><StatusBadge value={request.status} type="donation" /></div>)}</div>; }
-function ActivityList({ items }) { return <div className="stakeholder-activity-list">{items.map((item) => <article key={item.id}><span><CheckCircle2 aria-hidden="true" /></span><div><strong>{item.status === 'scheduled' ? 'Pickup scheduled' : item.status === 'completed' ? 'Donation received' : 'Donation request sent'}</strong><p>{item.productName} · {item.quantity} {item.unit}</p></div><time>{formatDate(item.updatedAt)}</time></article>)}</div>; }
+function DonationRow({ donation, farmer }) {
+  const distance = Number.isFinite(farmer?.distanceKm) ? formatNearbyDistance(farmer.distanceKm) : null;
+  const location = donation.location || farmer?.municipality || farmer?.address;
+  return <article className="stakeholder-donation-row">
+    <div className="stakeholder-donation-image">{donation.image ? <img src={donation.image} alt="" /> : <PackageOpen aria-hidden="true" />}</div>
+    <div className="stakeholder-donation-copy"><strong>{donation.productName}</strong><span>{donation.quantity} {donation.unit} available</span><small>{donation.farmerName}</small><small><MapPin size={13} aria-hidden="true" />{location || 'Location not available'}{distance ? ` / Approx. ${distance}` : ''}</small>{donation.expirationDate ? <small>Available until {formatDate(donation.expirationDate)}</small> : null}</div>
+    <Link to="/stakeholder-donations" className="stakeholder-row-action" aria-label={`View ${donation.productName} and request donation`}>View <ArrowRight size={14} aria-hidden="true" /></Link>
+  </article>;
+}
+function RequestList({ requests }) {
+  return <div className="stakeholder-request-list">{requests.map(request => <article className="stakeholder-request-row" key={request.id}>
+    <div><strong>{request.productName} &middot; {request.quantity} {request.unit}</strong><small>{request.farmerName}</small>{request.createdAt ? <small>Requested {formatDate(request.createdAt)}</small> : null}</div>
+    <div><StatusBadge value={request.status} type="donation" /><small>{requestNextStep(request.status)}</small>{request.pickupDate ? <small>{formatDate(request.pickupDate)}</small> : null}</div>
+    <Link to="/stakeholder-requests" aria-label={`View request for ${request.productName}`}>View request <ArrowRight size={14} aria-hidden="true" /></Link>
+  </article>)}</div>;
+}
+function ActivityList({ items }) { return <div className="stakeholder-activity-list">{items.map(item => <article key={item.id}><span><ClipboardList aria-hidden="true" /></span><div><strong>{activityTitle(item.status)}</strong><p>{item.productName} &middot; {item.farmerName}</p></div><time dateTime={item.updatedAt || item.createdAt} title={formatDate(item.updatedAt || item.createdAt)}>{formatRelativeTime(item.updatedAt || item.createdAt)}</time></article>)}</div>; }
 function CompactEmpty({ icon: Icon, title, message, actionTo, actionLabel }) { return <div className="stakeholder-compact-empty"><Icon aria-hidden="true" /><div><strong>{title}</strong><p>{message}</p>{actionTo ? <Link to={actionTo}>{actionLabel}<ArrowRight size={14} aria-hidden="true" /></Link> : null}</div></div>; }

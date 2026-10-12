@@ -19,16 +19,20 @@ export default function SidebarUserCard({ user, isCollapsed = false }) {
       title={user.name}
       className={`sidebar-user-card${isCollapsed ? ' is-collapsed' : ''}`}
     >
-      {!isAdmin ? <span className="sidebar-user-avatar-slot" aria-hidden="true">
+      {!isCollapsed && !isAdmin ? <span className="sidebar-user-avatar-slot" aria-hidden="true">
+        <span className={`sidebar-user-avatar flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11.5px] font-semibold${isAdmin ? ' sidebar-admin-avatar' : ' bg-[var(--green-700)] text-white'}`}>
+          {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : getInitials(user.name)}
+        </span>
+      </span> : isCollapsed && isAdmin ? <span className="sidebar-user-role sidebar-admin-role-collapsed" title="Administrator" aria-label="Administrator"><Shield size={16} aria-hidden="true" /></span> : isCollapsed ? <span className="sidebar-user-avatar-slot" aria-hidden="true">
         <span className="sidebar-user-avatar flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--green-700)] text-[11.5px] font-semibold text-white">
           {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" /> : getInitials(user.name)}
         </span>
-      </span> : isCollapsed ? <span className="sidebar-user-role sidebar-admin-role-collapsed" title="Administrator" aria-label="Administrator"><Shield size={16} aria-hidden="true" /></span> : null}
+      </span> : null}
       {!isCollapsed ? (
         <span className="sidebar-user-details">
           <span className="sidebar-user-name block truncate text-[13px] font-semibold text-[var(--text)]">{user.name}</span>
           <span className={`sidebar-user-role flex items-center gap-1 text-[11.5px] text-[var(--muted)]${isVerifiedFarmer ? ' sidebar-user-role-verified' : ''}`} title={subtitle}>
-            {isAdmin ? <Shield size={12} className="shrink-0" aria-hidden="true" />
+            {isAdmin ? <Shield size={12} className="sidebar-admin-role-icon shrink-0" aria-hidden="true" />
               : isVerifiedFarmer ? <CircleCheck size={12} className="shrink-0" aria-hidden="true" />
                 : isPending ? <Clock3 size={12} className="shrink-0" aria-hidden="true" /> : null}
             <span className="truncate">{subtitle}</span>

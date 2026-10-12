@@ -7,6 +7,7 @@ import FormField from '../../components/common/FormField';
 import { requestPasswordReset } from '../../services/authService';
 import { isValidEmail } from '../../utils/validators';
 import logo from '../../assets/logo.png';
+import './ForgotPasswordPage.css';
 
 function getPasswordRecoveryRedirect() {
   const url = new URL('/reset-password', window.location.origin);
@@ -60,7 +61,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="auth-page">
+    <main className="auth-page auth-page-recovery">
       <section className="auth-hero">
         <Link to="/" className="brand auth-brand">
           <span className="brand-mark">

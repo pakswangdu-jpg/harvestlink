@@ -67,6 +67,7 @@ export default function StakeholderDonations() {
             <DonationCard
               key={donation.id}
               donation={donation}
+              variant="discovery"
               actions={(
                 <Button
                   size="sm"

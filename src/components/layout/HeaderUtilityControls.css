@@ -17,7 +17,7 @@
   min-width: 44px;
   min-height: 44px;
   padding: 0;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: transparent;
   color: var(--text);
@@ -29,15 +29,15 @@
 }
 
 .app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle) svg {
-  width: 20px;
-  height: 20px;
+  width: 21px;
+  height: 21px;
   flex-shrink: 0;
-  stroke-width: 1.8;
+  stroke-width: 2;
 }
 
 .app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle):hover,
 .app-shell .header-utility-controls .notification-bell-toggle[aria-expanded='true'] {
-  border-color: transparent;
+  border-color: var(--muted);
   background: var(--panel-subtle);
   color: var(--text);
 }
@@ -47,11 +47,7 @@
   outline-offset: 2px;
 }
 
-.app-shell .header-utility-controls :is(.theme-toggle-compact, .notification-bell-toggle) {
-  border-color: var(--line);
-}
-
-.app-shell .header-utility-controls :is(.theme-toggle-compact, .notification-bell-toggle):hover,
+.app-shell .header-utility-controls :is(.cart-button, .theme-toggle-compact, .notification-bell-toggle):hover,
 .app-shell .header-utility-controls .notification-bell-toggle[aria-expanded='true'] {
   border-color: var(--muted);
 }

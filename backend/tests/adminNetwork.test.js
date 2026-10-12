@@ -29,6 +29,23 @@ test('local addresses require explicit development opt-in and remain denied on R
   assert.equal(parseAdminAllowedIps({ ...env, ADMIN_ALLOW_LOCAL_IPS: 'true', RENDER: 'true' }).valid, false);
 });
 
+test('local IPv6 localhost matches an explicitly allowed IPv4 loopback address only in development', () => {
+  const env = {
+    NODE_ENV: 'development',
+    ADMIN_ALLOW_LOCAL_IPS: 'true',
+    ADMIN_ALLOWED_IPS: '127.0.0.1',
+  };
+  assert.equal(getAdminClientIPv4({ ip: '::1' }, env), '127.0.0.1');
+  assert.equal(getAdminClientIPv4({ ip: '::1' }, { ...env, ADMIN_ALLOW_LOCAL_IPS: 'false' }), null);
+  assert.equal(getAdminClientIPv4({ ip: '::1' }, { ...env, NODE_ENV: 'production' }), null);
+  assert.equal(getAdminClientIPv4({ ip: '::1' }, { ...env, RENDER: 'true' }), null);
+
+  const guard = createAdminNetworkGuard({ env, logger: { warn() {} } });
+  let error;
+  guard({ ip: '::1', profile: { id: 'admin', role: 'admin', account_status: 'active' } }, {}, value => { error = value; });
+  assert.equal(error, undefined);
+});
+
 test('proxy configuration defaults to no trust and rejects blanket trust', () => {
   assert.equal(getTrustedProxies({}), false);
   assert.deepEqual(getTrustedProxies({ TRUSTED_PROXY_IPS: '10.2.3.4/32, ::1/128' }), ['10.2.3.4/32', '::1/128']);

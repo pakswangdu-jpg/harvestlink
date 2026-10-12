@@ -1,6 +1,6 @@
 import { Package } from 'lucide-react';
 import ZoomableImage from '../common/ZoomableImage';
-import { formatCurrency, titleCase } from '../../utils/formatters';
+import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
 import { getProductStatusInfo } from '../../utils/constants';
 
 
@@ -29,6 +29,7 @@ export default function SellerProductCard({ product, actions }) {
           <span className="product-mobile-card-stock">{product.quantity} {product.unit}</span>
           <span className={`badge badge-${statusValue}`}>{statusLabel}</span>
         </div>
+        <p className="product-mobile-card-updated">Updated {formatDate(product.updatedAt)}</p>
       </div>
 
       {actions ? <div className="product-mobile-card-actions">{actions}</div> : null}

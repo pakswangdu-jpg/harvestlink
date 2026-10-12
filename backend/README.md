@@ -164,6 +164,8 @@ ADMIN_ALLOW_LOCAL_IPS=true
 ```
 
 List the connecting Admin device's address, not just the local server's address.
+When connecting locally over IPv6 localhost (`::1`), the guard matches the
+explicit `127.0.0.1` allowlist entry; it does not permit other IPv6 addresses.
 This option is ignored when `NODE_ENV=production` or `RENDER=true`. It does not
 allow every IP, and cannot make LAN addresses work through public Render ingress.
 
