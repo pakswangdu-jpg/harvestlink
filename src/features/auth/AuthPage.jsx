@@ -10,7 +10,6 @@ import Button from '../../components/common/Button';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
-import ThemeToggle from '../../components/common/ThemeToggle';
 import { setAuthPersistence } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { getProfileLocationFromPlace } from '../../utils/profileLocation';
@@ -1178,7 +1177,6 @@ export default function AuthPage({ mode, adminPortal = false }) {
           <ArrowLeft size={16} aria-hidden="true" />
           Back
         </Button>
-        {adminPortal ? <ThemeToggle compact /> : null}
         </div>
         <Link to="/" className="auth-card-brand">
           <span className="brand-mark">
