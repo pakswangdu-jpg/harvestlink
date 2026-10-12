@@ -10,7 +10,7 @@ const OPTIONS = [
 
 
 
-export default function ThemeToggle({ compact = false }) {
+export default function ThemeToggle({ compact = false, showLabel = false }) {
   const { theme, effectiveTheme, setTheme } = useTheme();
 
   if (compact) {
@@ -18,12 +18,13 @@ export default function ThemeToggle({ compact = false }) {
     return (
       <button
         type="button"
-        className="theme-toggle-compact"
+        className={`theme-toggle-compact${showLabel ? ' theme-toggle-labeled' : ''}`}
         onClick={() => setTheme(isDark ? 'light' : 'dark')}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {isDark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+        {showLabel ? <span>{isDark ? 'Light mode' : 'Dark mode'}</span> : null}
       </button>
     );
   }

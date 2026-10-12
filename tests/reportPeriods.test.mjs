@@ -32,3 +32,16 @@ test('daily and monthly revenue keep paid-order totals and exact dated tooltip l
   assert.equal(getTopProducts(filterReportRecords(orders, '7d', now), 10)[0].productId, 'p1');
   assert.deepEqual(getReportRevenue([], 'all', now), []);
 });
+
+test('all-time revenue switches to yearly points for histories longer than three years', () => {
+  const orders = [
+    { paymentStatus: 'paid', createdAt: '2018-06-15T10:00:00Z', totalAmount: 100 },
+    { paymentStatus: 'paid', createdAt: '2026-09-15T10:00:00Z', totalAmount: 250 },
+    { paymentStatus: 'pending', createdAt: '2017-01-01T10:00:00Z', totalAmount: 900 },
+  ];
+  const yearly = getReportRevenue(orders, 'all', now);
+  assert.deepEqual(yearly.map(({ label }) => label), ['2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']);
+  assert.equal(yearly[0].revenue, 100);
+  assert.equal(yearly.at(-1).revenue, 250);
+  assert.equal(yearly.reduce((sum, point) => sum + point.revenue, 0), 350);
+});

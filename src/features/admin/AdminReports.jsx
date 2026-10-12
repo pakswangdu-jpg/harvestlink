@@ -83,7 +83,11 @@ export default function AdminReports() {
       <Card className="reports-panel reports-revenue">
         <CardHeader title="Revenue" />
         <p className="reports-description reports-period">{REPORT_PERIODS.find(([value]) => value === period)?.[1]}</p>
-        <RevenueTrendChart points={monthlyRevenue} presentation="report" />
+        <RevenueTrendChart
+          points={monthlyRevenue}
+          presentation="report"
+          emptyMessage="No sales recorded for this period."
+        />
       </Card>
 
       <div className="reports-grid">
@@ -93,6 +97,7 @@ export default function AdminReports() {
             hidePeriodFilter
             title="Orders by status"
             description="Distribution of orders by their current status."
+            emptyMessage="No orders recorded for this period."
             records={orders}
             computeBreakdown={(filteredOrders) => getOrderStatusBreakdown(filteredOrders).map((entry) => ({
               key: entry.status,
@@ -136,10 +141,10 @@ export default function AdminReports() {
               ]}
               rows={topProducts.map((row) => ({ ...row, id: row.productId }))}
               emptyMessage="No paid orders yet."
-              maxHeight={topProducts.length > 5 ? 280 : undefined}
+              maxHeight={topProducts.length > 5 ? 360 : undefined}
             />
           ) : (
-            <EmptyState title="No sales yet" message="Top-selling products will appear here once orders are paid." />
+            <EmptyState title="No sales yet" message="No sales recorded for this period." />
           )}
         </Card>
 
@@ -149,6 +154,7 @@ export default function AdminReports() {
             hidePeriodFilter
             title="Users by role"
             description="Farmers, buyers and stakeholders registered in the selected period."
+            emptyMessage="No user registrations for this period."
             records={users}
             computeBreakdown={(filteredUsers) => getUserRoleBreakdown(filteredUsers)
               .filter((entry) => entry.count > 0)

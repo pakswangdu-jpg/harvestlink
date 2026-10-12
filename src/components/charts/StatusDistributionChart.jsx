@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import Select from '../admin/Select';
 import EmptyState from '../admin/EmptyState';
 
@@ -93,6 +93,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
 
   const data = useMemo(() => computeBreakdown(filteredRecords), [computeBreakdown, filteredRecords]);
   const slantedLabels = report && plotWidth > 0 && plotWidth < 380 && data.length > 3;
+  const chartHeight = report ? 'clamp(220px, 23vw, 250px)' : CHART_HEIGHT;
 
   return (
     <>
@@ -111,7 +112,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
         </Select> : null}
       </div>
       {data.length ? (
-        <div className={report ? 'reports-status-plot' : undefined} style={{ height: CHART_HEIGHT }}>
+        <div className={report ? 'reports-status-plot' : undefined} style={{ height: chartHeight, minWidth: 0 }}>
           <ResponsiveContainer width="100%" height="100%" onResize={report ? (width) => setPlotWidth(width) : undefined}>
             <BarChart
               data={data}
@@ -120,11 +121,16 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
               onMouseLeave={() => setActiveIndex(null)}
             >
               <CartesianGrid vertical={false} stroke="var(--line)" />
+              <YAxis
+                hide
+                domain={[0, (dataMax) => (dataMax > 0 ? dataMax * 1.12 : 1)]}
+              />
               <XAxis
                 dataKey="label"
                 axisLine={{ stroke: 'var(--line)' }}
                 tickLine={false}
                 interval={0}
+                minTickGap={report ? 10 : 0}
                 height={slantedLabels ? 62 : report ? 46 : 36}
                 tick={<AxisTick report={report} slanted={slantedLabels} />}
               />

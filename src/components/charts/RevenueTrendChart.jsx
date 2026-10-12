@@ -8,7 +8,8 @@ import EmptyState from '../admin/EmptyState';
 const CHART_HEIGHT = 240;
 
 function formatAxisValue(value) {
-  if (Math.abs(value) >= 1000) return `₱${Math.round(value / 1000)}k`;
+  if (Math.abs(value) >= 1000000) return `₱${(value / 1000000).toLocaleString('en-PH', { maximumFractionDigits: 1 })}M`;
+  if (Math.abs(value) >= 1000) return `₱${(value / 1000).toLocaleString('en-PH', { maximumFractionDigits: 1 })}K`;
   return formatCurrency(value);
 }
 
@@ -26,13 +27,19 @@ function ChartTooltip({ active, payload, label, seriesLabel = 'paid order income
 
 
 
-export default function RevenueTrendChart({ points, compact = false, seriesLabel = 'paid order income', presentation }) {
+export default function RevenueTrendChart({
+  points,
+  compact = false,
+  seriesLabel = 'paid order income',
+  presentation,
+  emptyMessage = 'Paid orders will chart here once buyers start checking out.',
+}) {
   const report = presentation === 'report';
   const gradientId = `revenue-area-${useId().replace(/:/g, '')}`;
-  const chartHeight = compact ? 132 : report ? 280 : CHART_HEIGHT;
+  const chartHeight = compact ? 132 : report ? 'clamp(220px, 28vw, 300px)' : CHART_HEIGHT;
 
   if (!points.some((point) => point.revenue > 0)) {
-    return <EmptyState compact={compact} title="No revenue yet" message="Paid orders will chart here once buyers start checking out." />;
+    return <EmptyState compact={compact} title="No revenue yet" message={emptyMessage} />;
   }
 
   return (
@@ -52,6 +59,8 @@ export default function RevenueTrendChart({ points, compact = false, seriesLabel
             axisLine={{ stroke: 'var(--line)' }}
             tickLine={false}
             tickMargin={8}
+            interval="preserveStartEnd"
+            minTickGap={12}
           />
           <YAxis
             tick={{ fontSize: compact ? 10 : report ? 12 : 11, fill: report ? 'var(--reports-secondary)' : 'var(--muted)' }}
@@ -59,6 +68,7 @@ export default function RevenueTrendChart({ points, compact = false, seriesLabel
             tickLine={false}
             width={compact ? 52 : 64}
             tickFormatter={formatAxisValue}
+            domain={[0, (dataMax) => (dataMax > 0 ? dataMax * 1.1 : 1)]}
           />
           <Tooltip
             content={<ChartTooltip seriesLabel={seriesLabel} />}

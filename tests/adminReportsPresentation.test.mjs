@@ -24,6 +24,7 @@ test('admin reports retains dynamic totals, chart records and product table data
   const all = nodes(Page());
   assert.deepEqual(all.filter((node) => node.props.label).map((node) => [node.props.label, node.props.value]), [['Total sales', 'PHP 150'], ['Total orders', 1], ['Registered users', 2], ['Donations completed', 1]]);
   assert.deepEqual(all.find((node) => node.type === 'RevenueTrendChart').props.points, reports.getReportRevenue(orders, '6m'));
+  assert.equal(all.find((node) => node.type === 'RevenueTrendChart').props.emptyMessage, 'No sales recorded for this period.');
   const charts = all.filter((node) => node.type === 'StatusDistributionChart');
   assert.deepEqual(charts[0].props.records, orders);
   assert.deepEqual(charts[1].props.records, donations);
@@ -31,13 +32,37 @@ test('admin reports retains dynamic totals, chart records and product table data
   assert.ok(charts.every((chart) => chart.props.hidePeriodFilter));
   assert.equal(charts[0].props.computeBreakdown(orders)[0].count, 1);
   assert.deepEqual(all.find((node) => node.type === 'Table').props.rows, reports.getTopProducts(orders, 10).map((row) => ({ ...row, id: row.productId })));
+  assert.equal(all.find((node) => node.type === 'Table').props.maxHeight, undefined);
+  const reportsSource = await readFile(new URL('../src/features/admin/AdminReports.jsx', import.meta.url), 'utf8');
+  assert.match(reportsSource, /maxHeight=\{topProducts\.length > 5 \? 360 : undefined\}/);
+  assert.equal(charts[0].props.emptyMessage, 'No orders recorded for this period.');
+  assert.equal(charts[2].props.emptyMessage, 'No user registrations for this period.');
+});
+
+test('report totals display as separate responsive metric cards', async () => {
+  const css = await readFile(new URL('../src/features/admin/AdminReports.css', import.meta.url), 'utf8');
+  assert.match(css, /\.reports-summary \{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?gap: 12px/);
+  assert.match(css, /\.reports-metric \{[\s\S]*?border: 1px solid var\(--reports-line\);[\s\S]*?border-radius: 8px;[\s\S]*?background: var\(--reports-surface\)/);
+  assert.doesNotMatch(css, /\.reports-metric \+ \.reports-metric \{[^}]*border-left/);
+  assert.doesNotMatch(css, /\.reports-metric:nth-child\(n\+3\) \{[^}]*border-top/);
+});
+
+test('report charts use automatic scales and responsive axes', async () => {
+  const revenue = await readFile(new URL('../src/components/charts/RevenueTrendChart.jsx', import.meta.url), 'utf8');
+  const status = await readFile(new URL('../src/components/charts/StatusDistributionChart.jsx', import.meta.url), 'utf8');
+  assert.match(revenue, /clamp\(220px, 28vw, 300px\)/);
+  assert.match(revenue, /interval="preserveStartEnd"/);
+  assert.match(revenue, /domain=\{\[0, \(dataMax\) => \(dataMax > 0 \? dataMax \* 1\.1 : 1\)\]\}/);
+  assert.match(revenue, /maximumFractionDigits: 1/);
+  assert.match(status, /clamp\(220px, 23vw, 250px\)/);
+  assert.match(status, /domain=\{\[0, \(dataMax\) => \(dataMax > 0 \? dataMax \* 1\.12 : 1\)\]\}/);
 });
 
 test('report chart styling preserves the All time and monthly filter behavior', async () => {
   const values = [];
   let index = 0;
   const scope = { useState(initial) { const slot = index++; if (!(slot in values)) values[slot] = initial; return [values[slot], (value) => { values[slot] = value; }]; }, useMemo: (fn) => fn() };
-  for (const name of ['Bar', 'BarChart', 'CartesianGrid', 'Cell', 'LabelList', 'ResponsiveContainer', 'Tooltip', 'XAxis', 'Select', 'EmptyState']) scope[name] = name;
+  for (const name of ['Bar', 'BarChart', 'CartesianGrid', 'Cell', 'LabelList', 'ResponsiveContainer', 'Tooltip', 'XAxis', 'YAxis', 'Select', 'EmptyState']) scope[name] = name;
   const Chart = await compile('components/charts/StatusDistributionChart.jsx', 'StatusDistributionChart', scope);
   const records = [{ createdAt: '2026-09-01', status: 'pending' }, { createdAt: '2026-10-01', status: 'completed' }];
   const props = { records, presentation: 'report', title: 'Orders by status', computeBreakdown: (rows) => rows.map((row) => ({ key: row.status, status: row.status, label: row.status, count: 1 })) };
@@ -45,6 +70,8 @@ test('report chart styling preserves the All time and monthly filter behavior', 
   const first = render();
   assert.equal(first.find((node) => node.type === 'Select').props.value, 'all');
   assert.equal(first.find((node) => node.type === 'BarChart').props.data.length, 2);
+  assert.equal(first.find((node) => node.type === 'YAxis').props.hide, true);
+  assert.equal(first.find((node) => node.type === 'YAxis').props.domain[1](2), 2.24);
   first.find((node) => node.type === 'Select').props.onChange({ target: { value: '2026-09' } });
   const filtered = render();
   assert.deepEqual(filtered.find((node) => node.type === 'BarChart').props.data.map((row) => row.status), ['completed']);

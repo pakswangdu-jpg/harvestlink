@@ -31,28 +31,36 @@ export function getReportRevenue(orders, period, now = new Date()) {
   const paid = filterReportRecords(orders, period, now).filter((order) => order.paymentStatus === PAID_STATUS && Number.isFinite(Date.parse(order.createdAt)));
   const daily = period === '7d' || period === '30d';
   let start = getReportPeriodStart(period, now);
+  const end = manilaDate(now);
   if (!start) {
     if (!paid.length) return [];
     start = new Date(paid.reduce((first, order) => Math.min(first, Date.parse(order.createdAt)), Infinity));
   }
   const cursor = manilaDate(start);
   cursor.setUTCHours(0, 0, 0, 0);
-  if (!daily) cursor.setUTCDate(1);
-  const end = manilaDate(now);
+  const firstMonth = cursor.getUTCFullYear() * 12 + cursor.getUTCMonth();
+  const lastMonth = end.getUTCFullYear() * 12 + end.getUTCMonth();
+  const yearly = period === 'all' && lastMonth - firstMonth > 36;
+  if (yearly) {
+    cursor.setUTCMonth(0, 1);
+  } else if (!daily) {
+    cursor.setUTCDate(1);
+  }
   const totals = new Map();
   for (const order of paid) {
-    const key = dateKey(manilaDate(order.createdAt)).slice(0, daily ? 10 : 7);
+    const key = dateKey(manilaDate(order.createdAt)).slice(0, daily ? 10 : yearly ? 4 : 7);
     totals.set(key, (totals.get(key) || 0) + Number(order.totalAmount || 0));
   }
   const points = [];
   while (cursor <= end) {
-    const key = dateKey(cursor).slice(0, daily ? 10 : 7);
+    const key = dateKey(cursor).slice(0, daily ? 10 : yearly ? 4 : 7);
     points.push({
-      label: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', ...(daily ? { day: 'numeric' } : {}) }),
-      fullLabel: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', year: 'numeric', ...(daily ? { day: 'numeric' } : {}) }),
+      label: yearly ? String(cursor.getUTCFullYear()) : cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', ...(daily ? { day: 'numeric' } : {}) }),
+      fullLabel: yearly ? String(cursor.getUTCFullYear()) : cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', year: 'numeric', ...(daily ? { day: 'numeric' } : {}) }),
       revenue: totals.get(key) || 0,
     });
     if (daily) cursor.setUTCDate(cursor.getUTCDate() + 1);
+    else if (yearly) cursor.setUTCFullYear(cursor.getUTCFullYear() + 1);
     else cursor.setUTCMonth(cursor.getUTCMonth() + 1);
   }
   return points;
