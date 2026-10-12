@@ -4,6 +4,14 @@ import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
 import { getTotalRevenue } from '../src/services/reportService.js';
 
+test('admin overview metrics use legible restrained system typography', async () => {
+  const css = await readFile(new URL('../src/features/admin/AdminOverview.css', import.meta.url), 'utf8');
+  assert.match(css, /\.admin-overview-page \{[\s\S]*?--font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif/);
+  assert.match(css, /\.overview-metric strong \{[^}]*font-size: 29px;[^}]*font-weight: 600;[^}]*line-height: 1\.2;[^}]*font-variant-numeric: lining-nums tabular-nums/);
+  assert.match(css, /\.overview-metric span \{[^}]*font-size: 14px;[^}]*font-weight: 500;[^}]*line-height: 1\.45/);
+  assert.match(css, /@container \(max-width: 450px\)[\s\S]*?\.overview-metric strong \{ font-size: 26px;/);
+});
+
 test('admin dashboard polish preserves totals, review destinations, recent orders and activity', async () => {
   const original = await readFile(new URL('../src/features/admin/AdminOverview.jsx', import.meta.url), 'utf8');
   const source = original.replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace(/import\s+['"][^'"]+['"];?/g, '').replace('export default ', '');

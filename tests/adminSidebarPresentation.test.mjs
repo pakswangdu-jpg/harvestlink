@@ -49,12 +49,22 @@ test('Admin sidebar uses operational nav groups and retains routes and account l
   assert.match(shell, /label: 'Overview'/);
   assert.match(shell, /label: 'Management'/);
   assert.match(shell, /user\.role === 'admin' \? 'Account' : 'General'/);
+  assert.match(shell, /user\.role === 'admin' \? \([\s\S]*?admin-sidebar-theme-control[\s\S]*?<ThemeToggle compact showLabel=\{!isSidebarCollapsed\} \/>/);
   assert.match(shell, /user\.role === 'admin' \? 'Admin Portal' : <BrandWordmark \/>/);
   assert.match(shell, /user\.role !== 'admin' \? <small>\{`\$\{user\.role\} workspace`\}<\/small> : null/);
   for (const label of ['Dashboard', 'Users', 'Price Monitoring', 'Orders', 'Donations', 'Reports', 'Profile']) {
     assert.ok(nav.includes(`label: '${label}'`), `Missing Admin route label: ${label}`);
   }
   assert.match(shell, /aria-label="Logout"/);
+});
+
+test('Admin sidebar theme switch keeps an accessible collapsed icon and expanded mode label', async () => {
+  const toggle = await readFile(new URL('../src/components/common/ThemeToggle.jsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../src/components/layout/AdminSidebar.css', import.meta.url), 'utf8');
+  assert.match(toggle, /showLabel \? <span>\{isDark \? 'Light mode' : 'Dark mode'\}<\/span> : null/);
+  assert.match(toggle, /aria-label=\{isDark \? 'Switch to light mode' : 'Switch to dark mode'\}/);
+  assert.match(css, /\.admin-sidebar-theme-control \.theme-toggle-compact \{[\s\S]*?min-height: 43px;[\s\S]*?justify-content: flex-start/);
+  assert.match(css, /\.sidebar-collapsed \.admin-sidebar-theme-control \.theme-toggle-compact \{ justify-content: center/);
 });
 
 test('expanded Admin account omits avatar, centers identity, and keeps collapsed role tooltip', async () => {
