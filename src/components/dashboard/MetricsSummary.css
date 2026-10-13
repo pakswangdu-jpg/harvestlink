@@ -1,6 +1,32 @@
 .farmer-dashboard-page .metrics-overview-panel.business-summary {
   container: business-summary / inline-size;
   min-width: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading .eyebrow {
+  margin-bottom: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.07em;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading h2 {
+  font-family: inherit;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading .dashboard-chart-helper {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview {
@@ -15,6 +41,52 @@
   overflow: visible;
 }
 
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item.has-financial-trend {
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin-top: auto;
+  padding-top: 10px;
+  color: var(--green-700);
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend > span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend svg {
+  display: block;
+  width: 100%;
+  height: 32px;
+  overflow: hidden;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend-area {
+  fill: currentColor;
+  fill-opacity: 0.08;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item:nth-child(2) .metrics-overview-mini-trend {
+  color: var(--blue-700);
+}
+
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item + .product-stats-item {
   border-left: 1px solid var(--line);
 }
@@ -22,12 +94,24 @@
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-label,
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-hint,
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary {
+  font-family: inherit;
   overflow: visible;
   white-space: normal;
   text-overflow: clip;
   overflow-wrap: anywhere;
   line-height: 1.5;
   letter-spacing: 0;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .business-summary-number-row {
@@ -46,7 +130,7 @@
   font-size: 28px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.3;
+  line-height: 1.2;
   letter-spacing: 0;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -59,17 +143,30 @@
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-hint {
   margin-top: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary {
   margin-top: 12px;
   padding-top: 8px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary strong {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-cta {
   flex-wrap: wrap;
   min-height: 28px;
   margin-top: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.5;
 }
 
@@ -100,5 +197,9 @@
   .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item {
     min-height: 0;
     padding: 14px;
+  }
+
+  .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-item.has-financial-trend {
+    min-height: 174px;
   }
 }

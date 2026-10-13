@@ -52,9 +52,24 @@ function OverviewCard({
 }) {
   if (!metric) return null;
   const accent = ACCENT_BY_TONE[tone];
+  const chartPoints = metric.chartPoints || [];
+  const hasChartData = chartPoints.some((point) => Number.isFinite(point.revenue) && point.revenue !== 0);
+  const chartValues = chartPoints.map((point) => point.revenue);
+  const minValue = Math.min(0, ...chartValues);
+  const maxValue = Math.max(0, ...chartValues);
+  const range = maxValue - minValue;
+  const coordinates = chartPoints.map((point, index) => ({
+    x: chartPoints.length > 1 ? (index / (chartPoints.length - 1)) * 280 : 140,
+    y: 34 - (range ? ((point.revenue - minValue) / range) * 26 : 13),
+  }));
+  const linePath = coordinates.map(({ x, y }, index) => `${index ? 'L' : 'M'} ${x} ${y}`).join(' ');
+  const zeroY = 34 - (range ? ((0 - minValue) / range) * 26 : 13);
+  const areaPath = coordinates.length
+    ? `${linePath} L ${coordinates.at(-1).x} ${zeroY} L ${coordinates[0].x} ${zeroY} Z`
+    : '';
 
   return (
-    <div className={`product-stats-item${accent ? ` accent-${accent}` : ''}`}>
+    <div className={`product-stats-item${accent ? ` accent-${accent}` : ''}${metric.chartPoints ? ' has-financial-trend' : ''}`}>
       <div className="product-stats-label-row">
         <Icon size={16} className="product-stats-icon" aria-hidden="true" />
         <p className="product-stats-label">{title}</p>
@@ -64,6 +79,19 @@ function OverviewCard({
         {metric.trend ? <TrendingUp size={15} className="metrics-overview-trend" aria-hidden="true" /> : null}
       </div>
       <p className="product-stats-hint">{metric.hint || metric.label}</p>
+      {metric.chartPoints ? (
+        <div className={`metrics-overview-mini-trend${hasChartData ? '' : ' is-empty'}`}>
+          {hasChartData ? (
+            <>
+              <span>Last 6 months</span>
+              <svg viewBox="0 0 280 40" preserveAspectRatio="none" role="img" aria-label={`${title} over the last 6 months`}>
+                <path d={areaPath} className="metrics-overview-mini-trend-area" />
+                <path d={linePath} className="metrics-overview-mini-trend-line" />
+              </svg>
+            </>
+          ) : <span>No trend data yet</span>}
+        </div>
+      ) : null}
       {secondary ? (
         <p className="metrics-overview-secondary"><strong>{secondary.value}</strong> {secondary.label}</p>
       ) : null}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { filterReportRecords, getReportPeriodStart, getReportRevenue, getTotalRevenue, getTopProducts } from '../src/services/reportService.js';
+import { filterReportRecords, getMonthlyProfit, getReportPeriodStart, getReportRevenue, getSevenDayOrderCounts, getTotalRevenue, getTopProducts } from '../src/services/reportService.js';
 
 const now = new Date('2026-10-10T10:00:00Z');
 test('report periods follow Cebu calendar boundaries, without inventing missing dates', () => {
@@ -31,6 +31,40 @@ test('daily and monthly revenue keep paid-order totals and exact dated tooltip l
   assert.equal(getReportRevenue(orders, 'all', now).reduce((sum, point) => sum + point.revenue, 0), getTotalRevenue(orders));
   assert.equal(getTopProducts(filterReportRecords(orders, '7d', now), 10)[0].productId, 'p1');
   assert.deepEqual(getReportRevenue([], 'all', now), []);
+});
+
+test('seven-day order trends group real order dates and current statuses by Cebu day', () => {
+  const orders = [
+    { status: 'pending', createdAt: '2026-10-03T15:59:59Z', updatedAt: '2026-10-03T15:59:59Z' },
+    { status: 'pending', createdAt: '2026-10-03T16:00:00Z', updatedAt: '2026-10-03T16:00:00Z' },
+    { status: 'completed', createdAt: '2026-10-09T16:00:00Z', updatedAt: '2026-10-10T09:30:00Z' },
+    { status: 'completed', createdAt: '2026-10-10T10:00:01Z', updatedAt: '2026-10-10T10:00:01Z' },
+  ];
+  const allOrders = getSevenDayOrderCounts(orders, {}, now);
+  const pending = getSevenDayOrderCounts(orders, { status: 'pending' }, now);
+  const completed = getSevenDayOrderCounts(orders, { status: 'completed', dateField: 'updatedAt' }, now);
+
+  assert.equal(allOrders.length, 7);
+  assert.equal(allOrders[0].label, 'Oct 4');
+  assert.equal(allOrders.at(-1).fullLabel, 'Oct 10, 2026');
+  assert.equal(allOrders.reduce((sum, point) => sum + point.count, 0), 2);
+  assert.equal(pending.reduce((sum, point) => sum + point.count, 0), 1);
+  assert.equal(completed.at(-1).count, 1);
+  assert.equal(completed.reduce((sum, point) => sum + point.count, 0), 1);
+});
+
+test('monthly profit trends use paid orders with recorded costs only', () => {
+  const orders = [
+    { paymentStatus: 'paid', createdAt: '2026-10-09T16:00:00Z', unitPrice: 100, unitCostPrice: 60, quantity: 2 },
+    { paymentStatus: 'paid', createdAt: '2026-10-10T09:00:00Z', unitPrice: 50, unitCostPrice: 30, quantity: 1 },
+    { paymentStatus: 'pending', createdAt: '2026-10-10T09:00:00Z', unitPrice: 100, unitCostPrice: 10, quantity: 1 },
+    { paymentStatus: 'paid', createdAt: '2026-10-10T09:00:00Z', unitPrice: 100, unitCostPrice: null, quantity: 1 },
+  ];
+  const profit = getMonthlyProfit(orders, 2, now);
+
+  assert.deepEqual(profit.map(({ label }) => label), ['Sep', 'Oct']);
+  assert.equal(profit.at(-1).revenue, 100);
+  assert.equal(profit[0].revenue, 0);
 });
 
 test('all-time revenue switches to yearly points for histories longer than three years', () => {
