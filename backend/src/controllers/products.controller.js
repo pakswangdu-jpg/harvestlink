@@ -111,7 +111,7 @@ export async function listProducts(req, res) {
 
 
 
-    query = query.or('price_review.is.null,price_review->>status.eq.approved');
+    query = query.or('price_review.is.null,price_review->>status.eq.approved,price_review->>status.eq.pending');
     query = query.or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`);
   }
 
@@ -136,7 +136,7 @@ export async function listPublicProducts(req, res) {
     .eq('farmer_id', farmerId)
     .eq('status', 'active')
     .gt('quantity', 0)
-    .or('price_review.is.null,price_review->>status.eq.approved')
+    .or('price_review.is.null,price_review->>status.eq.approved,price_review->>status.eq.pending')
     .or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`)
     .order('created_at', { ascending: false });
   if (error) throw new ApiError(error.message, 400);
@@ -166,6 +166,7 @@ export async function listPublicProducts(req, res) {
     description: product.description,
     image: product.image,
     status: product.status,
+    priceReview: product.priceReview,
     originalPrice: product.originalPrice,
     discountPercent: product.discountPercent,
     createdAt: product.createdAt,

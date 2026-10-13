@@ -39,6 +39,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const expiryStatus = getExpiryStatus(product.expirationDate);
   const isCriticallyLow = product.quantity > 0 && product.quantity <= CRITICAL_STOCK_THRESHOLD;
   const isOutOfStock = !(product.quantity > 0);
+  const isPendingReview = product.priceReview?.status === 'pending';
   const canAddToCart = ORDERING_ROLES.includes(currentUser?.role);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -135,6 +136,11 @@ export default function ProductCard({ product, actions, showStatus = false, clas
                 </p>
               ) : null}
             </button>
+            {isPendingReview ? (
+              <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900" role="status">
+                Price review pending — ordering unavailable until approved.
+              </p>
+            ) : null}
           </div>
 
           <div className="product-card-meta flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-[var(--muted)]">
@@ -217,16 +223,18 @@ export default function ProductCard({ product, actions, showStatus = false, clas
                 <button
                   type="button"
                   onClick={inCart && !justAdded ? handleRemoveFromCart : handleAddToCart}
-                  disabled={isOutOfStock}
+                  disabled={isOutOfStock || (isPendingReview && !inCart)}
                   className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border text-[13px] font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] [forced-color-adjust:none] ${
-                    isOutOfStock
+                    isOutOfStock || (isPendingReview && !inCart)
                       ? 'cursor-not-allowed border-[var(--line)] bg-[var(--soft)] text-[var(--muted)]'
                       : justAdded
                         ? 'border-[var(--green-100)] bg-[var(--green-50)] text-[var(--green-700)]'
                         : 'border-[var(--line)] text-[var(--text-secondary)] hover:bg-[var(--soft)]'
                   }`}
                 >
-                  {isOutOfStock ? (
+                  {isPendingReview && !inCart ? (
+                    'Price Under Review'
+                  ) : isOutOfStock ? (
                     'Out of Stock'
                   ) : justAdded ? (
                     <><Check size={15} /> Added to Cart</>
@@ -294,7 +302,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
               className="btn btn-primary btn-md product-quick-view-action"
               onClick={() => setIsQuickViewOpen(false)}
             >
-              View product &amp; order <ArrowRight size={15} aria-hidden="true" />
+              {isPendingReview ? 'View listing details' : 'View product & order'} <ArrowRight size={15} aria-hidden="true" />
             </Link>
           </div>
         </Modal>,

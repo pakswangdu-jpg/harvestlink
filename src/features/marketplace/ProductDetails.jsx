@@ -70,8 +70,8 @@ export default function ProductDetails() {
     <AppShell
       user={currentUser}
       navItems={navItems}
-      title="Checkout"
-      subtitle="Review your order before placing it."
+      title={isPendingReview ? 'Product details' : 'Checkout'}
+      subtitle={isPendingReview ? 'This listing is visible while its price is under review.' : 'Review your order before placing it.'}
       pageClassName="checkout-page"
     >
       {referenceError ? <p className="muted" role="status">{referenceError}</p> : null}
