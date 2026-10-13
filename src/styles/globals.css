@@ -16596,6 +16596,16 @@ td {
   background: var(--green-700);
 }
 
+.app-shell.role-stakeholder .sidebar-scroll .sidebar-nav-link[aria-current='page'] {
+  background: var(--green-100);
+  color: var(--green-700) !important;
+  font-weight: 600 !important;
+}
+
+.app-shell.role-stakeholder .sidebar-scroll .sidebar-nav-link[aria-current='page'] .sidebar-nav-icon > svg {
+  color: var(--green-700);
+}
+
 .sidebar-scroll nav a svg {
   width: 20px;
   height: 20px;

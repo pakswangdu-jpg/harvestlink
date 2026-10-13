@@ -20,7 +20,7 @@
   min-width: 0;
 }
 
-.landing-farmer-friendly .landing-nav { gap: 24px; align-items: center; }
+.landing-farmer-friendly .landing-nav { max-width: 1200px; gap: 24px; align-items: center; }
 .landing-farmer-friendly .landing-links { gap: 24px; }
 .landing-farmer-friendly .landing-actions { gap: 14px; flex-wrap: nowrap; }
 .landing-farmer-friendly .landing-nav .brand { flex-shrink: 0; }
@@ -29,8 +29,9 @@
 .landing-farmer-friendly .hero-copy-block { max-width: 820px; }
 .landing-farmer-friendly .hero-actions { align-items: center; }
 .landing-farmer-friendly .lp-trust-list { column-gap: 28px; row-gap: 10px; }
+.landing-farmer-friendly .farmer-start-section { max-width: 1200px; padding-block: 56px 40px; }
 
-.landing-farmer-friendly .farmer-start-section { padding-block: 40px; }
+.landing-farmer-friendly .farmer-start-section { padding-block: 56px 40px; }
 .landing-farmer-friendly .farmer-start-description { max-width: 880px; }
 .landing-farmer-friendly .farmer-start-steps { gap: 32px; margin-top: 28px; align-items: start; }
 .landing-farmer-friendly .farmer-start-steps li { gap: 12px; min-width: 0; }
@@ -71,12 +72,77 @@
 .landing-farmer-friendly .farmer-directory-completed { grid-row: 5; align-self: end; }
 .landing-farmer-friendly .farmer-directory-action { grid-row: 6; min-height: 44px; align-self: end; }
 
-.landing-farmer-friendly .landing-steps { margin-top: 0; padding-block: 64px; }
-.landing-farmer-friendly .landing-section-heading { margin-bottom: 28px; }
-.landing-farmer-friendly .lp-timeline { width: 100%; max-width: 760px; margin-inline: auto; }
-.landing-farmer-friendly .lp-timeline-item { gap: 20px; padding-bottom: 24px; }
+.landing-farmer-friendly .landing-steps {
+  max-width: 1000px;
+  margin-top: 0;
+  padding-block: 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.landing-farmer-friendly .landing-steps > .landing-section-heading { margin-bottom: 30px; }
+.landing-farmer-friendly .landing-steps > .landing-section-heading .eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.landing-farmer-friendly .landing-steps > .landing-section-heading h2 {
+  color: var(--text);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+.landing-farmer-friendly .landing-steps > .landing-section-heading > p:last-child {
+  max-width: 620px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.landing-farmer-friendly .lp-timeline { width: 100%; max-width: 920px; margin-inline: auto; }
+.landing-farmer-friendly .lp-timeline-item {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 16px;
+  padding-bottom: 24px;
+}
 .landing-farmer-friendly .lp-timeline-item:last-child { padding-bottom: 0; }
-.landing-farmer-friendly .lp-timeline-content { max-width: 660px; min-width: 0; }
+.landing-farmer-friendly .lp-timeline-item:not(:last-child)::before {
+  left: 19px;
+  top: 40px;
+  width: 1px;
+  background: color-mix(in srgb, var(--green-700) 22%, var(--line));
+  opacity: 1;
+}
+.landing-farmer-friendly .lp-timeline-marker {
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--green-700) 24%, var(--line));
+  background: var(--green-50);
+  color: var(--green-800);
+}
+.landing-farmer-friendly .lp-timeline-marker svg { width: 17px; height: 17px; stroke-width: 1.8; }
+.landing-farmer-friendly .lp-timeline-content { max-width: 760px; min-width: 0; padding-top: 1px; }
+.landing-farmer-friendly .lp-timeline-number {
+  margin-bottom: 3px;
+  color: var(--green-700);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+}
+.landing-farmer-friendly .lp-timeline-content h3 {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.landing-farmer-friendly .lp-timeline-content p {
+  max-width: 760px;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+}
 
 .landing-farmer-friendly .lp-donation-cta { margin-top: 0; padding: 28px 32px; gap: 24px; align-items: center; }
 .landing-farmer-friendly .lp-donation-copy { min-width: 0; max-width: 560px; }
@@ -105,10 +171,10 @@
 
 .landing-farmer-friendly .lp-contact {
   margin-top: 0;
-  padding-block: 0 64px;
+  padding-block: 0 52px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
-.landing-farmer-friendly .lp-contact > .landing-section-heading { margin-bottom: 28px; }
+.landing-farmer-friendly .lp-contact > .landing-section-heading { margin-bottom: 26px; }
 .landing-farmer-friendly .lp-contact > .landing-section-heading .eyebrow {
   font-size: 13px;
   font-weight: 600;
@@ -120,23 +186,117 @@
   line-height: 1.2;
   letter-spacing: 0;
 }
-.landing-farmer-friendly .lp-contact-grid { gap: 24px; }
-.landing-farmer-friendly .lp-contact-cards { gap: 16px; grid-auto-rows: 1fr; }
-.landing-farmer-friendly .lp-contact-card { align-items: center; min-height: 96px; padding: 20px; }
+.landing-farmer-friendly .lp-contact-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+}
+.landing-farmer-friendly .lp-contact-cards {
+  grid-column: auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--line);
+}
+.landing-farmer-friendly .lp-contact-card {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  min-height: 76px;
+  padding: 12px 16px;
+  gap: 3px 10px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+.landing-farmer-friendly .lp-contact-card:last-child { border-right: 0; }
+.landing-farmer-friendly a.lp-contact-card:hover {
+  transform: none;
+  background: var(--panel-subtle);
+  box-shadow: none;
+}
 .landing-farmer-friendly .lp-contact-card > div { min-width: 0; overflow-wrap: anywhere; }
-.landing-farmer-friendly .lp-contact-card svg { margin-top: 0; }
-.landing-farmer-friendly .lp-contact-card strong { font-size: 14px; font-weight: 600; line-height: 1.35; }
-.landing-farmer-friendly .lp-contact-card span { font-size: 15px; font-weight: 400; line-height: 1.45; }
-.landing-farmer-friendly .lp-contact-form { width: 100%; max-width: 840px; margin-inline: auto; padding: 24px; gap: 16px 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.landing-farmer-friendly .lp-contact-card svg {
+  grid-row: 1 / span 2;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  color: var(--muted);
+  stroke-width: 1.8;
+}
+.landing-farmer-friendly .lp-contact-card strong { color: var(--text); font-size: 13px; font-weight: 600; line-height: 1.35; }
+.landing-farmer-friendly .lp-contact-card span { margin-top: 1px; color: var(--text-secondary); font-size: 14px; font-weight: 400; line-height: 1.45; }
+.landing-farmer-friendly .lp-contact-form {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  padding: 24px;
+  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: none;
+}
 .landing-farmer-friendly .lp-contact-form h3,
 .landing-farmer-friendly .lp-contact-form .form-alert,
 .landing-farmer-friendly .lp-contact-form label:has(textarea),
 .landing-farmer-friendly .lp-contact-form button { grid-column: 1 / -1; }
-.landing-farmer-friendly .lp-contact-form h3 { font-size: 20px; font-weight: 600; line-height: 1.3; }
-.landing-farmer-friendly .lp-contact-form label { min-width: 0; font-size: 14px; font-weight: 500; line-height: 1.4; }
+.landing-farmer-friendly .lp-contact-form h3 { color: var(--text); font-size: 19px; font-weight: 600; line-height: 1.3; }
+.landing-farmer-friendly .lp-contact-form label { min-width: 0; gap: 6px; color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.4; }
 .landing-farmer-friendly .lp-contact-form input,
-.landing-farmer-friendly .lp-contact-form textarea { width: 100%; min-width: 0; font-size: 15px; line-height: 1.5; }
-.landing-farmer-friendly .lp-contact-form button { min-height: 44px; font-size: 15px; font-weight: 600; }
+.landing-farmer-friendly .lp-contact-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.landing-farmer-friendly .lp-contact-form input {
+  height: 46px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.landing-farmer-friendly .lp-contact-form textarea { min-height: 140px; }
+.landing-farmer-friendly .lp-contact-form input:focus,
+.landing-farmer-friendly .lp-contact-form textarea:focus {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+.landing-farmer-friendly .lp-contact-form button {
+  min-height: 46px;
+  padding-inline: 20px;
+  border-radius: 8px;
+  background: #17763d;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: none;
+  transform: none;
+}
+.landing-farmer-friendly .lp-contact-form button:hover:not(:disabled) {
+  background: #126332;
+  box-shadow: none;
+  transform: none;
+}
+.landing-farmer-friendly .lp-contact-form button:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 3px;
+}
 
 .landing-farmer-friendly .lp-footer { margin-top: 0; margin-inline: calc(-1 * var(--farmer-page-inset)); padding: 40px var(--farmer-page-inset) 24px; }
 .landing-farmer-friendly .lp-footer-top { gap: 28px; align-items: start; }
@@ -154,6 +314,9 @@
   .landing-farmer-friendly .lp-donation-cta { gap: 20px; padding: 28px; }
   .landing-farmer-friendly .lp-donation-actions { flex-direction: column; align-items: stretch; }
   .landing-farmer-friendly .lp-contact-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .landing-farmer-friendly .lp-contact-card:nth-child(2) { border-right: 0; }
+  .landing-farmer-friendly .lp-contact-card:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .landing-farmer-friendly .lp-contact-card:last-child { border-right: 0; border-bottom: 0; }
   .landing-farmer-friendly .lp-footer-top { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .landing-farmer-friendly .lp-footer-brand { grid-column: 1 / -1; }
 }
@@ -184,15 +347,33 @@
   .landing-farmer-friendly .farmer-directory-card { grid-template-rows: 64px 32px 22px 91px minmax(20px, 1fr) 44px; }
   .landing-farmer-friendly .landing-steps,
   .landing-farmer-friendly .lp-about { padding-block: 40px; }
-  .landing-farmer-friendly .lp-timeline-item { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; }
+  .landing-farmer-friendly .landing-steps > .landing-section-heading { margin-bottom: 24px; }
+  .landing-farmer-friendly .landing-steps > .landing-section-heading h2 { font-size: 28px; }
+  .landing-farmer-friendly .landing-steps > .landing-section-heading > p:last-child { font-size: 15px; }
+  .landing-farmer-friendly .lp-timeline-item { grid-template-columns: 36px minmax(0, 1fr); gap: 14px; padding-bottom: 22px; }
+  .landing-farmer-friendly .lp-timeline-item:not(:last-child)::before { left: 17px; top: 36px; }
+  .landing-farmer-friendly .lp-timeline-marker { width: 36px; height: 36px; }
+  .landing-farmer-friendly .lp-timeline-marker svg { width: 16px; height: 16px; }
+  .landing-farmer-friendly .lp-timeline-content h3 { font-size: 16px; }
+  .landing-farmer-friendly .lp-timeline-content p { font-size: 14px; line-height: 1.55; }
   .landing-farmer-friendly .lp-donation-cta { padding: 24px 20px; }
   .landing-farmer-friendly .lp-donation-actions { flex-direction: column; width: 100%; }
-  .landing-farmer-friendly .lp-contact { padding-bottom: 40px; }
-  .landing-farmer-friendly .lp-contact > .landing-section-heading { margin-bottom: 22px; }
+  .landing-farmer-friendly .lp-contact { padding-bottom: 48px; }
+  .landing-farmer-friendly .lp-contact > .landing-section-heading { margin-bottom: 24px; }
   .landing-farmer-friendly .lp-contact > .landing-section-heading h2 { font-size: 28px; }
   .landing-farmer-friendly .lp-contact-cards,
   .landing-farmer-friendly .lp-contact-form { grid-template-columns: minmax(0, 1fr); }
-  .landing-farmer-friendly .lp-contact-card { min-height: 88px; padding: 18px; }
+  .landing-farmer-friendly .lp-contact-cards { border-block: 1px solid var(--line); }
+  .landing-farmer-friendly .lp-contact-card,
+  .landing-farmer-friendly .lp-contact-card:nth-child(2),
+  .landing-farmer-friendly .lp-contact-card:nth-child(-n + 2),
+  .landing-farmer-friendly .lp-contact-card:last-child {
+    min-height: 68px;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .landing-farmer-friendly .lp-contact-card:last-child { border-bottom: 0; }
   .landing-farmer-friendly .lp-contact-form { padding: 20px; gap: 14px; }
   .landing-farmer-friendly .lp-footer { padding-top: 32px; padding-bottom: 84px; }
   .landing-farmer-friendly .lp-footer-top { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 20px; }
