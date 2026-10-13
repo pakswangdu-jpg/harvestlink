@@ -10,6 +10,7 @@ import Table from '../../components/admin/Table';
 import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
 import { useAuth } from '../auth/AuthContext';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import { getUsers } from '../../services/authService';
 import { getPendingPriceReviews, getProducts } from '../../services/productService';
 import { getOrders } from '../../services/orderService';
@@ -151,7 +152,11 @@ export default function AdminOverview() {
 
   return (
     <AppShell user={currentUser} navItems={adminNavItems} title="Admin dashboard" hideHeader pageClassName="admin-overview-page">
-      <PageHeader title="Dashboard" description="Monitor HarvestLink activity across users, products, orders, and surplus donations." />
+      <PageHeader
+        title="Dashboard"
+        description="Monitor HarvestLink activity across users, products, orders, and surplus donations."
+        action={<ThemeToggle compact />}
+      />
       {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
       {isLoading ? (

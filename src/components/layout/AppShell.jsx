@@ -164,11 +164,6 @@ export default function AppShell({
             {!isSidebarCollapsed ? (
               <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{user.role === 'admin' ? 'Account' : 'General'}</p>
             ) : null}
-            {user.role === 'admin' ? (
-              <div className="admin-sidebar-theme-control">
-                <ThemeToggle compact showLabel={!isSidebarCollapsed} />
-              </div>
-            ) : null}
             {profileItem ? (
               <SidebarNavItem to={profileItem.to} label={user.role === 'admin' ? 'Profile' : 'Settings'} icon={user.role === 'admin' ? profileItem.icon : Settings} isCollapsed={isSidebarCollapsed} />
             ) : null}

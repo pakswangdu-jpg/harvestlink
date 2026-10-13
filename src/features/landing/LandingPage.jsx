@@ -259,7 +259,7 @@ export default function LandingPage() {
         />
         <div className="hero-copy-block">
           <span className="farmer-hero-label">Built for Cebu farmers and buyers</span>
-          <h1>Sell your harvest<br />directly to more buyers</h1>
+          <h1>Sell your harvest directly to more buyers</h1>
           <p>Reach customers across Cebu, manage orders easily, and get more value from every harvest.</p>
           <div className="hero-actions">
             <Link className="btn btn-primary btn-lg" to="/farmer-products">
