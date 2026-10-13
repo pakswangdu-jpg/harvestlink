@@ -102,7 +102,11 @@ export function useCommodityMonitoring() {
       .catch((error) => setLoadError(error.message || 'Could not load Farmer listings and price reviews.'));
   }, []);
 
-  useEffect(() => { reloadListings(); }, [reloadListings]);
+  useEffect(() => {
+    reloadListings();
+    window.addEventListener('focus', reloadListings);
+    return () => window.removeEventListener('focus', reloadListings);
+  }, [reloadListings]);
 
   const rows = useMemo(() => {
     const activeProducts = (products || []).filter((product) => product.status === 'active');

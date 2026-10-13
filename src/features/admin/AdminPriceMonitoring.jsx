@@ -18,7 +18,7 @@ import { usePagination } from '../../components/admin/usePagination';
 import { productStatusTone } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
 import {
-  approvePriceReview, declinePriceReview, getDeclinedPriceReviews, reactivatePriceReview,
+  getDeclinedPriceReviews, reactivatePriceReview,
 } from '../../services/productService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
@@ -32,6 +32,7 @@ import BulkUpdateModal from './priceMonitoring/BulkUpdateModal';
 import { matchCommodity } from '../../services/marketPriceService';
 import { listingComparison } from './priceMonitoring/pricePresentation';
 import './AdminPriceMonitoring.css';
+import PendingReviews from './priceMonitoring/PendingPriceReviews';
 
 
 
@@ -82,11 +83,17 @@ export default function AdminPriceMonitoring() {
   } = useCommodityMonitoring();
 
   const [declined, setDeclined] = useState(null);
+  const adjustments = (declined || []).filter((product) => product.priceReview.status === 'needs_adjustment');
+  const rejected = (declined || []).filter((product) => product.priceReview.status === 'declined');
   const [reviewNotice, setReviewNotice] = useState('');
   const [reviewError, setReviewError] = useState('');
 
   const reloadDeclined = () => getDeclinedPriceReviews().then(setDeclined).catch((error) => setReviewError(error.message));
-  useEffect(() => { reloadDeclined(); }, []);
+  useEffect(() => {
+    reloadDeclined();
+    window.addEventListener('focus', reloadDeclined);
+    return () => window.removeEventListener('focus', reloadDeclined);
+  }, []);
 
 
   const [search, setSearch] = useState('');
@@ -344,6 +351,7 @@ export default function AdminPriceMonitoring() {
         <CardHeader title="Pending price reviews" />
         <PendingReviews
           reviews={reviews}
+          commodities={rows}
           onNotice={setReviewNotice}
           onError={setReviewError}
           onReload={() => { reloadListings(); reloadDeclined(); }}
@@ -351,10 +359,24 @@ export default function AdminPriceMonitoring() {
       </Card>
 
       <Card className="pm-review-section mb-4">
+        <CardHeader title="Needs price adjustment" />
+        {declined === null ? <LoadingState /> : adjustments.length ? <Table
+          className="pm-returned-reviews-table" scrollLabel="Products needing price adjustment"
+          columns={[
+            { key: 'name', label: 'Product' }, { key: 'farmerName', label: 'Farmer' },
+            { key: 'price', label: 'Farmer price', render: (row) => `${formatCurrency(row.price)}/${row.unit}` },
+            { key: 'maximum', label: 'Admin maximum price', render: (row) => `${formatCurrency(row.priceReview.maxAllowedPrice)}/${row.priceReview.reviewUnit}` },
+            { key: 'note', label: 'Admin note', render: (row) => row.priceReview.declineReason },
+            { key: 'status', label: 'Status', render: () => 'Waiting for Farmer update' },
+          ]} rows={adjustments}
+        /> : <p className="pm-empty">No listings currently need a price adjustment.</p>}
+      </Card>
+
+      <Card className="pm-review-section mb-4">
         <CardHeader title="Declined listings" />
         {declined === null ? (
           <LoadingState />
-        ) : declined.length ? (
+        ) : rejected.length ? (
           <Table
             columns={[
               { key: 'name', label: 'Product' },
@@ -376,7 +398,7 @@ export default function AdminPriceMonitoring() {
                 ),
               },
             ]}
-            rows={declined}
+            rows={rejected}
             emptyMessage="No declined listings."
           />
         ) : (
@@ -413,52 +435,6 @@ export default function AdminPriceMonitoring() {
 
 
 
-function PendingReviews({ reviews, onNotice, onError, onReload }) {
-  const lock = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const act = async (product, approve) => {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    try {
-      await (approve ? approvePriceReview(product.id) : declinePriceReview(product.id));
-      onNotice(approve ? `${product.name}'s price was approved.` : `${product.name}'s price was declined - the listing is hidden until the farmer revises it.`);
-      onError('');
-      onReload();
-    } catch (error) { onError(error.message); }
-    finally { lock.current = false; setBusy(false); }
-  };
-
-  if (reviews === null) return <LoadingState />;
-  if (!reviews.length) {
-    return <p className="pm-empty"><Check size={16} /> No listings currently need review.</p>;
-  }
-
-  return (
-    <Table
-      columns={[
-        { key: 'name', label: 'Product' },
-        { key: 'farmerName', label: 'Farmer' },
-        { key: 'farmerPrice', label: 'Listed price', render: (row) => `${formatCurrency(row.priceReview.farmerPrice)} / ${row.unit}` },
-        { key: 'referencePrice', label: 'Review reference', render: (row) => `${formatCurrency(row.priceReview.referencePrice)} (${row.priceReview.referenceYear})` },
-        { key: 'deviationPct', label: 'Deviation', render: (row) => <Badge tone="warning">+{row.priceReview.deviationPct}%</Badge> },
-        { key: 'reason', label: 'Reason', render: (row) => <span className="text-[var(--muted)]">{row.priceReview.reason}</span> },
-        {
-          key: 'actions',
-          label: '',
-          render: (row) => (
-            <div className="flex gap-2">
-              <Button variant="primary" disabled={busy} onClick={() => act(row, true)}><Check size={14} /> Approve</Button>
-              <Button variant="danger" disabled={busy} onClick={() => act(row, false)}><X size={14} /> Decline</Button>
-            </div>
-          ),
-        },
-      ]}
-      rows={reviews}
-      emptyMessage="No pending price reviews."
-    />
-  );
-}
 
 
 

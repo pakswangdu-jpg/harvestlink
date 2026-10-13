@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, CreditCard, Eye, Leaf, MapPin, Search,
+  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Eye, Leaf, MapPin, Search,
   Package, Star, Wallet,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -25,7 +25,10 @@ import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } f
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 import freshListingsLeaf from '../../assets/icons/fresh-listings-leaf.png';
+import onlinePaymentIcon from '../../assets/icons/online-payment-credit-card.png';
 import './BuyerOverview.css';
+import './BuyerNearbyFarmers.css';
+import './BuyerMarketplaceSections.css';
 
 const NEARBY_FARMERS_LIMIT = 5;
 const EMPTY_STATE = {
@@ -66,7 +69,7 @@ function RecommendedFarmerLink({ farmer, onClick }) {
   );
 }
 
-function BuyerSummaryTrend({ points, valueKey, ariaLabel }) {
+function BuyerSummaryTrend({ points, valueKey, ariaLabel, isLoading = false }) {
   const chartPoints = points.map((point, index) => ({
     x: points.length > 1 ? (index / (points.length - 1)) * 280 : 140,
     value: Number.isFinite(point[valueKey]) ? Math.max(0, point[valueKey]) : 0,
@@ -80,9 +83,11 @@ function BuyerSummaryTrend({ points, valueKey, ariaLabel }) {
   return (
     <div className="buyer-summary-trend">
       <span>Last 7 days</span>
-      <svg viewBox="0 0 280 32" preserveAspectRatio="none" role="img" aria-label={ariaLabel}>
-        {linePath ? <path d={linePath} className="buyer-summary-trend-line" /> : null}
-      </svg>
+      {isLoading ? <span className="buyer-summary-trend-empty">Loading...</span> : maxValue > 0 ? (
+        <svg viewBox="0 0 280 32" preserveAspectRatio="none" role="img" aria-label={ariaLabel}>
+          <path d={linePath} className="buyer-summary-trend-line" />
+        </svg>
+      ) : <span className="buyer-summary-trend-empty">No recent activity</span>}
     </div>
   );
 }
@@ -240,7 +245,7 @@ export default function BuyerDashboard() {
       title={`Welcome back, ${getFirstName(currentUser.name)}`}
       subtitle="Find fresh produce from verified Cebu farmers and keep track of your orders."
       eyebrow="Buyer marketplace"
-      pageClassName="buyer-dashboard-page"
+      pageClassName="buyer-dashboard-page buyer-marketplace-polish"
     >
       {loadError ? <p className="buyer-dashboard-alert" role="status">{loadError}</p> : null}
 
@@ -252,7 +257,7 @@ export default function BuyerDashboard() {
           </div>
           <Link className="buyer-marketplace-count" to="/marketplace">
             <Package size={16} aria-hidden="true" />
-            <span><strong>{isLoading ? '...' : products.length}</strong> active listings</span>
+            <span><strong>{isLoading ? '...' : products.length}</strong> products available</span>
             <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
@@ -265,7 +270,7 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Wallet size={18} strokeWidth={2} aria-hidden="true" /> Total Spent</span>
             <strong>{isLoading ? '...' : formatCurrency(totalSpend)}</strong>
-            <BuyerSummaryTrend points={spendTrend} valueKey="revenue" ariaLabel="Paid order spending over the last 7 days" />
+            <BuyerSummaryTrend points={spendTrend} valueKey="revenue" ariaLabel="Paid order spending over the last 7 days" isLoading={isLoading} />
             <small>Paid orders</small>
           </Link>
           <Link
@@ -274,15 +279,15 @@ export default function BuyerDashboard() {
             state={{ paymentFilter: 'paid', paymentMethodFilter: 'gcash' }}
             aria-label={`View online GCash payments totaling ${formatCurrency(onlinePaymentTotal)}`}
           >
-            <span className="buyer-summary-label"><CreditCard size={18} strokeWidth={2} aria-hidden="true" /> Online Payments</span>
+            <span className="buyer-summary-label"><span className="buyer-online-payment-icon" style={{ '--payment-icon': `url(${onlinePaymentIcon})` }} aria-hidden="true" /> Online Payments</span>
             <strong>{isLoading ? '...' : formatCurrency(onlinePaymentTotal)}</strong>
-            <BuyerSummaryTrend points={onlinePaymentTrend} valueKey="revenue" ariaLabel="Paid GCash spending over the last 7 days" />
+            <BuyerSummaryTrend points={onlinePaymentTrend} valueKey="revenue" ariaLabel="Paid GCash spending over the last 7 days" isLoading={isLoading} />
             <small>Paid via GCash</small>
           </Link>
           <Link className="buyer-summary-item is-orders" to="/buyer-orders" aria-label="View all buyer orders">
             <span className="buyer-summary-label"><ClipboardList size={18} strokeWidth={2} aria-hidden="true" /> My Orders</span>
             <strong>{isLoading ? '...' : orders.length}</strong>
-            <BuyerSummaryTrend points={orderTrend} valueKey="count" ariaLabel="Orders placed per day over the last 7 days" />
+            <BuyerSummaryTrend points={orderTrend} valueKey="count" ariaLabel="Orders placed per day over the last 7 days" isLoading={isLoading} />
             <small>{isLoading ? '...' : recentOrderCount} orders placed</small>
           </Link>
           <Link
@@ -293,7 +298,8 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Clock3 size={18} strokeWidth={2} aria-hidden="true" /> Pending</span>
             <strong>{isLoading ? '...' : pendingOrders.length}</strong>
-            <small className="buyer-summary-support"><span>{isLoading ? '...' : recentPendingCount} awaiting confirmation</span><span>Needs attention <ArrowRight size={13} aria-hidden="true" /></span></small>
+            <BuyerSummaryTrend points={pendingTrend} valueKey="count" ariaLabel="Currently pending orders placed over the last 7 days" isLoading={isLoading} />
+            <small className="buyer-summary-support"><span>{isLoading ? '...' : recentPendingCount} awaiting confirmation</span></small>
           </Link>
           <Link
             className="buyer-summary-item is-complete"
@@ -303,6 +309,7 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" /> Completed</span>
             <strong>{isLoading ? '...' : completedOrders.length}</strong>
+            <BuyerSummaryTrend points={completedTrend} valueKey="count" ariaLabel="Completed orders updated over the last 7 days" isLoading={isLoading} />
             <small>{isLoading ? '...' : recentCompletedCount} orders received</small>
           </Link>
         </div>
@@ -350,7 +357,7 @@ export default function BuyerDashboard() {
                       <span className="farmer-list-text">
                         <span className="nearby-farmer-title-row">
                           <strong>{farmer.farmName || farmer.name}</strong>
-                          <span className="nearby-distance-badge">{formatNearbyDistance(distanceKm)}</span>
+                          <span className={`nearby-distance-badge${Number.isFinite(distanceKm) ? '' : ' is-unavailable'}`}>{formatNearbyDistance(distanceKm)}</span>
                         </span>
                         <span className="muted nearby-farmer-location">
                           <MapPin size={13} aria-hidden="true" /> {farmer.municipality || 'Location unavailable'}
@@ -376,7 +383,7 @@ export default function BuyerDashboard() {
         </div>
       </section>
 
-      <section className="buyer-section" aria-labelledby="fresh-listings-title">
+      <section className="buyer-section buyer-fresh-section" aria-labelledby="fresh-listings-title">
         <div className="buyer-section-heading">
           <div>
             <h2 id="fresh-listings-title">Fresh listings</h2>
@@ -386,9 +393,9 @@ export default function BuyerDashboard() {
         </div>
         <div className="buyer-market-grid">
           <div className="buyer-listings-content">
-            {freshListings.length ? (
+            {isLoading ? <p className="buyer-section-loading" role="status">Loading fresh listings...</p> : freshListings.length ? (
               <div className="product-grid preview">
-                {freshListings.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} />)}
+                {freshListings.slice(0, 3).map((product) => <ProductCard key={product.id} product={product} imageUnavailableLabel="Product image unavailable" />)}
               </div>
             ) : (
               <EmptyState
@@ -418,6 +425,8 @@ export default function BuyerDashboard() {
             </Link>
           </div>
           <DataTable
+            className="buyer-recent-order-records"
+            responsiveLabels
             columns={[
               { key: 'id', label: 'Order', width: '112px', render: (row) => <span className="buyer-order-id">{shortOrderId(row.id)}</span> },
               {
@@ -447,8 +456,8 @@ export default function BuyerDashboard() {
             ]}
             rows={orders.slice(0, 5)}
             emptyMessage={{
-              title: 'No orders yet',
-              message: 'Orders you place in the marketplace will appear here.',
+              title: isLoading ? 'Loading recent orders...' : 'No orders yet',
+              message: isLoading ? 'Fetching your latest orders.' : 'Orders you place in the marketplace will appear here.',
             }}
           />
         </section>
@@ -474,7 +483,7 @@ export default function BuyerDashboard() {
               <p className="section-supporting-text">Based on your orders, location, and marketplace activity.</p>
             </div>
           </div>
-          {sortedRecommendedFarmers.length ? (
+          {isLoading ? <p className="buyer-section-loading" role="status">Loading recommended farmers...</p> : sortedRecommendedFarmers.length ? (
             <div className="buyer-recommended-grid">
               {visibleRecommendedFarmers.map((farmer) => <RecommendedFarmerLink key={farmer.id} farmer={farmer} />)}
             </div>

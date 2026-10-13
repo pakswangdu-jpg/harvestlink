@@ -18,6 +18,8 @@ import {
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import './BuyerOrdersSummary.css';
+import './BuyerOrdersPage.css';
+import { getBuyerOrderCounts, TO_RECEIVE_STAGES } from './buyerOrderCounts';
 
 
 
@@ -59,6 +61,7 @@ const STAGE_TABS = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'completed', label: 'Completed' },
   { key: 'cancelled', label: 'Cancelled' },
+  { key: 'rejected', label: 'Rejected' },
 ];
 
 const PAYMENT_FILTER_OPTIONS = [
@@ -78,9 +81,9 @@ const ORDERS_PER_PAGE = 10;
 const ORDER_OVERVIEW_FILTERS = [
   { key: 'all', label: 'My Orders', hint: 'View all orders', icon: ShoppingBag },
   { key: 'pending', label: 'Pending', hint: 'Needs confirmation', icon: Clock3 },
-  { key: 'to_receive', label: 'To Receive', hint: 'Orders on the way', icon: Truck },
-  { key: 'completed', label: 'Completed', hint: 'Orders received', icon: CircleCheck },
-  { key: 'cancelled', label: 'Cancelled', hint: 'Cancelled orders', icon: CircleX },
+  { key: 'to_receive', label: 'To Receive', hint: 'Awaiting fulfillment or receipt', icon: Truck },
+  { key: 'completed', label: 'Completed', hint: 'Finalized transactions', icon: CircleCheck },
+  { key: 'cancelled', label: 'Cancelled', hint: 'Cancelled or rejected orders', icon: CircleX },
 ];
 
 
@@ -273,27 +276,9 @@ export default function BuyerOrders() {
     return success;
   };
 
-  const summary = useMemo(() => {
-    const counts = { total: orders.length, pending: 0, toReceive: 0, completed: 0, cancelled: 0 };
-    orders.forEach((order) => {
-      const stage = getBuyerOrderStage(order);
-      if (stage === 'pending') counts.pending += 1;
-      else if (['preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered'].includes(stage)) counts.toReceive += 1;
-      else if (stage === 'completed') counts.completed += 1;
-      else if (stage === 'cancelled' || stage === 'rejected') counts.cancelled += 1;
-    });
-    return counts;
-  }, [orders]);
-
-  const stageCounts = useMemo(() => {
-    const counts = { all: orders.length };
-    STAGE_TABS.forEach((tab) => { if (tab.key !== 'all') counts[tab.key] = 0; });
-    orders.forEach((order) => {
-      const stage = getBuyerOrderStage(order);
-      if (stage in counts) counts[stage] += 1;
-    });
-    return counts;
-  }, [orders]);
+  const { summary, stages: stageCounts } = useMemo(
+    () => getBuyerOrderCounts(orders, getBuyerOrderStage), [orders],
+  );
 
   const hasActiveFilters = overviewFilter !== 'all' || activeStage !== 'all' || search.trim()
     || paymentFilter !== 'all' || paymentMethodFilter !== 'all' || fromDate || toDate;
@@ -336,7 +321,7 @@ export default function BuyerOrders() {
     return orders.filter((order) => {
       const stage = getBuyerOrderStage(order);
       if (overviewFilter === 'pending' && stage !== 'pending') return false;
-      if (overviewFilter === 'to_receive' && !['preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered'].includes(stage)) return false;
+      if (overviewFilter === 'to_receive' && !TO_RECEIVE_STAGES.includes(stage)) return false;
       if (overviewFilter === 'completed' && stage !== 'completed') return false;
       if (overviewFilter === 'cancelled' && !['cancelled', 'rejected'].includes(stage)) return false;
       if (activeStage !== 'all' && getBuyerOrderStage(order) !== activeStage) return false;
@@ -344,7 +329,7 @@ export default function BuyerOrders() {
       if (paymentMethodFilter !== 'all' && order.paymentMethod !== paymentMethodFilter) return false;
       if (!isWithinDateRange(order, fromDate, toDate)) return false;
       if (query) {
-        const haystack = `${order.farmerName} ${order.productName} ${shortOrderId(order.id)} ${order.id}`.toLowerCase();
+        const haystack = `${order.farmerName} ${order.productName} #HL-${shortOrderId(order.id)} #${shortOrderId(order.id)} ${order.id}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -369,9 +354,7 @@ export default function BuyerOrders() {
       {orders.length ? (
         <section className="buyer-order-overview" aria-labelledby="buyer-order-overview-title">
           <div className="buyer-order-overview-heading">
-            <p className="eyebrow">ORDER OVERVIEW</p>
-            <h2 id="buyer-order-overview-title">Order Overview</h2>
-            <p>Track and manage your recent orders</p>
+            <h2 id="buyer-order-overview-title">Overview</h2>
           </div>
           <div className="buyer-orders-summary" aria-label="Filter orders by overview status">
             {ORDER_OVERVIEW_FILTERS.map(({ key, label, hint, icon: Icon }) => (
@@ -427,6 +410,10 @@ export default function BuyerOrders() {
                 </button>
               ))}
             </div>
+
+            <p className="buyer-order-stage-note">
+              Delivered means your produce has arrived; Completed means the transaction is finalized.
+            </p>
 
             <div className="order-toolbar">
               <label className="search-field order-toolbar-search">

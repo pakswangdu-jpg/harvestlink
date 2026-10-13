@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 
 
 
-export default function Modal({ open, onClose, eyebrow, title, children, className = '', dialogLabel }) {
+export default function Modal({ open, onClose, eyebrow, title, children, className = '', dialogLabel, footer }) {
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -37,7 +37,7 @@ export default function Modal({ open, onClose, eyebrow, title, children, classNa
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
+            <div className="admin-modal-header flex items-center justify-between border-b border-[var(--line)] px-5 py-4">
               <div>
                 {eyebrow ? <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">{eyebrow}</p> : null}
                 <h2 className="text-[18px] font-semibold text-[var(--text)]">{title}</h2>
@@ -51,9 +51,10 @@ export default function Modal({ open, onClose, eyebrow, title, children, classNa
                 <X size={16} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-5 py-5">
+            <div className="admin-modal-body flex-1 overflow-y-auto px-5 py-5">
               {children}
             </div>
+            {footer ? <div className="admin-modal-footer">{footer}</div> : null}
           </motion.div>
         </motion.div>
       ) : null}

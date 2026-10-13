@@ -1,15 +1,15 @@
 import { Package } from 'lucide-react';
 import ZoomableImage from '../common/ZoomableImage';
 import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
-import { getProductStatusInfo } from '../../utils/constants';
+import ProductStatusBadge from '../products/ProductStatusBadge';
+import ProductPriceReviewNotice from '../products/ProductPriceReviewNotice';
 
 
 
 
 
 
-export default function SellerProductCard({ product, actions }) {
-  const { value: statusValue, label: statusLabel } = getProductStatusInfo(product);
+export default function SellerProductCard({ product, actions, onEdit }) {
 
   return (
     <article className="product-mobile-card">
@@ -27,8 +27,9 @@ export default function SellerProductCard({ product, actions }) {
         <div className="product-mobile-card-meta">
           <span className="product-mobile-card-price">{formatCurrency(product.price)}</span>
           <span className="product-mobile-card-stock">{product.quantity} {product.unit}</span>
-          <span className={`badge badge-${statusValue}`}>{statusLabel}</span>
+          <ProductStatusBadge product={product} onEdit={onEdit} />
         </div>
+        <ProductPriceReviewNotice product={product} showSubmitted={product.priceReview?.status === 'needs_adjustment'} />
         <p className="product-mobile-card-updated">Updated {formatDate(product.updatedAt)}</p>
       </div>
 

@@ -28,11 +28,11 @@ test('Order overview uses separated responsive status cards and a secondary tab 
   const css = await readFile(new URL('../src/components/orders/OrderStatusSummary.css', import.meta.url), 'utf8');
   const ordersCss = await readFile(new URL('../src/features/farmer/FarmerOrders.css', import.meta.url), 'utf8');
   assert.match(css, /\.order-status-summary-list \{\s*display: grid;[\s\S]*?gap: 12px;[\s\S]*?border: 0/);
-  assert.match(css, /\.order-status-summary-item \{[\s\S]*?min-height: 164px;[\s\S]*?padding: 16px;[\s\S]*?border: 1px solid var\(--status-border\)/);
-  assert.match(css, /\.order-status-summary-count \{[\s\S]*?font-size: 36px;[\s\S]*?font-weight: 600/);
+  assert.match(css, /\.order-status-summary-item \{[\s\S]*?min-height: 140px;[\s\S]*?padding: 16px;[\s\S]*?border: 1px solid var\(--status-border\)/);
+  assert.match(css, /\.order-status-summary-count \{[\s\S]*?font-size: 32px;[\s\S]*?font-weight: 600/);
   assert.match(css, /\.order-status-summary-icon \{[\s\S]*?width: 28px;[\s\S]*?background: color-mix/);
-  assert.match(css, /\.order-status-summary-label \{[\s\S]*?font-size: 16px;[\s\S]*?font-weight: 600/);
-  assert.match(css, /\.order-status-summary-description \{[\s\S]*?font-size: 14px;[\s\S]*?line-height: 1\.5/);
+  assert.match(css, /\.order-status-summary-label \{[\s\S]*?grid-row: 1;[\s\S]*?font-size: 14px;[\s\S]*?font-weight: 600/);
+  assert.match(css, /\.order-status-summary-description \{[\s\S]*?font-size: 13px;[\s\S]*?line-height: 1\.5/);
   assert.match(css, /@container \(min-width: 940px\)[\s\S]*?grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   assert.match(css, /@container \(min-width: 600px\) and \(max-width: 939px\)[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /@container \(max-width: 419px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);

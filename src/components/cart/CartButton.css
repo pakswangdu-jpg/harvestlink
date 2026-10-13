@@ -1,0 +1,9 @@
+.cart-button-icon {
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  -webkit-mask: var(--cart-icon) center / contain no-repeat;
+  mask: var(--cart-icon) center / contain no-repeat;
+}

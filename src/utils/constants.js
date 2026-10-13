@@ -26,12 +26,27 @@ export function isLowStock(quantity) {
   return value > 0 && value <= LOW_STOCK_THRESHOLD;
 }
 
-export function getProductStatusInfo(product) {
+export function getProductApprovalStatus(product) {
+  if (product.priceReview?.status === 'pending') return 'pending';
+  if (product.priceReview?.status === 'needs_adjustment') return 'needs-adjustment';
+  if (product.priceReview?.status === 'declined') return 'rejected';
+  return 'approved';
+}
+
+export function getProductListingStatusInfo(product) {
   if (product.status === 'inactive') return { value: 'inactive', label: 'Inactive' };
   const quantity = Number(product.quantity);
   if (quantity <= 0) return { value: 'out-of-stock', label: 'Out of stock' };
   if (isLowStock(quantity)) return { value: 'low-stock', label: 'Low stock' };
   return { value: 'active', label: 'Active' };
+}
+
+export function getProductStatusInfo(product) {
+  const approval = getProductApprovalStatus(product);
+  if (approval === 'pending') return { value: 'pending-approval', label: 'Pending approval' };
+  if (approval === 'needs-adjustment') return { value: 'needs-adjustment', label: 'Needs price adjustment' };
+  if (approval === 'rejected') return { value: 'rejected', label: 'Rejected' };
+  return getProductListingStatusInfo(product);
 }
 
 export const EXPIRING_SOON_DAYS = 3;

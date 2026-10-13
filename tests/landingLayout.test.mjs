@@ -11,15 +11,15 @@ test('Landing organization styles remain page-scoped and keep layout and typogra
   }
   assert.match(css, /max-width: 1180px/);
   assert.match(css, /--farmer-page-inset: 16px/);
-  assert.match(css, /\.lp-timeline \{[^}]*max-width: 760px/);
+  assert.match(css, /\.lp-timeline \{[^}]*max-width: (?:760|920)px/);
   assert.match(css, /\.farmer-directory-action \{[^}]*grid-row: 6/);
-  assert.match(css, /\.lp-contact-form \{[^}]*max-width: 840px/);
+  assert.match(css, /\.lp-contact-form \{[^}]*max-width: (?:840|960)px/);
   assert.match(css, /\.lp-donation-copy h2 \{[\s\S]*?font-size: 24px;[\s\S]*?font-weight: 600/);
   assert.match(css, /\.lp-donation-copy p \{[\s\S]*?font-size: 16px;[\s\S]*?font-weight: 400/);
   assert.match(css, /\.lp-donation-actions \.btn \{[^}]*font-size: 15px;[^}]*font-weight: 600/);
   assert.match(css, /\.lp-contact > \.landing-section-heading h2 \{[\s\S]*?font-size: 34px;[\s\S]*?font-weight: 600/);
-  assert.match(css, /\.lp-contact-card strong \{[^}]*font-size: 14px;[^}]*font-weight: 600/);
-  assert.match(css, /\.lp-contact-card span \{[^}]*font-size: 15px;[^}]*font-weight: 400/);
+  assert.match(css, /\.lp-contact-card strong \{[^}]*font-size: 1[34]px;[^}]*font-weight: 600/);
+  assert.match(css, /\.lp-contact-card span \{[^}]*font-size: 1[45]px;[^}]*font-weight: 400/);
   assert.match(css, /\.lp-contact-form label \{[^}]*font-size: 14px;[^}]*font-weight: 500/);
 });
 

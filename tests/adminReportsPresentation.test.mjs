@@ -58,6 +58,19 @@ test('report charts use automatic scales and responsive axes', async () => {
   assert.match(status, /domain=\{\[0, \(dataMax\) => \(dataMax > 0 \? dataMax \* 1\.12 : 1\)\]\}/);
 });
 
+test('Status labels keep a slash with its preceding word and reserve enough axis height', async () => {
+  const Tick = await compile('components/charts/StatusDistributionChart.jsx', 'AxisTick', {});
+  const tick = nodes(Tick({ x: 100, y: 180, payload: { value: 'Claimed / Reserved' }, report: true }));
+  assert.deepEqual(tick.filter((node) => node.type === 'tspan').map((node) => node.props.children[0]), ['Claimed /', 'Reserved']);
+  const scope = { useState: (initial) => [initial, () => {}], useMemo: (fn) => fn() };
+  for (const name of ['Bar', 'BarChart', 'CartesianGrid', 'Cell', 'LabelList', 'ResponsiveContainer', 'Tooltip', 'XAxis', 'YAxis', 'Select', 'EmptyState']) scope[name] = name;
+  const Chart = await compile('components/charts/StatusDistributionChart.jsx', 'StatusDistributionChart', scope);
+  const data = [{ key: 'requested', status: 'requested', label: 'Claimed / Reserved', count: 2 }, { key: 'scheduled', status: 'scheduled', label: 'Waiting for pickup confirmation', count: 1 }];
+  const all = nodes(Chart({ records: [], presentation: 'report', hidePeriodFilter: true, computeBreakdown: () => data }));
+  assert.equal(all.find((node) => node.type === 'XAxis').props.height, 68);
+  assert.equal(all.find((node) => node.type === 'BarChart').props.data, data);
+});
+
 test('report chart styling preserves the All time and monthly filter behavior', async () => {
   const values = [];
   let index = 0;

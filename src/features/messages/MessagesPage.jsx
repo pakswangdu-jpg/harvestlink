@@ -140,6 +140,37 @@ export default function MessagesPage() {
 
   const [targetLang, setTargetLang] = useState('en');
   const [translations, setTranslations] = useState({});
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const translationInputs = JSON.stringify(messages
+    .filter((message) => message.senderId !== currentUser.id && message.messageType === 'text' && message.text)
+    .map(({ id, text }) => ({ id, text })));
+
+  useEffect(() => {
+    if (!autoTranslate) return undefined;
+    let cancelled = false;
+    const queue = JSON.parse(translationInputs);
+    const translateNext = async () => {
+      while (queue.length && !cancelled) {
+        const message = queue.shift();
+        setTranslations((previous) => ({
+          ...previous,
+          [message.id]: { visible: true, loading: true, lang: targetLang },
+        }));
+        const result = await translateText(message.text, targetLang);
+        if (cancelled) return;
+        const sourceLanguage = MESSAGE_TRANSLATION_LANGUAGES.find((language) => language.value === result?.detectedSourceLang)?.label.split(' (')[0] || null;
+        setTranslations((previous) => ({
+          ...previous,
+          [message.id]: result
+            ? { visible: true, loading: false, lang: targetLang, text: result.translated, sourceLanguage }
+            : { visible: true, loading: false, lang: targetLang, error: true },
+        }));
+      }
+    };
+    // Limit concurrent requests; polling identical messages must not restart translation.
+    for (let worker = 0; worker < 3; worker += 1) void translateNext();
+    return () => { cancelled = true; };
+  }, [autoTranslate, targetLang, translationInputs]);
 
   const messageListRef = useRef(null);
   const bottomRef = useRef(null);
@@ -384,7 +415,7 @@ export default function MessagesPage() {
                 isMobile
                 viewProductsHref={viewProductsHref}
                 targetLang={targetLang}
-                onTargetLangChange={setTargetLang}
+                onTargetLangChange={(language) => { setTargetLang(language); setAutoTranslate(true); }}
               />
               <OrderContextCard
                 order={pinnedOrder || activeThread?.lastOrder}

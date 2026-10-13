@@ -17,11 +17,11 @@ test('Inventory summary cards retain their four labels, values and live calculat
 test('Inventory summary cards have compact alignment and readable dark-mode surfaces', async () => {
   const css = await readFile(new URL('../src/components/products/SummaryCards.css', import.meta.url), 'utf8');
   assert.match(css, /\.inventory-overview-grid \{\s*display: grid;[\s\S]*?gap: 12px/);
-  assert.match(css, /\.inventory-metric \{[\s\S]*?min-height: 136px;[\s\S]*?padding: 17px 18px;[\s\S]*?border-radius: 10px/);
+  assert.match(css, /\.inventory-metric \{[\s\S]*?min-height: 120px;[\s\S]*?padding: 16px 18px;[\s\S]*?border-radius: 8px/);
   assert.match(css, /\.inventory-metric \{[\s\S]*?font-family: var\(--font-ui\)/);
-  assert.match(css, /\.inventory-metric-label \{[\s\S]*?font-size: 15px;[\s\S]*?font-weight: 600/);
-  assert.match(css, /\.inventory-metric-value \{[\s\S]*?font-size: 34px;[\s\S]*?font-weight: 600;[\s\S]*?font-variant-numeric: tabular-nums lining-nums/);
-  assert.match(css, /\.inventory-metric-hint \{[\s\S]*?font-size: 13px;[\s\S]*?font-weight: 450/);
+  assert.match(css, /\.inventory-metric-label \{[\s\S]*?font-size: 14px;[\s\S]*?font-weight: 500/);
+  assert.match(css, /\.inventory-metric-value \{[\s\S]*?font-size: 30px;[\s\S]*?font-weight: 600;[\s\S]*?font-variant-numeric: tabular-nums lining-nums/);
+  assert.match(css, /\.inventory-metric-hint \{[\s\S]*?font-size: 13px;[\s\S]*?font-weight: 400/);
   assert.match(css, /@container \(min-width: 380px\)[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@container \(min-width: 880px\)[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /\[data-theme='dark'\] \.farmer-products-page \.inventory-metric \{[\s\S]*?background: #202923/);

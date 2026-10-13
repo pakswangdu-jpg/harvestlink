@@ -13,6 +13,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import AdminReferenceNotice from '../market/AdminReferenceNotice';
+import './ProductQuickView.css';
 
 
 
@@ -31,7 +32,7 @@ const ADDED_FEEDBACK_MS = 1500;
 
 
 
-export default function ProductCard({ product, actions, showStatus = false, className = '', marketReference }) {
+export default function ProductCard({ product, actions, showStatus = false, className = '', marketReference, imageUnavailableLabel = 'No image available' }) {
   const { currentUser } = useAuth();
   const { addItem, removeItem, isInCart } = useCart();
   const { showToast } = useToast();
@@ -41,8 +42,10 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const isOutOfStock = !(product.quantity > 0);
   const isPendingReview = product.priceReview?.status === 'pending';
   const canAddToCart = ORDERING_ROLES.includes(currentUser?.role);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [loadedImage, setLoadedImage] = useState(null);
+  const [failedImage, setFailedImage] = useState(null);
+  const imageLoaded = Boolean(product.image && loadedImage === product.image);
+  const imageFailed = Boolean(product.image && failedImage === product.image);
   const [justAdded, setJustAdded] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
@@ -93,15 +96,15 @@ export default function ProductCard({ product, actions, showStatus = false, clas
               alt={product.name}
               loading="lazy"
               decoding="async"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageFailed(true)}
+              onLoad={() => setLoadedImage(product.image)}
+              onError={() => setFailedImage(product.image)}
               className={`h-full w-full object-cover object-center transition-opacity duration-300 ease-out ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             />
           </>
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-[var(--green-800)]/70">
+          <div className="product-card-image-fallback flex h-full w-full flex-col items-center justify-center gap-1.5 text-[var(--green-800)]/70">
             <Sprout size={36} strokeWidth={1.5} />
-            <span className="text-[12px] font-medium">No image available</span>
+            <span className="text-[12px] font-medium">{imageUnavailableLabel}</span>
           </div>
         )}
         {showStatus ? (
@@ -263,11 +266,20 @@ export default function ProductCard({ product, actions, showStatus = false, clas
           title="Product details"
           dialogLabel={`${titleCase(product.name)} product details`}
           className="product-quick-view-overlay"
+          footer={(
+            <Link
+              to={`/products/${product.id}`}
+              className="btn btn-primary btn-md product-quick-view-action"
+              onClick={() => setIsQuickViewOpen(false)}
+            >
+              {isPendingReview ? 'View listing details' : 'View product & order'} <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          )}
         >
           <div className="product-quick-view">
             <div className="product-quick-view-image">
               {product.image && !imageFailed
-                ? <img src={product.image} alt={titleCase(product.name)} onError={() => setImageFailed(true)} />
+                ? <img src={product.image} alt={titleCase(product.name)} onError={() => setFailedImage(product.image)} />
                 : <Sprout size={34} strokeWidth={1.5} aria-hidden="true" />}
             </div>
             <div className="product-quick-view-heading">
@@ -297,13 +309,6 @@ export default function ProductCard({ product, actions, showStatus = false, clas
                 <div><dt>Minimum order</dt><dd>{formatQuantity(product.moq)} {product.unit}</dd></div>
               ) : null}
             </dl>
-            <Link
-              to={`/products/${product.id}`}
-              className="btn btn-primary btn-md product-quick-view-action"
-              onClick={() => setIsQuickViewOpen(false)}
-            >
-              {isPendingReview ? 'View listing details' : 'View product & order'} <ArrowRight size={15} aria-hidden="true" />
-            </Link>
           </div>
         </Modal>,
         document.body,

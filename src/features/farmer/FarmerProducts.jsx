@@ -32,8 +32,12 @@ import { farmerNavItems } from './farmerNav';
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
+  { value: 'pending-approval', label: 'Pending approval' },
+  { value: 'needs-adjustment', label: 'Needs price adjustment' },
   { value: 'low-stock', label: 'Low Stock' },
   { value: 'out-of-stock', label: 'Out of Stock' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'inactive', label: 'Inactive' },
 ];
 
 
@@ -96,6 +100,8 @@ export default function FarmerProducts() {
 
   useEffect(() => {
     reload();
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser.id]);
 
@@ -111,7 +117,7 @@ export default function FarmerProducts() {
   }, [products]);
 
   const statusTabs = useMemo(() => {
-    const counts = { all: products.length, active: 0, 'low-stock': 0, 'out-of-stock': 0 };
+    const counts = Object.fromEntries(STATUS_TABS.map((tab) => [tab.value, tab.value === 'all' ? products.length : 0]));
     products.forEach((product) => {
       const status = getProductStatusInfo(product).value;
       if (status in counts) counts[status] += 1;
@@ -152,8 +158,8 @@ export default function FarmerProducts() {
   const handleSubmit = async (values) => {
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, values);
-        showToast({ type: 'success', message: 'Product updated successfully.' });
+        const updated = await updateProduct(editingProduct.id, values);
+        showToast({ type: 'success', message: updated.priceReview?.status === 'pending' ? 'Product updated and submitted for Admin price review.' : 'Product updated successfully.' });
         closeDrawer();
       } else if (values.isDonation) {
 
@@ -170,7 +176,7 @@ export default function FarmerProducts() {
           type: 'success',
           message: created.merged
             ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing.`
-            : 'Product added successfully.',
+            : created.priceReview?.status === 'pending' ? 'Product submitted for Admin price review.' : 'Product added successfully.',
         });
 
 
@@ -351,6 +357,7 @@ export default function FarmerProducts() {
                 <SellerProductCard
                   key={product.id}
                   product={product}
+                  onEdit={openEditDrawer}
                   actions={(
                     <>
                       <Button size="sm" variant="secondary" className="btn-icon-only" onClick={() => openEditDrawer(product)} aria-label="Edit product" title="Edit product">

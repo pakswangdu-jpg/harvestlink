@@ -153,7 +153,7 @@ export async function createOrder(req, res) {
   if (product.status !== 'active') throw new ApiError('This product is no longer available.', 400);
 
 
-  if (product.price_review?.status === 'pending') {
+  if (['pending', 'needs_adjustment'].includes(product.price_review?.status)) {
     throw new ApiError('This product is awaiting DTI price review and cannot be ordered yet.', 400);
   }
 
