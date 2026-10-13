@@ -200,6 +200,31 @@
   text-overflow: ellipsis;
 }
 
+.app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar-brand-row {
+  padding-right: 46px;
+  padding-left: 8px;
+}
+
+.app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand {
+  gap: 8px;
+}
+
+.app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand-mark {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+}
+
+.app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand strong {
+  font-size: 19px;
+}
+
+.app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand small {
+  font-size: 12px;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .app-shell.role-buyer:not(.sidebar-collapsed) .sidebar-brand-row {
   min-height: 90px;
   padding: 14px 54px 14px 16px;

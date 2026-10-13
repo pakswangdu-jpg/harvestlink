@@ -67,6 +67,12 @@ const PAYMENT_FILTER_OPTIONS = [
   { value: 'pending', label: 'Payment pending' },
 ];
 
+const PAYMENT_METHOD_FILTER_OPTIONS = [
+  { value: 'all', label: 'All methods' },
+  { value: 'gcash', label: 'Online (GCash)' },
+  { value: 'cod', label: 'Cash on delivery' },
+];
+
 const ORDERS_PER_PAGE = 10;
 
 const ORDER_OVERVIEW_FILTERS = [
@@ -221,12 +227,18 @@ export default function BuyerOrders() {
 
   const requestedStage = location.state?.stage;
   const requestedPaymentFilter = location.state?.paymentFilter;
+  const requestedPaymentMethodFilter = location.state?.paymentMethodFilter;
   const [activeStage, setActiveStage] = useState(
     STAGE_TABS.some((tab) => tab.key === requestedStage) ? requestedStage : 'all'
   );
   const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState(
     PAYMENT_FILTER_OPTIONS.some((option) => option.value === requestedPaymentFilter) ? requestedPaymentFilter : 'all'
+  );
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState(
+    PAYMENT_METHOD_FILTER_OPTIONS.some((option) => option.value === requestedPaymentMethodFilter)
+      ? requestedPaymentMethodFilter
+      : 'all'
   );
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -283,13 +295,15 @@ export default function BuyerOrders() {
     return counts;
   }, [orders]);
 
-  const hasActiveFilters = overviewFilter !== 'all' || activeStage !== 'all' || search.trim() || paymentFilter !== 'all' || fromDate || toDate;
+  const hasActiveFilters = overviewFilter !== 'all' || activeStage !== 'all' || search.trim()
+    || paymentFilter !== 'all' || paymentMethodFilter !== 'all' || fromDate || toDate;
 
   const clearFilters = () => {
     setOverviewFilter('all');
     setActiveStage('all');
     setSearch('');
     setPaymentFilter('all');
+    setPaymentMethodFilter('all');
     setFromDate('');
     setToDate('');
     setCurrentPage(1);
@@ -300,6 +314,7 @@ export default function BuyerOrders() {
     setActiveStage('all');
     setSearch('');
     setPaymentFilter('all');
+    setPaymentMethodFilter('all');
     setFromDate('');
     setToDate('');
     setCurrentPage(1);
@@ -326,6 +341,7 @@ export default function BuyerOrders() {
       if (overviewFilter === 'cancelled' && !['cancelled', 'rejected'].includes(stage)) return false;
       if (activeStage !== 'all' && getBuyerOrderStage(order) !== activeStage) return false;
       if (paymentFilter !== 'all' && order.paymentStatus !== paymentFilter) return false;
+      if (paymentMethodFilter !== 'all' && order.paymentMethod !== paymentMethodFilter) return false;
       if (!isWithinDateRange(order, fromDate, toDate)) return false;
       if (query) {
         const haystack = `${order.farmerName} ${order.productName} ${shortOrderId(order.id)} ${order.id}`.toLowerCase();
@@ -333,7 +349,7 @@ export default function BuyerOrders() {
       }
       return true;
     });
-  }, [orders, overviewFilter, activeStage, search, paymentFilter, fromDate, toDate]);
+  }, [orders, overviewFilter, activeStage, search, paymentFilter, paymentMethodFilter, fromDate, toDate]);
 
   const pageCount = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
   const visiblePage = Math.min(currentPage, pageCount);
@@ -431,6 +447,16 @@ export default function BuyerOrders() {
                   aria-label="Filter by payment status"
                 >
                   {PAYMENT_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <select
+                  className="order-toolbar-select"
+                  value={paymentMethodFilter}
+                  onChange={(event) => setPaymentMethodFilter(event.target.value)}
+                  aria-label="Filter by payment method"
+                >
+                  {PAYMENT_METHOD_FILTER_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
@@ -573,6 +599,7 @@ export default function BuyerOrders() {
             message="You haven't placed any orders yet. Start shopping from our marketplace and your orders will appear here."
             actionLabel="Browse Products"
             onAction={() => navigate('/marketplace')}
+            className="buyer-orders-empty"
           />
         )}
       </section>

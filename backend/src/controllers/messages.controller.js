@@ -40,11 +40,12 @@ export async function listMessages(req, res) {
 export async function listDirectThreads(req, res) {
   const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
-    .select('id, buyer_id, farmer_id')
+    .select('id, buyer_id, farmer_id, product_name, quantity, unit, status, total_amount')
     .or(`buyer_id.eq.${req.profile.id},farmer_id.eq.${req.profile.id}`);
   if (ordersError) throw new ApiError(ordersError.message, 400);
 
   const counterpartByOrderId = new Map();
+  const orderById = new Map(orders.map((order) => [order.id, order]));
   const orderIds = orders.map((order) => {
     counterpartByOrderId.set(order.id, order.buyer_id === req.profile.id ? order.farmer_id : order.buyer_id);
     return order.id;
@@ -85,16 +86,26 @@ export async function listDirectThreads(req, res) {
   const threads = partnerIds.map((partnerId) => {
     const rows = rowsByPartnerId.get(partnerId);
     const partner = partnerById.get(partnerId);
+    const lastOrder = rows[0].order_id ? orderById.get(rows[0].order_id) : null;
     const unreadCount = rows.filter((row) => row.sender_id !== req.profile.id && !row.read).length;
     return {
       otherUserId: partnerId,
 
 
       otherUserName: partner ? (partner.organization_name || partner.farm_name || partner.name) : 'Former user',
+      otherUserRole: partner?.role || null,
       otherUserAvatarUrl: partner?.avatar_url || null,
       otherUserLastActiveAt: partner?.last_active_at || null,
       otherUserVerified: partner?.verification_status === 'verified',
       lastMessage: serializeMessage(rows[0]),
+      lastOrder: lastOrder ? {
+        id: lastOrder.id,
+        productName: lastOrder.product_name,
+        quantity: lastOrder.quantity,
+        unit: lastOrder.unit,
+        status: lastOrder.status,
+        totalAmount: lastOrder.total_amount,
+      } : null,
       unreadCount,
     };
   });

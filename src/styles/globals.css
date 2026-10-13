@@ -18403,13 +18403,13 @@ td {
 }
 
 .messages-page .messages-list-header {
-  padding: 18px 16px 14px;
+  padding: 18px 16px 12px;
 }
 
 .messages-page .messages-list-header h1 {
   color: var(--text);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
 }
@@ -18430,13 +18430,13 @@ td {
 }
 
 .messages-page .messages-conversation-list > .flex-1 {
-  padding: 8px;
+  padding: 6px;
 }
 
 .messages-page .messages-conversation-row {
-  min-height: 68px;
-  padding: 10px;
-  border-radius: 8px;
+  min-height: 78px;
+  padding: 9px 10px;
+  border-radius: 7px;
 }
 
 .messages-page .messages-conversation-row:hover {
@@ -18459,8 +18459,8 @@ td {
 }
 
 .messages-page .messages-conversation-row > .relative > div {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   font-size: 12px;
 }
@@ -18476,8 +18476,17 @@ td {
 
 .messages-page .messages-conversation-row p.text-\[13px\] {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
+}
+
+.messages-page .messages-list-filters button {
+  min-height: 28px;
+}
+
+.messages-page .messages-list-empty {
+  max-width: 280px;
+  margin-inline: auto;
 }
 
 .messages-page .messages-conversation-row .rounded-full.bg-\[var\(--green-800\)\] {
@@ -18493,8 +18502,8 @@ td {
 }
 
 .messages-page .messages-chat-header {
-  min-height: 68px;
-  padding: 12px 18px;
+  min-height: 64px;
+  padding: 10px 16px;
   background: var(--panel);
   backdrop-filter: none;
 }
@@ -18521,15 +18530,28 @@ td {
 
 .messages-page .messages-message-list {
   background: var(--soft);
-  padding: 18px 20px;
+  padding: 16px 20px;
 }
 
 .messages-page .messages-order-context {
-  margin: 12px 18px 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+  margin: 8px 16px 0;
+  padding: 8px 10px;
+  border-radius: 7px;
   background: var(--panel);
   box-shadow: none;
+}
+
+.messages-page .messages-order-context > div:first-child > span {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.messages-page .messages-order-context > div:last-child {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
 
 .messages-page .messages-date-divider {
@@ -18587,12 +18609,15 @@ td {
 }
 
 .messages-page .messages-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   padding: 12px 16px 14px;
   background: var(--panel);
 }
 
 .messages-page .messages-composer .flex-1.rounded-2xl {
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--input-bg);
@@ -18636,7 +18661,7 @@ td {
 
 @media (min-width: 768px) {
   .messages-page .messages-conversation-list {
-    width: 300px;
+    width: 320px;
   }
 }
 
@@ -18663,7 +18688,7 @@ td {
   .messages-page .messages-chat-panel {
     min-width: 0;
     min-height: 0;
-    padding-bottom: 78px;
+    padding-bottom: 0;
   }
 
   .messages-page .messages-chat-header {
@@ -18728,6 +18753,14 @@ td {
   .messages-page .messages-composer .flex-1.rounded-2xl {
     min-width: 0;
     padding: 7px 10px;
+  }
+
+  .messages-page .messages-order-context > div:first-child {
+    gap: 8px;
+  }
+
+  .messages-page .messages-order-context > div:last-child {
+    gap: 6px;
   }
 
   .messages-page .messages-composer button:last-child {
@@ -19691,6 +19724,298 @@ td {
 .farmer-donations-page .stat-icon svg {
   width: 23px;
   height: 23px;
+}
+
+.farmer-donations-page .donation-page-actions :is(button, a) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.farmer-donations-page .farmer-donation-requests {
+  margin: 0 18px;
+}
+
+.farmer-donations-page .farmer-donation-request-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.farmer-donations-page .farmer-donation-request-row:last-child {
+  border-bottom: 0;
+}
+
+.farmer-donations-page .farmer-donation-request-info {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.farmer-donations-page .farmer-donation-request-image {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.farmer-donations-page .farmer-donation-request-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.farmer-donations-page .farmer-donation-request-copy {
+  min-width: 0;
+}
+
+.farmer-donations-page .farmer-donation-request-copy p {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farmer-donations-page .farmer-donation-request-copy .farmer-donation-request-product {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.farmer-donations-page .farmer-donation-request-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.farmer-donations-page .farmer-donation-request-actions .btn {
+  min-height: 36px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.farmer-donation-review-overlay > div {
+  max-width: 500px;
+}
+
+.farmer-donation-review {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.farmer-donation-review-partner {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.farmer-donation-review-partner p {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.farmer-donation-review-partner span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.farmer-donation-review-section {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.farmer-donation-review-section h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.farmer-donation-review-section dl {
+  display: grid;
+  gap: 8px;
+}
+
+.farmer-donation-review-section dl > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.85fr) minmax(0, 1.15fr);
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.farmer-donation-review-section dt {
+  color: var(--muted);
+}
+
+.farmer-donation-review-section dd {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.farmer-donation-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 18px;
+}
+
+.farmer-donation-review-actions .btn {
+  min-height: 40px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  box-shadow: none;
+  transform: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.farmer-donation-review-actions .btn:hover {
+  transform: none;
+}
+
+.farmer-donation-review-actions.is-review .btn-danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--red-700);
+}
+
+.farmer-donation-review-actions.is-review .btn-danger:hover {
+  background: var(--red-100);
+}
+
+.farmer-donation-review-actions.is-review .btn-primary {
+  padding-inline: 15px;
+  background: var(--green-700);
+  box-shadow: none;
+}
+
+.farmer-donation-review-actions.is-review .btn-primary:hover {
+  background: var(--green-800);
+}
+
+.farmer-donation-confirm-summary {
+  display: grid;
+  gap: 4px;
+  padding: 14px 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-donation-confirm-summary strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.farmer-donation-pickup-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.farmer-donation-pickup-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.farmer-donation-pickup-field small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.farmer-donation-decline-copy,
+.farmer-donation-review-error {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.farmer-donation-decline-copy {
+  color: var(--muted);
+}
+
+.farmer-donation-review-error {
+  margin-bottom: 12px;
+  color: var(--red-700);
+}
+
+@media (max-width: 640px) {
+  .farmer-donations-page .farmer-donation-requests {
+    margin-inline: 14px;
+  }
+
+  .farmer-donations-page .farmer-donation-request-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 13px 0;
+  }
+
+  .farmer-donations-page .farmer-donation-request-info {
+    width: 100%;
+  }
+
+  .farmer-donations-page .farmer-donation-request-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .farmer-donations-page .farmer-donation-request-actions .btn:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .farmer-donations-page .farmer-donation-request-actions .btn {
+    min-height: 42px;
+  }
+
+  .farmer-donation-review-overlay > div {
+    max-width: none;
+  }
+
+  .farmer-donation-review-section dl > div {
+    grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+    gap: 8px;
+  }
+
+  .farmer-donation-review-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 

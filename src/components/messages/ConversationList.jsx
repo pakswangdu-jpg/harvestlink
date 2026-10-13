@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Pin, Search } from 'lucide-react';
-import { formatRelativeTime, getInitials, isRecentlyActive } from '../../utils/formatters';
+import { formatRelativeTime, getInitials, isRecentlyActive, shortOrderId } from '../../utils/formatters';
 
 function lastMessagePreview(lastMessage) {
   if (!lastMessage) return 'No messages yet — say hello.';
@@ -35,8 +36,13 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
           <span className="shrink-0 text-[11px] text-[var(--muted)]">{formatRelativeTime(thread.lastMessageAt)}</span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className={`truncate text-[13px] ${thread.unreadCount ? 'font-semibold text-[var(--text)]' : 'text-[var(--muted)]'}`}>
-            {thread.subtitle ? <span className="text-[var(--muted)]">{thread.subtitle} · </span> : null}
+          <p className="truncate text-[11px] text-[var(--muted)]">
+            {thread.subtitle || 'Conversation'}
+            {thread.lastOrder ? ` · ${thread.lastOrder.productName} · #${shortOrderId(thread.lastOrder.id)}` : ''}
+          </p>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`truncate text-[13px] ${thread.unreadCount ? 'font-medium text-[var(--text)]' : 'text-[var(--muted)]'}`}>
             {lastMessagePreview(thread.lastMessage)}
           </p>
           {thread.unreadCount ? (
@@ -61,33 +67,68 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
 
 export default function ConversationList({
   threads, activeKey, searchQuery, onSearchChange, pinnedKeys, onTogglePin, isHiddenOnMobile,
+  isLoading, unavailable, onRetry,
 }) {
-  const filtered = searchQuery.trim()
-    ? threads.filter((thread) => thread.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+  const [filter, setFilter] = useState('all');
+  const query = searchQuery.trim().toLowerCase();
+  const searched = query
+    ? threads.filter((thread) => `${thread.name} ${thread.subtitle || ''} ${lastMessagePreview(thread.lastMessage)}`
+      .toLowerCase().includes(query))
     : threads;
+  const filtered = filter === 'unread' ? searched.filter((thread) => thread.unreadCount > 0) : searched;
   const pinned = filtered.filter((thread) => pinnedKeys.has(thread.key));
   const rest = filtered.filter((thread) => !pinnedKeys.has(thread.key));
 
   return (
     <div className={`messages-conversation-list flex w-full shrink-0 flex-col border-r border-[var(--line)] bg-[var(--panel)] md:w-[360px] ${isHiddenOnMobile ? 'hidden md:flex' : 'flex'}`}>
       <div className="messages-list-header shrink-0 border-b border-[var(--line)] px-4 py-4">
-        <h1 className="text-[20px] font-bold text-[var(--text)]">Messages</h1>
+        <h1 className="text-[20px] font-semibold text-[var(--text)]">Messages</h1>
         <div className="relative mt-3">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <input
             value={searchQuery}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search conversations"
-            className="w-full rounded-full bg-[var(--soft)] py-2 pl-9 pr-3 text-[13px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--green-700)]/20"
+            className="w-full rounded-lg bg-[var(--soft)] py-2 pl-9 pr-3 text-[13px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--green-700)]/20"
           />
+        </div>
+        <div className="messages-list-filters mt-3 flex items-center gap-1" aria-label="Filter conversations">
+          {['all', 'unread'].map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={filter === option}
+              onClick={() => setFilter(option)}
+              className={`rounded-md border-0 px-2.5 py-1 text-[12px] font-medium capitalize ${
+                filter === option ? 'bg-[var(--green-50)] text-[var(--green-700)]' : 'bg-transparent text-[var(--muted)] hover:bg-[var(--soft)]'
+              }`}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2">
-        {!filtered.length ? (
-          <p className="px-3 py-6 text-center text-[13px] text-[var(--muted)]">No conversations found.</p>
+        {isLoading && !threads.length ? (
+          <p className="messages-inline-status px-3 py-6 text-center text-[13px] text-[var(--muted)]">Loading conversations…</p>
+        ) : unavailable && !threads.length ? (
+          <div className="messages-list-empty px-5 py-10 text-center">
+            <p className="text-[14px] font-medium text-[var(--text)]">Couldn’t load conversations</p>
+            <button type="button" onClick={onRetry} className="mt-2 border-0 bg-transparent p-0 text-[12px] font-medium text-[var(--green-700)] hover:underline">Try again</button>
+          </div>
+        ) : !filtered.length ? (
+          <div className="messages-list-empty px-5 py-10 text-center">
+            <p className="text-[14px] font-medium text-[var(--text)]">
+              {query ? 'No conversations found' : filter === 'unread' && threads.length ? 'No unread conversations' : 'No conversations yet'}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[var(--muted)]">
+              {query ? 'Try a different name or keyword.' : filter === 'unread' && threads.length ? 'You’re all caught up.' : 'Messages with Farmers, Buyers, or Partners will appear here.'}
+            </p>
+          </div>
         ) : (
           <>
+            {unavailable ? <p className="messages-inline-status px-3 pb-2 text-[11px] text-[var(--muted)]">Reconnecting…</p> : null}
             {pinned.length ? (
               <div className="mb-1">
                 <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Pinned</p>

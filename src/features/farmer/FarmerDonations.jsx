@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Check, Gift, History, Hourglass, Package, PackageCheck, Search, Truck, X,
+  Gift, History, Hourglass, Package, PackageCheck, Search, Truck,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
+import Modal from '../../components/admin/Modal';
 import { Card, CardHeader } from '../../components/admin/Card';
 import StatCard from '../../components/admin/StatCard';
 import EmptyState from '../../components/admin/EmptyState';
@@ -78,10 +79,34 @@ function DonationRow({ donation, meta, badge, actions }) {
   );
 }
 
+function PendingDonationRequestRow({ donation, onViewDetails }) {
+  return (
+    <article className="farmer-donation-request-row">
+      <div className="farmer-donation-request-info">
+        <div className="farmer-donation-request-image">
+          {donation.image ? <img src={donation.image} alt="" /> : <Package size={18} strokeWidth={1.75} />}
+        </div>
+        <div className="farmer-donation-request-copy">
+          <p className="farmer-donation-request-product">{donation.productName}</p>
+          <p>{formatQuantity(donation.quantity)} {donation.unit} · Requested by {donation.requestedByName || 'Partner organization'}</p>
+          <p>Requested {formatDate(donation.updatedAt)}</p>
+        </div>
+      </div>
+      <div className="farmer-donation-request-actions">
+        <Button size="sm" variant="secondary" onClick={() => onViewDetails(donation)}>View details</Button>
+        <Button size="sm" onClick={() => onViewDetails(donation)}>Accept</Button>
+        <Button size="sm" variant="danger" onClick={() => onViewDetails(donation)}>Decline</Button>
+      </div>
+    </article>
+  );
+}
+
 export default function FarmerDonations() {
   const { currentUser } = useAuth();
   const { donations, loading, loadError, reload } = useDonationList({ farmerId: currentUser.id });
   const [pickupDrafts, setPickupDrafts] = useState({});
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [requestStage, setRequestStage] = useState('details');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -89,20 +114,49 @@ export default function FarmerDonations() {
   const [historyStatus, setHistoryStatus] = useState('all');
 
   const run = async (action, successMessage) => {
-    if (saving) return;
+    if (saving) return false;
     setSaving(true);
     try {
       await action();
       setError('');
       setNotice(successMessage);
       await reload();
+      return true;
     } catch (actionError) {
       setNotice('');
       setError(actionError.message);
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  const openRequest = (donation, stage = 'details') => {
+    setSelectedRequest(donation);
+    setRequestStage(stage);
+    setError('');
+  };
+
+  const acceptRequest = async () => {
+    if (!selectedRequest) return;
+    const accepted = await run(
+      () => acceptDonationRequest(selectedRequest.id, pickupDrafts[selectedRequest.id] || selectedRequest.pickupDate),
+      'Pickup scheduled.',
+    );
+    if (accepted) setSelectedRequest(null);
+  };
+
+  const declineRequest = async () => {
+    if (!selectedRequest) return;
+    const declined = await run(() => declineDonationRequest(selectedRequest.id), 'Request declined.');
+    if (declined) setSelectedRequest(null);
+  };
+
+  const today = new Date();
+  const minPickupDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const requestPickupDate = selectedRequest
+    ? pickupDrafts[selectedRequest.id] || selectedRequest.pickupDate || ''
+    : '';
 
   const requested = donations.filter((donation) => donation.status === 'requested');
   const scheduled = donations.filter((donation) => donation.status === 'scheduled');
@@ -147,7 +201,7 @@ export default function FarmerDonations() {
       subtitle="Manage donation offers, respond to partner organization requests, and track pickups."
       pageClassName="farmer-donations-page"
       headerActions={(
-        <div className="flex items-center gap-2">
+        <div className="donation-page-actions flex items-center gap-2">
           <span className="hidden sm:inline-flex">
             <button
               type="button"
@@ -177,34 +231,9 @@ export default function FarmerDonations() {
         <Card className="shadow-[0_1px_2px_rgba(16,24,40,0.05)]">
           <CardHeader eyebrow="Action needed" title="Pending requests" />
           {requested.length ? (
-            <div className="grid gap-2.5">
+            <div className="farmer-donation-requests">
               {requested.map((donation) => (
-                <DonationRow
-                  key={donation.id}
-                  donation={donation}
-                  meta={`${formatQuantity(donation.quantity)} ${donation.unit} · Requested by ${donation.requestedByName}`}
-                  actions={(
-                    <>
-                      <input
-                        type="date"
-                        aria-label="Pickup date"
-                        value={pickupDrafts[donation.id] || ''}
-                        onChange={(event) => setPickupDrafts((previous) => ({ ...previous, [donation.id]: event.target.value }))}
-                        className="h-8 rounded-md border border-[var(--line)] px-2 text-[12px] text-[var(--text)]"
-                      />
-                      <Button
-                        size="sm"
-                        disabled={saving}
-                        onClick={() => run(() => acceptDonationRequest(donation.id, pickupDrafts[donation.id]), 'Pickup scheduled.')}
-                      >
-                        <Check size={15} /> Accept
-                      </Button>
-                      <Button size="sm" disabled={saving} variant="danger" onClick={() => run(() => declineDonationRequest(donation.id), 'Request declined.')}>
-                        <X size={15} /> Decline
-                      </Button>
-                    </>
-                  )}
-                />
+                <PendingDonationRequestRow key={donation.id} donation={donation} onViewDetails={openRequest} />
               ))}
             </div>
           ) : (
@@ -314,6 +343,93 @@ export default function FarmerDonations() {
         />
         <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
       </Card>
+
+      <Modal
+        open={Boolean(selectedRequest)}
+        onClose={() => { if (!saving) setSelectedRequest(null); }}
+        eyebrow={requestStage === 'details' ? 'Pending request' : 'Review decision'}
+        title={requestStage === 'details' ? 'Donation request' : requestStage === 'accept' ? 'Accept donation request?' : 'Decline donation request?'}
+        dialogLabel={requestStage === 'details' ? 'Donation request details' : requestStage === 'accept' ? 'Confirm donation request acceptance' : 'Confirm donation request decline'}
+        className="farmer-donation-review-overlay"
+      >
+        {selectedRequest ? (
+          <div className="farmer-donation-review">
+            {error ? <p className="farmer-donation-review-error" role="alert">{error}</p> : null}
+            {requestStage === 'details' ? (
+              <>
+                <div className="farmer-donation-review-partner">
+                  <p>{selectedRequest.requestedByName || 'Partner organization'}</p>
+                  <span>Partner organization</span>
+                </div>
+
+                <section className="farmer-donation-review-section" aria-labelledby="request-details-heading">
+                  <h3 id="request-details-heading">Request details</h3>
+                  <dl>
+                    <div><dt>Product</dt><dd>{selectedRequest.productName}</dd></div>
+                    <div><dt>Quantity requested</dt><dd>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</dd></div>
+                    <div><dt>Available donation</dt><dd>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</dd></div>
+                    <div><dt>Requested on</dt><dd>{formatDate(selectedRequest.updatedAt)}</dd></div>
+                  </dl>
+                </section>
+
+                <section className="farmer-donation-review-section" aria-labelledby="request-pickup-heading">
+                  <h3 id="request-pickup-heading">Pickup</h3>
+                  <dl>
+                    <div><dt>Pickup location</dt><dd>{selectedRequest.location || 'Not provided'}</dd></div>
+                    {selectedRequest.pickupDate ? <div><dt>Pickup date</dt><dd>{formatDate(selectedRequest.pickupDate)}</dd></div> : null}
+                  </dl>
+                </section>
+
+                <div className="farmer-donation-review-actions is-review">
+                  <Button variant="danger" disabled={saving} onClick={() => setRequestStage('decline')}>Decline</Button>
+                  <Button disabled={saving} onClick={() => setRequestStage('accept')}>Accept request</Button>
+                </div>
+              </>
+            ) : requestStage === 'accept' ? (
+              <>
+                <div className="farmer-donation-confirm-summary">
+                  <strong>{selectedRequest.productName}</strong>
+                  <span>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</span>
+                  <span>{selectedRequest.requestedByName || 'Partner organization'}</span>
+                </div>
+                <label className="farmer-donation-pickup-field">
+                  <span>Pickup date</span>
+                  <input
+                    type="date"
+                    min={minPickupDate}
+                    max={selectedRequest.expirationDate || undefined}
+                    value={requestPickupDate}
+                    onChange={(event) => setPickupDrafts((previous) => ({ ...previous, [selectedRequest.id]: event.target.value }))}
+                    required
+                  />
+                  {selectedRequest.expirationDate ? <small>Choose a date on or before {formatDate(selectedRequest.expirationDate)}.</small> : null}
+                </label>
+                <div className="farmer-donation-review-actions">
+                  <Button variant="secondary" disabled={saving} onClick={() => setRequestStage('details')}>Cancel</Button>
+                  <Button disabled={saving || !requestPickupDate} onClick={acceptRequest}>
+                    {saving ? 'Confirming…' : 'Confirm acceptance'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="farmer-donation-confirm-summary">
+                  <strong>{selectedRequest.productName}</strong>
+                  <span>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</span>
+                  <span>{selectedRequest.requestedByName || 'Partner organization'}</span>
+                </div>
+                <p className="farmer-donation-decline-copy">This request will be declined and the donation will return to available offers.</p>
+                <div className="farmer-donation-review-actions">
+                  <Button variant="secondary" disabled={saving} onClick={() => setRequestStage('details')}>Cancel</Button>
+                  <Button variant="danger" disabled={saving} onClick={declineRequest}>
+                    {saving ? 'Declining…' : 'Confirm decline'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </Modal>
     </AppShell>
   );
 }
