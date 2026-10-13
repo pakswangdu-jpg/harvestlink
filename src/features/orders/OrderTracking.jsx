@@ -17,6 +17,7 @@ import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTime
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
 import TrackingRouteSummary from '../../components/orders/TrackingRouteSummary';
 import FeedbackSuccessDialog from '../../components/orders/FeedbackSuccessDialog';
+import OrderThanksDialog from '../../components/orders/OrderThanksDialog';
 import '../../components/orders/DeliveryTrackingInfo.css';
 import './OrderDetails.css';
 import { useAuth } from '../auth/AuthContext';
@@ -86,6 +87,7 @@ export default function OrderTracking() {
   const [ratingComment, setRatingComment] = useState('');
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [feedbackSuccessOrderId, setFeedbackSuccessOrderId] = useState(null);
+  const [isOrderThanksOpen, setIsOrderThanksOpen] = useState(false);
   const ratingSubmitInFlightRef = useRef(false);
   const feedbackPanelRef = useRef(null);
   const [ratingError, setRatingError] = useState('');
@@ -208,15 +210,15 @@ export default function OrderTracking() {
 
   useEffect(() => {
     if (
-      !isBuyer
-      || order.deliveryMethod !== 'farmer_delivery'
+      (!isBuyer && !isFarmer)
+      || order.deliveryMethod === 'buyer_pickup'
       || order.deliveryStatus !== 'out_for_delivery'
       || autoOpenedTrackingOrderRef.current === order.id
     ) return;
 
     autoOpenedTrackingOrderRef.current = order.id;
     setIsTrackingOpen(true);
-  }, [isBuyer, order?.deliveryMethod, order?.deliveryStatus, order?.id]);
+  }, [isBuyer, isFarmer, order?.deliveryMethod, order?.deliveryStatus, order?.id]);
 
 
 
@@ -333,6 +335,14 @@ export default function OrderTracking() {
     }
   };
 
+  const handleConfirmReceived = async () => {
+    const received = await run(
+      () => advanceDelivery(order.id),
+      'Order received. Thank you for confirming.',
+    );
+    if (received) setIsOrderThanksOpen(true);
+  };
+
   const nextStep = getNextDeliveryStatus(order);
   const isTrackable = order.status === 'confirmed' || order.status === 'completed';
   const deliverySequence = getDeliverySequence(order.deliveryMethod);
@@ -368,8 +378,18 @@ export default function OrderTracking() {
         {error || profileLocationError
           ? <div className="form-alert error">{error || profileLocationError}</div>
           : null}
+          {isBuyer && order.status === 'rejected' ? (
+            <div className="form-alert error" role="alert">
+              <strong>Order rejected</strong>
+              <p>
+                {order.rejectionReason
+                  ? `The farmer’s reason: ${order.rejectionReason}`
+                  : 'The farmer was unable to accept this order. Please contact them if you need more information.'}
+              </p>
+            </div>
+          ) : null}
 
-        <div className="ot-header-bar">
+          <div className="ot-header-bar">
           <div className="ot-order-summary">
             <div className="ot-order-number">
               <strong>Order #{shortOrderId(order.id)}</strong>
@@ -574,7 +594,7 @@ export default function OrderTracking() {
               ) : null}
 
               {isBuyer && order.status === 'confirmed' && isFinalNextStep ? (
-                <Button onClick={() => run(() => advanceDelivery(order.id), 'The order is received! Thank you for confirming.')}>
+                <Button onClick={handleConfirmReceived}>
                   <Check size={15} /> Got it
                 </Button>
               ) : null}
@@ -751,6 +771,11 @@ export default function OrderTracking() {
         open={feedbackSuccessOrderId === order.id}
         onClose={() => setFeedbackSuccessOrderId(null)}
         returnFocusRef={feedbackPanelRef}
+      />
+      <OrderThanksDialog
+        open={isOrderThanksOpen}
+        onClose={() => setIsOrderThanksOpen(false)}
+        productName={order.productName}
       />
       <StartDeliveryDialog
         open={isStartDeliveryDialogOpen}

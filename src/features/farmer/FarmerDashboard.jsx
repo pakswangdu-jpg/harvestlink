@@ -46,8 +46,8 @@ function getMonthlyPaymentRevenue(orders, monthsBack = 6) {
     label,
     revenue: orders
       .filter((order) => {
-        const created = new Date(order.createdAt);
-        return created.getFullYear() === year && created.getMonth() === month;
+        const paidAt = new Date(order.paidAt || order.createdAt);
+        return paidAt.getFullYear() === year && paidAt.getMonth() === month;
       })
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
   }));

@@ -40,14 +40,22 @@ export async function listMessages(req, res) {
 export async function listDirectThreads(req, res) {
   const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
-    .select('id, buyer_id, farmer_id, product_name, quantity, unit, status, total_amount')
+    .select('id, buyer_id, farmer_id, product_id, product_name, quantity, unit, status, total_amount, created_at, updated_at')
     .or(`buyer_id.eq.${req.profile.id},farmer_id.eq.${req.profile.id}`);
   if (ordersError) throw new ApiError(ordersError.message, 400);
 
   const counterpartByOrderId = new Map();
   const orderById = new Map(orders.map((order) => [order.id, order]));
+  const completedOrderByPartnerId = new Map();
   const orderIds = orders.map((order) => {
-    counterpartByOrderId.set(order.id, order.buyer_id === req.profile.id ? order.farmer_id : order.buyer_id);
+    const partnerId = order.buyer_id === req.profile.id ? order.farmer_id : order.buyer_id;
+    counterpartByOrderId.set(order.id, partnerId);
+    if (order.status === 'completed') {
+      const current = completedOrderByPartnerId.get(partnerId);
+      if (!current || new Date(order.updated_at || order.created_at) > new Date(current.updated_at || current.created_at)) {
+        completedOrderByPartnerId.set(partnerId, order);
+      }
+    }
     return order.id;
   });
 
@@ -87,6 +95,7 @@ export async function listDirectThreads(req, res) {
     const rows = rowsByPartnerId.get(partnerId);
     const partner = partnerById.get(partnerId);
     const lastOrder = rows[0].order_id ? orderById.get(rows[0].order_id) : null;
+    const completedOrder = completedOrderByPartnerId.get(partnerId);
     const unreadCount = rows.filter((row) => row.sender_id !== req.profile.id && !row.read).length;
     return {
       otherUserId: partnerId,
@@ -100,11 +109,24 @@ export async function listDirectThreads(req, res) {
       lastMessage: serializeMessage(rows[0]),
       lastOrder: lastOrder ? {
         id: lastOrder.id,
+        productId: lastOrder.product_id,
+        farmerId: lastOrder.farmer_id,
         productName: lastOrder.product_name,
         quantity: lastOrder.quantity,
         unit: lastOrder.unit,
         status: lastOrder.status,
         totalAmount: lastOrder.total_amount,
+      } : null,
+      completedOrder: completedOrder ? {
+        id: completedOrder.id,
+        productId: completedOrder.product_id,
+        farmerId: completedOrder.farmer_id,
+        farmerName: partner?.farm_name || partner?.name || null,
+        productName: completedOrder.product_name,
+        quantity: completedOrder.quantity,
+        unit: completedOrder.unit,
+        status: completedOrder.status,
+        totalAmount: completedOrder.total_amount,
       } : null,
       unreadCount,
     };

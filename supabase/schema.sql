@@ -302,6 +302,9 @@ notify pgrst, 'reload schema';
     delivery_duration_minutes numeric(8,2),
     delivery_fee_tier text,
     total_amount numeric(12,2) not null,
+    -- Makes checkout retries safe for the same buyer without creating duplicate orders.
+    checkout_key uuid,
+    checkout_fingerprint text,
     message text,
     payment_method text not null check (payment_method in ('cod','gcash')),
     payment_status text not null default 'pending' check (payment_status in ('pending','paid','failed','refunded')),
@@ -311,6 +314,8 @@ notify pgrst, 'reload schema';
     origin_municipality text not null,
     delivery_municipality text not null,
     status text not null default 'pending' check (status in ('pending','confirmed','rejected','completed','cancelled')),
+    cancellation_reason text,
+    rejection_reason text,
     -- Farmer's live device GPS while an order is out for delivery (see the Socket.IO
     -- 'farmer-location' handler in backend/src/realtime/orderTracking.js and
     -- src/hooks/useFarmerActiveDeliverySharing.js) — null whenever the farmer hasn't got an
@@ -345,6 +350,7 @@ notify pgrst, 'reload schema';
   create index if not exists orders_buyer_id_idx on public.orders (buyer_id);
   create index if not exists orders_farmer_id_idx on public.orders (farmer_id);
   create index if not exists orders_product_id_idx on public.orders (product_id);
+  create unique index if not exists orders_checkout_key_idx on public.orders (buyer_id, checkout_key);
 
   -- Safe to re-run against an already-created table from an earlier version of this schema.
   alter table public.orders add column if not exists delivery_fee numeric(12,2) not null default 0;
