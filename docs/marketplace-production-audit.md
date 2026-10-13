@@ -36,9 +36,8 @@ all production requirements are complete. No live migration was applied.
   Confirmed listings are written to the backend. Buyers and stakeholders can
   browse listings and place orders but cannot create listings.
 - Active marketplace results exclude listings with no stock, an inactive status,
-  an expired date, or a pending/declined price review. A farmer may therefore
-  see a saved listing in their product management page while it is hidden from
-  buyers and stakeholders pending review or because it is unavailable.
+  an expired date, or a declined price review. Listings awaiting price review are
+  visible with a warning but cannot be ordered until approved.
 - Completed buyer orders already have Buy Again. ProductDetails checks current
   availability before checkout; no new product records are created.
 - Farmer storefronts already display name, farm, verification, location, rating
