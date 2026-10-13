@@ -1,6 +1,6 @@
 # Marketplace Production Audit
 
-Reviewed on 2026-10-10. This is an implementation inventory, not a claim that
+Reviewed on 2026-10-13. This is an implementation inventory, not a claim that
 all production requirements are complete. No live migration was applied.
 
 ## Implemented In This Pass
@@ -28,6 +28,17 @@ all production requirements are complete. No live migration was applied.
 
 - Retail with an optional wholesale tier is already supported across product
   cards, cart, checkout, saved order prices and receipt totals.
+- Farmer product listings are persisted through the authenticated products API
+  in the shared Supabase `products` table. Buyer, farmer and stakeholder
+  marketplace views read the same active listing feed; listings are not copied
+  into separate per-role stores.
+- Product-form drafts are stored in the farmer's browser storage until confirmed.
+  Confirmed listings are written to the backend. Buyers and stakeholders can
+  browse listings and place orders but cannot create listings.
+- Active marketplace results exclude listings with no stock, an inactive status,
+  an expired date, or a pending/declined price review. A farmer may therefore
+  see a saved listing in their product management page while it is hidden from
+  buyers and stakeholders pending review or because it is unavailable.
 - Completed buyer orders already have Buy Again. ProductDetails checks current
   availability before checkout; no new product records are created.
 - Farmer storefronts already display name, farm, verification, location, rating
@@ -47,6 +58,10 @@ all production requirements are complete. No live migration was applied.
 
 - Saved products/favorites need a persistent buyer-owned store and UI. Existing
   Buy Again should also hide gracefully when an original product was deleted.
+- Farmer product creation is gated on verification in the UI, but the backend
+  create route currently checks the farmer role without checking verification
+  status. Enforce verification server-side if unverified farmers must not create
+  listings through direct API requests.
 - Marketplace search currently downloads active listings every four seconds and
   filters locally. Replace with bounded server-side search/pagination, including
   rating/distance sorts, while retaining existing filters and farmer links.
