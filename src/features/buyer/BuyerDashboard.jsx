@@ -20,7 +20,7 @@ import {
 import { getActiveProducts } from '../../services/productService';
 import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
-import { getReportRevenue, getTotalRevenue } from '../../services/reportService';
+import { getReportRevenue, getSevenDayOrderCounts, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
@@ -66,37 +66,22 @@ function RecommendedFarmerLink({ farmer, onClick }) {
   );
 }
 
-function BuyerSpendTrend({ points }) {
+function BuyerSummaryTrend({ points, valueKey, ariaLabel }) {
   const chartPoints = points.map((point, index) => ({
     x: points.length > 1 ? (index / (points.length - 1)) * 280 : 140,
-    value: Number.isFinite(point.revenue) ? Math.max(0, point.revenue) : 0,
+    value: Number.isFinite(point[valueKey]) ? Math.max(0, point[valueKey]) : 0,
   }));
   const maxValue = Math.max(...chartPoints.map((point) => point.value), 0);
   const coordinates = chartPoints.map(({ x, value }) => ({
-    x,
-    y: 52 - (maxValue ? (value / maxValue) * 42 : 0),
+    x, y: 28 - (maxValue ? (value / maxValue) * 22 : 0),
   }));
   const linePath = coordinates.map(({ x, y }, index) => `${index ? 'L' : 'M'} ${x} ${y}`).join(' ');
-  const areaPath = coordinates.length
-    ? `${linePath} L ${coordinates.at(-1).x} 58 L ${coordinates[0].x} 58 Z`
-    : '';
 
   return (
-    <div className="buyer-spend-chart">
+    <div className="buyer-summary-trend">
       <span>Last 7 days</span>
-      <svg viewBox="0 0 280 64" preserveAspectRatio="none" role="img" aria-label="Paid order spending over the last 7 days">
-        <path d="M 0 10 H 280 M 0 31 H 280 M 0 52 H 280" className="buyer-spend-chart-grid" />
-        {areaPath ? <path d={areaPath} className="buyer-spend-chart-area" /> : null}
-        {linePath ? <path d={linePath} className="buyer-spend-chart-line" /> : null}
-        {coordinates.map(({ x, y }, index) => (
-          <circle
-            key={`${x}-${index}`}
-            cx={x}
-            cy={y}
-            r={index === coordinates.length - 1 ? 3 : 2}
-            className="buyer-spend-chart-point"
-          />
-        ))}
+      <svg viewBox="0 0 280 32" preserveAspectRatio="none" role="img" aria-label={ariaLabel}>
+        {linePath ? <path d={linePath} className="buyer-summary-trend-line" /> : null}
       </svg>
     </div>
   );
@@ -153,6 +138,12 @@ export default function BuyerDashboard() {
   } = state;
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const completedOrders = orders.filter((order) => order.status === 'completed');
+  const orderTrend = getSevenDayOrderCounts(orders);
+  const pendingTrend = getSevenDayOrderCounts(orders, { status: 'pending' });
+  const completedTrend = getSevenDayOrderCounts(orders, { status: 'completed', dateField: 'updatedAt' });
+  const recentOrderCount = orderTrend.reduce((total, point) => total + point.count, 0);
+  const recentPendingCount = pendingTrend.reduce((total, point) => total + point.count, 0);
+  const recentCompletedCount = completedTrend.reduce((total, point) => total + point.count, 0);
   const freshListings = products.filter((product) => product.grade === 'A');
   const matchedCommodity = orders.map((order) => matchCommodity(order.productName)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
@@ -271,13 +262,14 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Wallet size={18} strokeWidth={2} aria-hidden="true" /> Total Spent</span>
             <strong>{isLoading ? '...' : formatCurrency(totalSpend)}</strong>
-            <BuyerSpendTrend points={spendTrend} />
+            <BuyerSummaryTrend points={spendTrend} valueKey="revenue" ariaLabel="Paid order spending over the last 7 days" />
             <small>Paid orders</small>
           </Link>
-          <Link className="buyer-summary-item" to="/buyer-orders" aria-label="View all buyer orders">
+          <Link className="buyer-summary-item is-orders" to="/buyer-orders" aria-label="View all buyer orders">
             <span className="buyer-summary-label"><ClipboardList size={18} strokeWidth={2} aria-hidden="true" /> My Orders</span>
             <strong>{isLoading ? '...' : orders.length}</strong>
-            <small>View all orders <ArrowRight size={13} aria-hidden="true" /></small>
+            <BuyerSummaryTrend points={orderTrend} valueKey="count" ariaLabel="Orders placed per day over the last 7 days" />
+            <small>{isLoading ? '...' : recentOrderCount} orders placed</small>
           </Link>
           <Link
             className="buyer-summary-item is-pending"
@@ -287,7 +279,8 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Clock3 size={18} strokeWidth={2} aria-hidden="true" /> Pending</span>
             <strong>{isLoading ? '...' : pendingOrders.length}</strong>
-            <small>Needs attention <ArrowRight size={13} aria-hidden="true" /></small>
+            <BuyerSummaryTrend points={pendingTrend} valueKey="count" ariaLabel="Pending orders per day over the last 7 days" />
+            <small className="buyer-summary-support"><span>{isLoading ? '...' : recentPendingCount} awaiting confirmation</span><span>Needs attention <ArrowRight size={13} aria-hidden="true" /></span></small>
           </Link>
           <Link
             className="buyer-summary-item is-complete"
@@ -297,7 +290,8 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" /> Completed</span>
             <strong>{isLoading ? '...' : completedOrders.length}</strong>
-            <small>Orders received</small>
+            <BuyerSummaryTrend points={completedTrend} valueKey="count" ariaLabel="Completed orders per day over the last 7 days" />
+            <small>{isLoading ? '...' : recentCompletedCount} orders received</small>
           </Link>
         </div>
       </section>

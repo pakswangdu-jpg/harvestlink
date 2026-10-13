@@ -20,7 +20,7 @@ import { getProductsByFarmer } from '../../services/productService';
 import { getOrdersByFarmer } from '../../services/orderService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { matchCommodity } from '../../services/marketPriceService';
-import { getMonthlyRevenue, getTotalProfit, getTotalRevenue } from '../../services/reportService';
+import { getMonthlyProfit, getMonthlyRevenue, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
 import { nearestByMunicipality } from '../../utils/geo';
 import { farmerNavItems } from './farmerNav';
@@ -112,6 +112,7 @@ export default function FarmerDashboard() {
   const totalProfit = getTotalProfit(orders);
   const activeListings = products.filter((product) => product.status === 'active').length;
   const monthlyRevenue = getMonthlyRevenue(orders, 6);
+  const monthlyProfit = getMonthlyProfit(orders, 6);
   const paidOrders = orders.filter((order) => order.paymentStatus === 'paid');
   const paymentGroups = [
     { key: 'gcash', label: 'GCash / online payments', tone: 'blue' },
@@ -156,8 +157,8 @@ export default function FarmerDashboard() {
 
       <MetricsSummary
         financialMetrics={[
-          { label: 'Total income', value: formatCurrency(totalIncome), hint: `from ${paidOrders.length} paid order${paidOrders.length === 1 ? '' : 's'}` },
-          { label: 'Profit', value: formatCurrency(totalProfit), hint: 'after recorded costs', trend: totalProfit > 0 },
+          { label: 'Total income', value: formatCurrency(totalIncome), hint: `from ${paidOrders.length} paid order${paidOrders.length === 1 ? '' : 's'}`, chartPoints: monthlyRevenue },
+          { label: 'Profit', value: formatCurrency(totalProfit), hint: 'after recorded costs', trend: totalProfit > 0, chartPoints: monthlyProfit },
         ]}
         productMetrics={[
           { label: 'Total products', value: products.length },

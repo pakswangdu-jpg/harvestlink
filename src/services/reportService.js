@@ -66,6 +66,33 @@ export function getReportRevenue(orders, period, now = new Date()) {
   return points;
 }
 
+export function getSevenDayOrderCounts(orders, { status, dateField = 'createdAt' } = {}, now = new Date()) {
+  const start = getReportPeriodStart('7d', now);
+  const end = manilaDate(now);
+  const cursor = manilaDate(start);
+  cursor.setUTCHours(0, 0, 0, 0);
+  const totals = new Map();
+
+  orders.forEach((order) => {
+    const timestamp = Date.parse(order[dateField]);
+    if ((status && order.status !== status) || !Number.isFinite(timestamp) || timestamp < start.getTime() || timestamp > now.getTime()) return;
+    const key = dateKey(manilaDate(timestamp));
+    totals.set(key, (totals.get(key) || 0) + 1);
+  });
+
+  const points = [];
+  while (cursor <= end) {
+    const key = dateKey(cursor);
+    points.push({
+      label: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', day: 'numeric' }),
+      fullLabel: cursor.toLocaleDateString('en-PH', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' }),
+      count: totals.get(key) || 0,
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return points;
+}
+
 export function getTotalRevenue(orders) {
   return orders
     .filter((order) => order.paymentStatus === PAID_STATUS)
@@ -103,6 +130,34 @@ export function getMonthlyRevenue(orders, monthsBack = 6) {
         return created.getFullYear() === year && created.getMonth() === month;
       })
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
+  }));
+}
+
+export function getMonthlyProfit(orders, monthsBack = 6, now = new Date()) {
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      label: date.toLocaleDateString('en-PH', { month: 'short' }),
+    });
+  }
+
+  const costedPaidOrders = orders.filter((order) => (
+    order.paymentStatus === PAID_STATUS
+    && order.unitCostPrice != null
+    && Number.isFinite(Date.parse(order.createdAt))
+  ));
+
+  return months.map(({ year, month, label }) => ({
+    label,
+    revenue: costedPaidOrders
+      .filter((order) => {
+        const created = new Date(order.createdAt);
+        return created.getFullYear() === year && created.getMonth() === month;
+      })
+      .reduce((sum, order) => sum + (Number(order.unitPrice) - Number(order.unitCostPrice)) * Number(order.quantity), 0),
   }));
 }
 

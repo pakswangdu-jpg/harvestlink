@@ -73,20 +73,262 @@
 
 .app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand strong {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 21px;
-  font-weight: 650;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0;
+  white-space: normal;
 }
 
 .app-shell.role-stakeholder:not(.sidebar-collapsed) .sidebar .brand small {
   margin-top: 3px;
   color: var(--muted);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.35;
   letter-spacing: 0;
+}
+
+.app-shell.role-stakeholder .sidebar {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar-brand-row {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  width: calc(100% + 16px);
+  margin-inline: -8px;
+  padding: 12px 48px 12px 12px;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  gap: 10px;
+  text-align: left;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .brand-mark {
+  position: static;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  overflow: hidden;
+  border-radius: 9px;
+  transform: none;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand > span:last-child {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  transform: none;
+  text-align: left;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand strong {
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand small {
+  margin-top: 2px;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar-collapse-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  flex: 0 0 34px;
+  transform: translateY(-50%);
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand strong {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand small {
+  margin-top: 2px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand strong,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar .brand small {
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar-brand-row {
+  min-height: 90px;
+  padding: 14px 54px 14px 16px;
+  justify-content: flex-start;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand {
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  gap: 12px;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand > span:last-child {
+  align-items: center;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand-mark {
+  width: 46px;
+  height: 46px;
+  flex-basis: 46px;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand strong {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand small {
+  overflow: visible;
+  text-overflow: clip;
+  margin-top: 3px;
+  font-size: 14px;
+  line-height: 1.25;
+  transform: translateX(4px);
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand strong,
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand small {
+  text-align: center;
+}
+
+.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar-collapse-toggle {
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  flex-basis: 38px;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-scroll nav > div > p,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-general > p {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-scroll .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-general .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-logout {
+  font-family: inherit;
+  font-size: 15px !important;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-scroll .sidebar-nav-link[aria-current='page'],
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-general .sidebar-nav-link[aria-current='page'] {
+  font-weight: 600 !important;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-scroll nav {
+  gap: 10px !important;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-scroll nav > div > .flex {
+  gap: 4px !important;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-scroll .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-general .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-logout {
+  min-height: 42px;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar :is(.sidebar-scroll .sidebar-nav-icon, .sidebar-general .sidebar-nav-icon, .sidebar-logout .sidebar-nav-icon) {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  align-self: center;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar :is(.sidebar-scroll .sidebar-nav-icon > svg, .sidebar-scroll .sidebar-nav-icon > span, .sidebar-general .sidebar-nav-icon > svg, .sidebar-general .sidebar-nav-icon > span, .sidebar-logout .sidebar-nav-icon > svg) {
+  width: 20px;
+  height: 20px;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer).sidebar-collapsed .sidebar-scroll nav,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer).sidebar-collapsed .sidebar-scroll nav > div > .flex {
+  gap: 6px !important;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer).sidebar-collapsed .sidebar-scroll .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer).sidebar-collapsed .sidebar-general .sidebar-nav-link,
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer).sidebar-collapsed .sidebar-logout {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-user-name {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-user-role {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
 }
 
 .sidebar-user-role {
