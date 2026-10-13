@@ -28,7 +28,7 @@
 }
 
 .app-shell.role-admin .sidebar .brand { gap: 11px; }
-.app-shell.role-admin .sidebar .brand-mark { width: 30px; height: 30px; flex: 0 0 30px; }
+.app-shell.role-admin .sidebar .brand-mark { width: 34px; height: 34px; flex: 0 0 34px; }
 .app-shell.role-admin .sidebar .brand > span:last-child { min-width: 0; }
 .app-shell.role-admin .sidebar .brand strong { display: block; color: #34423a; font-family: var(--font-ui); font-size: 18px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; }
 [data-theme='dark'] .app-shell.role-admin .sidebar .brand strong { color: #e5ebe7; }
@@ -96,6 +96,9 @@
 .app-shell.role-admin .sidebar .nav-badge { min-width: 20px; height: 20px; padding: 0 5px; font-size: 11px; font-weight: 600; line-height: 20px; }
 .app-shell.role-admin .sidebar-footer { gap: 3px; padding-top: 10px; }
 .app-shell.role-admin .sidebar-general { gap: 2px !important; }
+.app-shell.role-admin .admin-sidebar-theme-control {
+  margin-top: 2px;
+}
 .app-shell.role-admin .admin-sidebar-theme-control .theme-toggle-compact {
   display: flex;
   width: 100%;
@@ -155,6 +158,51 @@
 }
 
 .app-shell.role-admin.sidebar-collapsed .notification-dot::before { content: attr(data-count); }
+
+@media (max-width: 1024px) {
+  .app-shell.role-admin {
+    --sidebar-width: 228px;
+  }
+
+  .app-shell.role-admin .sidebar {
+    padding-inline: 8px;
+  }
+
+  .app-shell.role-admin .sidebar-brand-row {
+    gap: 6px;
+  }
+
+  .app-shell.role-admin .sidebar .brand strong {
+    font-size: 16px;
+  }
+
+  .app-shell.role-admin .sidebar-scroll nav { gap: 12px !important; }
+  .app-shell.role-admin :is(.sidebar-nav-link, .sidebar-logout) {
+    height: 40px;
+    min-height: 40px;
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell.role-admin .sidebar {
+    --sidebar-width: 220px;
+    padding-top: 10px;
+  }
+
+  .app-shell.role-admin .sidebar-brand-row {
+    padding-bottom: 10px;
+  }
+
+  .app-shell.role-admin .sidebar .brand strong {
+    font-size: 15px;
+  }
+
+  .app-shell.role-admin .admin-sidebar-theme-control .theme-toggle-compact {
+    min-height: 40px;
+    padding-inline: 10px;
+  }
+}
 
 @media (max-height: 620px) {
   .app-shell.role-admin .sidebar-scroll { margin-top: 10px; }

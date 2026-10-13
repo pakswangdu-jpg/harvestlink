@@ -115,12 +115,12 @@
 .landing-farmer-friendly .hero-copy-block { width: 100%; max-width: 820px; gap: 18px; }
 .landing-farmer-friendly .farmer-hero-label { color: #e3eee4; font-size: 15px; font-weight: 500; }
 .landing-farmer-friendly .landing-hero h1 {
-  max-width: 820px;
+  max-width: clamp(9ch, 56vw, 14ch);
   color: #fff;
-  font-size: 52px;
+  font-size: clamp(2.5rem, 4.5vw, 4.1rem);
   font-weight: 550;
-  line-height: 1.16;
-  letter-spacing: 0;
+  line-height: 0.96;
+  letter-spacing: -0.04em;
 }
 .landing-farmer-friendly .landing-hero p { max-width: 570px; font-size: 18px; font-weight: 400; line-height: 1.6; color: #f0f2f0; }
 .landing-farmer-friendly .hero-actions { gap: 12px; }
@@ -250,7 +250,7 @@
 [data-theme="dark"] .landing-farmer-friendly .farmer-example-link { color: #a5d7b2; }
 
 @media (max-width: 900px) {
-  .landing-farmer-friendly .landing-hero h1 { font-size: 44px; }
+  .landing-farmer-friendly .landing-hero h1 { font-size: clamp(2.2rem, 6vw, 3.5rem); }
   .landing-farmer-friendly .farmer-benefits-section { gap: 28px; }
   .landing-farmer-friendly .farmer-listing-example { grid-template-columns: minmax(0, 1fr); }
 }
@@ -266,7 +266,12 @@
   [data-theme="dark"] .landing-farmer-friendly .landing-hero::before { background: rgb(12 22 16 / 70%); }
   .landing-farmer-friendly .farmer-hero-photo { object-position: 12% center; }
   .landing-farmer-friendly .hero-copy-block { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
-  .landing-farmer-friendly .landing-hero h1 { max-width: 16ch; font-size: 32px; line-height: 1.2; }
+  .landing-farmer-friendly .landing-hero h1 {
+    max-width: 10.5ch;
+    font-size: clamp(2.1rem, 9vw, 3.2rem);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
   .landing-farmer-friendly .landing-hero h1 br { display: none; }
   .landing-farmer-friendly .landing-hero p { max-width: 38ch; font-size: 16px; line-height: 1.55; }
   .landing-farmer-friendly .farmer-hero-label { font-size: 14px; }
@@ -293,7 +298,7 @@
 @media (max-width: 360px) {
   .landing-farmer-friendly .landing-hero { padding: 30px 16px; }
   .landing-farmer-friendly .hero-copy-block { gap: 14px; }
-  .landing-farmer-friendly .landing-hero h1 { max-width: 15ch; font-size: 29px; }
+  .landing-farmer-friendly .landing-hero h1 { max-width: 10.5ch; font-size: clamp(1.9rem, 9vw, 2.6rem); }
   .landing-farmer-friendly .hero-actions { max-width: none; }
   .landing-farmer-friendly .hero-actions .btn { padding-left: 12px; padding-right: 12px; }
   .landing-farmer-friendly .hero-actions svg { width: 16px; }
