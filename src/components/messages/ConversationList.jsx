@@ -58,6 +58,7 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
         onClick={(event) => { event.preventDefault(); onTogglePin(thread.key); }}
         className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)] group-hover:opacity-100 ${isPinned ? 'opacity-100 text-[var(--green-700)]' : ''}`}
         title={isPinned ? 'Unpin' : 'Pin conversation'}
+        aria-label={isPinned ? `Unpin ${thread.name}` : `Pin ${thread.name}`}
       >
         <Pin size={13} className={isPinned ? 'fill-[var(--green-700)]' : ''} />
       </button>

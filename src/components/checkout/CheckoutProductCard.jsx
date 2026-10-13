@@ -38,6 +38,7 @@ export default function CheckoutProductCard({ product }) {
           {isLowStock(product.quantity) ? <span className="checkout-product-stock-low"> · Low stock</span> : null}
           {product.sellingType === 'wholesale' && product.moq ? ` · Min. order ${formatQuantity(product.moq)} ${product.unit}` : ''}
         </p>
+        {product.description?.trim() ? <p className="checkout-product-description">{product.description.trim()}</p> : null}
         {hasWholesalePricing(product) ? (
           <p className="checkout-product-wholesale">
             Wholesale: {formatCurrency(product.wholesalePrice)}/{product.unit} for {formatQuantity(product.wholesaleMinQuantity)}+ {product.unit}

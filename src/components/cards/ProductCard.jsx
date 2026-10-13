@@ -1,12 +1,14 @@
 import { hasWholesalePricing } from '../../../backend/shared/pricing.js';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, CalendarDays, Check, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User, X,
+  ArrowRight, CalendarDays, Check, Eye, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User, X,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency, formatDate, formatQuantity, titleCase } from '../../utils/formatters';
 import { getExpiryStatus, ORDERING_ROLES } from '../../utils/constants';
+import Modal from '../admin/Modal';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -41,6 +43,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
 
 
@@ -72,7 +75,13 @@ export default function ProductCard({ product, actions, showStatus = false, clas
       {
 
                                                                                         }
-      <Link to={`/products/${product.id}`} className="relative block h-[200px] shrink-0 overflow-hidden bg-[var(--green-50)] sm:h-[220px] lg:h-[240px]">
+      <button
+        type="button"
+        onClick={() => setIsQuickViewOpen(true)}
+        aria-label={`Review ${titleCase(product.name)} details`}
+        title={`View ${titleCase(product.name)} details`}
+        className="product-card-media-trigger group/media relative block h-[200px] w-full shrink-0 cursor-pointer overflow-hidden border-0 bg-[var(--green-50)] p-0 text-left sm:h-[220px] lg:h-[240px]"
+      >
         {product.image && !imageFailed ? (
           <>
             {!imageLoaded ? (
@@ -99,20 +108,33 @@ export default function ProductCard({ product, actions, showStatus = false, clas
             <StatusBadge value={product.status} />
           </span>
         ) : null}
-      </Link>
+        <span className="product-card-media-hint">
+          <Eye size={14} aria-hidden="true" />
+          View details
+        </span>
+      </button>
 
       <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="flex flex-col gap-3">
           <div>
             <p className="product-card-category text-[13px] font-medium text-[var(--muted)]">{titleCase(product.category)}</p>
-            <Link to={`/products/${product.id}`} className="focus-visible:outline-none">
+            <button
+              type="button"
+              onClick={() => setIsQuickViewOpen(true)}
+              className="product-card-title-trigger block w-full border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)]"
+            >
               <h3
                 title={titleCase(product.name)}
                 className="product-card-name mt-0.5 line-clamp-2 text-[19px] font-semibold leading-snug text-[var(--text)] transition-colors duration-150 hover:text-[var(--green-800)]"
               >
                 {titleCase(product.name)}
               </h3>
-            </Link>
+              {product.description?.trim() ? (
+                <p className="product-card-description mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-[var(--muted)]">
+                  {product.description.trim()}
+                </p>
+              ) : null}
+            </button>
           </div>
 
           <div className="product-card-meta flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-[var(--muted)]">
@@ -225,6 +247,59 @@ export default function ProductCard({ product, actions, showStatus = false, clas
           )}
         </div>
       </div>
+      {isQuickViewOpen ? createPortal(
+        <Modal
+          open={isQuickViewOpen}
+          onClose={() => setIsQuickViewOpen(false)}
+          eyebrow={titleCase(product.category)}
+          title="Product details"
+          dialogLabel={`${titleCase(product.name)} product details`}
+          className="product-quick-view-overlay"
+        >
+          <div className="product-quick-view">
+            <div className="product-quick-view-image">
+              {product.image && !imageFailed
+                ? <img src={product.image} alt={titleCase(product.name)} onError={() => setImageFailed(true)} />
+                : <Sprout size={34} strokeWidth={1.5} aria-hidden="true" />}
+            </div>
+            <div className="product-quick-view-heading">
+              <div>
+                <h3>{titleCase(product.name)}</h3>
+                <p>{product.farmerName || 'Local farmer'}{product.location ? ` · ${product.location}` : ''}</p>
+              </div>
+              <span className={`badge badge-grade-${(product.grade || 'A').toLowerCase()}`}>Grade {product.grade || 'A'}</span>
+            </div>
+            <p className="product-quick-view-price">
+              {formatCurrency(product.price)}<span>/{product.unit}</span>
+            </p>
+            <p className="product-quick-view-stock">
+              {formatQuantity(product.quantity)} {product.unit} available
+              {isCriticallyLow ? <span> · Low stock</span> : null}
+            </p>
+            {product.description?.trim() ? (
+              <section className="product-quick-view-description" aria-labelledby={`product-description-${product.id}`}>
+                <h4 id={`product-description-${product.id}`}>Description</h4>
+                <p>{product.description.trim()}</p>
+              </section>
+            ) : null}
+            <dl className="product-quick-view-meta">
+              {product.farmerVerified ? <div><dt>Seller</dt><dd>Verified farmer</dd></div> : null}
+              {product.expirationDate ? <div><dt>Expires</dt><dd>{formatDate(product.expirationDate)}</dd></div> : null}
+              {product.sellingType === 'wholesale' && product.moq ? (
+                <div><dt>Minimum order</dt><dd>{formatQuantity(product.moq)} {product.unit}</dd></div>
+              ) : null}
+            </dl>
+            <Link
+              to={`/products/${product.id}`}
+              className="btn btn-primary btn-md product-quick-view-action"
+              onClick={() => setIsQuickViewOpen(false)}
+            >
+              View product &amp; order <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+        </Modal>,
+        document.body,
+      ) : null}
     </article>
   );
 }

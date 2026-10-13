@@ -278,7 +278,7 @@ export async function updateOrderStatus(req, res) {
     title: status === 'confirmed' ? 'Order confirmed' : 'Order rejected',
     message: status === 'confirmed'
       ? `${order.farmer_name} confirmed your order for ${order.product_name}.`
-      : `${order.farmer_name} rejected your order for ${order.product_name}.`,
+      : `${order.farmer_name} rejected your order for ${order.product_name}.${order.rejection_reason ? ` Reason: ${order.rejection_reason}` : ''}`,
     link: `/orders/${order.id}`,
   });
 
@@ -349,6 +349,9 @@ export async function advanceDelivery(req, res) {
     delivery_status: nextStatus,
     status: isFinalStep ? 'completed' : existing.status,
     payment_status: isFinalStep && existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
+    ...(isFinalStep && existing.payment_method === 'cod' && existing.payment_status !== 'paid'
+      ? { paid_at: new Date().toISOString() }
+      : null),
     ...(isTransitStep ? { transit_started_at: new Date().toISOString() } : null),
     ...(vehiclePlateNumber ? { vehicle_plate_number: vehiclePlateNumber } : null),
 

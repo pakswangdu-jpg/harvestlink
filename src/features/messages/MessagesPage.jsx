@@ -33,7 +33,10 @@ function pinnedStorageKey(userId) {
 function loadPinnedKeys(userId) {
   try {
     const raw = localStorage.getItem(pinnedStorageKey(userId));
-    return raw ? new Set(JSON.parse(raw)) : new Set();
+    const keys = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(keys)) return new Set();
+    const pinnedKey = keys.filter((key) => typeof key === 'string').at(-1);
+    return pinnedKey ? new Set([pinnedKey]) : new Set();
   } catch {
     return new Set();
   }
@@ -178,13 +181,17 @@ export default function MessagesPage() {
     lastMessageAt: thread.lastMessage?.createdAt,
     unreadCount: thread.unreadCount,
     lastOrder: thread.lastOrder,
+    completedOrder: thread.completedOrder,
   })).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()), [threads]);
   const activeThread = combinedThreads.find((thread) => thread.key === activeKey);
+  const canSeeProductRecommendations = ['buyer', 'stakeholder'].includes(currentUser.role);
+  const recommendationOrder = pinnedOrder?.status === 'completed'
+    ? pinnedOrder
+    : activeThread?.completedOrder;
 
   const togglePin = (key) => {
     setPinnedKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      const next = current.has(key) ? new Set() : new Set([key]);
       savePinnedKeys(currentUser.id, next);
       return next;
     });
@@ -379,7 +386,11 @@ export default function MessagesPage() {
                 targetLang={targetLang}
                 onTargetLangChange={setTargetLang}
               />
-              <OrderContextCard order={pinnedOrder || activeThread?.lastOrder} />
+              <OrderContextCard
+                order={pinnedOrder || activeThread?.lastOrder}
+                recommendationOrder={recommendationOrder}
+                showRecommendations={canSeeProductRecommendations}
+              />
 
               <div ref={messageListRef} onScroll={handleScroll} className="messages-message-list flex-1 space-y-2 overflow-y-auto px-4 py-4">
                 {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">Reconnecting…</p> : null}

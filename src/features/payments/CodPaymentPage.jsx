@@ -1,4 +1,4 @@
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Banknote, Loader2, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
@@ -16,9 +16,20 @@ export default function CodPaymentPage() {
   const location = useLocation();
   const [order, setOrder] = useState(null);
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false);
+  const [isCashReminderOpen, setIsCashReminderOpen] = useState(false);
 
   useEffect(() => {
-    getOrderById(id).then(setOrder).catch(() => setOrder(null));
+    let cancelled = false;
+    getOrderById(id).then((result) => {
+      if (cancelled) return;
+      setOrder(result);
+      setIsCashReminderOpen(result.paymentMethod === 'cod');
+    }).catch(() => {
+      if (!cancelled) setOrder(null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   return (
@@ -82,6 +93,37 @@ export default function CodPaymentPage() {
         onConfirm={() => navigate(`/orders/${id}`)}
         onCancel={() => setIsLeaveDialogOpen(false)}
       />
+
+      {isCashReminderOpen && order?.paymentMethod === 'cod' ? (
+        <div
+          className="cod-cash-reminder-overlay"
+          onClick={() => setIsCashReminderOpen(false)}
+        >
+          <section
+            className="cod-cash-reminder-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cod-cash-reminder-title"
+            aria-describedby="cod-cash-reminder-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="cod-cash-reminder-icon" aria-hidden="true">
+              <Banknote size={23} />
+            </span>
+            <h2 id="cod-cash-reminder-title">Please prepare exact cash</h2>
+            <p id="cod-cash-reminder-description">
+              Have <strong>{formatCurrency(order.totalAmount)}</strong> ready to pay when your order is delivered or picked up.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-md"
+              onClick={() => setIsCashReminderOpen(false)}
+            >
+              Got it
+            </button>
+          </section>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

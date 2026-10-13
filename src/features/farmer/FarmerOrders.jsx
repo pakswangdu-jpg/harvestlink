@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check, CheckCircle2, ChevronRight, Clipboard, ClipboardList, MapPin, Navigation, Package, Receipt, Search, Truck, X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
@@ -396,6 +396,7 @@ function ConfirmPurchaseDialog({ order, onCancel, onConfirm, submitting }) {
 export default function FarmerOrders() {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
   const [rejectTarget, setRejectTarget] = useState(null);
@@ -490,15 +491,16 @@ export default function FarmerOrders() {
     setConfirmAction(null);
   };
 
-  const confirmStartDelivery = (plateNumber) => {
+  const confirmStartDelivery = async (plateNumber) => {
     if (!startDeliveryOrder) return;
     const target = startDeliveryOrder;
     setStartDeliveryOrder(null);
-    run(
+    const started = await run(
       () => advanceDelivery(target.id, plateNumber),
       'Order marked "Out for Delivery".',
       'out_for_delivery',
     );
+    if (started) navigate(`/orders/${target.id}`);
   };
 
 

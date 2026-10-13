@@ -19,6 +19,10 @@ conflict, not a silently changed charge; retrying an identical successful reques
 returns its original order. Existing callers without a request key remain
 compatible but do not receive the new retry guarantee.
 
+If checkout reports `column orders.checkout_key does not exist`, this migration
+has not been applied to the Supabase project configured by the backend. Run the
+complete SQL file in that project's SQL Editor, then retry checkout.
+
 Deploy the frontend and backend together after the migration. Without it, stock
 decisions intentionally fail closed rather than falling back to unsafe writes.
 No live database migration is performed by the application at startup.

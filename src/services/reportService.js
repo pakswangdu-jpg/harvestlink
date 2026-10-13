@@ -7,6 +7,7 @@ export const REPORT_PERIODS = [['7d', '7 days'], ['30d', '30 days'], ['6m', 'Las
 const MANILA_OFFSET = 8 * 60 * 60 * 1000;
 const manilaDate = (value) => new Date(new Date(value).getTime() + MANILA_OFFSET);
 const dateKey = (date) => date.toISOString().slice(0, 10);
+const paymentDate = (order) => order.paidAt || order.createdAt;
 
 export function getReportPeriodStart(period, now = new Date()) {
   const local = manilaDate(now);
@@ -28,13 +29,17 @@ export function filterReportRecords(records, period, now = new Date()) {
 }
 
 export function getReportRevenue(orders, period, now = new Date()) {
-  const paid = filterReportRecords(orders, period, now).filter((order) => order.paymentStatus === PAID_STATUS && Number.isFinite(Date.parse(order.createdAt)));
+  const startTime = getReportPeriodStart(period, now)?.getTime() ?? -Infinity;
+  const paid = orders.filter((order) => {
+    const timestamp = Date.parse(paymentDate(order));
+    return order.paymentStatus === PAID_STATUS && Number.isFinite(timestamp) && timestamp >= startTime && timestamp <= now.getTime();
+  });
   const daily = period === '7d' || period === '30d';
   let start = getReportPeriodStart(period, now);
   const end = manilaDate(now);
   if (!start) {
     if (!paid.length) return [];
-    start = new Date(paid.reduce((first, order) => Math.min(first, Date.parse(order.createdAt)), Infinity));
+    start = new Date(paid.reduce((first, order) => Math.min(first, Date.parse(paymentDate(order))), Infinity));
   }
   const cursor = manilaDate(start);
   cursor.setUTCHours(0, 0, 0, 0);
@@ -48,7 +53,7 @@ export function getReportRevenue(orders, period, now = new Date()) {
   }
   const totals = new Map();
   for (const order of paid) {
-    const key = dateKey(manilaDate(order.createdAt)).slice(0, daily ? 10 : yearly ? 4 : 7);
+    const key = dateKey(manilaDate(paymentDate(order))).slice(0, daily ? 10 : yearly ? 4 : 7);
     totals.set(key, (totals.get(key) || 0) + Number(order.totalAmount || 0));
   }
   const points = [];
@@ -126,8 +131,8 @@ export function getMonthlyRevenue(orders, monthsBack = 6) {
     label,
     revenue: paidOrders
       .filter((order) => {
-        const created = new Date(order.createdAt);
-        return created.getFullYear() === year && created.getMonth() === month;
+        const paidAt = new Date(paymentDate(order));
+        return paidAt.getFullYear() === year && paidAt.getMonth() === month;
       })
       .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
   }));
@@ -147,15 +152,15 @@ export function getMonthlyProfit(orders, monthsBack = 6, now = new Date()) {
   const costedPaidOrders = orders.filter((order) => (
     order.paymentStatus === PAID_STATUS
     && order.unitCostPrice != null
-    && Number.isFinite(Date.parse(order.createdAt))
+    && Number.isFinite(Date.parse(paymentDate(order)))
   ));
 
   return months.map(({ year, month, label }) => ({
     label,
     revenue: costedPaidOrders
       .filter((order) => {
-        const created = new Date(order.createdAt);
-        return created.getFullYear() === year && created.getMonth() === month;
+        const paidAt = new Date(paymentDate(order));
+        return paidAt.getFullYear() === year && paidAt.getMonth() === month;
       })
       .reduce((sum, order) => sum + (Number(order.unitPrice) - Number(order.unitCostPrice)) * Number(order.quantity), 0),
   }));
