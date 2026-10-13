@@ -96,7 +96,13 @@ export default function MobileBottomNav({ user, navItems }) {
         </Button>
       </div>
       <span className="mobile-bottom-nav-edge mobile-bottom-nav-edge-end" aria-hidden="true"><ChevronRight size={12} /></span>
-      <LogoutConfirmDialog open={isConfirmOpen} busy={isLoggingOut} onConfirm={confirmLogout} onCancel={cancelLogout} />
+      <LogoutConfirmDialog
+        open={isConfirmOpen}
+        busy={isLoggingOut}
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+        isAdmin={user.role === 'admin'}
+      />
     </nav>
   );
 }

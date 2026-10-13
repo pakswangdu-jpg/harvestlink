@@ -279,7 +279,13 @@ export default function AppShell({
       </main>
 
       <MobileBottomNav user={user} navItems={navItems} />
-      <LogoutConfirmDialog open={isConfirmOpen} busy={isLoggingOut} onConfirm={confirmLogout} onCancel={cancelLogout} />
+      <LogoutConfirmDialog
+        open={isConfirmOpen}
+        busy={isLoggingOut}
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+        isAdmin={user.role === 'admin'}
+      />
     </div>
   );
 }
