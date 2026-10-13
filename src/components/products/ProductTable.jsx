@@ -7,7 +7,8 @@ import EditSquareIcon from '../icons/EditSquareIcon';
 import ActionMenu from './ActionMenu';
 import ZoomableImage from '../common/ZoomableImage';
 import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
-import { getProductStatusInfo } from '../../utils/constants';
+import ProductStatusBadge from './ProductStatusBadge';
+import ProductPriceReviewNotice from './ProductPriceReviewNotice';
 
 export default function ProductTable({ products, onView, onEdit, onDuplicate, onArchive, onDonate, onDelete }) {
   const columns = [
@@ -36,10 +37,12 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
       label: 'Price',
       width: '14%',
       render: (product) => (
-        <span>
+        <div>
+          {product.priceReview?.status === 'needs_adjustment' ? <small className="product-price-label">Your price</small> : null}
           {product.discountPercent ? <span className="muted price-original">{formatCurrency(product.originalPrice)}</span> : null}
           <strong>{formatCurrency(product.price)}</strong>/{product.unit}
-        </span>
+          <ProductPriceReviewNotice product={product} />
+        </div>
       ),
     },
     {
@@ -52,10 +55,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
       key: 'status',
       label: 'Status',
       width: '14%',
-      render: (product) => {
-        const { value, label } = getProductStatusInfo(product);
-        return <span className={`badge badge-${value}`}>{label}</span>;
-      },
+      render: (product) => <ProductStatusBadge product={product} onEdit={onEdit} />,
     },
     { key: 'updatedAt', label: 'Updated', width: '15%', render: (product) => <span className="muted">{formatDate(product.updatedAt)}</span> },
     {

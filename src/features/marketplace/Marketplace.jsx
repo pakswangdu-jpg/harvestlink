@@ -216,6 +216,8 @@ export default function Marketplace() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { references, referenceError } = useAdminMarketReferences();
   const navItems = getNavItemsForRole(currentUser.role);
 
@@ -240,11 +242,18 @@ export default function Marketplace() {
 
 
   useEffect(() => {
+    let cancelled = false;
     const reload = () => getActiveProducts()
-      .then((items) => setProducts(items.filter((product) => getExpiryStatus(product.expirationDate) !== 'expired')));
+      .then((items) => {
+        if (cancelled) return;
+        setProducts(items.filter((product) => getExpiryStatus(product.expirationDate) !== 'expired'));
+        setLoadError('');
+      })
+      .catch(() => { if (!cancelled) setLoadError('Unable to refresh products right now. Please try again shortly.'); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
     reload();
     const interval = setInterval(reload, 4000);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   const referencesByCommodity = useMemo(() => new Map(references.map((reference) => [reference.commodityId, reference])), [references]);
@@ -363,11 +372,12 @@ export default function Marketplace() {
       </section>
 
       {referenceError ? <p className="muted" role="status">{referenceError}</p> : null}
-      {filteredProducts.length ? (
+      {loadError ? <p className="marketplace-load-state" role="alert">{loadError}</p> : null}
+      {isLoading ? <p className="marketplace-load-state" role="status">Loading products...</p> : filteredProducts.length ? (
         <section className="product-grid">
           {filteredProducts.map((product) => <ProductCard key={product.id} product={product} className="marketplace-product-card" marketReference={referencesByCommodity.get(matchCommodity(product.name)?.id)} />)}
         </section>
-      ) : (
+      ) : !loadError ? (
         <EmptyState
           className="empty-state-transparent-icon"
           title="No matching products"
@@ -375,7 +385,7 @@ export default function Marketplace() {
           actionLabel={hasActiveFilters ? 'Clear filters' : undefined}
           onAction={hasActiveFilters ? clearFilters : undefined}
         />
-      )}
+      ) : null}
     </AppShell>
   );
 }

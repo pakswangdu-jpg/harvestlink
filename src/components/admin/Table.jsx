@@ -14,12 +14,12 @@ import EmptyState from './EmptyState';
 const MIN_COLUMN_WIDTH_PX = 120;
 
 export default function Table({
-  columns, rows, emptyMessage, onRowClick, maxHeight,
+  columns, rows, emptyMessage, onRowClick, maxHeight, className = '', scrollLabel,
 }) {
   if (!rows.length) return <EmptyState message={emptyMessage} />;
 
   return (
-    <div className="-mx-5 overflow-x-auto" style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}>
+    <div className={`-mx-5 overflow-x-auto ${className}`.trim()} role={scrollLabel ? 'region' : undefined} aria-label={scrollLabel} tabIndex={scrollLabel ? 0 : undefined} style={maxHeight ? { maxHeight, overflowY: 'auto' } : undefined}>
       {
 
 

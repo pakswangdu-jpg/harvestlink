@@ -69,12 +69,12 @@ export async function getDeclinedPriceReviews() {
   return apiClient.get('/products/price-reviews/declined');
 }
 
-export async function approvePriceReview(id) {
-  return apiClient.post(`/products/${id}/price-review/approve`);
+export async function approvePriceReview(id, values = {}) {
+  return apiClient.post(`/products/${id}/price-review/approve`, values);
 }
 
-export async function declinePriceReview(id) {
-  return apiClient.post(`/products/${id}/price-review/decline`);
+export async function declinePriceReview(id, values = {}) {
+  return apiClient.post(`/products/${id}/price-review/decline`, values);
 }
 
 export async function reactivatePriceReview(id) {

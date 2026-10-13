@@ -82,7 +82,7 @@ test('Failed logout keeps confirmation available for retry without navigating', 
 test('Desktop and standalone mobile logout controls render the same accessible dialog', async () => {
   for (const name of ['AppShell', 'MobileBottomNav']) {
     const component = await readFile(new URL(`../src/components/layout/${name}.jsx`, import.meta.url), 'utf8');
-    assert.match(component, /<LogoutConfirmDialog open=\{isConfirmOpen\} busy=\{isLoggingOut\} onConfirm=\{confirmLogout\} onCancel=\{cancelLogout\}/);
+    assert.match(component, /<LogoutConfirmDialog\s+open=\{isConfirmOpen\}\s+busy=\{isLoggingOut\}\s+onConfirm=\{confirmLogout\}\s+onCancel=\{cancelLogout\}/);
   }
   const dialog = await readFile(new URL('../src/components/common/LogoutConfirmDialog.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /dialog.showModal\(\)/);

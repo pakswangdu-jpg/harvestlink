@@ -1,0 +1,56 @@
+.product-quick-view-overlay {
+  z-index: 200;
+  bottom: auto;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.product-quick-view-overlay > div {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.product-quick-view-overlay .admin-modal-header { flex-shrink: 0; padding-top: max(16px, env(safe-area-inset-top)); }
+.product-quick-view-overlay .admin-modal-header > div { min-width: 0; overflow-wrap: anywhere; }
+.product-quick-view-overlay .admin-modal-header button { width: 44px; height: 44px; }
+.product-quick-view-overlay .admin-modal-body {
+  min-height: 0;
+  min-width: 0;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.product-quick-view-overlay .admin-modal-footer {
+  flex-shrink: 0;
+  padding: 14px max(20px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  border-top: 1px solid var(--line);
+  background: var(--surface-elevated);
+}
+.product-quick-view-overlay .admin-modal-footer .product-quick-view-action {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  white-space: normal;
+  text-align: center;
+}
+.product-quick-view-overlay .product-quick-view-action svg { flex-shrink: 0; }
+.product-quick-view-overlay .product-quick-view-image img {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+  object-position: center;
+}
+.product-quick-view-overlay .product-quick-view-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.product-quick-view-overlay .product-quick-view-heading > .badge { flex-shrink: 0; }
+.product-quick-view-overlay .product-quick-view-price,
+.product-quick-view-overlay .product-quick-view-stock { overflow-wrap: anywhere; }
+.product-quick-view-overlay .product-quick-view-meta dt,
+.product-quick-view-overlay .product-quick-view-meta dd { min-width: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 360px), (max-height: 500px) {
+  .product-quick-view-overlay .admin-modal-header { padding-inline: 16px; padding-bottom: 12px; }
+  .product-quick-view-overlay .admin-modal-body { padding: 16px; }
+  .product-quick-view-overlay .admin-modal-footer { padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)); }
+}

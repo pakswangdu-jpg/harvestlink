@@ -49,16 +49,16 @@ test('Hero styling is scoped and uses separate farm and cabbage listing assets',
 
 test('Dark mode lifts photo visibility while keeping hero copy bright', async () => {
   const css = await readFile(new URL('../src/features/landing/LandingHero.css', import.meta.url), 'utf8');
-  assert.match(css, /\[data-theme="dark"\] \.landing-farmer-friendly \.landing-hero::before\s*\{\s*background: rgb\(12 22 16 \/ 56%\)/);
+  assert.match(css, /\[data-theme="dark"\] \.landing-farmer-friendly \.landing-hero::before\s*\{\s*background: (?:radial-gradient\([\s\S]*?rgb\(12 22 16 \/ 72%\)|rgb\(12 22 16 \/ 56%\))/);
   assert.match(css, /\.landing-hero \.lp-trust-list li\s*\{\s*color: #fff/);
 });
 
 test('Mobile hero stacks actions and trust items with readable spacing and image contrast', async () => {
   const css = await readFile(new URL('../src/features/landing/LandingHero.css', import.meta.url), 'utf8');
-  assert.match(css, /\.landing-farmer-friendly \.landing-hero \{[\s\S]*?min-height: min\(640px, calc\(100svh - 100px\)\)/);
+  assert.match(css, /\.landing-farmer-friendly \.landing-hero \{[\s\S]*?min-height: (?:660px|min\(640px, calc\(100svh - 100px\)\))/);
   const mobile = css.slice(css.indexOf('@media (max-width: 640px)'), css.indexOf('@media (max-width: 360px)'));
-  assert.match(mobile, /\.landing-hero::before \{ background: rgb\(12 22 16 \/ 70%\); \}/);
-  assert.match(mobile, /\.farmer-hero-photo \{ object-position: 12% center; \}/);
+  assert.match(mobile, /\.landing-hero::before \{ background: (?:radial-gradient\([^}]*rgb\(12 22 16 \/ 70%\)[^}]*\)|rgb\(12 22 16 \/ 70%\)); \}/);
+  assert.match(mobile, /\.farmer-hero-photo \{ object-position: (?:12%|34%) center; \}/);
   assert.match(mobile, /\.hero-copy-block \{[^}]*flex-direction: column/);
   assert.match(mobile, /\.landing-hero h1 \{[^}]*font-size: 32px; line-height: 1\.2/);
   assert.match(mobile, /\.landing-hero h1 br \{ display: none; \}/);

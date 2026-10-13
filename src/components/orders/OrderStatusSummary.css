@@ -8,7 +8,7 @@
   margin: 0 0 14px;
   color: var(--text);
   font-family: inherit;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0;
@@ -30,12 +30,13 @@
   --status-surface: var(--panel);
   position: relative;
   display: grid;
-  grid-template-rows: 30px minmax(36px, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  grid-template-rows: minmax(28px, auto) minmax(36px, auto) auto;
   align-content: stretch;
   justify-items: start;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
-  min-height: 164px;
+  min-height: 140px;
   padding: 16px;
   border: 1px solid var(--status-border);
   border-radius: 8px;
@@ -83,6 +84,8 @@
 }
 
 .order-status-summary-icon {
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   width: 28px;
   height: 28px;
@@ -94,10 +97,12 @@
 }
 
 .order-status-summary-count {
-  align-self: end;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: center;
   display: block;
   color: var(--text);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -105,19 +110,24 @@
 }
 
 .order-status-summary-label {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
   display: block;
   min-width: 0;
   color: var(--text);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .order-status-summary-description {
+  grid-column: 1 / -1;
+  grid-row: 3;
   display: block;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -194,7 +204,7 @@
 @media (max-width: 640px) {
   .order-status-summary > h2 {
     margin-bottom: 14px;
-    font-size: 24px;
+    font-size: 20px;
   }
 
   .order-status-summary-list {
@@ -203,7 +213,7 @@
   }
 
   .order-status-summary-item {
-    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     align-items: center;
     column-gap: 12px;

@@ -24,7 +24,7 @@ test('order summary preserves all five supplied counts, labels and hints', () =>
   const all = nodes(render());
   assert.deepEqual(all.filter((node) => node.props.className === 'buyer-orders-summary-value').map(text), ['108', '41', '18', '27', '22']);
   assert.deepEqual(all.filter((node) => node.props.className === 'buyer-orders-summary-label').map(text), ['My Orders', 'Pending', 'To Receive', 'Completed', 'Cancelled']);
-  assert.deepEqual(all.filter((node) => node.props.className === 'buyer-orders-summary-hint').map(text), ['View all orders', 'Needs confirmation', 'Orders on the way', 'Orders received', 'Cancelled orders']);
+  assert.deepEqual(all.filter((node) => node.props.className === 'buyer-orders-summary-hint').map(text), ['View all orders', 'Needs confirmation', 'Awaiting fulfillment or receipt', 'Finalized transactions', 'Cancelled or rejected orders']);
 });
 
 test('summary buttons retain filter keys, pressed state and selection handlers', () => {

@@ -112,6 +112,14 @@ test('checkout rejects changed totals, expired listings, unsupported delivery an
   assert.equal(writes.length, 0);
 });
 
+test('Pending and adjustment-required reviews cannot be ordered through direct checkout', async () => {
+  for (const status of ['pending', 'needs_adjustment']) {
+    product.price_review = { status };
+    await assert.rejects(invoke(createOrder, { productId: product.id, quantity: 10, deliveryMethod: 'farmer_delivery', deliveryMunicipality: 'Cebu City', paymentMethod: 'cod' }, { id: 'buyer-1', role: 'buyer', name: 'Buyer' }), { status: 400 });
+  }
+  assert.equal(writes.length, 0);
+});
+
 test('creating and merging listings persist and serialize the farmer-approved tier', async () => {
   const created = await invoke(createProduct, listing());
   assert.equal(created.statusCode, 201);

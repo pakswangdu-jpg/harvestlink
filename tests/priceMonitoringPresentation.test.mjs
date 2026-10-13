@@ -43,9 +43,14 @@ test('PSA display stays distinct from the effective Admin reference and existing
   const values = [];
   let index = 0;
   const effects = [];
+  const listeners = new Map();
   let mounted = false;
   const product = { id: 'p1', name: 'Cabbage', status: 'active', unit: 'kg', price: 50 };
   const scope = {
+    window: {
+      addEventListener: (event, callback) => listeners.set(event, callback),
+      removeEventListener: (event, callback) => { if (listeners.get(event) === callback) listeners.delete(event); },
+    },
     MARKET_COMMODITIES: [{ id: '28', label: 'Cabbage' }],
     useState(initial) { const slot = index++; if (!(slot in values)) values[slot] = initial; return [values[slot], (next) => { values[slot] = typeof next === 'function' ? next(values[slot]) : next; }]; },
     useCallback: (callback) => callback,
@@ -59,7 +64,7 @@ test('PSA display stays distinct from the effective Admin reference and existing
     resolveCommodityStatus: ({ hasOverride }) => hasOverride ? 'overridden' : 'normal', setTimeout: (callback) => callback(),
   };
   const hook = await compile('useCommodityMonitoring.js', 'useCommodityMonitoring', scope);
-  hook(); effects.forEach((effect) => effect()); mounted = true;
+  hook(); const cleanups = effects.map((effect) => effect()); mounted = true;
   await new Promise((resolve) => setImmediate(resolve));
   index = 0;
   const row = hook().rows[0];
@@ -69,4 +74,7 @@ test('PSA display stays distinct from the effective Admin reference and existing
   assert.equal(row.avgFarmerPrice, 50);
   assert.equal(row.status, 'overridden');
   assert.deepEqual(row.relatedListings, [product]);
+  assert.equal(typeof listeners.get('focus'), 'function');
+  cleanups.forEach((cleanup) => cleanup?.());
+  assert.equal(listeners.has('focus'), false);
 });

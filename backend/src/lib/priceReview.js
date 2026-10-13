@@ -75,5 +75,38 @@ export function buildPriceReview(marketReference, price, previousReview, kgPerUn
     reason: `Price is ${deviationPct}% above the PSA Central Visayas average of ₱${referencePrice.toFixed(2)}/kg for ${marketReference.commodityLabel} (${marketReference.referenceYear})${conversionNote} — exceeds the ${PRICE_DEVIATION_THRESHOLD_PERCENT}% fair-pricing threshold.`,
     createdAt: new Date().toISOString(),
     decidedAt: null,
+    referenceSource: marketReference.isOverride ? 'admin' : 'psa',
+  };
+}
+
+export function reviewDecisionHistory(review) {
+  const history = [...(review.previousDecisions || [])];
+  if (review.decidedAt) {
+    const reason = ['needs_adjustment', 'declined'].includes(review.status) ? review.declineReason || review.reason : review.reason;
+    const decision = { status: review.status, decidedAt: review.decidedAt, reason };
+    for (const key of ['decidedBy', 'approvedPrice', 'maxAllowedPrice', 'reviewUnit', 'farmerPrice']) {
+      if (review[key] != null) decision[key] = review[key];
+    }
+    history.push(decision);
+  }
+  return history;
+}
+
+export function resubmitPriceReview(reference, price, previousReview, kgPerUnit, unit) {
+  const fresh = buildPriceReview(reference, price, null, kgPerUnit);
+  const baseline = fresh || previousReview;
+  const now = new Date().toISOString();
+  const referencePrice = reference?.referencePrice || baseline.referencePrice;
+  return {
+    ...previousReview, ...fresh,
+    reason: fresh?.reason || 'Price revised and resubmitted for Admin review.',
+    farmerPrice: Number(price), referencePrice,
+    referenceYear: reference?.referenceYear ?? baseline.referenceYear,
+    referenceSource: reference ? reference.isOverride ? 'admin' : 'psa' : baseline.referenceSource,
+    deviationPct: referencePrice > 0 ? Number((((Number(price) / kgPerUnit - referencePrice) / referencePrice) * 100).toFixed(1)) : null,
+    status: 'pending', reviewUnit: unit,
+    maxAllowedPrice: previousReview.reviewUnit && previousReview.reviewUnit !== unit ? null : previousReview.maxAllowedPrice,
+    createdAt: now, submittedAt: now, decidedAt: null, decidedBy: null, approvedPrice: null,
+    previousDecisions: reviewDecisionHistory(previousReview),
   };
 }

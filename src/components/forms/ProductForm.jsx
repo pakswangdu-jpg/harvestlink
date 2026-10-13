@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
+import ProductPriceReviewNotice from '../products/ProductPriceReviewNotice';
 import PriceRecommendationBreakdown from './PriceRecommendationBreakdown';
 import NoMarketDataCard from './NoMarketDataCard';
 import CostBasedEstimateCard from './CostBasedEstimateCard';
@@ -520,6 +521,7 @@ export default function ProductForm({
 
   return (
     <form id={formId} className="form-stack product-form" onSubmit={handleSubmit}>
+      <ProductPriceReviewNotice product={product} showSubmitted />
       {hasErrors(errors) ? (
         <div className="form-alert error">
           <strong>Please fill up first.</strong>

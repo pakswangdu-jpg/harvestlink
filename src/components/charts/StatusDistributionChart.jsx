@@ -26,16 +26,24 @@ const STATUS_COLORS = {
 };
 const DEFAULT_COLOR = 'var(--muted)';
 
+function axisLabelLines(value) {
+  return String(value).trim().split(/\s+/).reduce((lines, word) => {
+    if (word === '/' && lines.length) lines[lines.length - 1] += ' /';
+    else lines.push(word);
+    return lines;
+  }, []);
+}
+
 function AxisTick({ x, y, payload, report = false, slanted = false }) {
   if (slanted) {
     return <g transform={`translate(${x},${y + 10})`}><text transform="rotate(-35)" textAnchor="end" fontSize={12} fill="var(--reports-secondary)">{payload.value}</text></g>;
   }
-  const words = String(payload.value).split(' ');
+  const lines = axisLabelLines(payload.value);
   return (
     <g transform={`translate(${x},${y})`}>
       <text textAnchor="middle" fontSize={12} fill={report ? 'var(--reports-secondary)' : 'var(--muted)'}>
-        {words.map((word) => (
-          <tspan key={word} x={0} dy={14}>{word}</tspan>
+        {lines.map((line, index) => (
+          <tspan key={index} x={0} dy={14}>{line}</tspan>
         ))}
       </text>
     </g>
@@ -93,6 +101,9 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
 
   const data = useMemo(() => computeBreakdown(filteredRecords), [computeBreakdown, filteredRecords]);
   const slantedLabels = report && plotWidth > 0 && plotWidth < 380 && data.length > 3;
+  const axisHeight = slantedLabels
+    ? Math.max(62, ...data.map((entry) => Math.ceil(String(entry.label).length * 7 * Math.sin(35 * Math.PI / 180)) + 24))
+    : Math.max(report ? 46 : 36, ...data.map((entry) => axisLabelLines(entry.label).length * 14 + 12));
   const chartHeight = report ? 'clamp(220px, 23vw, 250px)' : CHART_HEIGHT;
 
   return (
@@ -116,7 +127,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
           <ResponsiveContainer width="100%" height="100%" onResize={report ? (width) => setPlotWidth(width) : undefined}>
             <BarChart
               data={data}
-              margin={{ top: report ? 28 : 20, right: report ? 12 : 4, left: report ? 12 : 4, bottom: 0 }}
+              margin={{ top: report ? 28 : 20, right: report ? 12 : 4, left: slantedLabels ? 56 : report ? 12 : 4, bottom: 0 }}
               onMouseMove={(state) => setActiveIndex(state?.isTooltipActive ? state.activeTooltipIndex : null)}
               onMouseLeave={() => setActiveIndex(null)}
             >
@@ -131,7 +142,7 @@ export default function StatusDistributionChart({ records, dateKey = 'createdAt'
                 tickLine={false}
                 interval={0}
                 minTickGap={report ? 10 : 0}
-                height={slantedLabels ? 62 : report ? 46 : 36}
+                height={axisHeight}
                 tick={<AxisTick report={report} slanted={slantedLabels} />}
               />
               <Tooltip cursor={{ fill: 'var(--soft)' }} content={<ChartTooltip />} />

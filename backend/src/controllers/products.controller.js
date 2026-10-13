@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeProduct } from '../lib/serialize.js';
-import { assertPlausiblePricePerKg, buildPriceReview, resolveKgPerUnit } from '../lib/priceReview.js';
+import { assertPlausiblePricePerKg, buildPriceReview, resolveKgPerUnit, resubmitPriceReview, reviewDecisionHistory } from '../lib/priceReview.js';
 import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '../lib/historicalPriceService.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
@@ -106,12 +106,19 @@ export async function listProducts(req, res) {
   let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
   if (req.query.status) query = query.eq('status', req.query.status);
   if (req.query.farmerId) query = query.eq('farmer_id', req.query.farmerId);
+  if (req.profile.role !== 'admin') {
+    const ownProducts = req.profile.role === 'farmer' && req.profile.id ? `,farmer_id.eq.${req.profile.id}` : '';
+    for (const reviewStatus of ['pending', 'needs_adjustment']) {
+      query = query.or(`price_review.is.null,price_review->>status.is.null,price_review->>status.neq.${reviewStatus}${ownProducts}`);
+    }
+  }
   if (req.query.activeOnly === 'true') {
     query = query.eq('status', 'active').gt('quantity', 0);
 
 
 
-    query = query.or('price_review.is.null,price_review->>status.eq.approved,price_review->>status.eq.pending');
+    const pendingReviews = ['farmer', 'admin'].includes(req.profile.role) ? ',price_review->>status.eq.pending' : '';
+    query = query.or(`price_review.is.null,price_review->>status.eq.approved${pendingReviews}`);
     query = query.or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`);
   }
 
@@ -136,7 +143,7 @@ export async function listPublicProducts(req, res) {
     .eq('farmer_id', farmerId)
     .eq('status', 'active')
     .gt('quantity', 0)
-    .or('price_review.is.null,price_review->>status.eq.approved,price_review->>status.eq.pending')
+    .or('price_review.is.null,price_review->>status.eq.approved')
     .or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`)
     .order('created_at', { ascending: false });
   if (error) throw new ApiError(error.message, 400);
@@ -177,6 +184,10 @@ export async function listPublicProducts(req, res) {
 
 export async function getProduct(req, res) {
   const product = await fetchProductOr404(req.params.id);
+  if (['pending', 'needs_adjustment'].includes(product.price_review?.status) && req.profile.role !== 'admin'
+      && !(req.profile.role === 'farmer' && req.profile.id === product.farmer_id)) {
+    throw new ApiError('Product was not found.', 404);
+  }
   if (['buyer', 'stakeholder'].includes(req.profile.role) && isExpiredDate(product.expiration_date)) {
     throw new ApiError('This product is no longer available because it has expired.', 404);
   }
@@ -288,6 +299,10 @@ export async function createProduct(req, res) {
 
   if (mergeTarget) {
     const mergedQuantity = Number(mergeTarget.quantity) + Number(values.quantity);
+    const mergePriceChanged = Number(mergeTarget.price) !== row.price || mergeTarget.unit !== row.unit;
+    const mergedReview = mergeTarget.price_review
+      ? mergePriceChanged ? resubmitPriceReview(values.marketReference, row.price, mergeTarget.price_review, kgPerUnit, row.unit) : mergeTarget.price_review
+      : row.price_review;
     const { data, error } = await supabaseAdmin
       .from('products')
       .update({
@@ -310,10 +325,10 @@ export async function createProduct(req, res) {
         original_price: row.original_price,
         discount_percent: row.discount_percent,
         expiration_date: row.expiration_date,
-        price_review: buildPriceReview(values.marketReference, values.price, mergeTarget.price_review, kgPerUnit),
+        price_review: mergedReview,
 
 
-        status: 'active',
+        status: mergedReview && ['pending', 'needs_adjustment', 'declined'].includes(mergedReview.status) ? mergeTarget.status : 'active',
         updated_at: now,
       })
       .eq('id', mergeTarget.id)
@@ -358,9 +373,16 @@ export async function updateProduct(req, res) {
   if (values.price !== undefined) assertPlausiblePricePerKg('Price', price, kgPerUnit);
   if (values.costPrice !== undefined) assertPlausiblePricePerKg('Cost per unit', costPrice, kgPerUnit);
 
-  const priceReview = values.marketReference !== undefined
+  let priceReview = values.marketReference !== undefined
     ? buildPriceReview(values.marketReference, price, existing.price_review, kgPerUnit)
     : existing.price_review;
+  const priceChanged = price !== Number(existing.price) || unit !== existing.unit
+    || kgPerUnit !== resolveKgPerUnit(existing.unit, existing.kg_per_unit);
+  if (existing.price_review && priceChanged) {
+    priceReview = resubmitPriceReview(values.marketReference, price, existing.price_review, kgPerUnit, unit);
+  } else if (existing.price_review && ['needs_adjustment', 'declined', 'approved'].includes(existing.price_review.status)) {
+    priceReview = existing.price_review;
+  }
 
   const row = {
     name: values.name !== undefined ? titleCaseName(values.name) : existing.name,
@@ -404,12 +426,14 @@ export async function setProductStatus(req, res) {
 
   if (status === 'active') {
     if (Number(existing.quantity) <= 0) throw new ApiError('This product has no remaining stock — add stock before activating it.', 400);
-    if (existing.price_review?.status === 'declined') {
+    if (['declined', 'needs_adjustment'].includes(existing.price_review?.status)) {
       throw new ApiError('DTI declined this price — edit the product with a new price before activating it.', 400);
     }
   }
 
-  const { data, error } = await supabaseAdmin.from('products').update({ status }).eq('id', existing.id).select().single();
+  const statusUpdate = { status };
+  if (existing.price_review?.resumeListingStatus) statusUpdate.price_review = { ...existing.price_review, resumeListingStatus: null };
+  const { data, error } = await supabaseAdmin.from('products').update(statusUpdate).eq('id', existing.id).select().single();
   if (error) throw new ApiError(error.message, 400);
   const [serialized] = await withFarmerNames([data]);
   res.json(serialized);
@@ -433,7 +457,8 @@ export async function applyDiscount(req, res) {
 
   const { data, error } = await supabaseAdmin
     .from('products')
-    .update({ original_price: originalPrice, discount_percent: percent, price: discountedPrice })
+    .update({ original_price: originalPrice, discount_percent: percent, price: discountedPrice,
+      ...(existing.price_review && Number(existing.price) !== discountedPrice ? { price_review: resubmitPriceReview(null, discountedPrice, existing.price_review, resolveKgPerUnit(existing.unit, existing.kg_per_unit), existing.unit) } : {}) })
     .eq('id', existing.id)
     .select()
     .single();
@@ -452,7 +477,8 @@ export async function removeDiscount(req, res) {
 
   const { data, error } = await supabaseAdmin
     .from('products')
-    .update({ price: existing.original_price, original_price: null, discount_percent: null })
+    .update({ price: existing.original_price, original_price: null, discount_percent: null,
+      ...(existing.price_review && Number(existing.price) !== Number(existing.original_price) ? { price_review: resubmitPriceReview(null, existing.original_price, existing.price_review, resolveKgPerUnit(existing.unit, existing.kg_per_unit), existing.unit) } : {}) })
     .eq('id', existing.id)
     .select()
     .single();
@@ -482,7 +508,7 @@ export async function restoreProductQuantity(id, quantity) {
 
   const nextQuantity = Number(product.quantity) + Number(quantity);
   const wasAutoDeactivated = product.status === 'inactive' && Number(product.quantity) === 0;
-  const isDeclined = product.price_review?.status === 'declined';
+  const isDeclined = ['declined', 'needs_adjustment'].includes(product.price_review?.status);
   const shouldReactivate = wasAutoDeactivated && !isDeclined && nextQuantity > 0;
 
   await supabaseAdmin
@@ -498,40 +524,64 @@ export async function getPendingPriceReviews(req, res) {
 }
 
 export async function getDeclinedPriceReviews(req, res) {
-  const { data, error } = await supabaseAdmin.from('products').select('*').eq('price_review->>status', 'declined');
+  const { data, error } = await supabaseAdmin.from('products').select('*').or('price_review->>status.eq.declined,price_review->>status.eq.needs_adjustment');
   if (error) throw new ApiError(error.message, 400);
   res.json(await withFarmerNames(data));
 }
 
 export async function approvePriceReview(req, res) {
   const existing = await fetchProductOr404(req.params.id);
-  if (!existing.price_review) throw new ApiError('This product has no pending price review.', 400);
+  if (existing.price_review?.status !== 'pending') throw new ApiError('This product no longer has a pending price review.', 409);
+  if (req.body?.submittedPrice != null && Number(req.body.submittedPrice) !== Number(existing.price)
+      || req.body?.unit != null && req.body.unit !== existing.unit) throw new ApiError('The submitted price changed. Reload this review.', 409);
 
   const { data, error } = await supabaseAdmin
     .from('products')
-    .update({ price_review: { ...existing.price_review, status: 'approved', decidedAt: new Date().toISOString() } })
+    .update({
+      status: existing.status === 'inactive' && existing.price_review.resumeListingStatus === 'active' && Number(existing.quantity) > 0 ? 'active' : existing.status,
+      price_review: { ...existing.price_review, status: 'approved', approvedPrice: Number(existing.price), reviewUnit: existing.unit,
+        maxAllowedPrice: null, declineReason: null, resumeListingStatus: null,
+        decidedAt: new Date().toISOString(), decidedBy: req.profile.id,
+        previousDecisions: reviewDecisionHistory(existing.price_review) },
+    })
     .eq('id', existing.id)
+    .eq('price_review->>status', 'pending').eq('price', existing.price).eq('unit', existing.unit)
+    .eq('status', existing.status).eq('quantity', existing.quantity)
     .select()
     .single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) throw new ApiError(error.code === 'PGRST116' ? 'This review changed. Reload before deciding.' : error.message, error.code === 'PGRST116' ? 409 : 400);
   const [serialized] = await withFarmerNames([data]);
   res.json(serialized);
 }
 
 export async function declinePriceReview(req, res) {
   const existing = await fetchProductOr404(req.params.id);
-  if (!existing.price_review) throw new ApiError('This product has no pending price review.', 400);
+  if (existing.price_review?.status !== 'pending') throw new ApiError('This product no longer has a pending price review.', 409);
+  const adjustment = req.body?.maxAllowedPrice !== undefined;
+  const maxAllowedPrice = Number(req.body?.maxAllowedPrice);
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (adjustment) {
+    if (!Number.isFinite(maxAllowedPrice) || maxAllowedPrice <= 0) throw new ApiError('Enter a positive maximum acceptable price.', 400);
+    if (!reason || reason.length > 1000) throw new ApiError('Enter a reason of up to 1000 characters.', 400);
+    if (req.body.unit !== existing.unit) throw new ApiError('The maximum price must use the product unit.', 400);
+    assertPlausiblePricePerKg('Maximum acceptable price', maxAllowedPrice, resolveKgPerUnit(existing.unit, existing.kg_per_unit));
+    if (Number(req.body.submittedPrice) !== Number(existing.price)) throw new ApiError('The submitted price changed. Reload this review.', 409);
+  }
 
   const { data, error } = await supabaseAdmin
     .from('products')
     .update({
       status: 'inactive',
-      price_review: { ...existing.price_review, status: 'declined', decidedAt: new Date().toISOString() },
+      price_review: { ...existing.price_review, status: adjustment ? 'needs_adjustment' : 'declined', decidedAt: new Date().toISOString(),
+        decidedBy: req.profile.id, previousDecisions: reviewDecisionHistory(existing.price_review),
+        ...(adjustment ? { maxAllowedPrice, reviewUnit: existing.unit, declineReason: reason, resumeListingStatus: existing.status } : {}) },
     })
     .eq('id', existing.id)
+    .eq('price_review->>status', 'pending').eq('price', existing.price).eq('unit', existing.unit)
+    .eq('status', existing.status).eq('quantity', existing.quantity)
     .select()
     .single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) throw new ApiError(error.code === 'PGRST116' ? 'This review changed. Reload before deciding.' : error.message, error.code === 'PGRST116' ? 409 : 400);
   const [serialized] = await withFarmerNames([data]);
   res.json(serialized);
 }
@@ -545,7 +595,9 @@ export async function reactivatePriceReview(req, res) {
     .from('products')
     .update({
       status: 'active',
-      price_review: { ...existing.price_review, status: 'approved', decidedAt: new Date().toISOString() },
+      price_review: { ...existing.price_review, status: 'approved', decidedAt: new Date().toISOString(),
+        decidedBy: req.profile.id, approvedPrice: Number(existing.price), reviewUnit: existing.unit,
+        previousDecisions: reviewDecisionHistory(existing.price_review) },
     })
     .eq('id', existing.id)
     .select()
