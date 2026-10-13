@@ -97,12 +97,21 @@ export default function MessageBubble({
 
           {showTranslation ? (
             <div className="mt-1.5 border-t border-[var(--line)] pt-1.5">
-              <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                <Globe size={10} /> Translated
+              <p className="flex items-center gap-1 text-[11px] font-medium text-[var(--muted)]">
+                <Globe size={11} /> {translation.sourceLanguage ? `Translated from ${translation.sourceLanguage}` : 'Translated'}
               </p>
               <p className="mt-0.5 text-[13px] italic leading-relaxed text-[var(--muted)]">
                 {translation.loading ? 'Translating…' : translation.error ? 'Translation unavailable.' : translation.text}
               </p>
+              {!translation.loading && !translation.error ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleTranslate(message)}
+                  className="mt-1 border-0 bg-transparent p-0 text-[11px] font-medium text-[var(--green-700)] hover:underline"
+                >
+                  Show original
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -131,7 +140,7 @@ export default function MessageBubble({
               </button>
               {canTranslate ? (
                 <button type="button" onClick={() => { onToggleTranslate(message); setMenuOpen(false); }} className={MENU_ITEM_CLASS}>
-                  <Globe size={14} /> {showTranslation ? 'Hide translation' : 'Translate'}
+                  <Globe size={14} /> {showTranslation ? 'Show original' : 'Translate'}
                 </button>
               ) : null}
               {message.messageType === 'text' ? (

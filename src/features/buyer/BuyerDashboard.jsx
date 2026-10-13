@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Eye, Leaf, MapPin, Search,
+  ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, CreditCard, Eye, Leaf, MapPin, Search,
   Package, Star, Wallet,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -222,6 +222,9 @@ export default function BuyerDashboard() {
   });
   const totalSpend = getTotalRevenue(orders);
   const spendTrend = getReportRevenue(orders, '7d');
+  const onlinePaidOrders = orders.filter((order) => order.paymentMethod === 'gcash' && order.paymentStatus === 'paid');
+  const onlinePaymentTotal = getTotalRevenue(onlinePaidOrders);
+  const onlinePaymentTrend = getReportRevenue(onlinePaidOrders, '7d');
   const sortedNearbyFarmers = sortByRegisteredDistance(nearbyOrigin, verifiedFarmers);
   const nearbyFarmersWithDistance = sortedNearbyFarmers
     .slice(0, NEARBY_FARMERS_LIMIT)
@@ -265,6 +268,17 @@ export default function BuyerDashboard() {
             <BuyerSummaryTrend points={spendTrend} valueKey="revenue" ariaLabel="Paid order spending over the last 7 days" />
             <small>Paid orders</small>
           </Link>
+          <Link
+            className="buyer-summary-item is-online"
+            to="/buyer-orders"
+            state={{ paymentFilter: 'paid', paymentMethodFilter: 'gcash' }}
+            aria-label={`View online GCash payments totaling ${formatCurrency(onlinePaymentTotal)}`}
+          >
+            <span className="buyer-summary-label"><CreditCard size={18} strokeWidth={2} aria-hidden="true" /> Online Payments</span>
+            <strong>{isLoading ? '...' : formatCurrency(onlinePaymentTotal)}</strong>
+            <BuyerSummaryTrend points={onlinePaymentTrend} valueKey="revenue" ariaLabel="Paid GCash spending over the last 7 days" />
+            <small>Paid via GCash</small>
+          </Link>
           <Link className="buyer-summary-item is-orders" to="/buyer-orders" aria-label="View all buyer orders">
             <span className="buyer-summary-label"><ClipboardList size={18} strokeWidth={2} aria-hidden="true" /> My Orders</span>
             <strong>{isLoading ? '...' : orders.length}</strong>
@@ -279,7 +293,6 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><Clock3 size={18} strokeWidth={2} aria-hidden="true" /> Pending</span>
             <strong>{isLoading ? '...' : pendingOrders.length}</strong>
-            <BuyerSummaryTrend points={pendingTrend} valueKey="count" ariaLabel="Pending orders per day over the last 7 days" />
             <small className="buyer-summary-support"><span>{isLoading ? '...' : recentPendingCount} awaiting confirmation</span><span>Needs attention <ArrowRight size={13} aria-hidden="true" /></span></small>
           </Link>
           <Link
@@ -290,7 +303,6 @@ export default function BuyerDashboard() {
           >
             <span className="buyer-summary-label"><CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" /> Completed</span>
             <strong>{isLoading ? '...' : completedOrders.length}</strong>
-            <BuyerSummaryTrend points={completedTrend} valueKey="count" ariaLabel="Completed orders per day over the last 7 days" />
             <small>{isLoading ? '...' : recentCompletedCount} orders received</small>
           </Link>
         </div>

@@ -3,7 +3,7 @@
 }
 
 .buyer-dashboard-page .buyer-overview .buyer-order-summary.buyer-summary-cards {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   overflow: visible;
   border: 0;
@@ -65,6 +65,14 @@
   --summary-icon: #6b7b63;
 }
 
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online {
+  --summary-tint: #f5f8fb;
+  --summary-border: #dfe7ee;
+  --summary-hover-tint: #edf3f8;
+  --summary-hover-border: #d0dce6;
+  --summary-icon: #647f98;
+}
+
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item:hover {
   border-color: var(--summary-hover-border);
   background: var(--summary-hover-background, var(--summary-hover-tint));
@@ -92,9 +100,9 @@
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-label svg {
   flex: none;
-  width: 16px;
-  height: 16px;
-  stroke-width: 1.8;
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.9;
   color: var(--summary-icon);
   opacity: 0.85;
 }
@@ -204,16 +212,22 @@
   font-weight: 500;
 }
 
-@container (max-width: 960px) {
+@container (max-width: 1120px) {
   .buyer-dashboard-page .buyer-overview .buyer-order-summary.buyer-summary-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@container (max-width: 480px) {
+@container (max-width: 680px) {
+  .buyer-dashboard-page .buyer-overview .buyer-order-summary.buyer-summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@container (max-width: 440px) {
   .buyer-dashboard-page .buyer-overview .buyer-order-summary.buyer-summary-cards {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
   }
 }
 
@@ -269,6 +283,16 @@
   --summary-hover-tint: #31382d;
   --summary-hover-border: #515d48;
   --summary-icon: #a8b69c;
+}
+
+[data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online {
+  --summary-background: #252b30;
+  --summary-hover-background: #2b343b;
+  --summary-tint: #242a2f;
+  --summary-border: #374148;
+  --summary-hover-tint: #2b3339;
+  --summary-hover-border: #48555f;
+  --summary-icon: #9badbc;
 }
 
 @media (max-width: 640px) {

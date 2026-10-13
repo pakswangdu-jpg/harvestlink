@@ -25,12 +25,12 @@ export function StartConversationState({ name }) {
 
 export function NoConversationSelectedState() {
   return (
-    <div className="messages-empty-state hidden flex-1 flex-col items-center justify-center gap-3 px-6 text-center md:flex">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--muted)]">
-        <MessagesSquare size={28} strokeWidth={1.5} />
+    <div className="messages-empty-state hidden flex-1 flex-col items-center justify-center gap-2 px-6 text-center md:flex">
+      <span className="mb-1 flex h-10 w-10 items-center justify-center text-[var(--muted)]">
+        <MessagesSquare size={22} strokeWidth={1.6} />
       </span>
-      <h3 className="text-[16px] font-bold text-[var(--text-secondary)]">Your messages</h3>
-      <p className="max-w-xs text-[13px] text-[var(--muted)]">Select a conversation to start chatting.</p>
+      <h3 className="text-[16px] font-semibold text-[var(--text)]">Select a conversation</h3>
+      <p className="max-w-xs text-[13px] leading-relaxed text-[var(--muted)]">Choose a conversation from the left to view your messages.</p>
     </div>
   );
 }

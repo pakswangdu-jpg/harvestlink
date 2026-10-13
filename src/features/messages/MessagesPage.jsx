@@ -18,7 +18,7 @@ import {
   deleteMessage, editMessage, getDirectMessages, getDirectThreads, markDirectThreadRead, sendDirectMessage,
 } from '../../services/messageService';
 import { uploadChatAttachment } from '../../services/uploadService';
-import { translateText } from '../../services/translateService';
+import { MESSAGE_TRANSLATION_LANGUAGES, translateText } from '../../services/translateService';
 import { getInitials } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 
@@ -77,6 +77,9 @@ export default function MessagesPage() {
   const navItems = getNavItemsForRole(currentUser.role);
 
   const [threads, setThreads] = useState([]);
+  const [isLoadingThreads, setIsLoadingThreads] = useState(true);
+  const [threadsUnavailable, setThreadsUnavailable] = useState(false);
+  const [threadRetry, setThreadRetry] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [pinnedKeys, setPinnedKeys] = useState(() => loadPinnedKeys(currentUser.id));
 
@@ -117,6 +120,8 @@ export default function MessagesPage() {
   const activeKey = otherPartyId ? `direct-${otherPartyId}` : null;
 
   const [messages, setMessages] = useState([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messagesUnavailable, setMessagesUnavailable] = useState(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [threadDetail, setThreadDetail] = useState({ key: null, otherParty: null, notFound: false });
@@ -142,8 +147,17 @@ export default function MessagesPage() {
   useEffect(() => {
     let cancelled = false;
     const reload = async () => {
-      const nextThreads = await getDirectThreads();
-      if (!cancelled) setThreads(nextThreads);
+      try {
+        const nextThreads = await getDirectThreads();
+        if (!cancelled) {
+          setThreads(nextThreads);
+          setThreadsUnavailable(false);
+        }
+      } catch {
+        if (!cancelled) setThreadsUnavailable(true);
+      } finally {
+        if (!cancelled) setIsLoadingThreads(false);
+      }
     };
     reload();
     const interval = setInterval(reload, LIST_POLL_MS);
@@ -151,19 +165,21 @@ export default function MessagesPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [threadRetry]);
 
   const combinedThreads = useMemo(() => threads.map((thread) => ({
     key: `direct-${thread.otherUserId}`,
     to: `/messages/direct/${thread.otherUserId}`,
     name: thread.otherUserName,
-    subtitle: null,
+    subtitle: thread.otherUserRole ? `${thread.otherUserVerified ? 'Verified ' : ''}${thread.otherUserRole[0].toUpperCase()}${thread.otherUserRole.slice(1)}` : null,
     avatarUrl: thread.otherUserAvatarUrl,
     lastActiveAt: thread.otherUserLastActiveAt,
     lastMessage: thread.lastMessage,
     lastMessageAt: thread.lastMessage?.createdAt,
     unreadCount: thread.unreadCount,
+    lastOrder: thread.lastOrder,
   })).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()), [threads]);
+  const activeThread = combinedThreads.find((thread) => thread.key === activeKey);
 
   const togglePin = (key) => {
     setPinnedKeys((current) => {
@@ -201,11 +217,24 @@ export default function MessagesPage() {
     isNearBottomRef.current = true;
 
     const reload = async (isFirstLoad) => {
-      const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
-      if (cancelled) return;
-      setMessages((current) => (isFirstLoad ? result.messages : mergeMessages(current, result.messages)));
-      if (isFirstLoad) setHasMoreOlder(result.hasMore);
-      markDirectThreadRead(otherPartyId).catch(() => {});
+      if (isFirstLoad) {
+        setIsLoadingMessages(true);
+        setMessages([]);
+        setHasMoreOlder(false);
+        setMessagesUnavailable(false);
+      }
+      try {
+        const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
+        if (cancelled) return;
+        setMessages((current) => (isFirstLoad ? result.messages : mergeMessages(current, result.messages)));
+        if (isFirstLoad) setHasMoreOlder(result.hasMore);
+        setMessagesUnavailable(false);
+        markDirectThreadRead(otherPartyId).catch(() => {});
+      } catch {
+        if (!cancelled) setMessagesUnavailable(true);
+      } finally {
+        if (isFirstLoad && !cancelled) setIsLoadingMessages(false);
+      }
     };
 
     reload(true);
@@ -294,10 +323,11 @@ export default function MessagesPage() {
     }
     setTranslations((previous) => ({ ...previous, [message.id]: { visible: true, loading: true, lang: targetLang } }));
     const result = await translateText(message.text, targetLang);
+    const sourceLanguage = MESSAGE_TRANSLATION_LANGUAGES.find((language) => language.value === result?.detectedSourceLang)?.label.split(' (')[0] || null;
     setTranslations((previous) => ({
       ...previous,
       [message.id]: result
-        ? { visible: true, loading: false, lang: targetLang, text: result.translated }
+        ? { visible: true, loading: false, lang: targetLang, text: result.translated, sourceLanguage }
         : { visible: true, loading: false, lang: targetLang, error: true },
     }));
   };
@@ -329,6 +359,9 @@ export default function MessagesPage() {
           pinnedKeys={pinnedKeys}
           onTogglePin={togglePin}
           isHiddenOnMobile={hasActiveThread}
+          isLoading={isLoadingThreads}
+          unavailable={threadsUnavailable}
+          onRetry={() => { setIsLoadingThreads(true); setThreadRetry((value) => value + 1); }}
         />
 
         <div className={`messages-chat-panel flex min-w-0 flex-1 flex-col ${hasActiveThread ? 'flex' : 'hidden md:flex'}`}>
@@ -346,11 +379,18 @@ export default function MessagesPage() {
                 targetLang={targetLang}
                 onTargetLangChange={setTargetLang}
               />
-              <OrderContextCard order={pinnedOrder} />
+              <OrderContextCard order={pinnedOrder || activeThread?.lastOrder} />
 
               <div ref={messageListRef} onScroll={handleScroll} className="messages-message-list flex-1 space-y-2 overflow-y-auto px-4 py-4">
+                {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">Reconnecting…</p> : null}
                 {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
-                {!messages.length ? (
+                {isLoadingMessages && !messages.length ? (
+                  <div className="flex h-full items-center justify-center gap-2 text-[13px] text-[var(--muted)]">
+                    <Loader2 size={16} className="animate-spin" /> Loading messages…
+                  </div>
+                ) : messagesUnavailable && !messages.length ? (
+                  <p className="py-8 text-center text-[13px] text-[var(--muted)]">Couldn’t load messages. Reconnecting…</p>
+                ) : !messages.length ? (
                   <StartConversationState name={otherPartyName} />
                 ) : (
                   messages.map((message, index) => {
