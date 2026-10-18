@@ -1,0 +1,32 @@
+.farmer-dashboard-page .farmer-dashboard-donation-requests {
+  container-type: inline-size;
+  min-width: 0;
+  min-height: 0;
+  align-self: start;
+}
+
+.farmer-dashboard-page .farmer-dashboard-donation-requests .section-heading {
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 12px;
+}
+
+.farmer-dashboard-page .farmer-dashboard-donation-requests .section-heading > div { min-width: 0; }
+.farmer-dashboard-page .farmer-dashboard-donation-requests h2 { overflow-wrap: anywhere; }
+.farmer-dashboard-page .farmer-dashboard-donation-requests .section-heading > a { min-height: 44px; max-width: 100%; white-space: normal; }
+.farmer-dashboard-page .farmer-dashboard-donation-table table { width: 100%; min-width: 0; table-layout: fixed; }
+.farmer-dashboard-page .farmer-dashboard-donation-table th,
+.farmer-dashboard-page .farmer-dashboard-donation-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.farmer-dashboard-page .farmer-dashboard-donation-table .table-cell-value { min-width: 0; }
+.farmer-dashboard-page .farmer-dashboard-donation-table .badge { max-width: 100%; white-space: normal; }
+
+@container (max-width: 560px) {
+  .farmer-dashboard-page .farmer-dashboard-donation-table { overflow: visible; }
+  .farmer-dashboard-page .farmer-dashboard-donation-table table,
+  .farmer-dashboard-page .farmer-dashboard-donation-table tbody { display: block; width: 100%; height: auto; }
+  .farmer-dashboard-page .farmer-dashboard-donation-table colgroup { display: none; }
+  .farmer-dashboard-page .farmer-dashboard-donation-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .farmer-dashboard-page .farmer-dashboard-donation-table tr { display: grid; grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .farmer-dashboard-page .farmer-dashboard-donation-table td { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 12px; height: auto; min-height: 0; padding: 6px 0; border: 0; }
+  .farmer-dashboard-page .farmer-dashboard-donation-table td::before { content: attr(data-label); color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+}

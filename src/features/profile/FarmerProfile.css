@@ -1,0 +1,50 @@
+.app-shell .profile-page.farmer-profile-page {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.app-shell .profile-page.farmer-profile-page .content-grid.two { align-items: start; gap: 20px; }
+.app-shell .profile-page.farmer-profile-page .content-grid.two > .panel { min-width: 0; min-height: 0; }
+.app-shell .profile-page.farmer-profile-page .section-heading { flex-wrap: wrap; gap: 12px; }
+.app-shell .profile-page.farmer-profile-page .section-heading h2 { font-size: 20px; font-weight: 600; line-height: 1.35; }
+.app-shell .profile-page.farmer-profile-page .section-heading .eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.app-shell .profile-page.farmer-profile-page .profile-identity-text { min-width: 0; }
+.app-shell .profile-page.farmer-profile-page .profile-identity-text h2 { font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
+.app-shell .profile-page.farmer-profile-page .profile-contact-row { flex-wrap: wrap; }
+.app-shell .profile-page.farmer-profile-page .profile-email { white-space: normal; overflow-wrap: anywhere; }
+.app-shell .profile-page.farmer-profile-page .profile-summary-item strong { white-space: normal; overflow-wrap: anywhere; font-weight: 500; }
+.app-shell .profile-page.farmer-profile-page .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.app-shell .profile-page.farmer-profile-page .farmer-profile-details { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.app-shell .profile-page.farmer-profile-page .info-row { min-width: 0; align-items: start; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.app-shell .profile-page.farmer-profile-page .info-row > div { min-width: 0; }
+.app-shell .profile-page.farmer-profile-page .info-row small { font-size: 12px; font-weight: 400; line-height: 1.5; letter-spacing: 0; text-transform: none; }
+.app-shell .profile-page.farmer-profile-page .info-row strong { font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
+.app-shell .profile-page.farmer-profile-page .profile-file-card { background: var(--soft); border: 1px solid var(--line); }
+.app-shell .profile-page.farmer-profile-page .btn { min-height: 44px; white-space: normal; font-size: 13px; font-weight: 500; }
+.app-shell .profile-page.farmer-profile-page .form-stack :is(input, select) { min-height: 44px; min-width: 0; max-width: 100%; }
+.app-shell .profile-page.farmer-profile-page .gcash-settings-grid { grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); gap: 24px; }
+.app-shell .profile-page.farmer-profile-page .gcash-details-form,
+.app-shell .profile-page.farmer-profile-page .gcash-details-list { max-width: none; }
+.app-shell .profile-page.farmer-profile-page .gcash-details-list dt { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.app-shell .profile-page.farmer-profile-page .gcash-details-list dd { font-size: 14px; font-weight: 500; line-height: 1.5; }
+.app-shell .profile-page.farmer-profile-page .gcash-qr-section { padding-left: 24px; border-left: 1px solid var(--line); }
+.app-shell .profile-page.farmer-profile-page .gcash-subsection-heading p { font-size: 13px; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .app-shell .profile-page.farmer-profile-page .content-grid.two { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
+
+@media (max-width: 640px) {
+  .app-shell .profile-page.farmer-profile-page .profile-identity,
+  .app-shell .profile-page.farmer-profile-page .profile-identity-main { flex-direction: column; align-items: flex-start; }
+  .app-shell .profile-page.farmer-profile-page .profile-identity-main { flex-basis: auto; }
+  .app-shell .profile-page.farmer-profile-page .profile-identity-text { width: 100%; padding-top: 0; text-align: left; }
+  .app-shell .profile-page.farmer-profile-page .profile-contact-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .app-shell .profile-page.farmer-profile-page .info-grid,
+  .app-shell .profile-page.farmer-profile-page .form-grid,
+  .app-shell .profile-page.farmer-profile-page .gcash-settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .profile-page.farmer-profile-page .gcash-qr-section { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+}

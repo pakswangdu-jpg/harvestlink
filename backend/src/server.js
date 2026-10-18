@@ -4,6 +4,8 @@ import app from './app.js';
 import { setupOrderTrackingSocket } from './realtime/orderTracking.js';
 import { setupChatSocket } from './realtime/chatPresence.js';
 import { getAllowedOrigins } from './lib/appUrls.js';
+import { startInactivitySuspensionJob } from './lib/accountInactivity.js';
+import { invalidateAuthCacheForUser } from './middleware/requireAuth.js';
 
 const port = process.env.PORT || 4000;
 
@@ -61,7 +63,15 @@ async function tryListen(startPort, attempts = 5) {
   throw new Error(`Unable to bind to a port starting at ${startPort} after ${attempts} attempts.`);
 }
 
-tryListen(port).catch((err) => {
+tryListen(port).then(() => {
+  const stopInactivityJob = startInactivitySuspensionJob({ onSuspended: (userId) => {
+    invalidateAuthCacheForUser(userId);
+    for (const socket of io.sockets.sockets.values()) {
+      if (socket.data.userId === userId) socket.disconnect(true);
+    }
+  } });
+  httpServer.once('close', stopInactivityJob);
+}).catch((err) => {
 
 
   console.error('Failed to start server:', err);

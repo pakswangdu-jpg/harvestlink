@@ -4,7 +4,7 @@ import { ApiError } from './ApiError.js';
 
 export function checkAccountError(error) {
   if (!error) return;
-  if (['PGRST202', 'PGRST205', '42P01', '42883'].includes(error.code)) throw new ApiError('Account management history is not configured. Apply the admin account migration.', 503);
+  if (['PGRST202', 'PGRST205', '42P01', '42883', '42703'].includes(error.code)) throw new ApiError('Account management is not configured. Apply the Admin account history and inactive-account migrations.', 503);
   throw new ApiError(error.message || 'Unable to load users. Try again.', ({ '42501': 403, P0002: 404, '23514': 409, '22023': 400 })[error.code] || 500);
 }
 export async function getAdminUserPage(req, res) {
@@ -12,7 +12,7 @@ export async function getAdminUserPage(req, res) {
   const { page: rawPage, role, verificationStatus, accountStatus, from, to } = req.query;
   const page = Number(rawPage);
   if (!Number.isSafeInteger(page) || page < 1 || page > 100000) throw new ApiError('Invalid users page.', 400);
-  let query = supabaseAdmin.from('profiles').select('id,role,name,email,farm_name,organization_name,verification_status,account_status,created_at', { count: 'exact' });
+  let query = supabaseAdmin.from('profiles').select('id,role,name,email,farm_name,organization_name,verification_status,account_status,created_at,last_active_at,inactivity_suspended_at', { count: 'exact' });
   for (const [value, field, allowed] of [[role, 'role', ['farmer','buyer','stakeholder','admin']], [verificationStatus, 'verification_status', ['pending','verified','rejected','not_required']], [accountStatus, 'account_status', ['active','suspended']]]) {
     if (!value) continue;
     if (!allowed.includes(value)) throw new ApiError('Invalid user filter.', 400);

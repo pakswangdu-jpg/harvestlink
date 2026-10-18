@@ -1855,59 +1855,80 @@ a.lp-contact-card:hover {
 
 
 
-  padding: 20px 8px;
-  border-right: 1px solid var(--line);
-  background: var(--sidebar-bg);
+  padding: 16px 10px 14px;
+  border-right: 1px solid #e3e8e5;
+  background: #fafbfa;
   display: flex;
   flex-direction: column;
-
-
-
   gap: 0;
-
   overflow: hidden;
   overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+  box-shadow: none;
+  --sidebar-text: #243028;
+  --sidebar-text-muted: #607367;
+  --sidebar-hover-bg: #f0f4f1;
+  --sidebar-hover-text: #16201a;
+  --sidebar-active-bg: #edf5f0;
+  --sidebar-active-text: #14532d;
+  --sidebar-active-icon: var(--green-700, #17763d);
+  --sidebar-indicator: var(--green-700, #17763d);
+  --text: #243028;
+  --icon-muted: #607367;
+  --muted: #718277;
 }
-
-
-
-
-
-
-
-
-
-.sidebar {
-  --text: #000000;
-  --icon-muted: #000000;
-  --muted: #000000;
-}
-
-
 
 [data-theme="dark"] .sidebar {
-  --text: #ffffff;
-  --icon-muted: #ffffff;
-  --muted: #ffffff;
+  background: #141d18;
+  border-right-color: rgba(120, 150, 130, 0.18);
+  --sidebar-text: #e4eee7;
+  --sidebar-text-muted: #8fa095;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-hover-text: #ffffff;
+  --sidebar-active-bg: rgba(46, 125, 78, 0.18);
+  --sidebar-active-text: #a4e0b5;
+  --sidebar-active-icon: #4ade80;
+  --sidebar-indicator: #34d399;
+  --text: #e4eee7;
+  --icon-muted: #8fa095;
+  --muted: #8fa095;
 }
 
 .sidebar-logout {
-  position: static;
-  flex: 0 0 40px;
-  margin-top: 4px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 42px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
 }
+
+.sidebar-logout:hover:not(:disabled) { background: var(--soft); }
+.sidebar-logout:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+.sidebar-logout:disabled { cursor: wait; opacity: 0.6; }
+.sidebar-logout.is-collapsed { justify-content: center; padding-inline: 0; }
 
 .sidebar-general {
   flex: 0 0 auto;
-  margin-top: 12px;
 }
 
 .sidebar-footer {
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
   min-width: 0;
+  margin-top: auto;
+  padding-top: 12px;
 }
 
 .sidebar-footer .sidebar-general {
@@ -1916,8 +1937,7 @@ a.lp-contact-card:hover {
 
 .sidebar-account {
   min-width: 0;
-  margin-top: 4px;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
@@ -16523,6 +16543,7 @@ td {
   line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .marketplace-page .product-card-meta {
@@ -24093,30 +24114,67 @@ button,
 .registered-location-notice a { display: inline-flex; align-items: center; min-height: 44px; color: var(--green-700); font-weight: 600; text-decoration: underline; }
 .map-legend > span:has(.legend-dot) { display: inline-flex; align-items: center; white-space: nowrap; }
 
+.farmer-dashboard-page .panel:has(.farmer-activity-table) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.farmer-dashboard-page .panel:has(.farmer-activity-table) .section-heading { flex-wrap: wrap; gap: 12px; }
+.farmer-dashboard-page .panel:has(.farmer-activity-table) h2 { font-size: 20px; font-weight: 600; line-height: 1.35; }
+.farmer-dashboard-page .panel:has(.farmer-activity-table) .eyebrow { font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.farmer-dashboard-page .panel:has(.farmer-activity-table) .section-heading .btn { font-size: 13px; font-weight: 500; }
+
 .farmer-activity-table table {
+  width: 100%;
   min-width: 0;
+  table-layout: fixed;
 }
 
 .farmer-activity-table th,
 .farmer-activity-table td {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  font-family: inherit;
+  letter-spacing: 0;
 }
+
+.farmer-dashboard-page .farmer-activity-table :is(th, td, .table-cell-value, .payment-method-label, .badge.badge-status) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+.farmer-dashboard-page .farmer-activity-table th { font-size: 11px; font-weight: 500; line-height: 1.5; text-transform: none; }
+.farmer-dashboard-page .farmer-activity-table td { padding: 14px 8px; font-size: 13px; font-weight: 400; line-height: 1.5; }
 
 .farmer-activity-table .table-cell-value {
   display: block;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .farmer-activity-table .payment-method-label,
 .farmer-activity-table .badge {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
   vertical-align: middle;
+}
+
+.farmer-activity-table .payment-method-label { font-size: inherit; font-weight: 400; }
+.farmer-activity-table .badge.badge-status {
+  min-height: 24px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: capitalize;
 }
 
 @media (max-width: 600px) {
@@ -24147,7 +24205,7 @@ button,
 
   .farmer-activity-table tbody tr {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 10px 12px;
     height: auto;
     padding: 12px;
@@ -24159,12 +24217,12 @@ button,
   .farmer-activity-table tbody td,
   .farmer-activity-table tbody td.table-cell-truncate {
     display: grid;
-    grid-template-columns: minmax(48px, auto) minmax(0, 1fr);
+    grid-template-columns: 70px minmax(0, 1fr);
     align-items: center;
     gap: 8px;
     max-width: none;
     padding: 0;
-    overflow: hidden;
+    overflow: visible;
     border: 0;
     text-align: left;
     white-space: normal;
@@ -24173,10 +24231,10 @@ button,
   .farmer-activity-table tbody td::before {
     content: attr(data-label);
     color: var(--muted);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .farmer-activity-table .table-cell-value {

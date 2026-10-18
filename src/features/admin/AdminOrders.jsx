@@ -13,6 +13,7 @@ import { deliveryMethodLabel, deliveryStepLabel, formatCurrency, formatDate, for
 import { adminNavItems } from './adminNav';
 import { ORDER_STATUSES, DELIVERY_STAGES, orderLabel, adminOrderId, progressLabel, paymentState, verificationState } from './adminOrderPresentation';
 import './AdminOrders.css';
+import { isOfficialLalamoveTrackingUrl } from '../../../backend/shared/lalamove';
 
 const EMPTY_FILTERS = { page: 1, search: '', status: '', deliveryStatus: '', paymentMethod: '', paymentStatus: '', deliveryMethod: '', from: '', to: '' };
 const OVERVIEW = [['all', 'All orders'], ['pending', 'Pending'], ['confirmed', 'Confirmed'], ['preparing', 'Preparing'], ['out_for_delivery', 'Out for delivery'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['rejected', 'Rejected']];
@@ -87,8 +88,10 @@ function OrderDetails({ id, onClose }) {
             <DetailFields fields={[
               ['Courier', record.delivery.courierCompany], ['Courier status', courierDeliveryStatusLabel(record.delivery.deliveryStatus)], ['Booking reference', record.delivery.bookingReference],
               ['Booking created', stamp(record.delivery.createdAt)], ['Courier record updated', stamp(record.delivery.updatedAt)],
+              ['Driver', record.delivery.driverName], ['Vehicle plate', record.delivery.vehiclePlate], ['Handed to courier', stamp(record.delivery.handedOverAt)],
             ]} />
-            {record.delivery.trackingUrl ? <a className="admin-order-link" href={record.delivery.trackingUrl} target="_blank" rel="noreferrer">Open tracking page <ExternalLink size={14} /></a> : null}
+            <p className="admin-order-secondary">Tracking provided by Lalamove</p>
+            {isOfficialLalamoveTrackingUrl(record.delivery.trackingUrl) ? <a className="admin-order-link" href={record.delivery.trackingUrl.trim()} target="_blank" rel="noopener noreferrer">Track with Lalamove <ExternalLink size={14} /></a> : null}
           </> : null}
         </section>
         {['cancelled', 'rejected'].includes(order.status) ? <section><h3>{orderLabel(order.status)}</h3><DetailFields fields={[

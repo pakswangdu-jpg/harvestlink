@@ -1,11 +1,6 @@
 import { apiClient } from './apiClient';
 import { parseAnnualMetricCsv, postPxwebQueryOnce } from '../utils/pxwebCsv';
 
-
-
-
-
-
 const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
@@ -13,24 +8,10 @@ const TABLE_MIN_YEAR = 2010;
 const CACHE_PREFIX = 'harvestlink_psa_price_';
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 5000;
-
-
-
-
 const OVERRIDES_CACHE_TTL_MS = 60 * 1000;
 
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
 export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
-
-
-
-
-
-
-
-
-
-
 
 
 export const MARKET_COMMODITIES = [

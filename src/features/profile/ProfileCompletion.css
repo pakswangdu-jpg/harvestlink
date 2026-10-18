@@ -1,0 +1,26 @@
+.profile-page .profile-completion-details {
+  min-width: 0;
+  margin-bottom: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+.profile-page .profile-completion { display: flex; align-items: center; gap: 16px; padding: 4px 0 20px; border-bottom: 1px solid var(--line); }
+.profile-page .profile-completion > div:last-child { min-width: 0; }
+.profile-page .profile-completion h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.profile-page .profile-completion p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.profile-page .profile-completion-ring { position: relative; display: grid; place-items: center; flex: 0 0 80px; width: 80px; height: 80px; }
+.profile-page .profile-completion-ring > svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke-width: 6px; }
+.profile-page .profile-completion-track { stroke: var(--line); }
+.profile-page .profile-completion-progress { stroke: var(--green-600); stroke-linecap: round; }
+.profile-page .profile-completion-ring > span { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--text); }
+.profile-page .profile-completion-ring strong { font-size: 16px; font-weight: 600; line-height: 1.2; }
+.profile-page .profile-completion-ring > span > svg { color: var(--green-600); }
+.profile-page .profile-completion-checklist { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+.profile-page .profile-completion-checklist li { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--text-secondary); font-size: 14px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
+.profile-page .profile-completion-checklist li:last-child { border-bottom: 0; }
+.profile-page .profile-completion-checklist li > svg { flex: none; color: var(--muted); }
+.profile-page .profile-completion-checklist li.done > svg { color: var(--green-600); }
+
+@media (max-width: 900px) {
+  .app-shell .profile-page > .content-grid.two:has(.profile-completion-details) { grid-template-columns: minmax(0, 1fr); }
+}

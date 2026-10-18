@@ -33,7 +33,19 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
           <p className={`truncate text-[14px] ${thread.unreadCount ? 'font-bold text-[var(--text)]' : 'font-semibold text-[var(--text)]'}`}>
             {thread.name}
           </p>
-          <span className="shrink-0 text-[11px] text-[var(--muted)]">{formatRelativeTime(thread.lastMessageAt)}</span>
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="text-[11px] text-[var(--muted)]">{formatRelativeTime(thread.lastMessageAt)}</span>
+            <button
+              type="button"
+              onClick={(event) => { event.preventDefault(); onTogglePin(thread.key); }}
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-0 bg-transparent p-0 text-[var(--muted)] transition-colors duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--green-700)] ${isPinned ? 'text-[var(--green-700)]' : ''}`}
+              title={isPinned ? 'Unpin' : 'Pin conversation'}
+              aria-label={isPinned ? `Unpin ${thread.name}` : `Pin ${thread.name}`}
+              aria-pressed={isPinned}
+            >
+              <Pin size={13} className={isPinned ? 'fill-[var(--green-700)]' : ''} />
+            </button>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-[11px] text-[var(--muted)]">
@@ -53,15 +65,6 @@ function ConversationRow({ thread, isActive, isPinned, onTogglePin }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={(event) => { event.preventDefault(); onTogglePin(thread.key); }}
-        className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--muted)] opacity-0 transition-opacity duration-150 hover:bg-[var(--soft)] hover:text-[var(--green-700)] group-hover:opacity-100 ${isPinned ? 'opacity-100 text-[var(--green-700)]' : ''}`}
-        title={isPinned ? 'Unpin' : 'Pin conversation'}
-        aria-label={isPinned ? `Unpin ${thread.name}` : `Pin ${thread.name}`}
-      >
-        <Pin size={13} className={isPinned ? 'fill-[var(--green-700)]' : ''} />
-      </button>
     </Link>
   );
 }
@@ -132,7 +135,7 @@ export default function ConversationList({
             {unavailable ? <p className="messages-inline-status px-3 pb-2 text-[11px] text-[var(--muted)]">Reconnecting…</p> : null}
             {pinned.length ? (
               <div className="mb-1">
-                <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Pinned</p>
+                <p className="px-3 py-1 text-[11px] font-medium text-[var(--muted)]">Pinned</p>
                 <div className="flex flex-col gap-0.5">
                   {pinned.map((thread) => (
                     <motion.div key={thread.key} layout>

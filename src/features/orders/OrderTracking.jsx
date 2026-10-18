@@ -80,6 +80,8 @@ export default function OrderTracking() {
   const [loadedId, setLoadedId] = useState(null);
   const [trackingProfiles, setTrackingProfiles] = useState(null);
   const [delivery, setDelivery] = useState(null);
+  const [courierLoad, setCourierLoad] = useState(null);
+  const [courierRetry, setCourierRetry] = useState(0);
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
   const [existingRating, setExistingRating] = useState(null);
@@ -147,7 +149,7 @@ export default function OrderTracking() {
           buyerId: order.buyerId,
           farmer,
           buyer,
-          error: hasRegisteredLocations
+          error: order.deliveryMethod === 'courier' || hasRegisteredLocations
             ? ''
             : 'Saved Farmer and Buyer profile coordinates are required for delivery tracking.',
         });
@@ -158,14 +160,14 @@ export default function OrderTracking() {
             orderId: order.id,
             farmerId: order.farmerId,
             buyerId: order.buyerId,
-            error: profileError.message || 'Could not load the saved delivery locations.',
+            error: order.deliveryMethod === 'courier' ? '' : profileError.message || 'Could not load the saved delivery locations.',
           });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [order?.id, order?.farmerId, order?.buyerId]);
+  }, [order?.id, order?.farmerId, order?.buyerId, order?.deliveryMethod]);
 
 
 
@@ -192,7 +194,13 @@ export default function OrderTracking() {
     if (!needsDeliveryLookup) return undefined;
     let cancelled = false;
     const poll = () => {
-      getDelivery(order.id).then((result) => { if (!cancelled) setDelivery(result); }).catch(() => {});
+      getDelivery(order.id).then((result) => {
+        if (cancelled) return;
+        setDelivery(result);
+        setCourierLoad({ orderId: order.id, error: '' });
+      }).catch(() => {
+        if (!cancelled) setCourierLoad({ orderId: order.id, error: 'Could not load courier details. Please try again.' });
+      });
     };
     poll();
     const interval = setInterval(poll, 4000);
@@ -200,7 +208,7 @@ export default function OrderTracking() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [needsDeliveryLookup, order?.id]);
+  }, [needsDeliveryLookup, order?.id, courierRetry]);
 
 
 
@@ -211,7 +219,7 @@ export default function OrderTracking() {
   useEffect(() => {
     if (
       (!isBuyer && !isFarmer)
-      || order.deliveryMethod === 'buyer_pickup'
+      || order.deliveryMethod !== 'farmer_delivery'
       || order.deliveryStatus !== 'out_for_delivery'
       || autoOpenedTrackingOrderRef.current === order.id
     ) return;
@@ -358,7 +366,9 @@ export default function OrderTracking() {
 
 
 
-  const canBookCourier = isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery' && !isFinalNextStep;
+  const canBookCourier = isFarmer && isCourier && order.status === 'confirmed' && nextStep === 'out_for_delivery'
+    && (order.paymentMethod === 'cod' || order.paymentStatus === 'paid');
+  const currentDelivery = delivery?.orderId === order.id ? delivery : null;
 
 
 
@@ -410,6 +420,7 @@ export default function OrderTracking() {
             </div>
           </div>
           <div className="ot-header-statuses" role="group" aria-label="Delivery and payment status">
+            {isCourier ? <div className="ot-header-status-item"><span className="ot-header-status-label">Order</span><div className="ot-header-status-value"><StatusBadge value={order.status} type="orderStatus" /></div></div> : null}
             <div className="ot-header-status-item">
               <span className="ot-header-status-label">Delivery</span>
               <div className="ot-header-status-value">
@@ -435,7 +446,8 @@ export default function OrderTracking() {
                 <p className="ot-section-subtitle">Track the current order status</p>
               </div>
               <div className="ot-progress-heading-actions">
-                {isTrackable ? (
+                {isTrackable && isCourier ? <a className="ot-view-tracking-btn" href="#courier-delivery"><Truck size={15} aria-hidden="true" /> Courier details</a> : null}
+                {isTrackable && !isCourier ? (
                   <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
                     <Map size={15} aria-hidden="true" /> View live tracking
                   </button>
@@ -443,7 +455,7 @@ export default function OrderTracking() {
               </div>
             </div>
             {isCourier ? (
-              <CourierDeliveryTimeline order={order} delivery={delivery} isFarmer={isFarmer} onDeliveryUpdate={setDelivery} />
+              <CourierDeliveryTimeline order={order} delivery={currentDelivery} />
             ) : <OrderTracker order={order} isFarmer={isFarmer} showSummary={false} />}
           </div>
 
@@ -656,7 +668,36 @@ export default function OrderTracking() {
 
 
                                                                                          }
-        <DeliveryTrackingOverlay
+        {isTrackable && isCourier ? (
+          <DeliveryInfoCard
+            key={order.id}
+            order={order}
+            delivery={currentDelivery}
+            farmerProfile={farmerProfile}
+            buyerProfile={buyerProfile}
+            isFarmer={isFarmer}
+            canBook={canBookCourier}
+            loading={courierLoad?.orderId !== order.id}
+            error={courierLoad?.orderId === order.id ? courierLoad.error : ''}
+            onRetry={() => setCourierRetry((value) => value + 1)}
+            onBooked={(result) => {
+              if (result.order) setOrder((previous) => previous?.id === result.order.id ? {
+                ...previous,
+                deliveryStatus: result.order.deliveryStatus,
+                transitStartedAt: result.order.transitStartedAt,
+                updatedAt: result.order.updatedAt,
+              } : previous);
+              setDelivery(result.delivery);
+              setCourierLoad({ orderId: order.id, error: '' });
+              setError('');
+              setNotice(result.order?.deliveryStatus === 'out_for_delivery'
+                ? 'Handover confirmed. Your order is out for delivery.'
+                : result.order ? 'Lalamove booking saved. Awaiting handover.' : 'Courier details updated.');
+            }}
+          />
+        ) : null}
+
+        {!isCourier ? <DeliveryTrackingOverlay
           open={isTrackingOpen}
           onClose={() => setIsTrackingOpen(false)}
           title={isPickup ? 'Pickup tracking' : 'Delivery tracking'}
@@ -701,23 +742,6 @@ export default function OrderTracking() {
           ) : null}
         >
 
-        {isTrackable && isCourier ? (
-          <DeliveryInfoCard
-            order={order}
-            delivery={delivery}
-            isFarmer={isFarmer}
-            canBook={canBookCourier}
-            onBooked={(result) => {
-              if (result.order) setOrder(result.order);
-              setDelivery(result.delivery);
-              setError('');
-              setNotice(result.order
-                ? '✓ Delivery successfully linked with Lalamove.'
-                : 'Delivery information updated.');
-            }}
-          />
-        ) : null}
-
         {isTrackable ? (
           <section className="ot-map-panel" aria-label={trackingRouteTitle}>
             <div className="ot-route-header"><h2>Order locations</h2></div>
@@ -730,13 +754,6 @@ export default function OrderTracking() {
                   : 'ETA unavailable'}
               </span>
             </div>
-            {isCourier ? (
-              <p className="muted ot-map-note">
-                This shows the road route between the farm and buyer addresses on file — for your courier&apos;s actual live
-                position, use Track Delivery above.
-              </p>
-            ) : null}
-
             <LiveDeliveryMap
               navigationEnabled={isTrackingOpen}
               canChooseAlternative={isFarmer && !isPickup && !isCourier}
@@ -756,7 +773,7 @@ export default function OrderTracking() {
             />
           </section>
         ) : null}
-        </DeliveryTrackingOverlay>
+        </DeliveryTrackingOverlay> : null}
 
         <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
       </div>

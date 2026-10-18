@@ -54,6 +54,7 @@
     zip_code text,
     municipality text,
     account_status text not null default 'active' check (account_status in ('active','suspended')),
+    inactivity_suspended_at timestamptz,
     -- Shared by every role (farmer/buyer/stakeholder) — a public-bucket URL, same shape as
     -- products.image_url. Nullable: falls back to initials (see getInitials) until set.
     avatar_url text,
@@ -434,6 +435,8 @@ notify pgrst, 'reload schema';
     driver_name text,
     driver_phone text,
     vehicle_type text,
+    vehicle_plate_number text,
+    handed_over_at timestamptz,
     booking_reference text,
     tracking_url text,
     -- Free text ("35 minutes", "Around 3:30 PM") rather than a timestamp — this is whatever

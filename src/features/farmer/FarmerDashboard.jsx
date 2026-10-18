@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import './FarmerDonationRequests.css';
+import './FarmerRecentListings.css';
 import { CalendarDays, CheckCircle2, ChevronRight, Clock3, Gift, Hourglass, MessageCircle, Package } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -266,7 +268,7 @@ export default function FarmerDashboard() {
       </section>
 
       <section className="content-grid two">
-        <div className="panel">
+        <div className="panel farmer-recent-listings">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Map</p>
@@ -302,11 +304,13 @@ export default function FarmerDashboard() {
           </div>
           {products.length ? (
             <DataTable
+              className="farmer-recent-listings-table"
+              responsiveLabels
               columns={[
-                { key: 'name', label: 'Product' },
-                { key: 'quantity', label: 'Available', render: (row) => `${row.quantity} ${row.unit}` },
-                { key: 'price', label: 'Price', render: (row) => `${formatCurrency(row.price)} / ${row.unit}` },
-                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+                { key: 'name', label: 'Product', width: '30%' },
+                { key: 'quantity', label: 'Available', width: '18%', align: 'right', render: (row) => `${row.quantity} ${row.unit}` },
+                { key: 'price', label: 'Price', width: '28%', align: 'right', render: (row) => `${formatCurrency(row.price)} / ${row.unit}` },
+                { key: 'status', label: 'Status', width: '24%', render: (row) => <StatusBadge value={row.status} /> },
               ]}
               rows={products.slice(0, 5)}
               emptyMessage="No products yet."
@@ -335,10 +339,10 @@ export default function FarmerDashboard() {
             className="farmer-activity-table"
             responsiveLabels
             columns={[
-              { key: 'buyerName', label: 'Buyer', truncate: true },
-              { key: 'productName', label: 'Product', width: '17%', truncate: true },
+              { key: 'buyerName', label: 'Buyer', width: '26%' },
+              { key: 'productName', label: 'Product', width: '18%' },
               { key: 'paymentMethod', label: 'Payment', width: '22%', render: (row) => <PaymentMethodLabel method={row.paymentMethod} /> },
-              { key: 'status', label: 'Status', width: '16%', render: (row) => <StatusBadge value={row.status} /> },
+              { key: 'status', label: 'Status', width: '18%', render: (row) => <StatusBadge value={row.status} /> },
               {
                 key: 'createdAt',
                 label: 'Date',
@@ -354,7 +358,7 @@ export default function FarmerDashboard() {
       </section>
 
       <section className="content-grid two farmer-dashboard-bottom-grid">
-      <div className="panel">
+      <div className="panel farmer-dashboard-donation-requests">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Surplus</p>
@@ -366,11 +370,13 @@ export default function FarmerDashboard() {
         </div>
         {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : pendingDonationRequests.length ? (
           <DataTable
+            className="farmer-dashboard-donation-table"
+            responsiveLabels
             columns={[
-              { key: 'productName', label: 'Product' },
-              { key: 'quantity', label: 'Quantity', render: (row) => `${row.quantity} ${row.unit}` },
-              { key: 'requestedByName', label: 'Requested by' },
-              { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} type="donation" /> },
+              { key: 'productName', label: 'Product', width: '24%' },
+              { key: 'quantity', label: 'Quantity', width: '16%', render: (row) => `${row.quantity} ${row.unit}` },
+              { key: 'requestedByName', label: 'Requested by', width: '38%' },
+              { key: 'status', label: 'Status', width: '22%', render: (row) => <StatusBadge value={row.status} type="donation" /> },
             ]}
             rows={pendingDonationRequests}
             emptyMessage="No pending donation requests."

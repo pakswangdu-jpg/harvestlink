@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { createNotification } from '../lib/notify.js';
 import { haversineKm, resolveDeliveryDestination } from '../lib/geo.js';
 import { accumulateTripTelemetry } from '../lib/tripTelemetry.js';
+import { assertAccountActive } from '../lib/accountInactivity.js';
 
 
 
@@ -39,10 +40,11 @@ async function verifyOrderParty(token, orderId) {
 
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('id, account_status')
+    .select('id, role, account_status, last_active_at, created_at, inactivity_suspended_at')
     .eq('id', userData.user.id)
     .single();
-  if (!profile || profile.account_status === 'suspended') return null;
+  if (!profile) return null;
+  try { await assertAccountActive(profile); } catch { return null; }
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')

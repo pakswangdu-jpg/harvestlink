@@ -26,6 +26,7 @@
 .admin-user-link { display: inline-flex; align-items: center; gap: 5px; padding: 0; min-height: 36px; border: 0; background: transparent; color: var(--green-700); font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer; }
 .admin-user-link:hover { text-decoration: underline; }
 .admin-user-state { font-size: 13px; }
+.admin-user-inactivity-note { display: block; margin-top: 3px; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
 .admin-user-state.is-pending { color: var(--amber-700); }
 .admin-user-state.is-verified { color: var(--green-700); }
 .admin-user-state.is-rejected, .admin-user-deactivated { color: var(--red-700); }

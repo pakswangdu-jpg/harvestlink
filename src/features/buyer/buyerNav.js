@@ -18,10 +18,10 @@ const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 
 export const buyerNavItems = [
   { to: '/buyer-dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
-  { to: '/buyer-orders', label: 'My orders', icon: OrdersNavIcon, bottomIcon: Package, group: 'Orders' },
+  { to: '/buyer-orders', label: 'My orders', icon: Package, bottomIcon: Package, group: 'Orders' },
   { to: '/messages', label: 'Messages', icon: MessagesNavIcon, bottomIcon: MessageSquare, group: 'Orders' },
-  { to: '/marketplace', label: 'Browse Produce', icon: MarketplaceNavIcon, bottomIcon: Store, group: 'Market' },
-  { to: '/farmer-map', label: 'Nearby', icon: NearbyNavIcon, bottomIcon: MapPin, group: 'Market' },
+  { to: '/marketplace', label: 'Browse Produce', icon: Store, bottomIcon: Store, group: 'Market' },
+  { to: '/farmer-map', label: 'Nearby', icon: MapPin, bottomIcon: MapPin, group: 'Market' },
   { to: '/market-insights', label: 'Market Insights', icon: TrendingUp, group: 'Market' },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ];

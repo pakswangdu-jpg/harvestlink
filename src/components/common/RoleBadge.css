@@ -1,0 +1,32 @@
+.account-role-badge[data-role] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--role-badge-border);
+  border-radius: 9999px;
+  background: var(--role-badge-surface);
+  color: var(--role-badge-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
+.account-role-badge[data-role] svg { flex: none; width: 12px; height: 12px; }
+.account-role-badge[data-role='admin'] { --role-badge-surface: #faf3dc; --role-badge-border: #dfc984; --role-badge-text: #76571b; }
+.account-role-badge[data-role='buyer'] { --role-badge-surface: #f4f0e9; --role-badge-border: #ddd4c6; --role-badge-text: #5d554a; }
+.account-role-badge[data-role='farmer'] { --role-badge-surface: #edf6ef; --role-badge-border: #bfd9c5; --role-badge-text: #326044; }
+.account-role-badge[data-role='stakeholder'] { --role-badge-surface: #f2eef8; --role-badge-border: #d6c9e6; --role-badge-text: #695084; }
+
+[data-theme='dark'] .account-role-badge[data-role='admin'] { --role-badge-surface: #383123; --role-badge-border: #625332; --role-badge-text: #e2ca87; }
+[data-theme='dark'] .account-role-badge[data-role='buyer'] { --role-badge-surface: #322f29; --role-badge-border: #514a3e; --role-badge-text: #d4c9b7; }
+[data-theme='dark'] .account-role-badge[data-role='farmer'] { --role-badge-surface: #25392d; --role-badge-border: #405d49; --role-badge-text: #a5ceaf; }
+[data-theme='dark'] .account-role-badge[data-role='stakeholder'] { --role-badge-surface: #322c3e; --role-badge-border: #554764; --role-badge-text: #c9b6df; }

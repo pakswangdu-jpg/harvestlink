@@ -1,6 +1,7 @@
 import { CircleCheck, Clock3, Shield } from 'lucide-react';
 import { getInitials } from '../../utils/formatters';
 import './SidebarUserCard.css';
+import '../common/RoleBadge.css';
 
 export default function SidebarUserCard({ user, isCollapsed = false }) {
   const isVerifiedFarmer = user.role === 'farmer' && user.verificationStatus === 'verified';
@@ -31,7 +32,7 @@ export default function SidebarUserCard({ user, isCollapsed = false }) {
       {!isCollapsed ? (
         <span className="sidebar-user-details">
           <span className="sidebar-user-name block truncate text-[13px] font-semibold text-[var(--text)]">{user.name}</span>
-          <span className={`sidebar-user-role flex items-center gap-1 text-[11.5px] text-[var(--muted)]${isVerifiedFarmer ? ' sidebar-user-role-verified' : ''}`} title={subtitle}>
+          <span className="account-role-badge" data-role={user.role} title={subtitle}>
             {isAdmin ? <Shield size={12} className="sidebar-admin-role-icon shrink-0" aria-hidden="true" />
               : isVerifiedFarmer ? <CircleCheck size={12} className="shrink-0" aria-hidden="true" />
                 : isPending ? <Clock3 size={12} className="shrink-0" aria-hidden="true" /> : null}

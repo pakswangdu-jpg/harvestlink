@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import '../../components/common/RoleBadge.css';
 import { Lock, ShieldCheck } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
@@ -65,7 +66,7 @@ export default function AdminProfile() {
         <div>
           <h2>{user.name}</h2>
           <p>{user.email}</p>
-          <p className="admin-profile-role">Administrator <span aria-hidden="true">/</span> <span className={user.accountStatus === 'active' ? 'admin-profile-active' : ''}>{accountStatus}</span></p>
+          <p className="admin-profile-role"><span className="account-role-badge" data-role="admin">Administrator</span> <span aria-hidden="true">/</span> <span className={user.accountStatus === 'active' ? 'admin-profile-active' : ''}>{accountStatus}</span></p>
         </div>
       </section>
 
