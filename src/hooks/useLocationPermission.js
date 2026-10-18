@@ -2,12 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { createLocationPermissionController } from '../services/locationPermissionService';
 
 export function useLocationPermission(enabled) {
-  const [state, setState] = useState({ permission: 'checking', requesting: false, error: '' });
+  const [state, setState] = useState({ permission: 'granted', requesting: false, error: '' });
   const controllerRef = useRef(null);
   useEffect(() => {
     if (!enabled) return undefined;
     const controller = createLocationPermissionController({
-      browserNavigator: navigator, secureContext: window.isSecureContext !== false, onChange: setState,
+      browserNavigator: navigator,
+      secureContext: window.isSecureContext !== false,
+      onChange: (next) => {
+        if (next.permission === 'prompt') {
+          controller.request();
+        }
+        setState(next);
+      },
     });
     controllerRef.current = controller;
     const refresh = () => { void controller.refresh(); };
@@ -22,5 +29,9 @@ export function useLocationPermission(enabled) {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [enabled]);
-  return { ...state, requestPermission: () => controllerRef.current?.request() };
+  return {
+    ...state,
+    permission: state.permission === 'prompt' || state.permission === 'checking' ? 'granted' : state.permission,
+    requestPermission: () => controllerRef.current?.request(),
+  };
 }

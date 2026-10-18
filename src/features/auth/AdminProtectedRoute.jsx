@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, CircleX, ShieldAlert } from 'lucide-react';
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { apiClient } from '../../services/apiClient';
@@ -8,12 +8,39 @@ import { ADMIN_ENTRY_PATH } from '../../utils/authDestination';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
 import './AdminProtectedRoute.css';
 
-function AccessScreen({ title, message, retry, accountDenied = false, backTo = '/', backLabel = 'Back to HarvestLink' }) {
-  return <main className={`admin-access-screen${accountDenied ? ' admin-account-denied' : ''}`}><div>
-    {accountDenied ? <ShieldAlert className="admin-account-denied-icon" size={26} strokeWidth={1.8} aria-hidden="true" /> : null}
-    <h1>{title}</h1><p role={accountDenied ? 'alert' : 'status'}>{message}</p>
-    <div className="admin-access-actions">{retry ? <button type="button" onClick={retry}>Try again</button> : null}<Link to={backTo}>{accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}{backLabel}</Link></div>
-  </div></main>;
+function AccessScreen({
+  title = 'Access Denied',
+  message = "You don't have permission to access this page. Check your account access or return to your dashboard.",
+  retry,
+  accountDenied = false,
+  backTo = '/',
+  backLabel = 'Return to dashboard',
+  errorCode = accountDenied && !String(title).includes('404') ? 403 : null,
+}) {
+  const Icon = typeof CircleX !== 'undefined' ? CircleX : ShieldAlert;
+  return (
+    <main className={`admin-access-screen${accountDenied ? ' admin-account-denied' : ''}`}>
+      <div>
+        {accountDenied ? (
+          <div className="admin-access-icon-wrap" aria-hidden="true">
+            <Icon className="admin-account-denied-icon" size={28} strokeWidth={2} />
+          </div>
+        ) : null}
+        <h1>{title}</h1>
+        <div className="admin-access-copy">
+          <p role={accountDenied ? 'alert' : 'status'}>{message}</p>
+          {errorCode ? <p className="admin-access-error-code">Error code: {errorCode}</p> : null}
+        </div>
+        <div className="admin-access-actions">
+          {retry ? <button type="button" onClick={retry}>Try again</button> : null}
+          <Link to={backTo}>
+            {accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}
+            {backLabel}
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 function AdminNetworkGate({ userId, pathname, entry = false }) {
