@@ -214,10 +214,10 @@ export function paymentVerificationStatusLabel(value) {
 }
 
 const COURIER_DELIVERY_STATUS_LABELS = {
-  booked: 'Booked',
+  booked: 'Courier booked',
   assigning_driver: 'Finding a Driver',
   driver_assigned: 'Driver Assigned',
-  waiting_for_pickup: 'Waiting for Pickup',
+  waiting_for_pickup: 'Awaiting handover',
   picked_up: 'Picked Up',
   out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',

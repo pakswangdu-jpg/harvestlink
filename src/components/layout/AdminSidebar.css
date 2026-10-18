@@ -28,7 +28,7 @@
 }
 
 .app-shell.role-admin .sidebar .brand { gap: 11px; }
-.app-shell.role-admin .sidebar .brand-mark { width: 34px; height: 34px; flex: 0 0 34px; }
+.app-shell.role-admin .sidebar .brand-mark { width: 30px; height: 30px; flex: 0 0 30px; }
 .app-shell.role-admin .sidebar .brand > span:last-child { min-width: 0; }
 .app-shell.role-admin .sidebar .brand strong { display: block; color: #34423a; font-family: var(--font-ui); font-size: 18px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; }
 [data-theme='dark'] .app-shell.role-admin .sidebar .brand strong { color: #e5ebe7; }

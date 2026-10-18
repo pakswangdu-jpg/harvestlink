@@ -16,7 +16,7 @@ import './AdminUsers.css';
 const BASE = { page: 1, role: '', verificationStatus: '', accountStatus: '', search: '', from: '', to: '' };
 const TABS = [['all','All'],['farmer','Farmers'],['buyer','Buyers'],['stakeholder','Stakeholders'],['pending','Pending verification']];
 const verificationLabel = (user) => ['buyer','admin'].includes(user.role) ? 'Not required' : ({ pending: 'Pending verification', verified: 'Verified', rejected: 'Rejected' })[user.verificationStatus] || 'Not recorded';
-const accountLabel = (user) => user.accountStatus === 'suspended' ? 'Deactivated' : 'Active';
+const accountLabel = (user) => user.accountStatus === 'suspended' ? user.inactivitySuspendedAt ? 'Suspended' : 'Deactivated' : 'Active';
 const actionNotice = (action, name) => `${({ verified: 'Verification approved', rejected: 'Verification rejected', suspended: 'Account deactivated', active: 'Account reactivated' })[action]} for ${name}.`;
 const stamp = (value) => value ? `${formatDate(value)}, ${formatTime(value)}` : 'Not recorded';
 const ACTIONS = {
@@ -25,7 +25,7 @@ const ACTIONS = {
   suspended: ['Deactivate this account?', 'This user will no longer be able to use normal HarvestLink marketplace features. Existing orders and account history will remain available.', 'Deactivate account'],
   active: ['Reactivate this account?', 'The original account will be restored to Active. Existing verification and transaction history will remain unchanged.', 'Reactivate account'],
 };
-const eventLabel = (value) => ({ USER_VERIFIED: 'Account verified', USER_VERIFICATION_REJECTED: 'Verification rejected', USER_DEACTIVATED: 'Account deactivated', USER_REACTIVATED: 'Account reactivated' })[value] || value;
+const eventLabel = (value) => ({ USER_VERIFIED: 'Account verified', USER_VERIFICATION_REJECTED: 'Verification rejected', USER_DEACTIVATED: 'Account deactivated', USER_REACTIVATED: 'Account reactivated', USER_AUTO_SUSPENDED: 'Automatically suspended for inactivity' })[value] || value;
 function Fields({ values }) { return <dl className="admin-user-fields">{values.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? 'Not recorded'}</dd></div>)}</dl>; }
 
 function UserDetails({ id, adminId, onClose, onChanged }) {
@@ -71,7 +71,8 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
         <section><h3>Account information</h3><Fields values={[
           ['Full name', user.name], ['Email', user.email], ['Role', user.role], ['Account status', accountLabel(user)],
           ['Verification status', verificationLabel(user)], ['Registered', stamp(user.createdAt)],
-          ...(user.lastActiveAt ? [['Last active', stamp(user.lastActiveAt)]] : []),
+          ['Last active', user.lastActiveAt ? stamp(user.lastActiveAt) : 'No recorded activity'],
+          ...(user.inactivitySuspendedAt ? [['Suspension reason', 'Six months of inactivity'], ['Suspended', stamp(user.inactivitySuspendedAt)]] : []),
         ]} /></section>
         <section><h3>{user.role === 'farmer' ? 'Farmer information' : user.role === 'stakeholder' ? 'Organization information' : user.role === 'buyer' ? 'Buyer information' : 'Admin information'}</h3><Fields values={[
           ...(user.role === 'farmer' ? [['Farm name', user.farmName]] : []),
@@ -83,7 +84,7 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
         {['farmer','stakeholder'].includes(user.role) ? <section><h3>Verification document</h3><DocumentCard label={user.role === 'farmer' ? 'Proof of certification / government ID' : 'Proof of accreditation'} file={user.role === 'farmer' ? user.govIdFile : user.accreditationFile} resolveUrl={async () => { const urls = await getVerificationDocuments(user.id); return user.role === 'farmer' ? urls.govIdFile : urls.accreditationFile; }} /></section> : null}
         {['farmer','stakeholder'].includes(user.role) && ['pending','rejected'].includes(user.verificationStatus) ? <section><h3>Verification review</h3><div className="admin-user-actions"><Button disabled={!accountManagementAvailable} onClick={() => chooseAction('verified')}><Check size={14} /> Verify account</Button>{user.verificationStatus === 'pending' ? <Button variant="danger" disabled={!accountManagementAvailable} onClick={() => chooseAction('rejected')}><X size={14} /> Reject</Button> : null}</div></section> : null}
         <section><h3>Account actions</h3>{!accountManagementAvailable ? <p className="admin-user-secondary">Account changes are unavailable until account history is configured.</p> : null}{user.id === adminId ? <p className="admin-user-secondary">Your current admin account cannot be deactivated here.</p> : <Button disabled={!accountManagementAvailable} variant={user.accountStatus === 'suspended' ? 'primary' : 'danger'} onClick={() => chooseAction(user.accountStatus === 'suspended' ? 'active' : 'suspended')}>{user.accountStatus === 'suspended' ? <RotateCcw size={14} /> : <Ban size={14} />}{user.accountStatus === 'suspended' ? 'Reactivate account' : 'Deactivate account'}</Button>}</section>
-        <section><h3>Account history</h3><ol className="admin-user-history"><li><strong>Registered</strong><time>{stamp(user.createdAt)}</time></li>{data.history.map((entry) => <li key={entry.id}><strong>{eventLabel(entry.action)}</strong><time>{stamp(entry.occurred_at)}</time><span>Admin ID: {entry.admin_id}</span>{entry.reason ? <p>{entry.reason}</p> : null}</li>)}</ol>{data.historyAvailable === false ? <p className="form-alert warning" role="status">Account history is not configured. Apply the admin account history migration to enable audited account changes.</p> : !data.history.length ? <p className="admin-user-secondary">No recorded admin actions. Earlier account changes were not historically logged.</p> : null}{data.historyAvailable !== false ? <Pagination page={historyPage} pageSize={10} total={data.historyTotal} onPageChange={setHistoryPage} /> : null}</section>
+        <section><h3>Account history</h3><ol className="admin-user-history"><li><strong>Registered</strong><time>{stamp(user.createdAt)}</time></li>{data.history.map((entry) => <li key={entry.id}><strong>{eventLabel(entry.action)}</strong><time>{stamp(entry.occurred_at)}</time><span>{entry.action === 'USER_AUTO_SUSPENDED' ? 'System' : `Admin ID: ${entry.admin_id}`}</span>{entry.reason ? <p>{entry.reason}</p> : null}</li>)}</ol>{data.historyAvailable === false ? <p className="form-alert warning" role="status">Account history is not configured. Apply the admin account history migration to enable audited account changes.</p> : !data.history.length ? <p className="admin-user-secondary">No recorded account actions. Earlier account changes were not historically logged.</p> : null}{data.historyAvailable !== false ? <Pagination page={historyPage} pageSize={10} total={data.historyTotal} onPageChange={setHistoryPage} /> : null}</section>
       </>}
       <dialog ref={dialog} className="admin-user-confirm" aria-labelledby="admin-user-confirm-title" onCancel={(event) => { event.preventDefault(); if (!submitting.current) setAction(null); }}>
         <form onSubmit={submit}><h3 id="admin-user-confirm-title">{action ? ACTIONS[action][0] : ''}</h3><p>{action ? ACTIONS[action][1] : ''}</p>
@@ -120,13 +121,14 @@ export default function AdminUsers() {
   const empty = filters.verificationStatus === 'pending' && !filters.search ? 'No accounts waiting for verification' : hasFilters ? 'No users match these filters' : 'No users found';
   return <AppShell user={currentUser} navItems={adminNavItems} title="Users" hideHeader><div className="admin-users-page">
     <PageHeader title="Users" description="Registered farmer, buyer, and stakeholder accounts." />
+    <p className="admin-user-secondary">Inactivity policy: automatic suspension after six months. Admin accounts are exempt.</p>
     <nav className="admin-user-tabs" aria-label="User categories">{TABS.map(([key,label]) => <button type="button" key={key} aria-pressed={key === 'pending' ? filters.verificationStatus === 'pending' : key === 'all' ? !filters.role && !filters.verificationStatus : filters.role === key} onClick={() => { setLoading(true); setFilters({ ...BASE, role: ['all','pending'].includes(key) ? '' : key, verificationStatus: key === 'pending' ? 'pending' : '' }); }}>{label}<span>{result?.counts?.[key] ?? '--'}</span></button>)}</nav>
     <div className="admin-user-toolbar">
       <label className="admin-user-search"><span>Search users</span><div><Search size={16} /><input type="search" maxLength={120} placeholder="Name, email, farm or organization" value={filters.search} onChange={(event) => change('search', event.target.value)} /></div></label>
       {[
         ['role','Role',[['farmer','Farmer'],['buyer','Buyer'],['stakeholder','Stakeholder'],['admin','Admin']]],
         ['verificationStatus','Verification',[['not_required','Not required'],['pending','Pending verification'],['verified','Verified'],['rejected','Rejected']]],
-        ['accountStatus','Account status',[['active','Active'],['suspended','Deactivated']]],
+        ['accountStatus','Account status',[['active','Active'],['suspended','Suspended / deactivated']]],
       ].map(([key,label,options]) => <label key={key}><span>{label}</span><select value={filters[key]} onChange={(event) => change(key,event.target.value)}><option value="">All</option>{options.map(([value,text]) => <option key={value} value={value}>{text}</option>)}</select></label>)}
       <label><span>Joined from</span><input type="date" value={filters.from} max={filters.to || undefined} onChange={(event) => change('from',event.target.value)} /></label><label><span>Joined to</span><input type="date" value={filters.to} min={filters.from || undefined} onChange={(event) => change('to',event.target.value)} /></label>
     </div>
@@ -139,7 +141,7 @@ export default function AdminUsers() {
     {result && !loading && !error ? <><div className="admin-user-table"><Table columns={[
       { key:'name',label:'Name',render:(user) => <strong>{user.name}</strong> }, { key:'email',label:'Email' }, { key:'role',label:'Role' },
       { key:'verificationStatus',label:'Verification',render:(user) => <span className={`admin-user-state is-${user.verificationStatus}`}>{verificationLabel(user)}</span> },
-      { key:'accountStatus',label:'Account',render:(user) => <span className={user.accountStatus === 'suspended' ? 'admin-user-deactivated' : ''}>{accountLabel(user)}</span> },
+      { key:'accountStatus',label:'Account',render:(user) => <div><span className={user.accountStatus === 'suspended' ? 'admin-user-deactivated' : ''}>{accountLabel(user)}</span>{user.inactivitySuspendedAt ? <small className="admin-user-inactivity-note">Six months inactive</small> : null}</div> },
       { key:'createdAt',label:'Created',render:(user) => formatDate(user.createdAt) },
       { key:'action',label:'Action',render:(user) => <button className="admin-user-link" type="button" onClick={() => setSelectedId(user.id)} aria-label={`View details for ${user.name}`}>View details <ArrowRight size={14} /></button> },
     ]} rows={result.users} emptyMessage={empty} /></div><Pagination page={filters.page} pageSize={10} total={result.total} onPageChange={(page) => { setLoading(true); setFilters((old) => ({ ...old,page })); }} /></> : null}

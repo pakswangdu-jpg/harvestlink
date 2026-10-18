@@ -1,177 +1,90 @@
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Truck, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import Button from '../common/Button';
 import FormField from '../common/FormField';
+import CourierDialog from './CourierDialog';
 import { bookDelivery, updateDelivery } from '../../services/deliveryService';
+import { isOfficialLalamoveTrackingUrl, LALAMOVE_BOOKING_URL } from '../../../backend/shared/lalamove';
 
-const VEHICLE_TYPES = ['Motorcycle', 'Car', 'MPV / Van', 'Truck'];
-const BOOKING_REFERENCE_MAX_LENGTH = 100;
-
-function buildInitialForm(delivery) {
-  return {
-    driverName: delivery?.driverName || '',
-    vehicleType: delivery?.vehicleType || '',
-    bookingReference: delivery?.bookingReference || '',
-    trackingUrl: delivery?.trackingUrl || '',
-    estimatedArrival: delivery?.estimatedArrival || '',
-  };
-}
-
-
-
-
-
-
-
-export default function LinkLalamoveDeliveryDialog({ order, delivery, mode = 'book', onClose, onSaved }) {
-  const [form, setForm] = useState(() => buildInitialForm(delivery));
+export default function LinkLalamoveDeliveryDialog({ order, delivery, farmerProfile, buyerProfile, mode = 'book', onClose, onSaved }) {
+  const [form, setForm] = useState({
+    driverName: delivery?.driverName || '', vehiclePlate: delivery?.vehiclePlate || '',
+    bookingReference: delivery?.bookingReference || '', trackingUrl: delivery?.trackingUrl || '',
+  });
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const updateField = (field) => (event) => {
     setForm((previous) => ({ ...previous, [field]: event.target.value }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
   };
-
-  const validate = () => {
-    const nextErrors = {};
-    const trackingUrl = form.trackingUrl.trim();
-    if (!trackingUrl) {
-      nextErrors.trackingUrl = 'Enter the Lalamove tracking link.';
-    } else if (!trackingUrl.startsWith('https://')) {
-      nextErrors.trackingUrl = 'Tracking URL must begin with https://.';
-    }
-    if (form.bookingReference.trim().length > BOOKING_REFERENCE_MAX_LENGTH) {
-      nextErrors.bookingReference = `Booking reference must be ${BOOKING_REFERENCE_MAX_LENGTH} characters or fewer.`;
-    }
-    return nextErrors;
-  };
-
   const handleSave = async (event) => {
     event.preventDefault();
-    const nextErrors = validate();
+    if (inFlight.current) return;
+    const nextErrors = {};
+    if (!form.bookingReference.trim()) nextErrors.bookingReference = 'Enter the Lalamove booking number.';
+    if (!isOfficialLalamoveTrackingUrl(form.trackingUrl)) nextErrors.trackingUrl = 'Enter the official HTTPS Lalamove tracking/share link.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-
-    setIsSubmitting(true);
+    inFlight.current = true;
+    setBusy(true);
     setSubmitError('');
     try {
-      const payload = {
-        driverName: form.driverName,
-        vehicleType: form.vehicleType,
-        bookingReference: form.bookingReference,
-        trackingUrl: form.trackingUrl,
-        estimatedArrival: form.estimatedArrival,
-      };
       const result = mode === 'edit'
-        ? { delivery: await updateDelivery(order.id, payload) }
-        : await bookDelivery(order.id, payload);
+        ? { delivery: await updateDelivery(order.id, form) }
+        : await bookDelivery(order.id, form);
       onSaved?.(result);
     } catch (error) {
-      setSubmitError(error.message || 'Could not save delivery information.');
+      setSubmitError(error.message || 'Could not save courier details.');
     } finally {
-      setIsSubmitting(false);
+      inFlight.current = false;
+      setBusy(false);
     }
   };
-
   return (
-    <AnimatePresence>
-      <motion.div
-        className="tracking-modal-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
-        <motion.div
-          className="tracking-modal delivery-link-modal"
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.98 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <div className="tracking-modal-header">
-            <div>
-              <p className="eyebrow">Courier</p>
-              <h2>{mode === 'edit' ? 'Edit Delivery Information' : 'Complete Delivery Information'}</h2>
-            </div>
-            <button type="button" className="tracking-modal-close" onClick={onClose} aria-label="Close">
-              <X size={18} />
-            </button>
+    <CourierDialog title={mode === 'edit' ? 'Edit Lalamove details' : 'Lalamove delivery'} busy={busy} onClose={onClose}>
+      <div className="lalamove-addresses">
+        <div><span>Pickup</span><strong>{farmerProfile?.farmName || order.farmerFarmName || order.farmerName}</strong>
+          <p>{farmerProfile?.address || order.originMunicipality || 'Pickup address unavailable'}</p>
+          {!farmerProfile?.address ? <p className="lalamove-booking-note">Confirm the full pickup address in Lalamove before booking.</p> : null}</div>
+        <div><span>Deliver to</span><strong>{order.buyerName}</strong>
+          <p>{buyerProfile?.address || order.deliveryMunicipality || 'Delivery address unavailable'}</p>
+          {!buyerProfile?.address ? <p className="lalamove-booking-note">Confirm the full delivery address in Lalamove before booking.</p> : null}</div>
+      </div>
+      {mode === 'book' ? <>
+        <ol className="lalamove-instructions">
+          <li>Book this delivery using Lalamove.</li>
+          <li>Copy the official tracking/share link.</li>
+          <li>Return to HarvestLink and save the booking details.</li>
+        </ol>
+        <a className="btn btn-secondary btn-md" href={LALAMOVE_BOOKING_URL} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> Open Lalamove</a>
+      </> : null}
+      <form className="form-stack lalamove-booking-form" onSubmit={handleSave}>
+        {submitError ? <div className="form-alert error" role="alert">{submitError}</div> : null}
+        <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} className="form-stack">
+          <FormField label="Booking number *" name="bookingReference" error={errors.bookingReference}>
+            <input id="bookingReference" value={form.bookingReference} onChange={updateField('bookingReference')} maxLength={100} required />
+          </FormField>
+          <FormField label="Official tracking link *" name="trackingUrl" error={errors.trackingUrl}>
+            <input id="trackingUrl" type="url" value={form.trackingUrl} onChange={updateField('trackingUrl')}
+              placeholder="https://share.lalamove.com/..." maxLength={2048} required />
+          </FormField>
+          <div className="form-grid">
+            <FormField label="Driver name" name="driverName" helper="Optional">
+              <input id="driverName" value={form.driverName} onChange={updateField('driverName')} maxLength={120} />
+            </FormField>
+            <FormField label="Vehicle plate" name="vehiclePlate" helper="Optional">
+              <input id="vehiclePlate" value={form.vehiclePlate} onChange={updateField('vehiclePlate')} maxLength={15} pattern="[A-Za-z0-9 \-]+" />
+            </FormField>
           </div>
-
-          <p className="muted delivery-link-description">
-            {mode === 'edit'
-              ? 'Update the delivery details below — buyers see these changes immediately.'
-              : 'After completing your booking on the Lalamove website, enter the delivery details below so buyers can track the shipment.'}
-          </p>
-
-          {submitError ? <div className="form-alert error">{submitError}</div> : null}
-
-          <form className="form-stack" onSubmit={handleSave}>
-            <div className="form-field">
-              <span>Courier</span>
-              <div className="delivery-link-courier-fixed"><Truck size={15} /> Lalamove</div>
-            </div>
-
-            <FormField
-              label="Tracking URL"
-              name="trackingUrl"
-              error={errors.trackingUrl}
-              helper="Paste the official Lalamove tracking link — this is what the buyer opens to follow the rider."
-            >
-              <input
-                id="trackingUrl"
-                value={form.trackingUrl}
-                onChange={updateField('trackingUrl')}
-                placeholder="https://track.lalamove.com/..."
-              />
-            </FormField>
-
-            <FormField label="Booking reference" name="bookingReference" error={errors.bookingReference} helper="Optional">
-              <input
-                id="bookingReference"
-                value={form.bookingReference}
-                onChange={updateField('bookingReference')}
-                maxLength={BOOKING_REFERENCE_MAX_LENGTH}
-              />
-            </FormField>
-
-            <div className="form-grid">
-              <FormField label="Driver name" name="driverName" helper="Optional">
-                <input id="driverName" value={form.driverName} onChange={updateField('driverName')} placeholder="Juan Dela Cruz" />
-              </FormField>
-              <FormField label="Vehicle" name="vehicleType" helper="Optional">
-                <select id="vehicleType" value={form.vehicleType} onChange={updateField('vehicleType')}>
-                  <option value="">Not specified</option>
-                  {VEHICLE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                </select>
-              </FormField>
-            </div>
-
-            <FormField label="Estimated pickup time" name="estimatedArrival" helper="Optional">
-              <input
-                id="estimatedArrival"
-                value={form.estimatedArrival}
-                onChange={updateField('estimatedArrival')}
-                placeholder="Around 3:30 PM"
-              />
-            </FormField>
-
-            <div className="form-actions">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving…' : 'Link Delivery'}
-              </Button>
-              <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </fieldset>
+        <p className="lalamove-booking-note">Saving a booking does not start delivery. Confirm handover only after giving the order to the courier.</p>
+        <div className="lalamove-actions">
+          <Button type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save courier details'}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>Cancel</Button>
+        </div>
+      </form>
+    </CourierDialog>
   );
 }

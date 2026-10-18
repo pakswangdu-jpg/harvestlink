@@ -1,0 +1,186 @@
+.lalamove-delivery,
+dialog.lalamove-dialog {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.lalamove-delivery.panel {
+  container: courier / inline-size;
+  padding: 20px;
+  box-shadow: none;
+  min-width: 0;
+}
+
+.lalamove-delivery h2,
+dialog.lalamove-dialog h2 {
+  margin: 0;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.lalamove-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.lalamove-heading p,
+.lalamove-tracking-note,
+.lalamove-booking-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.lalamove-state {
+  display: inline-flex;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--soft);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.lalamove-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 24px;
+  margin: 0 0 16px;
+}
+
+.lalamove-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+  align-items: start;
+  gap: 24px;
+}
+
+.lalamove-content > .lalamove-actions {
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 0;
+}
+
+@container courier (max-width: 640px) {
+  .lalamove-content { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
+
+.lalamove-details dt,
+.lalamove-addresses span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.lalamove-details dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.lalamove-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.app-shell .lalamove-delivery .btn,
+dialog.lalamove-dialog .btn {
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+dialog.lalamove-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(560px, calc(100vw - 32px));
+  min-width: 0;
+  height: fit-content;
+  min-height: 0;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 20px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+dialog.lalamove-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+dialog.lalamove-dialog[open] { display: block; }
+
+.lalamove-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.lalamove-dialog-heading button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.lalamove-dialog :focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+
+.lalamove-addresses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lalamove-addresses strong { display: block; font-weight: 500; margin-top: 4px; }
+.lalamove-addresses p { margin: 4px 0 0; }
+.lalamove-addresses > div { min-width: 0; overflow-wrap: anywhere; }
+.lalamove-instructions { margin: 0 0 12px; padding-left: 20px; }
+.lalamove-instructions li + li { margin-top: 4px; }
+.lalamove-booking-form { margin-top: 20px; }
+.lalamove-booking-form .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lalamove-booking-form .form-field { min-width: 0; font-weight: 400; }
+.lalamove-booking-form input { width: 100%; min-width: 0; min-height: 44px; font-family: inherit; font-size: 16px; font-weight: 400; letter-spacing: 0; }
+.lalamove-booking-form .form-field > span { font-weight: 500; }
+
+@media (max-width: 560px) {
+  .lalamove-delivery.panel { padding: 16px; }
+  .lalamove-actions { flex-direction: column; align-items: stretch; }
+  .lalamove-actions .btn { width: 100%; }
+  .lalamove-addresses,
+  .lalamove-details,
+  .lalamove-booking-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+  dialog.lalamove-dialog { padding: 16px; }
+}

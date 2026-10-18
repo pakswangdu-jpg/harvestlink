@@ -136,13 +136,13 @@ export default function AppShell({
         </div>
 
         <div className="sidebar-scroll">
-          <nav aria-label="Primary" className="flex flex-col gap-3.5">
+          <nav aria-label="Primary" className="sidebar-nav-list">
             {menuGroups.map((group) => (
-              <div key={group.label}>
+              <div key={group.label} className="sidebar-nav-group">
                 {!isSidebarCollapsed ? (
-                  <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{group.label}</p>
+                  <p className="sidebar-section-label">{group.label}</p>
                 ) : null}
-                <motion.div className="flex flex-col gap-1" variants={navListVariants} initial="hidden" animate="show">
+                <motion.div className="sidebar-nav-items" variants={navListVariants} initial="hidden" animate="show">
                   {group.items.map((item) => (
                     <SidebarNavItem
                       key={item.to}
@@ -160,36 +160,35 @@ export default function AppShell({
         </div>
 
         <div className="sidebar-footer">
-          <div className="sidebar-general flex flex-col gap-1">
+          <div className="sidebar-general">
             {!isSidebarCollapsed ? (
-              <p className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">{user.role === 'admin' ? 'Account' : 'General'}</p>
+              <p className="sidebar-section-label">{user.role === 'admin' ? 'Account' : 'General'}</p>
             ) : null}
-            {profileItem ? (
-              <SidebarNavItem to={profileItem.to} label={user.role === 'admin' ? 'Profile' : 'Settings'} icon={user.role === 'admin' ? profileItem.icon : Settings} isCollapsed={isSidebarCollapsed} />
+            {user.role === 'admin' ? (
+              <div className="admin-sidebar-theme-control">
+                <ThemeToggle compact showLabel={!isSidebarCollapsed} />
+              </div>
             ) : null}
+            <div className="sidebar-nav-items">
+              {profileItem ? (
+                <SidebarNavItem to={profileItem.to} label={user.role === 'admin' ? 'Profile' : 'Settings'} icon={user.role === 'admin' ? profileItem.icon : Settings} isCollapsed={isSidebarCollapsed} />
+              ) : null}
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                aria-busy={isLoggingOut}
+                aria-label="Logout"
+                title={isSidebarCollapsed ? 'Logout' : undefined}
+                className={`sidebar-logout ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
+              >
+                <span className="sidebar-nav-icon" aria-hidden="true">
+                  <LogOut size={19} strokeWidth={SIDEBAR_ICON_STROKE} className="shrink-0" />
+                </span>
+                {!isSidebarCollapsed ? <span className="sidebar-nav-label truncate">Logout</span> : null}
+              </button>
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            aria-busy={isLoggingOut}
-            aria-label="Logout"
-            title={isSidebarCollapsed ? 'Logout' : undefined}
-
-
-
-
-
-
-
-            className={`sidebar-logout flex h-9 items-center gap-2.5 rounded-md border-0 bg-transparent text-[14px]! font-medium! text-[var(--text)] transition-colors duration-150 hover:bg-[var(--green-50)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${isSidebarCollapsed ? 'justify-center px-0' : 'px-2.5'}`}
-          >
-            <span className="sidebar-nav-icon" aria-hidden="true">
-              <LogOut size={20} strokeWidth={SIDEBAR_ICON_STROKE} className="shrink-0" />
-            </span>
-            {!isSidebarCollapsed ? 'Logout' : null}
-          </button>
 
           <div className="sidebar-account">
             <SidebarUserCard user={user} isCollapsed={isSidebarCollapsed} />

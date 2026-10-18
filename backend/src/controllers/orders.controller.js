@@ -3,7 +3,6 @@ import { serializeOrder, serializeDeliveryEvent } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
 import { createHash } from 'node:crypto';
 import { getDeliverySequence, getNextDeliveryStatus, isCancellable } from '../lib/deliverySequence.js';
-import { createLalamoveDeliveryForOrder } from './lalamove.controller.js';
 import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
 import { buildCheckoutQuote } from '../lib/checkoutQuote.js';
@@ -288,14 +287,11 @@ export async function updateOrderStatus(req, res) {
 
 
   if (status === 'confirmed' && order.delivery_method === 'courier') {
-    const bookingResult = await createLalamoveDeliveryForOrder(order);
     await createNotification({
       userId: order.farmer_id,
       type: 'order',
-      title: bookingResult.booked ? 'Courier booked' : 'Courier booking needed',
-      message: bookingResult.booked
-        ? `A Lalamove driver is being assigned for delivery to ${order.buyer_name}.`
-        : `This order needs a courier for delivery to ${order.buyer_name} — automatic booking didn't go through, book it manually with Lalamove.`,
+      title: 'Courier booking needed',
+      message: `Prepare and pack this order, then book Lalamove manually for delivery to ${order.buyer_name}.`,
       link: `/orders/${order.id}`,
     });
   }
@@ -329,6 +325,9 @@ export async function advanceDelivery(req, res) {
 
 
   const isTransitStep = existing.delivery_method !== 'buyer_pickup' && nextStatus === sequence[sequence.length - 2];
+  if (isTransitStep && existing.delivery_method === 'courier') {
+    throw new ApiError('Save the Lalamove booking and confirm physical handover from courier details.', 400);
+  }
 
   let vehiclePlateNumber = null;
   if (isTransitStep && existing.delivery_method === 'farmer_delivery') {

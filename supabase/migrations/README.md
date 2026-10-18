@@ -1,5 +1,68 @@
 # Registered profile coordinates
 
+## Six-Month Inactivity Suspension
+
+Apply `20261019_inactive_account_suspension.sql` after the base schema and
+`20261010_admin_account_history.sql`, then deploy frontend and backend together.
+The migration itself does not suspend existing users. The API's first scheduled
+sweep after deployment will suspend already-overdue accounts, so review account
+activity before rollout. Do not rerun the provisioning schema on a live project.
+
+The policy covers Buyer, Farmer and Stakeholder accounts, never Admin accounts.
+Six calendar months are measured in Asia/Manila from the latest recorded activity,
+registration date, or recorded Admin reactivation. Never-active users use their
+registration date. Reactivation leaves the actual last-active timestamp untouched
+and grants another six months. Future activity timestamps are not treated as overdue.
+
+The sweep is a service-role-only transaction, with a maximum of 500 accounts per
+batch. It changes only the account status and suspension timestamp, records a
+`USER_AUTO_SUSPENDED` history event with System as actor, and notifies the user and
+active Admins using the existing notification system. History/notification failure
+rolls back the suspension. Orders, verification, payments and profile identity
+are preserved. Already-suspended accounts are not processed again.
+
+The backend checks on startup and hourly, processes bounded batches, and blocks
+an overdue account on authenticated HTTP or socket access before activity can be
+refreshed. Existing Admin Reactivate account restores access. Browser profile
+writes cannot forge the inactivity timestamp, registration date, role or account
+status; ordinary profile field editing through the existing API is unchanged.
+
+For scheduling independent of an API host that sleeps, enable Supabase Cron
+(`pg_cron`) in the project's Dashboard, then rerun this migration. When the
+extension is enabled it registers the named hourly job
+`harvestlink-six-month-inactivity`. The API worker remains a safe fallback;
+transaction locking and the active-status check prevent duplicate suspensions.
+Without Cron, unattended checks run only while the backend is running, with an
+immediate catch-up on startup and exact eligibility checks on attempted access.
+See [Supabase Cron](https://supabase.com/docs/guides/cron) for enabling and monitoring jobs.
+
+No live project migration or account suspension is performed by local tests.
+
+## Manual Lalamove Delivery
+
+Before deploying the updated courier flow, run `20261017_manual_lalamove.sql`
+in the backend project's Supabase SQL Editor, after `supabase/schema.sql` and
+the existing required migrations. This also applies to new installations.
+Deploy frontend and backend together. The application does not run migrations
+at startup; courier writes fail closed when the function is missing.
+
+The migration adds nullable courier vehicle-plate and handover-time fields and a service-role-only
+transaction function. Booking leaves the order Packed. Only the owning active
+Farmer's physical-handover confirmation sets Out for delivery and the existing
+`orders.transit_started_at` timestamp. `deliveries.handed_over_at` records this
+physical handover without relabeling historical booking timestamps as handovers.
+`deliveries.created_at` is the booking
+timestamp. Existing Buyer receipt confirmation still completes the transaction;
+a trigger synchronizes the manual courier record in that same transaction.
+No existing records, prices, fees, payments, or coordinates are rewritten.
+
+Farmers book externally and paste an official HTTPS `lalamove.com` share link.
+The saved link is opened unchanged, not reconstructed from a booking number.
+There is no automatic booking or HarvestLink courier GPS/map in this flow.
+Historical API fields remain intact. The existing courier checkout quotation
+and pricing path is intentionally unchanged and still needs its existing API
+configuration; supporting new courier checkout without that API is separate work.
+
 ## Marketplace order integrity
 
 Before deploying the new checkout/backend, run `20261010_order_integrity.sql`

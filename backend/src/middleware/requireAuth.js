@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { ApiError } from '../lib/ApiError.js';
 import { requireAdminNetwork } from './requireAdminNetwork.js';
+import { assertAccountActive } from '../lib/accountInactivity.js';
 
 const AUTH_CACHE_TTL_MS = 10 * 1000;
 const AUTH_CACHE_LIMIT = 500;
@@ -33,9 +34,7 @@ async function loadAuth(token) {
     .eq('id', data.user.id)
     .single();
   if (profileError || !profile) throw new ApiError('No profile found for this account.', 401);
-  if (profile.account_status === 'suspended') {
-    throw new ApiError('This account has been suspended. Contact support for assistance.', 403);
-  }
+  await assertAccountActive(profile);
 
   return { user: data.user, profile };
 }
@@ -105,6 +104,7 @@ function touchLastActive(profile) {
     .from('profiles')
     .update({ last_active_at: now })
     .eq('id', profile.id)
+    .eq('account_status', 'active')
     .then(({ error }) => {
       if (error) console.error('Failed to update last_active_at:', error.message);
     });

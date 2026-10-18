@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, Circle, CircleAlert, Edit3, ImagePlus, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, Trash2, UserSquare, X } from 'lucide-react';
+import '../../components/common/RoleBadge.css';
+import { BadgeCheck, Building2, Calendar, Camera, CheckCircle2, CircleAlert, Edit3, ImagePlus, Lock, Mail, MapPin, Phone, QrCode, ShieldCheck, Store, Trash2, UserSquare, X } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import Button from '../../components/common/Button';
@@ -20,6 +21,10 @@ import { hasErrors, validateGcashForm, validatePasswordForm, validateProfileForm
 import { farmerNavItems } from '../farmer/farmerNav';
 import { buyerNavItems } from '../buyer/buyerNav';
 import { stakeholderNavItems } from '../stakeholder/stakeholderNav';
+import BuyerProfileSections from './BuyerProfileSections';
+import ProfileCompletion from './ProfileCompletion.jsx';
+import './BuyerProfile.css';
+import './FarmerProfile.css';
 
 const NAV_ITEMS_BY_ROLE = {
   farmer: farmerNavItems,
@@ -34,6 +39,7 @@ export default function Profile() {
   const navItems = NAV_ITEMS_BY_ROLE[currentUser.role];
   const isFarmer = currentUser.role === 'farmer';
   const isStakeholder = currentUser.role === 'stakeholder';
+  const isBuyer = currentUser.role === 'buyer';
 
 
 
@@ -271,6 +277,7 @@ export default function Profile() {
       ];
       const payload = Object.fromEntries(
         editableFields
+          .filter((field) => !isBuyer || field !== 'name')
           .filter((field) => profileDraft[field] !== originalDraft[field])
           .map((field) => [field, profileDraft[field]]),
       );
@@ -342,7 +349,7 @@ export default function Profile() {
           <Edit3 size={15} /> Edit Profile
         </Button>
       ) : null}
-      pageClassName="profile-page"
+      pageClassName={`profile-page${isBuyer ? ' buyer-profile-page' : isFarmer ? ' farmer-profile-page' : ''}`}
     >
       <section className="panel profile-header">
         <div className="profile-identity">
@@ -391,7 +398,7 @@ export default function Profile() {
               <h2>{currentUser.name}</h2>
               <div className="profile-contact-row">
                 <span className="profile-email"><Mail size={14} /> {currentUser.email}</span>
-                <span className="profile-account-type">
+                <span className="account-role-badge" data-role={currentUser.role}>
                   <BadgeCheck size={14} />
                   {currentUser.verificationStatus === 'verified' ? 'Verified ' : ''}
                   {currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)}
@@ -415,7 +422,7 @@ export default function Profile() {
             </span>
             <div>
               <small>Account status</small>
-              <strong>{currentUser.verificationStatus ? currentUser.verificationStatus : 'Active'}</strong>
+              <strong>{isBuyer ? (currentUser.accountStatus || 'Not available') : (currentUser.verificationStatus || 'Active')}</strong>
             </div>
           </div>
           <div className="profile-summary-item">
@@ -487,8 +494,14 @@ export default function Profile() {
           {isEditing ? (
             <form className="form-stack" onSubmit={handleProfileSubmit}>
               <FormField label="Full name" name="name" error={profileErrors.name}>
-                <input id="name" value={profileDraft.name} onChange={(event) => updateProfileField('name', event.target.value)} />
+                <input id="name" value={isBuyer ? currentUser.name : profileDraft.name} readOnly={isBuyer} onChange={isBuyer ? undefined : (event) => updateProfileField('name', event.target.value)} />
               </FormField>
+
+              {isBuyer ? (
+                <FormField label="Email address" name="profileEmail">
+                  <input id="profileEmail" type="email" value={currentUser.email || ''} readOnly />
+                </FormField>
+              ) : null}
 
               {isStakeholder ? (
                 <>
@@ -594,15 +607,12 @@ export default function Profile() {
               <InfoRow icon={Calendar} label="Member since" value={formatDate(currentUser.createdAt)} />
             </div>
           )}
-        </div>
-
-        <div className="panel">
           {isFarmer ? (
-            <>
+            <section className="farmer-profile-details" aria-labelledby="farmer-profile-details-title">
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">Farm</p>
-                  <h2>Farm details</h2>
+                  <h2 id="farmer-profile-details-title">Farm details</h2>
                 </div>
               </div>
               <div className="info-grid">
@@ -614,8 +624,16 @@ export default function Profile() {
                 file={currentUser.govIdFile}
                 resolveUrl={() => getSignedDocumentUrl(currentUser.govIdFile)}
               />
-            </>
-          ) : isStakeholder ? (
+            </section>
+          ) : null}
+        </div>
+
+        <div className="panel">
+          <div className="section-heading">
+            <div><p className="eyebrow">Trust &amp; safety</p><h2>Account details</h2></div>
+          </div>
+          <ProfileCompletion user={currentUser} />
+          {isStakeholder ? (
             <>
               <div className="section-heading">
                 <div>
@@ -634,32 +652,14 @@ export default function Profile() {
                 resolveUrl={() => getSignedDocumentUrl(currentUser.accreditationFile)}
               />
             </>
-          ) : (
-            <>
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Trust & safety</p>
-                  <h2>Verification</h2>
-                </div>
-              </div>
-              <ul className="verification-checklist">
-                <li className={currentUser.contactNumber ? 'done' : ''}>
-                  {currentUser.contactNumber ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  Contact verified
-                </li>
-                <li className={currentUser.municipality ? 'done' : ''}>
-                  {currentUser.municipality ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  Delivery address verified
-                </li>
-                <li className={currentUser.accountStatus === 'active' ? 'done' : ''}>
-                  {currentUser.accountStatus === 'active' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  Buyer account active
-                </li>
-              </ul>
-            </>
-          )}
+          ) : null}
         </div>
       </section>
+
+      {isBuyer ? <BuyerProfileSections user={currentUser} onEditDelivery={() => {
+        startEditing();
+        requestAnimationFrame(() => document.getElementById('address')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      }} /> : null}
 
       {isFarmer ? (
         <section className="panel">

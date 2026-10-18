@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
+import { assertAccountActive } from '../lib/accountInactivity.js';
 
 
 
@@ -19,10 +20,11 @@ async function verifyUser(token) {
   if (userError || !userData?.user) return null;
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('id, account_status')
+    .select('id, role, account_status, last_active_at, created_at, inactivity_suspended_at')
     .eq('id', userData.user.id)
     .single();
-  if (!profile || profile.account_status === 'suspended') return null;
+  if (!profile) return null;
+  try { await assertAccountActive(profile); } catch { return null; }
   return profile.id;
 }
 

@@ -24,6 +24,7 @@ import { getReportRevenue, getSevenDayOrderCounts, getTotalRevenue } from '../..
 import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
+import { isNewFarmer } from '../../utils/farmerAge';
 import freshListingsLeaf from '../../assets/icons/fresh-listings-leaf.png';
 import onlinePaymentIcon from '../../assets/icons/online-payment-credit-card.png';
 import './BuyerOverview.css';
@@ -40,6 +41,7 @@ function farmerMarketplacePath(farmer) {
 }
 
 function RecommendedFarmerLink({ farmer, onClick }) {
+  const isNew = isNewFarmer(farmer.createdAt);
   return (
     <Link
       className="recommended-farm-card"
@@ -56,13 +58,14 @@ function RecommendedFarmerLink({ farmer, onClick }) {
       </span>
       <span
         className={`buyer-rating${farmer.normalizedRating > 0 ? '' : ' is-new'}`}
-        aria-label={farmer.normalizedRating
+        aria-label={`${isNew ? 'New farmer. ' : ''}${farmer.normalizedRating
           ? `${farmer.normalizedRating.toFixed(1)} out of 5 stars from ${farmer.normalizedRatingCount} ${farmer.normalizedRatingCount === 1 ? 'rating' : 'ratings'}`
-          : 'Not yet rated'}
+          : 'No ratings yet'}`}
       >
+        {isNew ? <span>New farmer</span> : null}
         {farmer.normalizedRating ? (
           <><Star size={13} fill="currentColor" aria-hidden="true" /><strong>{farmer.normalizedRating.toFixed(1)}</strong><span>({farmer.normalizedRatingCount})</span></>
-        ) : <span>New farmer</span>}
+        ) : !isNew ? <span>No ratings yet</span> : null}
       </span>
       <span className="buyer-recommendation-action">View farm <ArrowRight size={14} aria-hidden="true" /></span>
     </Link>

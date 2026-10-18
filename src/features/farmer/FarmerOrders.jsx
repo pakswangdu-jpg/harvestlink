@@ -256,7 +256,7 @@ function OrderActions({ order, onAction, onReviewPayment }) {
     if (!paymentAction) {
       return (
         <Link className="farmer-order-action farmer-order-action-primary" to={`/orders/${order.id}`}>
-          <Truck size={14} aria-hidden="true" /> Book with Lalamove
+          <Truck size={14} aria-hidden="true" /> Courier details
         </Link>
       );
     }
@@ -264,7 +264,7 @@ function OrderActions({ order, onAction, onReviewPayment }) {
       <div className="farmer-order-actions">
         {paymentAction}
         <Link className="farmer-order-action farmer-order-action-primary" to={`/orders/${order.id}`}>
-          <Truck size={14} aria-hidden="true" /> Book with Lalamove
+          <Truck size={14} aria-hidden="true" /> Courier details
         </Link>
       </div>
     );
