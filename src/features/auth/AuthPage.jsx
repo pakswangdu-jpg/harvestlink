@@ -739,7 +739,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
       ? '/register?role=farmer'
       : '/register';
   const [searchParams] = useSearchParams();
-  const { currentUser, loading: authLoading, login, register, verifyOtp, resendOtp } = useAuth();
+  const { currentUser, loading: authLoading, login, loginAdmin, register, verifyOtp, resendOtp } = useAuth();
   const isGeneralAdminSession = !adminPortal && currentUser?.role === 'admin';
   const [form, setForm] = useState(() => {
     const base = buildEmptyForm(searchParams.get('role'));
@@ -1027,7 +1027,9 @@ export default function AuthPage({ mode, adminPortal = false }) {
       : form;
     try {
       if (!isRegister) setAuthPersistence(rememberMe);
-      const result = isRegister ? await register(submitForm) : await login(form.email, form.password);
+      const result = isRegister ? await register(submitForm)
+        : adminPortal ? await loginAdmin(form.email, form.password)
+          : await login(form.email, form.password);
       if (isRegister && result.pendingVerification) {
         setOtpEmail(form.email.trim().toLowerCase());
         setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
@@ -1050,7 +1052,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
     } catch (error) {
 
 
-      if (!isRegister && error.code === 'email_not_confirmed') {
+      if (!isRegister && !adminPortal && error.code === 'email_not_confirmed') {
         const email = form.email.trim().toLowerCase();
         setOtpEmail(email);
         setPendingFiles({});

@@ -142,8 +142,23 @@ not update the live Render `ADMIN_ALLOWED_IPS` setting; save the allowed public 
 there and redeploy. Valid Admin credentials, role, and active account status remain
 required before the allowed network can enter the Admin dashboard.
 
-`/admin` displays the existing login form for signed-out users, then checks
-`/api/auth/admin-access` before redirecting into the Admin dashboard. An Admin session
+`/admin` first checks `/api/auth/admin-entry-access` before displaying the existing
+login form. This preflight uses the same server-only IP allowlist, exposes no IP
+addresses, and does not grant access to Admin records. If a bearer token is present,
+it must also belong to an active Admin; a saved marketplace session cannot use this
+entry as a role bypass. Signed-in Buyers, Farmers, and Stakeholders who manually
+enter any Admin URL see a generic `404 - Page not found` screen with a link back to
+their own dashboard, without being signed out. Blocked networks see the same
+not-found message. This is client-side presentation; the API still returns `403`
+for denied access and never grants Admin permissions.
+After Admin sign-in, `/api/auth/admin-access` still verifies the authenticated
+Admin role and allowed network before rendering any Admin dashboard content.
+Admin form submissions use an isolated, non-persistent Supabase session until that
+server check and the active Admin profile both pass. Marketplace credentials are
+rejected with an error, not saved as a marketplace login or redirected to a
+marketplace dashboard. Failed attempts revoke only their temporary session; the
+regular marketplace sign-in flow remains unchanged.
+An Admin session
 on `/` does not redirect the public site. Normal `/login` with an Admin account shows
 the Admin portal prompt instead of entering the workspace. Internal Admin routes
 remain available after authorization; signed-out deep links return to the dedicated

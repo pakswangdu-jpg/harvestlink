@@ -6,6 +6,7 @@ const REQUEST_TIMEOUT_MS = 90000;
 const GET_CACHE_TTL_MS = 10000;
 const LIVE_GET_CACHE_TTL_MS = 1500;
 const GET_CACHE_LIMIT = 100;
+const NON_CACHEABLE_PATHS = new Set(['/auth/admin-access', '/auth/admin-entry-access']);
 const getCache = new Map();
 const pendingGets = new Map();
 let cacheGeneration = 0;
@@ -20,12 +21,22 @@ if (!API_URL) {
   throw new Error('VITE_API_URL must be set — see .env.example.');
 }
 
-async function request(path, { method = 'GET', body } = {}) {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw sessionError;
+async function request(path, { method = 'GET', body, accessToken } = {}) {
+  const isolated = accessToken !== undefined;
+  let session;
+  if (isolated) {
+    if (typeof accessToken !== 'string' || !accessToken.trim()) throw new Error('Missing authentication token.');
+    session = { access_token: accessToken };
+  } else {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    session = data.session;
+  }
   const isGet = method === 'GET';
+  const shareRead = isGet && !isolated;
+  const noStore = isolated || NON_CACHEABLE_PATHS.has(path);
   const cacheKey = `${session?.user?.id || 'anonymous'}:${path}`;
-  const cached = isGet && path !== '/auth/admin-access' ? getCache.get(cacheKey) : null;
+  const cached = isGet && !noStore ? getCache.get(cacheKey) : null;
   if (cached && (cached.expiresAt > Date.now() || globalThis.document?.visibilityState === 'hidden')) {
     return cached.value;
   }
@@ -37,19 +48,19 @@ async function request(path, { method = 'GET', body } = {}) {
   }
 
   const requestGeneration = cacheGeneration;
-  const pending = isGet ? pendingGets.get(cacheKey) : null;
+  const pending = shareRead ? pendingGets.get(cacheKey) : null;
   if (pending?.generation === requestGeneration) return pending.promise;
 
-  const promise = sendRequest(path, { method, body }, session, cacheKey, requestGeneration);
-  if (isGet) pendingGets.set(cacheKey, { generation: requestGeneration, promise });
+  const promise = sendRequest(path, { method, body }, session, cacheKey, requestGeneration, noStore);
+  if (shareRead) pendingGets.set(cacheKey, { generation: requestGeneration, promise });
   try {
     return await promise;
   } finally {
-    if (isGet && pendingGets.get(cacheKey)?.promise === promise) pendingGets.delete(cacheKey);
+    if (shareRead && pendingGets.get(cacheKey)?.promise === promise) pendingGets.delete(cacheKey);
   }
 }
 
-async function sendRequest(path, { method, body }, session, cacheKey, requestGeneration) {
+async function sendRequest(path, { method, body }, session, cacheKey, requestGeneration, noStore) {
   const isGet = method === 'GET';
   const headers = { 'Content-Type': 'application/json' };
   if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
@@ -67,6 +78,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,
+        ...(noStore ? { cache: 'no-store' } : {}),
       });
     } catch (error) {
       if (error.name === 'TypeError' && !controller.signal.aborted) {
@@ -94,7 +106,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
       }
       throw error;
     }
-    if (isGet && path !== '/auth/admin-access' && requestGeneration === cacheGeneration) {
+    if (isGet && !noStore && requestGeneration === cacheGeneration) {
       if (getCache.size >= GET_CACHE_LIMIT) getCache.delete(getCache.keys().next().value);
       getCache.set(cacheKey, { value: payload, expiresAt: Date.now() + getCacheTtl(path) });
     }
@@ -112,7 +124,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
 
 
 export const apiClient = {
-  get: (path) => request(path),
+  get: (path, { accessToken } = {}) => request(path, { accessToken }),
   post: (path, body) => request(path, { method: 'POST', body }),
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   delete: (path) => request(path, { method: 'DELETE' }),

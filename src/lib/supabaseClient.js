@@ -29,6 +29,17 @@ export function setAuthPersistence(remember) {
   window.localStorage.setItem(REMEMBER_SESSION_KEY, String(remember));
 }
 
+export function createAdminLoginClient() {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      storageKey: `harvestlink:admin-login:${crypto.randomUUID()}`,
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: authStorage,

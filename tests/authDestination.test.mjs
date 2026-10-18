@@ -12,8 +12,9 @@ test('Admin sessions and normal Admin login never automatically select the Admin
   assert.equal(getAuthDestination('admin',{from:'/admin'}),null);
 });
 
-test('dedicated entry is host-independent and does not send non-admin portal logins to their dashboards',()=>{
-  for(const role of ['admin','farmer','buyer','stakeholder']) assert.equal(getAuthDestination(role,{adminPortal:true,from:'/admin-users'}),'/admin');
+test('dedicated Admin sign-in accepts only the Admin role and never navigates marketplace roles',()=>{
+  assert.equal(getAuthDestination('admin',{adminPortal:true}),'/admin');
+  for(const role of ['farmer','buyer','stakeholder',undefined,'']) assert.equal(getAuthDestination(role,{adminPortal:true,from:'/admin-users'}),null);
 });
 
 test('normal marketplace login retains existing role destinations and return links',()=>{
