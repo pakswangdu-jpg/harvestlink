@@ -39,6 +39,7 @@ import AdminOrders from '../features/admin/AdminOrders';
 import AdminDonations from '../features/admin/AdminDonations';
 import AdminReports from '../features/admin/AdminReports';
 import AdminProfile from '../features/admin/AdminProfile';
+import AccessDeniedPage from '../features/auth/AccessDeniedPage';
 import { ORDERING_ROLES } from '../utils/constants';
 
 export default function AppRoutes() {
@@ -53,6 +54,8 @@ export default function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
+      <Route path="/403" element={<AccessDeniedPage />} />
+      <Route path="/access-denied" element={<AccessDeniedPage />} />
 
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
         <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
