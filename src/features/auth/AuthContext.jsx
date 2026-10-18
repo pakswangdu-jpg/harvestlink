@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { apiClient } from '../../services/apiClient';
+import { loginAdmin as loginAdminUser } from '../../services/adminAuthService';
 import {
   acknowledgeVerification as acknowledgeVerificationRecord,
   loginUser,
@@ -64,6 +65,11 @@ export function AuthProvider({ children }) {
     loading,
     async login(email, password) {
       const user = await loginUser(email, password);
+      setCurrentUserState(user);
+      return user;
+    },
+    async loginAdmin(email, password) {
+      const user = await loginAdminUser(email, password);
       setCurrentUserState(user);
       return user;
     },

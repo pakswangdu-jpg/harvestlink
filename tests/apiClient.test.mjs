@@ -28,14 +28,18 @@ async function loadClient(t, fetch, getSession = async () => ({ data: { session:
 test('Admin access checks bypass cache and a denied network clears protected cached data', async t => {
   const calls = [];
   const events = [];
-  const client = await loadClient(t, async url => {
+  const client = await loadClient(t, async (url,options) => {
     calls.push(url);
+    if(url.includes('/auth/admin-')) assert.equal(options.cache,'no-store');
     if (url.endsWith('/denied')) return Response.json({ error:'ADMIN_NETWORK_NOT_ALLOWED',message:'Admin access is not allowed from this network.' }, { status:403 });
     return Response.json({ allowed:true });
   }, undefined, { dispatchEvent:event=>events.push(event.type) });
   await client.get('/auth/admin-access');
   await client.get('/auth/admin-access');
   assert.equal(calls.filter(url=>url.endsWith('/auth/admin-access')).length,2);
+  await client.get('/auth/admin-entry-access');
+  await client.get('/auth/admin-entry-access');
+  assert.equal(calls.filter(url=>url.endsWith('/auth/admin-entry-access')).length,2);
   await client.get('/orders');await client.get('/orders');
   assert.equal(calls.filter(url=>url.endsWith('/orders')).length,1);
   await assert.rejects(client.get('/denied'), { status:403,code:'ADMIN_NETWORK_NOT_ALLOWED',message:'Admin access is not allowed from this network.' });

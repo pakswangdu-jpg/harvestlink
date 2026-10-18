@@ -4,8 +4,18 @@ import { emailAndIpKey, rateLimit } from '../middleware/rateLimit.js';
 import { requestPasswordReset } from '../controllers/passwordRecovery.controller.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
+import { requireAdminEntryNetwork } from '../middleware/requireAdminNetwork.js';
 
 const router = Router();
+const requireAdminRole = requireRole('admin');
+router.get('/admin-entry-access', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+}, requireAdminEntryNetwork, (req, res, next) => {
+  if (!req.headers.authorization) return next();
+  // A saved marketplace session cannot use the signed-out entry as a role bypass.
+  return requireAuth(req, res, (error) => error ? next(error) : requireAdminRole(req, res, next));
+}, (req, res) => res.json({ allowed: true }));
 router.get('/admin-access', requireAuth, requireRole('admin'), (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.json({ allowed: true });

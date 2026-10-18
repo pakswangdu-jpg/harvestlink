@@ -1,50 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
-import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { apiClient } from '../../services/apiClient';
 import AuthPage from './AuthPage';
 import { ADMIN_ENTRY_PATH } from '../../utils/authDestination';
+import { ROLE_DASHBOARDS } from '../../utils/constants';
 import './AdminProtectedRoute.css';
 
-function SwitchAccountAction() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  const pending = useRef(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const switchAccount = async () => {
-    if (pending.current) return;
-    pending.current = true;
-    setBusy(true);
-    setError('');
-    try {
-      await logout();
-      navigate(ADMIN_ENTRY_PATH, { replace: true });
-    } catch {
-      setError('Unable to sign out. Please try again.');
-    } finally {
-      pending.current = false;
-      setBusy(false);
-    }
-  };
-  return <div className="admin-switch-account">
-    <button type="button" onClick={switchAccount} disabled={busy}>{busy ? 'Signing out...' : 'Sign in with another account'}</button>
-    {error ? <p role="alert">{error}</p> : null}
-  </div>;
-}
-
-function AccessScreen({ title, message, retry, accountDenied = false, switchAccount = false }) {
+function AccessScreen({ title, message, retry, accountDenied = false, backTo = '/', backLabel = 'Back to HarvestLink' }) {
   return <main className={`admin-access-screen${accountDenied ? ' admin-account-denied' : ''}`}><div>
     {accountDenied ? <ShieldAlert className="admin-account-denied-icon" size={26} strokeWidth={1.8} aria-hidden="true" /> : null}
     <h1>{title}</h1><p role={accountDenied ? 'alert' : 'status'}>{message}</p>
-    <div className="admin-access-actions">{retry ? <button type="button" onClick={retry}>Try again</button> : null}<Link to="/">{accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}Back to HarvestLink</Link></div>
-    {switchAccount ? <SwitchAccountAction /> : null}
+    <div className="admin-access-actions">{retry ? <button type="button" onClick={retry}>Try again</button> : null}<Link to={backTo}>{accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}{backLabel}</Link></div>
   </div></main>;
 }
 
-function AdminNetworkGate({ userId, pathname }) {
-  const key = `${userId}:${pathname}`;
+function AdminNetworkGate({ userId, pathname, entry = false }) {
+  const key = `${entry ? 'entry' : 'admin'}:${userId || 'signed-out'}:${pathname}`;
   const [result, setResult] = useState(null);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -56,10 +29,10 @@ function AdminNetworkGate({ userId, pathname }) {
       pending = true;
       setResult(old => old?.key === key && old.status === 'allowed' ? old : { key, status: 'checking' });
       try {
-        const response = await apiClient.get('/auth/admin-access');
+        const response = await apiClient.get(entry ? '/auth/admin-entry-access' : '/auth/admin-access');
         if (!cancelled && !denied) setResult({ key, status: response?.allowed === true ? 'allowed' : 'error' });
       } catch (error) {
-        if (!cancelled && !denied) setResult({ key, status: error.code === 'ADMIN_NETWORK_NOT_ALLOWED' ? 'denied' : 'error' });
+        if (!cancelled && !denied) setResult({ key, status: error.status === 403 || error.code === 'ADMIN_NETWORK_NOT_ALLOWED' ? 'denied' : 'error' });
       } finally { pending = false; }
     };
     const restrict = () => { denied = true; setResult({ key, status: 'denied' }); };
@@ -73,10 +46,10 @@ function AdminNetworkGate({ userId, pathname }) {
       window.removeEventListener('focus', check);
       window.removeEventListener('harvestlink:admin-network-denied', restrict);
     };
-  }, [key, attempt]);
+  }, [key, entry, attempt]);
   const status = result?.key === key ? result.status : 'checking';
-  if (status === 'allowed') return <Outlet />;
-  if (status === 'denied') return <AccessScreen accountDenied title="Admin access restricted" message="This area is restricted to authorized HarvestLink administrators only." retry={() => setAttempt(value => value + 1)} />;
+  if (status === 'allowed') return entry ? <AuthPage mode="login" adminPortal /> : <Outlet />;
+  if (status === 'denied') return <AccessScreen accountDenied title="404 - Page not found" message="The page you requested could not be found." retry={() => setAttempt(value => value + 1)} />;
   if (status === 'error') return <AccessScreen title="Unable to verify Admin access" message="Admin access could not be verified. Please try again." retry={() => setAttempt(value => value + 1)} />;
   return <AccessScreen title="Checking Admin access" message="Verifying your access to the HarvestLink Admin Portal..." />;
 }
@@ -85,9 +58,12 @@ export default function AdminProtectedRoute() {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
   if (loading) return <AccessScreen title="Checking Admin access" message="Restoring your session..." />;
+  if (currentUser && currentUser.role !== 'admin') {
+    const dashboard = ROLE_DASHBOARDS[currentUser.role];
+    return <AccessScreen accountDenied title="404 - Page not found" message="The page you requested could not be found." backTo={dashboard || '/'} backLabel={dashboard ? 'Back to dashboard' : 'Back to HarvestLink'} />;
+  }
   if (!currentUser) return location.pathname === ADMIN_ENTRY_PATH
-    ? <AuthPage mode="login" adminPortal />
+    ? <AdminNetworkGate userId={null} pathname={location.pathname} entry />
     : <Navigate to={ADMIN_ENTRY_PATH} replace />;
-  if (currentUser.role !== 'admin') return <AccessScreen accountDenied switchAccount title="Admin access restricted" message="This area is restricted to authorized HarvestLink administrators only." />;
   return <AdminNetworkGate userId={currentUser.id} pathname={location.pathname} />;
 }
