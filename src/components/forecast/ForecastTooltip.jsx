@@ -73,7 +73,7 @@ export default function ForecastTooltip({
 
       {point.reason ? (
         <p className="mt-2 border-t border-[var(--line)] pt-2 text-[12px] leading-snug text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--text-secondary)]">AI Reason: </span>{point.reason}
+          <span className="font-semibold text-[var(--text-secondary)]">Forecast note: </span>{point.reason}
         </p>
       ) : null}
 

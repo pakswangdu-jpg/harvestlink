@@ -1,25 +1,30 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, Star } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { BadgeCheck, Star, X } from 'lucide-react';
 import StarRating from '../../components/common/StarRating';
-import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import { getRatingsForFarmer } from '../../services/ratingService';
 import { getUserById } from '../../services/authService';
 import { formatDate, getInitials, shortOrderId } from '../../utils/formatters';
+import './FarmerReviewsPanel.css';
 
 const RECENT_REVIEWS_LIMIT = 3;
 
-
-
-
-
-
-export default function FarmerReviewsPanel({ farmerId }) {
-  const navigate = useNavigate();
+export default function FarmerReviewsPanel({ farmerId, orders = [] }) {
   const [ratings, setRatings] = useState([]);
   const [ratersById, setRatersById] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('newest');
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [isRatingsOpen, setIsRatingsOpen] = useState(false);
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (isRatingsOpen && !dialog.open) dialog.showModal();
+    if (!isRatingsOpen && dialog.open) dialog.close();
+  }, [isRatingsOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,12 +54,25 @@ export default function FarmerReviewsPanel({ farmerId }) {
     star,
     count: ratings.filter((rating) => rating.rating === star).length,
   }));
+  const sortedRatings = useMemo(() => {
+    const sortDirection = sortBy === 'oldest' || sortBy === 'lowest' ? 1 : -1;
+    return [...ratings].sort((a, b) => {
+      if (sortBy === 'highest' || sortBy === 'lowest') {
+        return (a.rating - b.rating) * sortDirection
+          || (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+      return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * sortDirection;
+    });
+  }, [ratings, sortBy]);
+  const visibleRatings = showAllReviews ? sortedRatings : sortedRatings.slice(0, RECENT_REVIEWS_LIMIT);
 
   return (
-    <section className="panel ratings-reviews">
-      <div className="rr-heading">
-        <p className="eyebrow">Reputation</p>
-        <h2 className="rr-title">Ratings &amp; reviews</h2>
+    <section className="panel ratings-reviews farmer-reputation-section">
+      <div className="farmer-reputation-heading">
+        <div>
+          <p className="eyebrow">Reputation</p>
+          <h2 className="farmer-reputation-title">Ratings &amp; reviews</h2>
+        </div>
       </div>
 
       {isLoading ? null : totalRatings === 0 ? (
@@ -63,63 +81,157 @@ export default function FarmerReviewsPanel({ farmerId }) {
           message="Ratings from buyers and partner organizations will appear here once they rate a completed order or donation."
         />
       ) : (
-        <div className="rr-layout">
-          <div className="rr-summary">
-            <div className="rr-summary-top">
-              <span className="rr-score">{averageRating.toFixed(1)}</span>
-              <StarRating value={averageRating} size={18} />
-              <p className="rr-count">Based on {totalRatings} verified review{totalRatings === 1 ? '' : 's'}</p>
-            </div>
-            <div className="rr-breakdown">
-              {starBreakdown.map(({ star, count }) => (
-                <div key={star} className="rr-bar-row">
-                  <span className="rr-bar-label">{star} <Star size={11} /></span>
-                  <div className="rr-bar-track">
-                    <div
-                      className="rr-bar-fill"
-                      style={{ width: `${totalRatings ? (count / totalRatings) * 100 : 0}%` }}
-                    />
-                  </div>
-                  <span className="rr-bar-count">{count}</span>
-                </div>
-              ))}
-            </div>
+        <div className="farmer-reputation-preview">
+          <div className="farmer-reputation-preview-score">
+            <span className="farmer-reputation-average">{averageRating.toFixed(1)}</span>
+            <StarRating value={averageRating} size={18} />
+            <span>{totalRatings} verified review{totalRatings === 1 ? '' : 's'}</span>
           </div>
+          <button type="button" className="farmer-reputation-open" onClick={() => setIsRatingsOpen(true)}>
+            View ratings
+          </button>
+          <dialog
+            ref={dialogRef}
+            className="farmer-reputation-dialog"
+            aria-labelledby="farmer-reputation-dialog-title"
+            onCancel={(event) => {
+              event.preventDefault();
+              setIsRatingsOpen(false);
+            }}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setIsRatingsOpen(false);
+            }}
+          >
+            <div className="farmer-reputation-dialog-header">
+              <div>
+                <p className="eyebrow">Reputation</p>
+                <h2 id="farmer-reputation-dialog-title">Ratings &amp; reviews</h2>
+              </div>
+              <button
+                type="button"
+                className="farmer-reputation-close"
+                aria-label="Close ratings"
+                onClick={() => setIsRatingsOpen(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="farmer-reputation-layout">
+              <section className="farmer-reputation-summary" aria-label="Rating summary">
+                <RatingSummary
+                  averageRating={averageRating}
+                  totalRatings={totalRatings}
+                  starBreakdown={starBreakdown}
+                />
+              </section>
 
-          <div className="rr-list">
-            {ratings.slice(0, RECENT_REVIEWS_LIMIT).map((rating) => {
-              const rater = ratersById[rating.raterId];
-              const raterName = rater?.organizationName || rater?.name
-                || (rating.raterRole === 'stakeholder' ? 'Partner organization' : 'Buyer');
-              return (
-                <article key={rating.id} className="rr-card">
-                  <header className="rr-card-header">
-                    <span className="rr-avatar">{getInitials(raterName)}</span>
-                    <div className="rr-card-identity">
-                      <strong>{raterName}</strong>
-                      <span className="rr-verified"><BadgeCheck size={13} /> Verified Buyer</span>
-                    </div>
-                    <span className="rr-card-date">{formatDate(rating.createdAt)}</span>
-                  </header>
-                  <StarRating value={rating.rating} size={14} />
-                  {rating.comment ? <p className="rr-card-comment">&quot;{rating.comment}&quot;</p> : null}
-                  {rating.orderId ? (
-                    <footer className="rr-card-footer">
-                      <span className="rr-order-ref">Order #{shortOrderId(rating.orderId)}</span>
-                      <Link className="rr-view-order" to={`/orders/${rating.orderId}`}>View Order</Link>
-                    </footer>
-                  ) : null}
-                </article>
-              );
-            })}
-          </div>
+              <section className="farmer-reputation-reviews" aria-label="Customer reviews">
+                <header className="farmer-reputation-reviews-heading">
+                  <div>
+                    <h3>Customer reviews</h3>
+                    <span>{totalRatings} review{totalRatings === 1 ? '' : 's'}</span>
+                  </div>
+                  <label className="farmer-reputation-sort">
+                    <span>Sort by</span>
+                    <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+                      <option value="newest">Newest</option>
+                      <option value="oldest">Oldest</option>
+                      <option value="highest">Highest rated</option>
+                      <option value="lowest">Lowest rated</option>
+                    </select>
+                  </label>
+                </header>
+                <div className="farmer-reputation-review-list">
+                  {visibleRatings.map((rating) => {
+                    const rater = ratersById[rating.raterId];
+                    const raterName = rater?.organizationName || rater?.name
+                      || (rating.raterRole === 'stakeholder' ? 'Partner organization' : 'Buyer');
+                    const order = orders.find((entry) => entry.id === rating.orderId);
+                    const verificationLabel = rating.raterRole === 'stakeholder' ? 'Verified Partner' : 'Verified Buyer';
+                    return (
+                      <article key={rating.id} className="farmer-reputation-review">
+                        <header className="farmer-reputation-review-header">
+                          <span className="farmer-reputation-avatar" aria-hidden="true">{getInitials(raterName)}</span>
+                          <div className="farmer-reputation-review-identity">
+                            <strong>{raterName}</strong>
+                            <span className="farmer-reputation-verified"><BadgeCheck size={13} /> {verificationLabel}</span>
+                          </div>
+                          <time className="farmer-reputation-date" dateTime={rating.createdAt}>
+                            {formatDate(rating.createdAt)}
+                          </time>
+                        </header>
+                        <div className="farmer-reputation-review-rating" aria-label={`${rating.rating} out of 5 stars`}>
+                          <StarRating value={rating.rating} size={16} />
+                        </div>
+                        {order?.productName ? (
+                          <p className="farmer-reputation-product"><span>Product:</span> {order.productName}</p>
+                        ) : null}
+                        <p className={`farmer-reputation-comment${rating.comment ? '' : ' is-empty'}`}>
+                          {rating.comment ? `“${rating.comment}”` : 'No written review'}
+                        </p>
+                        {rating.orderId ? (
+                          <footer className="farmer-reputation-review-footer">
+                            <span>Order #{shortOrderId(rating.orderId)}</span>
+                            <Link
+                              to={`/orders/${rating.orderId}`}
+                              onClick={() => setIsRatingsOpen(false)}
+                            >
+                              View order <span aria-hidden="true">→</span>
+                            </Link>
+                          </footer>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+                {totalRatings > RECENT_REVIEWS_LIMIT ? (
+                  <button
+                    type="button"
+                    className="farmer-reputation-view-all"
+                    onClick={() => setShowAllReviews((current) => !current)}
+                    aria-expanded={showAllReviews}
+                  >
+                    {showAllReviews ? 'Show recent reviews' : 'View all reviews'}
+                  </button>
+                ) : null}
+              </section>
+            </div>
+          </dialog>
         </div>
       )}
-
-      <div className="rr-footer">
-        <Button className="rr-footer-btn" onClick={() => navigate('/farmer-products')}>Add Product</Button>
-        <Link className="btn btn-secondary rr-footer-btn" to="/marketplace">View Marketplace</Link>
-      </div>
     </section>
+  );
+}
+
+function RatingSummary({ averageRating, totalRatings, starBreakdown }) {
+  return (
+    <>
+      <div className="farmer-reputation-score">
+        <span className="farmer-reputation-average">{averageRating.toFixed(1)}</span>
+        <StarRating value={averageRating} size={18} />
+        <p>{totalRatings} verified review{totalRatings === 1 ? '' : 's'}</p>
+      </div>
+      <div className="farmer-reputation-breakdown" aria-label="Rating distribution">
+        {starBreakdown.map(({ star, count }) => (
+          <div key={star} className="farmer-reputation-bar-row">
+            <span className="farmer-reputation-bar-label">{star} <Star size={13} /></span>
+            <div
+              className="farmer-reputation-bar-track"
+              role="meter"
+              aria-label={`${star} star reviews`}
+              aria-valuemin={0}
+              aria-valuemax={totalRatings}
+              aria-valuenow={count}
+            >
+              <div
+                className="farmer-reputation-bar-fill"
+                style={{ width: `${totalRatings ? (count / totalRatings) * 100 : 0}%` }}
+              />
+            </div>
+            <span className="farmer-reputation-bar-count">{count}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

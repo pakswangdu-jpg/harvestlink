@@ -59,23 +59,35 @@
 .admin-price-monitoring .pm-pending-reviews-table td:nth-child(6) { white-space: normal; overflow-wrap: anywhere; }
 .admin-price-monitoring .pm-pending-reviews-table td:last-child { overflow: visible; text-overflow: clip; }
 .admin-price-monitoring .pm-pending-reviews-table .pm-review-actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; white-space: nowrap; }
+.pm-pending-review-cards { display: none; }
 .admin-price-monitoring .pm-returned-reviews-table { margin-inline: 0; }
 .admin-price-monitoring .pm-returned-reviews-table td { max-width: none; white-space: normal; overflow-wrap: anywhere; padding-block: 12px; }
-.pm-price-review-form { display: grid; gap: 18px; min-width: 0; }
+.pm-price-review-form { display: grid; gap: 14px; min-width: 0; }
 .pm-price-review-form h3 { font-size: 17px; font-weight: 600; }
+.pm-review-product-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pm-review-current-status { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+.pm-review-group { padding-top: 12px; border-top: 1px solid var(--line); }
+.pm-review-group h4 { margin-bottom: 9px; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
 .pm-review-comparison { display: grid; gap: 12px; }
 .pm-review-comparison > div { display: flex; justify-content: space-between; gap: 16px; }
 .pm-review-comparison dt { color: var(--muted); font-size: 13px; }
 .pm-review-comparison dd { margin: 0; font-size: 14px; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.pm-price-history ol { display: grid; gap: 9px; padding: 0; margin: 0; list-style: none; }
+.pm-price-history li { display: grid; grid-template-columns: minmax(90px, .65fr) minmax(0, 1.35fr); gap: 4px 12px; color: var(--text); font-size: 12px; }
+.pm-price-history li span:first-child { color: var(--muted); }
+.pm-price-history li span:nth-child(n+3) { grid-column: 2; }
+.pm-forecast-error { margin-top: 8px; color: var(--amber-700); font-size: 12px; }
 .pm-price-warning { color: #8b6a35 !important; font-size: 12px; }
 [data-theme='dark'] .pm-price-warning { color: #d2ae70 !important; }
 .pm-price-review-form label { display: grid; gap: 6px; font-size: 13px; }
-.pm-price-review-form input, .pm-price-review-form textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--input-bg); color: var(--text); font: inherit; }
+.pm-price-review-form input, .pm-price-review-form textarea { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--input-bg); color: var(--text); font: inherit; }
+.pm-price-review-form textarea { min-height: 90px; }
 .pm-review-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.pm-review-dialog-actions button { min-height: 44px; }
 .pm-price-review-modal .admin-modal-header { flex-shrink: 0; }
 .pm-price-review-modal .admin-modal-body { min-height: 0; }
 .pm-price-review-modal { display: flex; align-items: center; justify-content: center; padding: 16px; height: 100vh; height: 100dvh; }
-.pm-price-review-modal > div { position: relative; top: auto; right: auto; width: 100%; max-width: 460px; height: auto; max-height: calc(100dvh - 32px); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgb(0 0 0 / 10%); }
+.pm-price-review-modal > div { position: relative; top: auto; right: auto; width: 100%; max-width: 620px; height: auto; max-height: calc(100dvh - 32px); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 16px rgb(0 0 0 / 10%); }
 .pm-price-review-form input:focus-visible, .pm-price-review-form textarea:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
 .pm-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pm-pagination > div:first-child { width: 116px; flex: 0 0 116px; }
@@ -87,6 +99,20 @@
 @media (max-width: 800px) {
   .pm-filter-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pm-desktop-table { display: none; }
+  .admin-price-monitoring .pm-pending-reviews-table { display: none; }
+  .pm-pending-review-cards { display: grid; gap: 12px; }
+  .pm-pending-review-card { padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+  .pm-pending-review-card-heading { display: flex; justify-content: space-between; gap: 10px; }
+  .pm-pending-review-card-heading > div { min-width: 0; }
+  .pm-pending-review-card-heading h3 { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .pm-pending-review-card-heading p,
+  .pm-pending-review-card-heading > span { color: var(--muted); font-size: 12px; }
+  .pm-pending-review-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+  .pm-pending-review-card dt { color: var(--muted); font-size: 11px; }
+  .pm-pending-review-card dd { margin: 3px 0 0; font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+  .pm-pending-review-card .pm-review-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pm-pending-review-card .pm-review-actions button { min-height: 44px; white-space: normal; }
+  .pm-pending-review-card .pm-review-actions button:last-child { grid-column: 1 / -1; }
   .pm-mobile-records { display: block; }
   .pm-mobile-records > article { border-top: 1px solid var(--line); padding: 14px 0; }
   .pm-record-heading { display: flex; align-items: flex-start; gap: 8px; }
@@ -101,4 +127,10 @@
   .pm-pagination > div:nth-child(2) { flex-basis: 100%; }
   .admin-price-monitoring .pm-workspace { padding: 14px; }
   .pm-review-section { padding: 14px; }
+}
+
+@media (max-width: 480px) {
+  .pm-review-dialog-actions { display: grid; grid-template-columns: 1fr; }
+  .pm-review-dialog-actions button { width: 100%; }
+  .pm-review-comparison dd { max-width: 58%; }
 }

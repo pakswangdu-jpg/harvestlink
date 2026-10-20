@@ -41,7 +41,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
           {product.priceReview?.status === 'needs_adjustment' ? <small className="product-price-label">Your price</small> : null}
           {product.discountPercent ? <span className="muted price-original">{formatCurrency(product.originalPrice)}</span> : null}
           <strong>{formatCurrency(product.price)}</strong>/{product.unit}
-          <ProductPriceReviewNotice product={product} />
+          <ProductPriceReviewNotice product={product} showSubmitted={['pending', 'needs_adjustment'].includes(product.priceReview?.status)} />
         </div>
       ),
     },

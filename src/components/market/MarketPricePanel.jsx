@@ -39,9 +39,9 @@ export default function MarketPricePanel({ commodityId, perspective }) {
     <section className={`panel market-panel${isBuyer ? ' buyer-market-insight' : ''}`}>
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Market price insight</p>
+          <p className="eyebrow">Market insights</p>
           <h2>{commodity.label}</h2>
-          {isBuyer ? <p className="market-reference-label">Regional farmgate reference<br />{MARKET_REGION_LABEL}</p> : null}
+          {isBuyer ? <p className="market-reference-label">Farmgate price · {MARKET_REGION_LABEL}</p> : null}
         </div>
         <Link className="btn btn-secondary btn-md" to="/market-insights">
           <TrendingUp size={16} /> View trends

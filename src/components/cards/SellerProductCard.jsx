@@ -29,7 +29,7 @@ export default function SellerProductCard({ product, actions, onEdit }) {
           <span className="product-mobile-card-stock">{product.quantity} {product.unit}</span>
           <ProductStatusBadge product={product} onEdit={onEdit} />
         </div>
-        <ProductPriceReviewNotice product={product} showSubmitted={product.priceReview?.status === 'needs_adjustment'} />
+        <ProductPriceReviewNotice product={product} showSubmitted={['pending', 'needs_adjustment'].includes(product.priceReview?.status)} />
         <p className="product-mobile-card-updated">Updated {formatDate(product.updatedAt)}</p>
       </div>
 

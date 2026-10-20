@@ -5,6 +5,7 @@ import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '..
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 import { getWholesalePricingErrors } from '../../shared/pricing.js';
+import { notifyAdminsOfPriceReview, notifyFarmerOfPriceDecision } from '../lib/priceReviewNotifications.js';
 
 function resolveWholesalePricing(values, { price, quantity, unit, sellingType, kgPerUnit }, existing = null) {
   const enabled = !values.isDonation && sellingType === 'retail'
@@ -105,11 +106,14 @@ function assertOwnership(req, product) {
 export async function listProducts(req, res) {
   let query = supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
   if (req.query.status) query = query.eq('status', req.query.status);
-  if (req.query.farmerId) query = query.eq('farmer_id', req.query.farmerId);
-  if (req.profile.role !== 'admin') {
-    const ownProducts = req.profile.role === 'farmer' && req.profile.id ? `,farmer_id.eq.${req.profile.id}` : '';
+  if (req.profile.role === 'farmer') {
+    query = query.eq('farmer_id', req.profile.id);
+  } else {
+    if (req.query.farmerId) query = query.eq('farmer_id', req.query.farmerId);
+  }
+  if (!['farmer', 'admin'].includes(req.profile.role)) {
     for (const reviewStatus of ['pending', 'needs_adjustment']) {
-      query = query.or(`price_review.is.null,price_review->>status.is.null,price_review->>status.neq.${reviewStatus}${ownProducts}`);
+      query = query.or(`price_review.is.null,price_review->>status.is.null,price_review->>status.neq.${reviewStatus}`);
     }
   }
   if (req.query.activeOnly === 'true') {
@@ -337,7 +341,10 @@ export async function createProduct(req, res) {
     if (error) throw new ApiError(error.message, 400);
 
     const [serialized] = await withFarmerNames([data]);
-
+    if (mergedReview?.status === 'pending'
+        && (mergePriceChanged || mergeTarget.price_review?.status !== 'pending')) {
+      await notifyAdminsOfPriceReview(serialized);
+    }
 
     res.json({ ...serialized, merged: true, addedQuantity: Number(values.quantity) });
     return;
@@ -346,6 +353,7 @@ export async function createProduct(req, res) {
   const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
   if (error) throw new ApiError(error.message, 400);
   const [serialized] = await withFarmerNames([data]);
+  if (serialized.priceReview?.status === 'pending') await notifyAdminsOfPriceReview(serialized);
   res.status(201).json(serialized);
 }
 
@@ -408,6 +416,7 @@ export async function updateProduct(req, res) {
   const { data, error } = await supabaseAdmin.from('products').update(row).eq('id', existing.id).select().single();
   if (error) throw new ApiError(error.message, 400);
   const [serialized] = await withFarmerNames([data]);
+  if (priceChanged && serialized.priceReview?.status === 'pending') await notifyAdminsOfPriceReview(serialized);
   res.json(serialized);
 }
 
@@ -464,6 +473,9 @@ export async function applyDiscount(req, res) {
     .single();
   if (error) throw new ApiError(error.message, 400);
   const [serialized] = await withFarmerNames([data]);
+  if (Number(existing.price) !== discountedPrice && serialized.priceReview?.status === 'pending') {
+    await notifyAdminsOfPriceReview(serialized);
+  }
   res.json(serialized);
 }
 
@@ -484,6 +496,9 @@ export async function removeDiscount(req, res) {
     .single();
   if (error) throw new ApiError(error.message, 400);
   const [serialized] = await withFarmerNames([data]);
+  if (Number(existing.price) !== Number(existing.original_price) && serialized.priceReview?.status === 'pending') {
+    await notifyAdminsOfPriceReview(serialized);
+  }
   res.json(serialized);
 }
 
@@ -551,6 +566,7 @@ export async function approvePriceReview(req, res) {
     .single();
   if (error) throw new ApiError(error.code === 'PGRST116' ? 'This review changed. Reload before deciding.' : error.message, error.code === 'PGRST116' ? 409 : 400);
   const [serialized] = await withFarmerNames([data]);
+  await notifyFarmerOfPriceDecision(serialized, 'approved');
   res.json(serialized);
 }
 
@@ -583,6 +599,7 @@ export async function declinePriceReview(req, res) {
     .single();
   if (error) throw new ApiError(error.code === 'PGRST116' ? 'This review changed. Reload before deciding.' : error.message, error.code === 'PGRST116' ? 409 : 400);
   const [serialized] = await withFarmerNames([data]);
+  await notifyFarmerOfPriceDecision(serialized, adjustment ? 'adjustment' : 'declined');
   res.json(serialized);
 }
 

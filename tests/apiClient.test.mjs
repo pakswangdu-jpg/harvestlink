@@ -283,3 +283,48 @@ test('in-flight reads are isolated by signed-in account', async (t) => {
   assert.deepEqual(await first, [{ id: 'first-account' }]);
   assert.deepEqual(await second, [{ id: 'second-account' }]);
 });
+
+test('temporary Admin tokens never use or replace the saved account cache', async t => {
+  const calls = [];
+  let sessionReads = 0;
+  const client = await loadClient(t, async (url, options) => {
+    calls.push(options);
+    return Response.json({ authorization: options.headers.Authorization });
+  }, async () => {
+    sessionReads += 1;
+    return { data: { session: { user: { id: 'saved-buyer' }, access_token: 'saved-buyer' } } };
+  });
+
+  const saved = { authorization: 'Bearer saved-buyer' };
+  assert.deepEqual(await client.get('/profiles/me'), saved);
+  for (const accessToken of ['temporary-admin', 'temporary-farmer', 'temporary-admin']) {
+    assert.deepEqual(await client.get('/profiles/me', { accessToken }), { authorization: `Bearer ${accessToken}` });
+    assert.equal(calls.at(-1).cache, 'no-store');
+  }
+  assert.equal(sessionReads, 1, 'Isolated checks must not read or refresh the saved session');
+  assert.deepEqual(await client.get('/profiles/me'), saved);
+  assert.equal(calls.length, 4, 'The original account cache must remain unchanged');
+});
+
+test('temporary-token reads never share in-flight requests with another token', async t => {
+  const pending = [];
+  const client = await loadClient(t, (url, options) => new Promise(resolve => pending.push({ options, resolve })),
+    async () => assert.fail('Temporary tokens must not use saved session authentication'));
+  const first = client.get('/auth/admin-access', { accessToken: 'admin-one' });
+  const second = client.get('/auth/admin-access', { accessToken: 'admin-two' });
+  await setImmediate();
+  assert.equal(pending.length, 2);
+  for (const request of pending) {
+    request.resolve(Response.json({ authorization: request.options.headers.Authorization }));
+  }
+  assert.deepEqual(await first, { authorization: 'Bearer admin-one' });
+  assert.deepEqual(await second, { authorization: 'Bearer admin-two' });
+});
+
+test('invalid temporary tokens cannot fall back to the saved account', async t => {
+  const client = await loadClient(t, async () => assert.fail('Invalid tokens must not make requests'),
+    async () => assert.fail('Invalid tokens must not fall back to a saved session'));
+  for (const accessToken of [null, '', ' ', 42]) {
+    await assert.rejects(client.get('/auth/admin-access', { accessToken }), /Missing authentication token/);
+  }
+});

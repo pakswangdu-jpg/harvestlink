@@ -1,162 +1,100 @@
 import {
-  AlertTriangle, CheckCircle2, Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow,
-  CloudSun, Droplets, Sun, Thermometer, ThermometerSun, Wind,
+  Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, CloudSun, Droplets,
+  Sun, Thermometer, ThermometerSun, Wind,
 } from 'lucide-react';
 
 const FOG_CONDITIONS = new Set(['Mist', 'Smoke', 'Haze', 'Dust', 'Fog', 'Sand', 'Ash', 'Squall', 'Tornado']);
-
-
-
-
 
 function getConditionBadge(condition, rainfallProbability) {
   const main = condition?.main || '';
   if (main === 'Thunderstorm') return { label: 'Storm', icon: CloudLightning, className: 'bg-[var(--red-100)] text-[var(--red-700)]' };
   if (main === 'Snow') return { label: 'Snow', icon: CloudSnow, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
   if (main === 'Rain' || main === 'Drizzle') {
-    if (rainfallProbability >= 60) return { label: 'Heavy Rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
-    if (rainfallProbability >= 30) return { label: 'Moderate Rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
-    return { label: 'Light Rain', icon: CloudDrizzle, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
+    if (rainfallProbability >= 60) return { label: 'Heavy rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
+    if (rainfallProbability >= 30) return { label: 'Rain', icon: CloudRain, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
+    return { label: 'Light rain', icon: CloudDrizzle, className: 'bg-[var(--blue-100)] text-[var(--blue-700)]' };
   }
   if (FOG_CONDITIONS.has(main)) return { label: 'Foggy', icon: CloudFog, className: 'bg-[var(--soft)] text-[var(--muted)]' };
   if (main === 'Clouds') return { label: 'Cloudy', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
   if (main === 'Clear') return { label: 'Sunny', icon: Sun, className: 'bg-[var(--amber-100)] text-[var(--amber-700)]' };
-  return { label: condition?.description || 'Unknown', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
+  return { label: condition?.description || 'Current conditions', icon: Cloud, className: 'bg-[var(--soft)] text-[var(--muted)]' };
 }
 
-
-
-
-function getWeatherGuidance(rainfallProbability) {
-  if (rainfallProbability == null) {
-    return { tone: 'neutral', headline: 'Weather data is currently unavailable.', tips: [] };
-  }
-  if (rainfallProbability >= 60) {
-    return {
-      tone: 'warning',
-      headline: 'Heavy rainfall is expected today.',
-      tips: [
-        'Harvest early if possible.',
-        'Protect harvested crops from moisture.',
-        'Expect possible transportation delays.',
-      ],
-    };
-  }
-  if (rainfallProbability >= 30) {
-    return {
-      tone: 'warning',
-      headline: 'Rain is possible today.',
-      tips: ['Monitor conditions before harvesting.', 'Keep crop covers ready just in case.'],
-    };
-  }
-  return {
-    tone: 'favorable',
-    headline: 'Favorable conditions for harvesting and selling today.',
-    tips: [],
-  };
+function getRainOutlook(rainfallProbability) {
+  if (rainfallProbability == null) return 'No rainfall estimate is available.';
+  if (rainfallProbability >= 60) return 'Rain is likely in the current forecast. Check local conditions before planning harvest or transport.';
+  if (rainfallProbability >= 30) return 'Rain is possible in the current forecast. Check local conditions before planning outdoor work.';
+  return 'The current forecast shows a low chance of rain.';
 }
 
 function WeatherStat({ icon: Icon, label, value, unit }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--soft)]/70 p-4 transition-colors duration-200 hover:bg-[var(--soft)]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--panel)] text-[var(--blue-700)] shadow-sm">
-        <Icon size={18} strokeWidth={2} />
-      </span>
-      <div className="min-w-0">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label}</p>
-        <p className="mt-0.5 flex items-baseline gap-1">
-          <span className="text-[26px] font-bold leading-none text-[var(--text)]">{value}</span>
-          {unit ? <span className="text-[12px] font-medium text-[var(--muted)]">{unit}</span> : null}
-        </p>
-      </div>
+    <div className="flex min-w-0 items-center gap-3 border-b border-[var(--line)] py-3 last:border-b-0">
+      <Icon size={18} aria-hidden="true" className="shrink-0 text-[var(--green-700)]" />
+      <dt className="min-w-0 flex-1 text-[14px] text-[var(--text-secondary)]">{label}</dt>
+      <dd className="shrink-0 text-[15px] font-semibold text-[var(--text)]">
+        {value}{unit ? <span className="ml-1 text-[13px] font-normal text-[var(--muted)]">{unit}</span> : null}
+      </dd>
     </div>
   );
 }
 
 function WeatherSkeleton() {
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <div className="h-6 w-40 animate-pulse rounded bg-[var(--soft)]" />
-          <div className="h-3 w-24 animate-pulse rounded bg-[var(--soft)]" />
-        </div>
-        <div className="h-7 w-28 animate-pulse rounded-full bg-[var(--soft)]" />
+    <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6" aria-label="Loading weather">
+      <div className="h-6 w-40 animate-pulse rounded bg-[var(--soft)]" />
+      <div className="mt-4 space-y-3">
+        {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-7 animate-pulse rounded bg-[var(--soft)]" />)}
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="h-[68px] animate-pulse rounded-xl bg-[var(--soft)]" />
-        ))}
-      </div>
-      <div className="mt-4 h-20 animate-pulse rounded-xl bg-[var(--soft)]" />
-    </div>
+    </section>
   );
 }
-
-
-
 
 export default function WeatherPanel({ weather, isLoading }) {
   if (isLoading) return <WeatherSkeleton />;
 
   if (!weather) {
     return (
-      <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
+      <section className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6">
         <div className="flex items-center gap-2">
-          <CloudSun size={22} className="text-[var(--blue-700)]" />
-          <h3 className="text-[20px] font-bold text-[var(--text)]">Today's Weather</h3>
+          <CloudSun size={21} aria-hidden="true" className="text-[var(--green-700)]" />
+          <h2 className="text-[18px] font-semibold text-[var(--text)]">Local weather</h2>
         </div>
-        <p className="mt-3 text-[14px] text-[var(--muted)]">OpenWeatherMap not configured.</p>
-      </div>
+        <p className="mt-3 text-[14px] leading-relaxed text-[var(--muted)]">Weather information is not available right now.</p>
+      </section>
     );
   }
 
   const badge = getConditionBadge(weather.condition, weather.rainfallProbability);
   const BadgeIcon = badge.icon;
-  const guidance = getWeatherGuidance(weather.rainfallProbability);
-  const ImpactIcon = guidance.tone === 'favorable' ? CheckCircle2 : AlertTriangle;
-  const impactClass = guidance.tone === 'favorable'
-    ? 'bg-[var(--green-50)] text-[var(--green-800)]'
-    : guidance.tone === 'warning'
-      ? 'bg-[var(--amber-100)] text-[var(--amber-700)]'
-      : 'bg-[var(--soft)] text-[var(--muted)]';
 
   return (
-    <div className="rounded-lg border border-[var(--line)] bg-[var(--panel)] p-6">
+    <section className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6" aria-labelledby="forecast-weather-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <CloudSun size={22} className="text-[var(--blue-700)]" />
-            <h3 className="text-[20px] font-bold leading-tight text-[var(--text)]">Today's Weather</h3>
+            <CloudSun size={21} aria-hidden="true" className="text-[var(--green-700)]" />
+            <h2 id="forecast-weather-title" className="text-[18px] font-semibold text-[var(--text)]">Local weather</h2>
           </div>
-          <p className="mt-1 text-[13px] text-[var(--muted)]">{weather.municipality}</p>
+          <p className="mt-1 text-[14px] text-[var(--muted)]">{weather.municipality || 'Selected municipality'}</p>
         </div>
-        <span className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${badge.className}`}>
-          <BadgeIcon size={13} strokeWidth={2.5} /> {badge.label}
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium ${badge.className}`}>
+          <BadgeIcon size={15} aria-hidden="true" /> {badge.label}
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <WeatherStat icon={Thermometer} label="Temperature" value={weather.currentTemp} unit="°C" />
-        <WeatherStat icon={ThermometerSun} label="Feels Like" value={weather.feelsLike != null ? weather.feelsLike : '—'} unit={weather.feelsLike != null ? '°C' : ''} />
-        <WeatherStat icon={Droplets} label="Humidity" value={weather.humidity} unit="%" />
-        <WeatherStat icon={CloudRain} label="Rain Chance" value={weather.rainfallProbability != null ? weather.rainfallProbability : '—'} unit={weather.rainfallProbability != null ? '%' : ''} />
-        <WeatherStat icon={Wind} label="Wind Speed" value={weather.windSpeedKmh} unit="km/h" />
-      </div>
+      <dl className="mt-3 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6">
+        <WeatherStat icon={Thermometer} label="Temperature" value={weather.currentTemp ?? '—'} unit={weather.currentTemp != null ? '°C' : ''} />
+        <WeatherStat icon={ThermometerSun} label="Feels like" value={weather.feelsLike ?? '—'} unit={weather.feelsLike != null ? '°C' : ''} />
+        <WeatherStat icon={Droplets} label="Humidity" value={weather.humidity ?? '—'} unit={weather.humidity != null ? '%' : ''} />
+        <WeatherStat icon={CloudRain} label="Rain chance" value={weather.rainfallProbability ?? '—'} unit={weather.rainfallProbability != null ? '%' : ''} />
+        <WeatherStat icon={Wind} label="Wind speed" value={weather.windSpeedKmh ?? '—'} unit={weather.windSpeedKmh != null ? 'km/h' : ''} />
+      </dl>
 
-      <div className={`mt-5 rounded-xl p-4 ${impactClass}`}>
-        <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide">
-          <ImpactIcon size={14} /> Weather Impact
-        </p>
-        <p className="mt-1.5 text-[14px] font-semibold">{guidance.headline}</p>
-        {guidance.tips.length ? (
-          <ul className="mt-2 flex flex-col gap-1">
-            {guidance.tips.map((tip) => (
-              <li key={tip} className="text-[13px] leading-relaxed">• {tip}</li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
+      <p className="mt-4 rounded-md bg-[var(--soft)] px-4 py-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+        <span className="font-semibold text-[var(--text)]">Rain outlook: </span>
+        {getRainOutlook(weather.rainfallProbability)}
+      </p>
+    </section>
   );
 }

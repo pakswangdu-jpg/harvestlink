@@ -35,6 +35,7 @@ import StakeholderRequests from '../features/stakeholder/StakeholderRequests';
 import AdminOverview from '../features/admin/AdminOverview';
 import AdminUsers from '../features/admin/AdminUsers';
 import AdminPriceMonitoring from '../features/admin/AdminPriceMonitoring';
+import AdminDemandForecast from '../features/admin/AdminDemandForecast';
 import AdminOrders from '../features/admin/AdminOrders';
 import AdminDonations from '../features/admin/AdminDonations';
 import AdminReports from '../features/admin/AdminReports';
@@ -106,6 +107,7 @@ export default function AppRoutes() {
         <Route path="/admin-dashboard" element={<AdminOverview />} />
         <Route path="/admin-users" element={<AdminUsers />} />
         <Route path="/admin-price-monitoring" element={<AdminPriceMonitoring />} />
+        <Route path="/admin-demand-forecast" element={<AdminDemandForecast />} />
         <Route path="/admin-orders" element={<AdminOrders />} />
         <Route path="/admin-donations" element={<AdminDonations />} />
         <Route path="/admin-reports" element={<AdminReports />} />

@@ -1,0 +1,13 @@
+.demand-forecast-page #forecast-comparison {
+  scroll-margin-top: 1.5rem;
+}
+
+.demand-forecast-content {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .demand-forecast-content > .grid {
+    min-width: 0;
+  }
+}

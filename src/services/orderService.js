@@ -214,6 +214,10 @@ export async function getOrderById(id) {
   return apiClient.get(`/orders/${id}`);
 }
 
+export function getOrderReceipt(id) {
+  return apiClient.get(`/orders/${encodeURIComponent(id)}/receipt`);
+}
+
 export async function getOrdersByBuyer(buyerId) {
   return apiClient.get(`/orders?buyerId=${buyerId}`);
 }

@@ -84,8 +84,6 @@ async function requestInsights(requestBody, apiKey, models) {
 }
 
 
-
-
 export async function generateForecastInsights(forecast) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
@@ -129,7 +127,7 @@ Forecast period: ${periodLabel}
 Current price: ${formatPrice(currentPrice)}
 Predicted price: ${formatPrice(predictedPrice)}
 Expected price change: ${changePercent > 0 ? '+' : ''}${changePercent}%
-Expected profit per unit: PHP ${expectedProfit != null ? expectedProfit.toFixed(2) : '0.00'}
+Expected price difference per unit (forecast price minus reference price, not profit): PHP ${expectedProfit != null ? expectedProfit.toFixed(2) : 'not available'}
 Market trend: ${trend}
 Current demand: ${demandLevel}
 Demand trend: ${demandTrend}

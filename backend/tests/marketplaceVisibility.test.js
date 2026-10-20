@@ -116,6 +116,9 @@ test('Pending reviews remain visible to the owning farmer and Admin, but not ano
     await listProducts({ query: { farmerId: 'farmer-1' }, profile }, res);
     assert.equal(res.body[0].priceReview.status, 'pending');
   }
+  const ownerRequest = response();
+  await listProducts({ query: { farmerId: 'another-farmer' }, profile: { role: 'farmer', id: 'farmer-1' } }, ownerRequest);
+  assert.equal(ownerRequest.body[0].priceReview.status, 'pending');
   for (const profile of [{ role: 'farmer', id: 'farmer-2' }, { role: 'buyer', id: 'buyer' }]) {
     const res = response();
     await listProducts({ query: {}, profile }, res);

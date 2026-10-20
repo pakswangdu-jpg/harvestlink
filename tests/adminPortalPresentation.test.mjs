@@ -12,6 +12,14 @@ test('Admin login identity is conditional and does not replace the shared authen
   assert.match(source, /onSubmit=\{authStage === 'otp' \? handleVerifyOtp : handleSubmit\}/);
 });
 
+test('Admin form uses the dedicated sign-in action and never starts marketplace email verification', async () => {
+  const source = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
+  assert.match(source, /adminPortal \? await loginAdmin\(form\.email, form\.password\)\s*: await login\(form\.email, form\.password\)/);
+  assert.match(source, /!isRegister && !adminPortal && error\.code === 'email_not_confirmed'/);
+  const auth = await readFile(new URL('../src/features/auth/AuthContext.jsx', import.meta.url), 'utf8');
+  assert.match(auth, /async loginAdmin\(email, password\)\s*\{\s*const user = await loginAdminUser\(email, password\);\s*setCurrentUserState\(user\);/);
+});
+
 test('Admin login portal uses a fixed light appearance', async () => {
   const css = await readFile(new URL('../src/features/auth/AdminPortal.css', import.meta.url), 'utf8');
   for (const match of css.matchAll(/([^{}]+)\{/g)) {

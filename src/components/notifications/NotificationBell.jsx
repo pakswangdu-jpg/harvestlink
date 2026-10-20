@@ -11,6 +11,7 @@ import { useNotificationsRealtime } from '../../hooks/useNotificationsRealtime';
 import { formatRelativeTime } from '../../utils/formatters';
 import { playNotificationSound } from '../../utils/notificationSound';
 import { areBrowserNotificationsEnabled, showBrowserNotification } from '../../utils/browserNotifications';
+import { notificationMessage, notificationTitle } from './notificationPresentation';
 
 const TYPE_ICONS = {
   order: Package,
@@ -113,9 +114,9 @@ export default function NotificationBell({ userId }) {
                     <Link to={notification.link || '#'} onClick={() => handleNotificationClick(notification)}>
                       <span className="notification-item-title">
                         <TypeIcon size={14} />
-                        <strong>{notification.title}</strong>
+                        <strong>{notificationTitle(notification)}</strong>
                       </span>
-                      <span>{notification.message}</span>
+                      <span>{notificationMessage(notification)}</span>
                       <small>{formatRelativeTime(notification.createdAt)}</small>
                     </Link>
                     <button

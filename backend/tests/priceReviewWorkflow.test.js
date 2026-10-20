@@ -3,15 +3,17 @@ import { beforeEach, mock, test } from 'node:test';
 
 let product;
 let beforeWrite;
+let sentNotifications;
 const farmer = { id: 'farmer', name: 'Farmer', role: 'farmer' };
 const admin = { id: 'admin', role: 'admin' };
+const adminProfile = { id: 'admin', role: 'admin', account_status: 'active' };
 const value = (row, key) => key === 'price_review->>status' ? row.price_review?.status : row[key];
 mock.module('../src/lib/supabaseClient.js', { namedExports: { supabaseAdmin: { from(table) {
   let update;
   const filters = [];
   const result = (single) => {
     if (update && beforeWrite) { const action = beforeWrite; beforeWrite = null; action(); }
-    let rows = table === 'products' ? [product] : table === 'profiles' ? [farmer] : [];
+    let rows = table === 'products' ? [product] : table === 'profiles' ? [farmer, adminProfile] : [];
     rows = rows.filter((row) => filters.every(([key, expected]) => value(row, key) === expected));
     if (update) {
       if (!rows.length) return { data: null, error: { code: 'PGRST116', message: 'Review changed' } };
@@ -20,7 +22,7 @@ mock.module('../src/lib/supabaseClient.js', { namedExports: { supabaseAdmin: { f
     return { data: single ? rows[0] || null : rows, error: null };
   };
   return { select() { return this; }, eq(key, expected) { filters.push([key, expected]); return this; }, in() { return this; },
-    update(row) { update = row; return this; }, single() { return Promise.resolve(result(true)); },
+    update(row) { update = row; return this; }, insert(row) { sentNotifications.push({ table, ...row }); return Promise.resolve({ error: null }); }, single() { return Promise.resolve(result(true)); },
     then(resolve, reject) { return Promise.resolve(result(false)).then(resolve, reject); } };
 } } } });
 mock.module('../src/lib/catalogRepo.js', { namedExports: { getCatalog: async () => ({ categories: [{ name: 'Vegetables' }], units: [{ value: 'kg' }, { value: 'box' }] }) } });
@@ -28,7 +30,7 @@ mock.module('../src/lib/historicalPriceService.js', { namedExports: { getHistori
 const { approvePriceReview, declinePriceReview, updateProduct, setProductStatus, getProduct, applyDiscount } = await import('../src/controllers/products.controller.js');
 const { resubmitPriceReview } = await import('../src/lib/priceReview.js');
 
-beforeEach(() => { beforeWrite = null; product = { id: 'eggplant', farmer_id: farmer.id, name: 'Eggplant', category: 'Vegetables', unit: 'kg', price: 180, quantity: 50, status: 'active', price_review: { status: 'pending', farmerPrice: 180, referencePrice: 100, referenceYear: 2025, reason: 'Above reference', createdAt: '2026-10-01' } }; });
+beforeEach(() => { beforeWrite = null; sentNotifications = []; product = { id: 'eggplant', farmer_id: farmer.id, name: 'Eggplant', category: 'Vegetables', unit: 'kg', price: 180, quantity: 50, status: 'active', price_review: { status: 'pending', farmerPrice: 180, referencePrice: 100, referenceYear: 2025, reason: 'Above reference', createdAt: '2026-10-01' } }; });
 async function invoke(handler, body = {}, profile = admin) {
   const res = { json(data) { this.body = data; } };
   await handler({ params: { id: product.id }, body, profile }, res);
@@ -46,6 +48,24 @@ test('Adjustment records the Admin maximum and reason in the same unit without c
   assert.equal(product.price_review.decidedBy, admin.id);
   assert.equal(product.price_review.declineReason, 'Please revise the price.');
   assert.ok(product.price_review.decidedAt);
+});
+
+test('Price decisions notify the Farmer and a resubmitted price notifies active Admins', async () => {
+  await invoke(declinePriceReview, { submittedPrice: 180, unit: 'kg', maxAllowedPrice: 120, reason: 'Please revise the price.' });
+  assert.equal(sentNotifications[0].user_id, farmer.id);
+  assert.equal(sentNotifications[0].title, 'Price adjustment requested');
+  assert.match(sentNotifications[0].message, /PHP 120\.00\/kg/);
+  assert.equal(product.price, 180);
+
+  await invoke(updateProduct, { price: 115 }, farmer);
+  const adminNotification = sentNotifications.find((notification) => notification.user_id === adminProfile.id);
+  assert.equal(adminNotification.title, 'Price review required');
+  assert.equal(adminNotification.link, '/admin-price-monitoring');
+  assert.match(adminNotification.message, /PHP 115\.00\/kg/);
+
+  await invoke(approvePriceReview, { submittedPrice: 115, unit: 'kg' });
+  assert.ok(sentNotifications.some((notification) => notification.user_id === farmer.id && notification.title === 'Price approved'));
+  assert.equal(product.price, 115);
 });
 
 test('Invalid amounts, missing reasons and wrong units cannot change a review', async () => {

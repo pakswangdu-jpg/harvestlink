@@ -22,6 +22,39 @@ Before deploying donation changes, run
 This is required for existing projects and fresh projects provisioned with
 `supabase/schema.sql`. See `supabase/migrations/README.md` for rollout details.
 
+## Final Transaction Receipts
+
+Before deploying receipt emails, apply
+`supabase/migrations/20261020_final_transaction_receipts.sql` after the base schema
+(also required for fresh installations). Then deploy the API and frontend. This
+adds only a completion timestamp and a private receipt-email queue; it does not
+change existing order, payment, delivery, or authentication rules, and does not
+email historical completed orders when installed.
+
+The existing Resend service (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`) sends the copy
+to the Buyer's registered profile email. `APP_URL` supplies the authenticated
+View order/View receipt links. No Gmail credentials or new provider are needed.
+The API worker runs every 15 seconds while the backend is awake; queued work
+survives sleep/restarts. Email failure never rolls back the completed transaction.
+The in-app receipt remains available independently of the email service.
+
+Only Completed + Paid + Delivered/Picked up transactions qualify. GCash also
+requires the existing `approved` verification value. COD uses the existing saved
+Paid state after receipt confirmation. Receipt amounts come from the order's
+saved effective unit price, quantity, delivery fee, and authoritative total.
+Current listing prices are never used. Since retail-price/discount snapshots
+are not stored on orders, receipts do not invent a separate discount line.
+
+`order_receipt_emails` records `status`, `sent_at`, provider ID and retry metadata.
+Recipients and message contents are frozen before sending. Claims are leased and
+atomic; a unique order key plus a stable Resend idempotency key prevents repeat
+emails from page reads, concurrent workers, or restarts. Automatic retries stop
+after ten attempts or 23 hours from the first attempt. Older ambiguous requests
+become `needs_review`, since [Resend retains idempotency keys for 24 hours](https://resend.com/docs/dashboard/emails/idempotency-keys).
+Check the provider logs before any manual requeue; do not clear sent records or
+blindly retry an ambiguous delivery beyond that window. These are email-job
+statuses only, not additional transaction states.
+
 ## One-time setup
 
 1. **Create a Supabase project** at supabase.com if you don't have one yet.

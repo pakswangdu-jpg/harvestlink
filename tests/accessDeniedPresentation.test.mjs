@@ -40,7 +40,6 @@ test('403 Access Denied CSS adheres to typography, humanized spacing, and restra
   assert.match(css, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.admin-access-screen h1\s*\{[^}]*font-size:\s*25px;/);
   assert.match(css, /@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.admin-access-actions :is\(a, button\)\s*\{[^}]*min-height:\s*44px;/);
 });
-
 test('AccessDeniedPage component renders restrained CircleX icon, human copy, 403 code, and role-aware return link', async () => {
   const original = await readFile(new URL('../src/features/auth/AccessDeniedPage.jsx', import.meta.url), 'utf8');
   const source = original.replace(/import[^;]+;/g, '').replace('export default ', '');

@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
+import { getAppUrl } from './appUrls.js';
+import { renderReceiptEmail } from './receiptEmailTemplate.js';
 
 
 
@@ -220,6 +222,17 @@ export async function sendPasswordResetEmail(email, resetLink) {
     </body></html>`,
   });
   if (error || !data?.id) throw new Error('Unable to send the password reset email.');
+  return data;
+}
+
+export function createFinalReceiptMessage(receipt, recipient) {
+  return { from: FROM_ADDRESS, to: [recipient], ...renderReceiptEmail(receipt, getAppUrl()) };
+}
+
+export async function sendFinalReceiptEmail(message, idempotencyKey) {
+  if (!resend) throw new Error('Email delivery is not configured.');
+  const { data, error } = await resend.emails.send(message, { idempotencyKey });
+  if (error || !data?.id) throw new Error('Unable to send the final transaction receipt.');
   return data;
 }
 

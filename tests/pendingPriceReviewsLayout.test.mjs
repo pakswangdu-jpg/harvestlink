@@ -16,11 +16,13 @@ function fixture() {
     React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
     useRef: (value) => { const slot = index++; return slots[slot] ??= { current: value }; },
     useState: (value) => { const slot = index++; if (!(slot in slots)) slots[slot] = value; return [slots[slot], (next) => { slots[slot] = next; }]; },
+    useEffect: () => {},
     Table: 'table', Button: 'button', Modal: 'modal', LoadingState: 'loading', Eye: 'eye', Check: 'check',
     formatCurrency: (value) => 'PHP ' + Number(value).toFixed(2), formatDate: (value) => value,
     priceReviewComparison: () => ({ referencePrice: 100, deviationPct: 71, possibleOverpricing: true, referenceSource: 'PSA reference' }),
     approvePriceReview: async (...args) => calls.push(['approve', ...args]),
     declinePriceReview: async (...args) => calls.push(['adjust', ...args]),
+    getCropForecastDetail: async () => ({}),
   };
   const Component = new Function('scope', 'with(scope){' + code + '; return PendingReviews;}')(scope);
   const props = { reviews: [product], commodities: [], onNotice() {}, onError() {}, onReload() {} };
@@ -43,7 +45,7 @@ test('Approve opens confirmation before sending a snapshot of the submitted pric
   table.props.columns.at(-1).render(product).props.children[1].props.onClick();
   assert.deepEqual(app.calls, []);
   const all = app.render();
-  assert.equal(all.find((node) => node.type === 'modal').props.title, 'Approve selling price?');
+  assert.equal(all.find((node) => node.type === 'modal').props.title, 'Approve this selling price?');
   await all.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.deepEqual(app.calls, [['approve', product.id, { submittedPrice: 171, unit: 'kg' }]]);
 });

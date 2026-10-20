@@ -16,7 +16,7 @@
   --text: #e5ebe7;
   --muted: #a1aea5;
   --icon-muted: #aab8ae;
-  background: #171d19;
+  background: var(--sidebar-bg);
   border-right-color: #303a34;
 }
 

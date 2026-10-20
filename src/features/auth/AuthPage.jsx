@@ -24,6 +24,7 @@ import logo from '../../assets/logo.png';
 import './AuthorizedRepresentative.css';
 import './AdminPortal.css';
 import './AdministratorNotice.css';
+import './MarketplaceRegistration.css';
 
 const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 
@@ -1143,7 +1144,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
   const otpErrorAlert = mapVerificationAlert(otpError, 'Verification failed');
 
   return (
-    <main className={`auth-page ${isRegister ? 'auth-page-register' : 'auth-page-login'} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''} ${adminPortal ? 'auth-page-admin' : ''}`}>
+    <main className={`auth-page ${isRegister ? 'auth-page-register auth-page-marketplace-register' : 'auth-page-login'} ${isStakeholderRegister ? 'auth-page-stakeholder' : ''} ${adminPortal ? 'auth-page-admin' : ''}`}>
       {!adminPortal ? <section className="auth-hero">
         <Link to="/" className="brand auth-brand">
           <span className="brand-mark">
