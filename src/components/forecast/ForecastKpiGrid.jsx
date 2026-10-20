@@ -1,111 +1,126 @@
 import {
-  Award, Bot, CloudRain, DollarSign, Minus, Sprout, TrendingDown, TrendingUp,
+  Activity, Award, CloudRain, Gauge, Minus, Sprout, TrendingDown, TrendingUp,
 } from 'lucide-react';
 import ProgressBar from '../common/ProgressBar';
-import { formatCurrency } from '../../utils/formatters';
 
 const TREND_STYLE = {
   Rising: { icon: TrendingUp, color: 'text-[var(--green-700)]' },
   Falling: { icon: TrendingDown, color: 'text-[var(--red-700)]' },
   Steady: { icon: Minus, color: 'text-[var(--amber-700)]' },
+  Unavailable: { icon: Minus, color: 'text-[var(--muted)]' },
 };
 
 const RISK_STYLE = {
-  Low: { color: 'text-[var(--green-700)]' },
-  Medium: { color: 'text-[var(--amber-700)]' },
-  High: { color: 'text-[var(--red-700)]' },
+  Low: 'text-[var(--green-700)]',
+  Medium: 'text-[var(--amber-700)]',
+  High: 'text-[var(--red-700)]',
+  Unavailable: 'text-[var(--muted)]',
 };
 
-function rainWarning(weather) {
-  if (!weather || weather.rainfallProbability == null) return 'No rainfall data available';
-  if (weather.rainfallProbability >= 60) return `${weather.rainfallProbability}% chance of heavy rain`;
-  if (weather.rainfallProbability >= 30) return `${weather.rainfallProbability}% chance of rain`;
-  return 'Clear skies expected';
-}
-
-function Card({ children }) {
+function SummaryMetric({ icon: Icon, label, children }) {
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
-      {children}
+    <article className="flex min-w-0 flex-col gap-3 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5">
+      <p className="flex items-center gap-2 text-[14px] font-medium text-[var(--text-secondary)]">
+        <Icon size={18} aria-hidden="true" className="shrink-0 text-[var(--green-700)]" />
+        {label}
+      </p>
+      <div className="min-w-0">{children}</div>
     </article>
   );
 }
 
-function CardHeader({ icon: Icon, iconColor, label }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <Icon size={20} strokeWidth={2} className={`shrink-0 ${iconColor}`} />
-      <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--muted)]">{label}</p>
-    </div>
-  );
-}
-
-
-
-
 export default function ForecastKpiGrid({
-  highDemandCrops, averageForecastPrice, averagePriceChangePercent,
-  bestCrop, marketTrend, weather, weatherRiskLevel, averageConfidence, periodLabel,
+  highDemandCrops, averagePriceChangePercent,
+  bestCrop, marketTrend, weather, weatherRiskLevel, averageConfidence, periodLabel, onViewHighDemand,
 }) {
   const trendStyle = TREND_STYLE[marketTrend] || TREND_STYLE.Steady;
   const TrendIcon = trendStyle.icon;
-  const riskStyle = RISK_STYLE[weatherRiskLevel] || RISK_STYLE.Low;
+  const confidenceTone = averageConfidence >= 70 ? 'green' : averageConfidence >= 50 ? 'amber' : 'red';
+  const confidenceLevel = averageConfidence == null
+    ? null
+    : averageConfidence >= 70 ? 'Higher' : averageConfidence >= 50 ? 'Moderate' : 'Limited';
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <Card>
-        <CardHeader icon={Sprout} iconColor="text-[var(--green-700)]" label="High Demand Crops" />
-        <p className="text-[28px] font-bold leading-none text-[var(--text)]">{highDemandCrops.length}</p>
-        <p className="line-clamp-2 text-[13px] text-[var(--muted)]">
-          {highDemandCrops.length ? highDemandCrops.map((entry) => entry.crop).join(', ') : 'No crops currently in high demand'}
-        </p>
-      </Card>
+    <section aria-label="Forecast summary">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <SummaryMetric icon={Sprout} label="High-demand crops">
+          <p className="text-[30px] font-semibold leading-none tracking-tight text-[var(--text)]">{highDemandCrops.length}</p>
+          {highDemandCrops.length ? (
+            <button
+              type="button"
+              onClick={onViewHighDemand}
+              style={{ background: 'transparent', border: 0, padding: 0, color: 'var(--green-700)', minHeight: 44 }}
+              className="mt-2 block w-full text-left text-[14px] font-medium leading-relaxed underline-offset-2 hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
+            >
+              View {highDemandCrops.length} crop{highDemandCrops.length === 1 ? '' : 's'} with demand opportunities
+            </button>
+          ) : (
+            <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-secondary)]">No demand opportunities in this selection.</p>
+          )}
+        </SummaryMetric>
 
-      <Card>
-        <CardHeader icon={DollarSign} iconColor="text-[var(--green-700)]" label="Average Forecast Price" />
-        <p className="text-[28px] font-bold leading-none text-[var(--text)]">
-          {averageForecastPrice != null ? formatCurrency(averageForecastPrice) : '—'}
-        </p>
-        {averagePriceChangePercent != null ? (
-          <p className={`text-[13px] font-semibold ${averagePriceChangePercent >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'}`}>
-            {averagePriceChangePercent > 0 ? '+' : ''}{averagePriceChangePercent}% · {periodLabel}
+        <SummaryMetric icon={Activity} label="Average expected price change">
+          <p className={`text-[30px] font-semibold leading-tight tracking-tight ${
+            averagePriceChangePercent == null ? 'text-[var(--muted)]' : averagePriceChangePercent >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'
+          }`}
+          >
+            {averagePriceChangePercent != null
+              ? `${averagePriceChangePercent > 0 ? '+' : ''}${averagePriceChangePercent}%`
+              : 'Not available'}
           </p>
-        ) : <p className="text-[13px] text-[var(--muted)]">{periodLabel}</p>}
-      </Card>
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+            {averagePriceChangePercent != null ? `Across priced crops · ${periodLabel}` : `No price changes available · ${periodLabel}`}
+          </p>
+        </SummaryMetric>
 
-      <Card>
-        <CardHeader icon={Award} iconColor="text-[var(--amber-700)]" label="Best Crop" />
-        <p className="text-[22px] font-bold leading-tight text-[var(--text)]">{bestCrop?.crop || '—'}</p>
-        <p className="text-[13px] font-semibold text-[var(--green-700)]">
-          {bestCrop?.expectedChangePercent != null
-            ? `${bestCrop.expectedChangePercent > 0 ? '+' : ''}${bestCrop.expectedChangePercent}% expected profit`
-            : 'No standout crop yet'}
-        </p>
-      </Card>
+        <SummaryMetric icon={Award} label="Strongest price outlook">
+          <p className="truncate text-[24px] font-semibold leading-tight tracking-tight text-[var(--text)]">{bestCrop?.crop || 'Not available'}</p>
+          <p className={`mt-2 text-[14px] font-medium leading-relaxed ${
+            bestCrop?.expectedChangePercent == null ? 'text-[var(--muted)]' : bestCrop.expectedChangePercent >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'
+          }`}
+          >
+            {bestCrop?.expectedChangePercent != null
+              ? `${bestCrop.expectedChangePercent > 0 ? '+' : ''}${bestCrop.expectedChangePercent}% expected price change`
+              : 'No price estimate available'}
+          </p>
+        </SummaryMetric>
 
-      <Card>
-        <CardHeader icon={TrendIcon} iconColor={trendStyle.color} label="Market Trend" />
-        <p className={`text-[24px] font-bold leading-none ${trendStyle.color}`}>{marketTrend}</p>
-        <p className="text-[13px] text-[var(--muted)]">Across every crop shown</p>
-      </Card>
+        <SummaryMetric icon={TrendIcon} label="Overall price trend">
+          <p className={`text-[26px] font-semibold leading-tight tracking-tight ${trendStyle.color}`}>{marketTrend}</p>
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+            {marketTrend === 'Unavailable' ? 'No price forecasts available' : 'Based on crops with a price forecast'}
+          </p>
+        </SummaryMetric>
 
-      <Card>
-        <CardHeader icon={CloudRain} iconColor={riskStyle.color} label="Weather Risk" />
-        <p className={`text-[24px] font-bold leading-none ${riskStyle.color}`}>{weatherRiskLevel}</p>
-        <p className="text-[13px] text-[var(--muted)]">{rainWarning(weather)}</p>
-      </Card>
+        <SummaryMetric icon={CloudRain} label="Rainfall risk">
+          <p className={`text-[26px] font-semibold leading-tight tracking-tight ${RISK_STYLE[weatherRiskLevel] || RISK_STYLE.Unavailable}`}>
+            {weather ? weatherRiskLevel : 'Unavailable'}
+          </p>
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+            {weather?.rainfallProbability != null
+              ? `${weather.rainfallProbability}% chance of rain`
+              : 'No rainfall estimate available'}
+          </p>
+        </SummaryMetric>
 
-      <Card>
-        <CardHeader icon={Bot} iconColor="text-[var(--green-700)]" label="AI Confidence" />
-        <p className="text-[28px] font-bold leading-none text-[var(--text)]">
-          {averageConfidence != null ? `${averageConfidence}%` : '—'}
-        </p>
-        <ProgressBar
-          value={averageConfidence || 0}
-          tone={averageConfidence >= 70 ? 'green' : averageConfidence >= 50 ? 'amber' : 'red'}
-          label="AI confidence score"
-        />
-      </Card>
-    </div>
+        <SummaryMetric icon={Gauge} label="Forecast confidence">
+          <p className="text-[26px] font-semibold leading-tight tracking-tight text-[var(--text)]">
+            {averageConfidence != null ? `${averageConfidence}% · ${confidenceLevel}` : 'Not available'}
+          </p>
+          {averageConfidence != null ? (
+            <div className="mt-3">
+              <ProgressBar
+                value={averageConfidence}
+                tone={confidenceTone}
+                label="Forecast confidence score"
+              />
+            </div>
+          ) : null}
+          <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+            Reflects the amount and consistency of available market, price, and weather data.
+          </p>
+        </SummaryMetric>
+      </div>
+    </section>
   );
 }

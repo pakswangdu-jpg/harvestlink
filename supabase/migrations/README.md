@@ -213,6 +213,15 @@ for applying the migration. Run the complete SQL file in the connected project's
 Supabase SQL Editor, then reopen User details. The migration reloads the schema
 cache; it does not create accounts or alter existing account statuses.
 
+## Final Transaction Receipts
+
+Apply `20261020_final_transaction_receipts.sql` after the base schema, before
+deploying final receipt emails. It adds nullable `orders.completed_at` and the
+private, service-only `order_receipt_emails` queue. Existing account, payment,
+delivery and order states are unchanged. Historical completions are neither
+backfilled with invented dates nor automatically emailed. The migration is
+rerunnable. See `backend/README.md` for worker setup and safe retry handling.
+
 ## Admin Market Price Notifications
 
 Apply `20261010_market_price_notifications.sql` after the base schema. It adds

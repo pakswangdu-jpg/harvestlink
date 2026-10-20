@@ -14,6 +14,7 @@ import { adminNavItems } from './adminNav';
 import { ORDER_STATUSES, DELIVERY_STAGES, orderLabel, adminOrderId, progressLabel, paymentState, verificationState } from './adminOrderPresentation';
 import './AdminOrders.css';
 import { isOfficialLalamoveTrackingUrl } from '../../../backend/shared/lalamove';
+import PaymentVerificationDrawer from '../../components/orders/PaymentVerificationDrawer';
 
 const EMPTY_FILTERS = { page: 1, search: '', status: '', deliveryStatus: '', paymentMethod: '', paymentStatus: '', deliveryMethod: '', from: '', to: '' };
 const OVERVIEW = [['all', 'All orders'], ['pending', 'Pending'], ['confirmed', 'Confirmed'], ['preparing', 'Preparing'], ['out_for_delivery', 'Out for delivery'], ['completed', 'Completed'], ['cancelled', 'Cancelled'], ['rejected', 'Rejected']];
@@ -24,6 +25,7 @@ function Payment({ order }) { return <div><PaymentMethodLabel method={order.paym
 function DetailFields({ fields }) { return <dl>{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? 'Not recorded'}</dd></div>)}</dl>; }
 
 function OrderDetails({ id, onClose }) {
+  const [reviewingPayment, setReviewingPayment] = useState(false);
   const [record, setRecord] = useState(null);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
@@ -56,7 +58,7 @@ function OrderDetails({ id, onClose }) {
     return () => { cancelled = true; };
   }, [id, refresh]);
   const order = record?.order;
-  return <Modal open={Boolean(id)} onClose={onClose} className="admin-order-detail-modal" dialogLabel="Order details" title={order ? `Order ${adminOrderId(order.id)}` : 'Order details'}>
+  return <><Modal open={Boolean(id)} onClose={onClose} className="admin-order-detail-modal" dialogLabel="Order details" title={order ? `Order ${adminOrderId(order.id)}` : 'Order details'}>
     <div className="admin-order-details">
       {error ? <div className="form-alert error" role="alert">{error}<button type="button" onClick={() => { setError(''); setRefresh((value) => value + 1); }}>Try again</button></div> : !order ? <p role="status">Loading order details...</p> : <>
         <section><h3>Order information</h3><DetailFields fields={[
@@ -77,7 +79,7 @@ function OrderDetails({ id, onClose }) {
           ...(order.paymentMethod === 'gcash' ? [['Receipt verification', verificationState(order)], ['Reference', order.paymentReferenceNumber], ['Sender', order.paymentSenderName], ['Receipt submitted', stamp(order.paymentSubmittedAt)], ['Reviewed', stamp(order.paymentReviewedAt)], ['Payment rejection reason', order.paymentRejectionReason]] : []),
           ['Paid at', stamp(order.paidAt)], ['Transaction reference', order.transactionId],
         ]} />
-          {order.paymentReceiptUrl ? <a className="admin-order-link" href={order.paymentReceiptUrl} target="_blank" rel="noreferrer">View payment receipt <ExternalLink size={14} /></a> : null}
+          {order.paymentReceiptUrl ? <button type="button" className="admin-order-link" onClick={() => setReviewingPayment(true)}>Review payment details <ExternalLink size={14} /></button> : null}
         </section>
         <section><h3>Delivery</h3><DetailFields fields={[
           ['Delivery method', deliveryMethodLabel(order.deliveryMethod)], ['Delivery progress', progressLabel(order)],
@@ -103,7 +105,7 @@ function OrderDetails({ id, onClose }) {
         </ol>{!order.deliveryEvents?.length ? <p className="admin-order-secondary">No additional status history recorded.</p> : null}</section>
       </>}
     </div>
-  </Modal>;
+  </Modal><PaymentVerificationDrawer order={reviewingPayment ? order : null} readOnly onClose={() => setReviewingPayment(false)} /></>;
 }
 
 export default function AdminOrders() {

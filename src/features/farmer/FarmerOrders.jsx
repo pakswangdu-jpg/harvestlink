@@ -506,13 +506,15 @@ export default function FarmerOrders() {
 
 
   const handleApprovePayment = async (order) => {
-    await run(() => approvePaymentVerification(order.id), 'Payment approved.');
-    setVerifyingOrderId(null);
+    const success = await run(() => approvePaymentVerification(order.id), 'Payment approved.');
+    if (success) setVerifyingOrderId(null);
+    return success;
   };
 
   const handleRejectPayment = async (order, reason) => {
-    await run(() => rejectPaymentVerification(order.id, reason), 'Payment rejected.');
-    setVerifyingOrderId(null);
+    const success = await run(() => rejectPaymentVerification(order.id, reason), 'Payment rejected.');
+    if (success) setVerifyingOrderId(null);
+    return success;
   };
 
 

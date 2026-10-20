@@ -137,6 +137,7 @@ export function serializeOrder(row) {
 
     transactionId: row.transaction_id || null,
     paidAt: row.paid_at || null,
+    completedAt: row.completed_at || null,
     paymentReceiptUrl: row.payment_receipt_url || null,
 
 

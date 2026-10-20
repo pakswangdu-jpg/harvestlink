@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import EmptyState from '../../components/common/EmptyState';
 import ForecastFilters from '../../components/forecast/ForecastFilters';
@@ -12,13 +12,38 @@ import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { getCropForecastDetail, getDemandForecast } from '../../services/demandForecastService';
 import { farmerNavItems } from './farmerNav';
+import './FarmerDemandForecast.css';
 
 
 function rainRiskLevel(rainfallProbability) {
-  if (rainfallProbability == null) return 'Low';
+  if (rainfallProbability == null) return 'Unavailable';
   if (rainfallProbability >= 60) return 'High';
   if (rainfallProbability >= 30) return 'Medium';
   return 'Low';
+}
+
+function formatLastUpdated(value) {
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'Not available';
+  return new Intl.DateTimeFormat('en-PH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Manila',
+  }).format(new Date(value));
+}
+
+function formatPrice(value, unit) {
+  if (value == null) return null;
+  return `${new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    maximumFractionDigits: 2,
+  }).format(value)}${unit ? `/${unit}` : ''}`;
+}
+
+function formatPercentChange(value) {
+  if (value == null) return null;
+  const arrow = value > 0 ? '↑' : value < 0 ? '↓' : '→';
+  return `${arrow} ${value > 0 ? '+' : ''}${value}%`;
 }
 
 export default function FarmerDemandForecast() {
@@ -30,6 +55,8 @@ export default function FarmerDemandForecast() {
   const [period, setPeriod] = useState('7_days');
   const [customDate, setCustomDate] = useState('');
   const [selectedCropOverride, setSelectedCropOverride] = useState('');
+  const comparisonRef = useRef(null);
+  const detailRef = useRef(null);
 
 
 
@@ -65,7 +92,7 @@ export default function FarmerDemandForecast() {
   const weather = data?.weather || null;
   const periods = data?.periods || [];
   const periodLabel = data?.periodLabel || '';
-  const weatherRiskLevel = weather ? rainRiskLevel(weather.rainfallProbability) : 'Low';
+  const weatherRiskLevel = weather ? rainRiskLevel(weather.rainfallProbability) : 'Unavailable';
 
 
 
@@ -78,8 +105,12 @@ export default function FarmerDemandForecast() {
     return crops.filter((entry) => !demandLevel || entry.signal === demandLevel);
   }, [crops, demandLevel]);
 
-  const highDemandCrops = filtered.filter((entry) => entry.signal === 'opportunity');
-  const featured = highDemandCrops[0] || filtered[0] || null;
+  const highDemandCrops = crops.filter((entry) => entry.signal === 'opportunity');
+  const bestOpportunity = [...highDemandCrops].sort((a, b) => (
+    (b.demandPerListing || 0) - (a.demandPerListing || 0)
+    || (b.quantityOrdered || 0) - (a.quantityOrdered || 0)
+  ))[0] || null;
+  const featured = bestOpportunity || filtered[0] || null;
 
 
 
@@ -90,20 +121,15 @@ export default function FarmerDemandForecast() {
     : (featured?.crop || filtered[0]?.crop || '');
 
   const pricedCrops = filtered.filter((entry) => entry.forecastPrice != null);
-  const averageForecastPrice = pricedCrops.length
-    ? pricedCrops.reduce((sum, entry) => sum + entry.forecastPrice, 0) / pricedCrops.length
+  const cropsWithPriceChange = pricedCrops.filter((entry) => entry.expectedChangePercent != null);
+  const averagePriceChangePercent = cropsWithPriceChange.length
+    ? Math.round((cropsWithPriceChange.reduce((sum, entry) => sum + entry.expectedChangePercent, 0) / cropsWithPriceChange.length) * 10) / 10
     : null;
-  const averageCurrentPrice = pricedCrops.length
-    ? pricedCrops.reduce((sum, entry) => sum + entry.currentPrice, 0) / pricedCrops.length
-    : null;
-  const averagePriceChangePercent = averageForecastPrice != null && averageCurrentPrice
-    ? Math.round(((averageForecastPrice - averageCurrentPrice) / averageCurrentPrice) * 1000) / 10
-    : null;
-  const bestCrop = [...pricedCrops].sort((a, b) => (b.expectedChangePercent || 0) - (a.expectedChangePercent || 0))[0] || null;
+  const bestCrop = [...cropsWithPriceChange].sort((a, b) => b.expectedChangePercent - a.expectedChangePercent)[0] || null;
   const risingCount = pricedCrops.filter((entry) => entry.marketTrend === 'increasing').length;
   const fallingCount = pricedCrops.filter((entry) => entry.marketTrend === 'decreasing').length;
   const marketTrend = !pricedCrops.length
-    ? 'Steady'
+    ? 'Unavailable'
     : risingCount > fallingCount ? 'Rising' : fallingCount > risingCount ? 'Falling' : 'Steady';
   const averageConfidence = filtered.length
     ? Math.round(filtered.reduce((sum, entry) => sum + (entry.confidence || 0), 0) / filtered.length)
@@ -113,8 +139,12 @@ export default function FarmerDemandForecast() {
 
 
   const supplyDemandData = filtered.slice(0, 8).map((entry) => ({
-    crop: entry.crop, supply: entry.activeListings, demand: entry.orderCount,
+    crop: entry.crop,
+    supply: entry.activeListings,
+    demand: entry.orderCount,
+    signal: entry.signal,
   }));
+  const lastUpdated = data?.generatedAt || null;
 
 
 
@@ -146,7 +176,8 @@ export default function FarmerDemandForecast() {
         user={currentUser}
         navItems={farmerNavItems}
         title="Demand Forecast"
-        subtitle="AI-powered forecast to help farmers decide what to plant, harvest, and sell."
+        subtitle={`Market outlook based on marketplace activity, reference prices, and local weather${municipality ? ` in ${municipality}` : ''}.`}
+        pageClassName="demand-forecast-page"
       >
         <ForecastSkeleton />
       </AppShell>
@@ -158,9 +189,10 @@ export default function FarmerDemandForecast() {
       user={currentUser}
       navItems={farmerNavItems}
       title="Demand Forecast"
-      subtitle="AI-powered forecast to help farmers decide what to plant, harvest, and sell."
+      subtitle={`Market outlook based on marketplace activity, reference prices, and local weather${municipality ? ` in ${municipality}` : ''}.`}
+      pageClassName="demand-forecast-page"
     >
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="demand-forecast-content flex min-w-0 flex-col gap-5">
         {loadError ? <div className="form-alert error">{loadError}</div> : null}
 
         <ForecastFilters
@@ -183,9 +215,20 @@ export default function FarmerDemandForecast() {
           />
         ) : (
           <>
+            <section aria-labelledby="forecast-summary-heading">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h2 id="forecast-summary-heading" className="text-[22px] font-semibold leading-tight text-[var(--text)]">Market summary</h2>
+                  <p className="mt-1 text-[15px] text-[var(--text-secondary)]">
+                    A quick view of demand, price direction, weather risk, and forecast confidence.
+                  </p>
+                </div>
+                <p className="text-[14px] text-[var(--text-secondary)]">
+                  Last updated: <time dateTime={lastUpdated || undefined}>{formatLastUpdated(lastUpdated)}</time>
+                </p>
+              </div>
             <ForecastKpiGrid
               highDemandCrops={highDemandCrops}
-              averageForecastPrice={averageForecastPrice}
               averagePriceChangePercent={averagePriceChangePercent}
               bestCrop={bestCrop}
               marketTrend={marketTrend}
@@ -193,30 +236,98 @@ export default function FarmerDemandForecast() {
               weatherRiskLevel={weatherRiskLevel}
               averageConfidence={averageConfidence}
               periodLabel={periodLabel}
+              onViewHighDemand={() => {
+                setDemandLevel('opportunity');
+                comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
             />
+            </section>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
               <WeatherPanel weather={weather} isLoading={isRefreshing} />
-              <SupplyDemandBarChart data={supplyDemandData} />
+              <section className="min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6" aria-labelledby="forecast-opportunity-heading">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[var(--green-700)]">Best opportunity</p>
+                    <h2 id="forecast-opportunity-heading" className="mt-1 text-[22px] font-semibold text-[var(--text)]">
+                      {bestOpportunity?.crop || 'No high-demand crop identified'}
+                    </h2>
+                  </div>
+                  {bestOpportunity ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCropOverride(bestOpportunity.crop);
+                        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="min-h-11 rounded-md border border-[var(--line)] bg-[var(--panel)] px-4 text-[14px] font-semibold text-[var(--green-700)] hover:bg-[var(--soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
+                    >
+                      View detailed forecast
+                    </button>
+                  ) : null}
+                </div>
+                {bestOpportunity ? (
+                  <>
+                    <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[var(--line)] pt-4 sm:grid-cols-3">
+                      {bestOpportunity.orderCount != null ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Buyer orders</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{bestOpportunity.orderCount}</dd></div> : null}
+                      {bestOpportunity.activeListings != null ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Active listings</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{bestOpportunity.activeListings}</dd></div> : null}
+                      {bestOpportunity.currentDemand ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Demand level</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{bestOpportunity.currentDemand}</dd></div> : null}
+                      {formatPrice(bestOpportunity.referencePrice, bestOpportunity.unit) ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Reference price</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{formatPrice(bestOpportunity.referencePrice, bestOpportunity.unit)}</dd></div> : null}
+                      {formatPrice(bestOpportunity.forecastPrice, bestOpportunity.unit) ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Forecast reference</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{formatPrice(bestOpportunity.forecastPrice, bestOpportunity.unit)}</dd></div> : null}
+                      {formatPercentChange(bestOpportunity.expectedChangePercent) ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Expected price change</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{formatPercentChange(bestOpportunity.expectedChangePercent)}</dd></div> : null}
+                      {bestOpportunity.marketTrend ? <div><dt className="text-[13px] text-[var(--text-secondary)]">Market trend</dt><dd className="mt-1 text-[16px] font-semibold text-[var(--text)]">{bestOpportunity.marketTrend}</dd></div> : null}
+                    </dl>
+                    <p className="mt-4 rounded-md bg-[var(--soft)] px-4 py-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                      <span className="font-semibold text-[var(--text)]">Market opportunity: </span>
+                      Buyer demand for {bestOpportunity.crop} is outpacing active listings. This may indicate a stronger selling opportunity; it does not guarantee a sale or profit.
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                    No crop currently meets the forecast’s high-demand signal for this selection.
+                  </p>
+                )}
+              </section>
             </div>
 
-            <ForecastTable
-              crops={filtered}
-              selectedCrop={selectedCrop}
-              onSelectCrop={setSelectedCropOverride}
-              category={category}
-              onCategoryChange={setCategory}
-              categoryOptions={categoryOptions}
-              demandLevel={demandLevel}
-              onDemandLevelChange={setDemandLevel}
-            />
+            <SupplyDemandBarChart data={supplyDemandData} />
+
+            <div ref={comparisonRef} className="scroll-mt-6">
+              <ForecastTable
+                crops={filtered}
+                selectedCrop={selectedCrop}
+                onSelectCrop={setSelectedCropOverride}
+                category={category}
+                onCategoryChange={setCategory}
+                categoryOptions={categoryOptions}
+                demandLevel={demandLevel}
+                onDemandLevelChange={setDemandLevel}
+              />
+            </div>
 
             {detailError ? <div className="form-alert error">{detailError}</div> : null}
-            {isDetailLoading ? (
-              <ForecastSkeleton />
-            ) : (
-              <MarketAnalysisReport detail={detail} municipality={municipality} periodLabel={periodLabel} />
-            )}
+            <div ref={detailRef} className="scroll-mt-6">
+              {isDetailLoading ? (
+                <ForecastSkeleton />
+              ) : (
+                <MarketAnalysisReport detail={detail} municipality={municipality} periodLabel={periodLabel} />
+              )}
+            </div>
+            <section className="border-t border-[var(--line)] pt-4" aria-labelledby="forecast-about-title">
+              <h2 id="forecast-about-title" className="text-[18px] font-semibold text-[var(--text)]">About this forecast</h2>
+              <p className="mt-1 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+                Forecasts are estimates based on available marketplace activity, reference pricing, and weather information. Actual market demand and prices may vary. Price changes do not include growing or selling costs and are not profit estimates.
+              </p>
+              <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-secondary)]">
+                <span className="font-semibold text-[var(--text)]">Data sources: </span>
+                HarvestLink marketplace orders and listings · available listing and order price history
+                {weather ? ' · OpenWeather' : ''}
+                {' · PSA farmgate price trends where available'}
+              </p>
+              <p className="mt-2 text-[13px] text-[var(--muted)]">
+                Last updated: <time dateTime={lastUpdated || undefined}>{formatLastUpdated(lastUpdated)}</time>
+              </p>
+            </section>
           </>
         )}
       </div>

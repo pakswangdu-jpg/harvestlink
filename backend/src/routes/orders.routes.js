@@ -5,6 +5,7 @@ import {
   cancelOrder,
   createOrder,
   getOrder,
+  getOrderReceipt,
   getCheckoutQuote,
   listOrders,
   updateOrderLocation,
@@ -17,6 +18,7 @@ router.get('/', requireAuth, listOrders);
 router.post('/', requireAuth, createOrder);
 router.post('/quote', requireAuth, getCheckoutQuote);
 router.get('/:id', requireAuth, getOrder);
+router.get('/:id/receipt', requireAuth, getOrderReceipt);
 router.patch('/:id/status', requireAuth, updateOrderStatus);
 router.patch('/:id/cancel', requireAuth, cancelOrder);
 router.patch('/:id/advance-delivery', requireAuth, advanceDelivery);

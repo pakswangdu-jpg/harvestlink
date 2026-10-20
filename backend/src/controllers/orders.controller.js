@@ -7,6 +7,7 @@ import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
 import { ApiError } from '../lib/ApiError.js';
 import { buildCheckoutQuote } from '../lib/checkoutQuote.js';
 import { queryAdminOrders } from '../lib/adminOrderQuery.js';
+import { loadOrderReceipt } from '../lib/orderReceipt.js';
 
 async function transitionOrder(actor, orderId, action, reason) {
   const { data, error } = await supabaseAdmin.rpc('transition_marketplace_order', {
@@ -114,6 +115,14 @@ export async function getOrder(req, res) {
 
   if (eventsError) throw new ApiError('Unable to load order history. Try again.', 500);
   res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
+}
+
+export async function getOrderReceipt(req, res) {
+  const { data: order, error } = await supabaseAdmin.from('orders').select('*').eq('id', req.params.id).single();
+  if (error || !order) throw new ApiError('Order was not found.', 404);
+  const { isBuyer } = assertParty(req, order);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(await loadOrderReceipt(order, { includeBuyerEmail: isBuyer }));
 }
 
 

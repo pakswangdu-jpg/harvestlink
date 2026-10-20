@@ -1,0 +1,485 @@
+.farmer-reputation-section {
+  padding: 22px;
+}
+
+.farmer-reputation-section,
+.farmer-reputation-section * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.farmer-reputation-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.farmer-reputation-title {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.farmer-reputation-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.farmer-reputation-preview-score {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.farmer-reputation-preview-score > span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-preview-score .farmer-reputation-average {
+  font-size: 28px;
+}
+
+.farmer-reputation-open {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--green-800);
+  border-radius: 6px;
+  background: var(--green-800);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.farmer-reputation-open:hover {
+  filter: brightness(0.95);
+}
+
+.farmer-reputation-open:focus-visible,
+.farmer-reputation-close:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 3px;
+}
+
+.farmer-reputation-dialog {
+  width: min(1000px, calc(100vw - 32px));
+  max-width: 1000px;
+  max-height: min(88vh, 900px);
+  margin: auto;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.farmer-reputation-dialog::backdrop {
+  background: rgb(10 18 13 / 58%);
+}
+
+.farmer-reputation-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.farmer-reputation-dialog-header .eyebrow {
+  margin: 0 0 3px;
+  color: var(--green-700);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.farmer-reputation-dialog-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.farmer-reputation-close {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.farmer-reputation-close:hover {
+  background: var(--panel-subtle);
+  color: var(--text);
+}
+
+.farmer-reputation-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 35fr) minmax(0, 65fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.farmer-reputation-summary {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+}
+
+.farmer-reputation-score {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.farmer-reputation-average {
+  color: var(--text);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.farmer-reputation-score > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-section .star-rating-star.filled {
+  color: #aa792c;
+}
+
+.farmer-reputation-dialog .star-rating-star.filled {
+  color: #aa792c;
+}
+
+.farmer-reputation-breakdown {
+  display: grid;
+  gap: 10px;
+}
+
+.farmer-reputation-bar-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+}
+
+.farmer-reputation-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.farmer-reputation-bar-label svg {
+  color: #aa792c;
+  fill: #aa792c;
+}
+
+.farmer-reputation-bar-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.farmer-reputation-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #166534;
+}
+
+.farmer-reputation-bar-count {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.farmer-reputation-reviews {
+  min-width: 0;
+}
+
+.farmer-reputation-reviews-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 46px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.farmer-reputation-reviews-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.farmer-reputation-reviews-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.farmer-reputation-reviews-heading > div > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-sort select {
+  min-width: 146px;
+  min-height: 44px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.farmer-reputation-review-list {
+  display: grid;
+}
+
+.farmer-reputation-review {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.farmer-reputation-review-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.farmer-reputation-avatar {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.farmer-reputation-review-identity {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.farmer-reputation-review-identity > strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farmer-reputation-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.farmer-reputation-date {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-review-rating {
+  min-height: 20px;
+}
+
+.farmer-reputation-product {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.farmer-reputation-product > span {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.farmer-reputation-comment {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.farmer-reputation-comment.is-empty {
+  color: var(--muted);
+}
+
+.farmer-reputation-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.farmer-reputation-review-footer a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 5px;
+  color: var(--green-800);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.farmer-reputation-review-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.farmer-reputation-review-footer a:focus-visible,
+.farmer-reputation-sort select:focus-visible,
+.farmer-reputation-view-all:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+
+.farmer-reputation-view-all {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--green-800);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+[data-theme='dark'] .farmer-reputation-bar-fill {
+  background: #4baa70;
+}
+
+[data-theme='dark'] .farmer-reputation-bar-label svg {
+  color: #c3a15e;
+  fill: #c3a15e;
+}
+
+[data-theme='dark'] .farmer-reputation-section .star-rating-star.filled {
+  color: #c3a15e;
+}
+
+[data-theme='dark'] .farmer-reputation-dialog .star-rating-star.filled {
+  color: #c3a15e;
+}
+
+@media (max-width: 720px) {
+  .farmer-reputation-section {
+    padding: 18px;
+  }
+
+  .farmer-reputation-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .farmer-reputation-summary {
+    gap: 18px;
+    padding: 16px;
+  }
+
+  .farmer-reputation-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 18px;
+  }
+
+  .farmer-reputation-dialog .farmer-reputation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .farmer-reputation-preview {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .farmer-reputation-open {
+    width: 100%;
+  }
+
+  .farmer-reputation-reviews-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .farmer-reputation-sort {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .farmer-reputation-sort select {
+    flex: 1;
+    max-width: 200px;
+  }
+
+  .farmer-reputation-date {
+    font-size: 12px;
+  }
+}

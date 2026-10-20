@@ -106,6 +106,53 @@
   color: var(--green-800);
 }
 
+.delivery-tracking-info-status.status-delivered {
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 100%;
+  height: auto;
+  min-height: 44px;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--green-800) 22%, var(--line));
+  border-radius: 8px;
+  background: var(--green-100);
+}
+
+.delivery-tracking-info-status.status-delivered > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 0 0 auto;
+  line-height: normal;
+}
+
+.delivery-tracking-info-status.status-delivered > svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-self: center;
+}
+
+.delivery-tracking-info-status.status-delivered strong,
+.delivery-tracking-info-status.status-delivered div > span {
+  white-space: nowrap;
+}
+
+.delivery-tracking-info-status.status-delivered strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.delivery-tracking-info-status.status-delivered div > span {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
 .delivery-tracking-info-vehicle {
   display: flex;
   align-items: center;
@@ -125,10 +172,17 @@
 
 .delivery-tracking-info-vehicle strong {
   min-width: 0;
-  color: var(--text);
-  font-size: 17px;
+  padding: 3px 10px;
+  border: 1px solid #155fc0;
+  border-radius: 5px;
+  background: #1a73e8;
+  color: #fff;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  text-align: center;
   overflow-wrap: anywhere;
 }
 

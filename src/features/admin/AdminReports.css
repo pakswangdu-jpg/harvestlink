@@ -4,7 +4,7 @@
   --reports-line: #dfe6e1;
   --reports-primary: #27352e;
   --reports-secondary: #606f66;
-  --reports-hover: #f4f7f5;
+  --reports-hover: #eef3ef;
   --reports-completed: #438161;
   --reports-pending: #b28b46;
   --reports-confirmed: #64869d;
@@ -21,7 +21,7 @@
   --panel: var(--reports-surface);
   --text: var(--reports-primary);
   --muted: var(--reports-secondary);
-  background: #f5f8f6;
+  background: var(--page-bg);
   container-type: inline-size;
 }
 .main-content.admin-reports-page { gap: 24px; }
@@ -101,11 +101,11 @@
 .admin-reports-page .reports-products tbody tr:hover { background: var(--reports-hover); }
 
 [data-theme='dark'] .admin-reports-page {
-  --reports-surface: #202722;
+  --reports-surface: #17211b;
   --reports-line: #354039;
   --reports-primary: #e5ebe7;
   --reports-secondary: #adb9b1;
-  --reports-hover: #29332c;
+  --reports-hover: #1c2821;
   --reports-completed: #78aa89;
   --reports-pending: #bea16b;
   --reports-confirmed: #88a6bc;
@@ -118,7 +118,7 @@
   --reports-buyer: #88a6bc;
   --reports-stakeholder: #bea16b;
   --reports-admin: #a4b1ba;
-  background: #171e19;
+  background: var(--page-bg);
 }
 
 @container (max-width: 850px) {

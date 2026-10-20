@@ -200,8 +200,8 @@ export async function rejectPaymentVerification(req, res) {
   await createNotification({
     userId: updated.buyer_id,
     type: 'payment',
-    title: '❌ Payment Verification Failed',
-    message: `${updated.farmer_name} could not verify your GCash payment for ${updated.product_name}: ${reason}`,
+    title: 'Payment not approved',
+    message: `${updated.farmer_name} rejected the GCash payment for ${updated.product_name}. Reason: ${reason}`,
     link: `/orders/${updated.id}`,
   });
 

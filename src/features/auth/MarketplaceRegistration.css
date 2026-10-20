@@ -1,0 +1,157 @@
+.auth-page.auth-page-marketplace-register {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.auth-page-marketplace-register,
+.auth-page-marketplace-register * {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.auth-page-marketplace-register .auth-hero {
+  position: fixed;
+  top: 0;
+  left: 0;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+  width: 50%;
+  min-width: 0;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: clamp(40px, 4vw, 72px);
+  overflow: hidden;
+  background: url("https://images.unsplash.com/photo-1499529112087-3cb3b73cec95?auto=format&fit=crop&w=1800&q=80") center / cover no-repeat;
+}
+
+.auth-page-marketplace-register .auth-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(240, 253, 244, 0.88);
+  pointer-events: none;
+}
+
+.auth-page-marketplace-register .auth-hero > * { width: 100%; max-width: 520px; margin-inline: auto; }
+.auth-page-marketplace-register .auth-brand { gap: 12px; }
+.auth-page-marketplace-register .auth-brand strong { font-size: 20px; font-weight: 600; }
+.auth-page-marketplace-register .auth-brand small { color: #52685a; font-size: 14px; font-weight: 400; }
+.auth-page-marketplace-register .auth-hero h1 { margin: 0; color: #183e2a; font-size: 44px; font-weight: 600; line-height: 1.12; }
+.auth-page-marketplace-register .auth-hero p { max-width: 500px; margin-top: 20px; color: #334d3d; font-size: 17px; font-weight: 400; line-height: 1.65; }
+[data-theme="dark"] .auth-page-marketplace-register .auth-hero h1 { color: #234e36; }
+.auth-page-marketplace-register .auth-hero .brand-wordmark-harvest { color: #3d7237; }
+.auth-page-marketplace-register .auth-hero .brand-wordmark-link { color: #8e6b15; }
+
+.auth-page.auth-page-marketplace-register .auth-card.auth-card-register {
+  position: fixed;
+  top: 0;
+  right: 0;
+  display: block;
+  width: 50%;
+  min-width: 0;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  padding: 32px clamp(32px, 4vw, 64px) 56px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+  box-shadow: none;
+  scrollbar-gutter: stable;
+}
+
+[data-theme="dark"] .auth-page.auth-page-marketplace-register .auth-card.auth-card-register {
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.auth-page-marketplace-register .auth-card-register > * { width: min(100%, 760px); margin-inline: auto; }
+.auth-page-marketplace-register .auth-back-button { min-height: 44px; margin: 0 0 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); box-shadow: none; transform: none; font-size: 15px; font-weight: 500; }
+.auth-page-marketplace-register .auth-back-button:hover { color: var(--text); background: transparent; transform: none; }
+.auth-page-marketplace-register .auth-card-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
+.auth-page-marketplace-register .auth-card-brand .brand-mark { height: 36px; }
+.auth-page-marketplace-register .auth-card-brand strong { font-size: 20px; font-weight: 600; }
+.auth-page-marketplace-register .auth-card-header { margin-bottom: 30px; text-align: center; }
+.auth-page-marketplace-register .auth-card-header h2 { color: var(--text); font-size: 30px; font-weight: 600; line-height: 1.25; }
+.auth-page-marketplace-register .auth-card-header p { margin-top: 8px; color: var(--muted); font-size: 15px; font-weight: 400; line-height: 1.5; }
+.auth-page-marketplace-register .register-form,
+.auth-page-marketplace-register .register-fields-scroll { gap: 18px; }
+.auth-page-marketplace-register .form-grid { gap: 16px; }
+.auth-page-marketplace-register .form-field { min-width: 0; gap: 7px; font-weight: 500; }
+.auth-page-marketplace-register .form-field > span:first-child { color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.auth-page-marketplace-register .form-field :is(input, select, textarea) { min-width: 0; border: 1px solid var(--line); border-radius: 8px; background-color: var(--input-bg); color: var(--text); font-size: 16px; font-weight: 400; line-height: 1.5; }
+.auth-page-marketplace-register .form-field :is(input, select) { min-height: 50px; }
+.auth-page-marketplace-register .form-field :is(input, select, textarea):focus { border-color: var(--green-700); box-shadow: 0 0 0 2px color-mix(in srgb, var(--green-700) 18%, transparent); }
+.auth-page-marketplace-register .input-icon-trailing-btn { width: 44px; height: 44px; right: 3px; border-radius: 4px; }
+.auth-page-marketplace-register .form-section { gap: 16px; }
+.auth-page-marketplace-register .form-section-header { gap: 10px; }
+.auth-page-marketplace-register .form-section-icon { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); color: var(--green-700); }
+[data-theme="dark"] .auth-page-marketplace-register .form-section-icon { border-color: var(--line); background: var(--soft); }
+.auth-page-marketplace-register .form-section-header h3 { color: var(--text); font-size: 17px; font-weight: 600; }
+.auth-page-marketplace-register .form-section-header p { margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 400; }
+.auth-page-marketplace-register .form-section-divider { height: 1px; margin: 2px 0; background: var(--line); }
+.auth-page-marketplace-register .verification-upload-dropzone { padding: 22px 18px; border: 1px dashed var(--line); border-radius: 8px; background: var(--panel-subtle); transform: none; box-shadow: none; }
+.auth-page-marketplace-register .verification-upload-dropzone:hover,
+.auth-page-marketplace-register .verification-upload-dropzone.dragging { border-color: var(--green-700); background: var(--soft); transform: none; box-shadow: none; }
+.auth-page-marketplace-register .verification-upload-dropzone p { font-size: 14px; font-weight: 500; }
+.auth-page-marketplace-register .verification-upload-hint { font-size: 12px; font-weight: 400; }
+.auth-page-marketplace-register .verification-accepted-docs { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-subtle); }
+.auth-page-marketplace-register .verification-accepted-docs strong { color: var(--text); font-size: 13px; font-weight: 600; }
+.auth-page-marketplace-register .verification-accepted-docs li { font-size: 12px; font-weight: 400; }
+.auth-page-marketplace-register .auth-terms-row { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-subtle); color: var(--text); font-size: 13px; font-weight: 400; }
+.auth-page-marketplace-register .auth-terms-row strong { color: var(--green-800); font-weight: 600; }
+.auth-page-marketplace-register .auth-submit { min-height: 50px; border-radius: 8px; background: #15803d; color: #fff; box-shadow: none; transform: none; font-size: 15px; font-weight: 600; }
+.auth-page-marketplace-register .auth-submit:hover { background: #166534; transform: none; }
+.auth-page-marketplace-register .auth-switch { margin-top: 18px; color: var(--muted); font-size: 14px; font-weight: 400; }
+.auth-page-marketplace-register .auth-switch a { color: var(--green-800); font-weight: 600; }
+.auth-page-marketplace-register :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; }
+
+@media (max-width: 1050px) {
+  .auth-page-marketplace-register .auth-hero { padding: 40px; }
+  .auth-page-marketplace-register .auth-hero h1 { font-size: 36px; }
+  .auth-page.auth-page-marketplace-register .auth-card.auth-card-register { padding-inline: 32px; }
+}
+
+@media (max-width: 899px) {
+  .auth-page.auth-page-marketplace-register { display: block; height: auto; min-height: 100svh; overflow: visible; }
+  .auth-page-marketplace-register .auth-hero { position: static; display: none; }
+  .auth-page.auth-page-marketplace-register .auth-card.auth-card-register { position: static; width: 100%; height: auto; min-height: 100svh; padding: 20px 24px 36px; overflow: visible; border-left: 0; scrollbar-gutter: auto; }
+  .auth-page-marketplace-register .auth-card-register > * { max-width: 680px; }
+}
+
+@media (max-width: 640px) {
+  .auth-page.auth-page-marketplace-register { padding: 0; }
+  .auth-page.auth-page-marketplace-register .auth-card.auth-card-register { padding-inline: 20px; }
+  .auth-page-marketplace-register .auth-card-header h2 { font-size: 25px; }
+  .auth-page-marketplace-register .form-grid,
+  .auth-page-marketplace-register .register-form .form-grid.three { grid-template-columns: minmax(0, 1fr); }
+  .auth-page-marketplace-register .verification-upload-preview { align-items: flex-start; flex-wrap: wrap; }
+  .auth-page-marketplace-register .verification-upload-actions { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-page-marketplace-register .btn,
+  .auth-page-marketplace-register .form-field :is(input, select, textarea) { transition: none; }
+}

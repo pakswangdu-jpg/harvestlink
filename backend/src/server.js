@@ -6,6 +6,7 @@ import { setupChatSocket } from './realtime/chatPresence.js';
 import { getAllowedOrigins } from './lib/appUrls.js';
 import { startInactivitySuspensionJob } from './lib/accountInactivity.js';
 import { invalidateAuthCacheForUser } from './middleware/requireAuth.js';
+import { startReceiptEmailJob } from './lib/receiptEmails.js';
 
 const port = process.env.PORT || 4000;
 
@@ -64,6 +65,8 @@ async function tryListen(startPort, attempts = 5) {
 }
 
 tryListen(port).then(() => {
+  const stopReceiptJob = startReceiptEmailJob();
+  httpServer.once('close', stopReceiptJob);
   const stopInactivityJob = startInactivitySuspensionJob({ onSuspended: (userId) => {
     invalidateAuthCacheForUser(userId);
     for (const socket of io.sockets.sockets.values()) {

@@ -386,7 +386,7 @@ export default function FarmerDashboard() {
         )}
       </div>
 
-      <FarmerReviewsPanel farmerId={currentUser.id} />
+      <FarmerReviewsPanel farmerId={currentUser.id} orders={orders} />
       </section>
     </AppShell>
   );

@@ -43,6 +43,18 @@ test('Status filter counts and matching include pending and rejected states', as
   assert.match(source, /getProductStatusInfo\(product\)\.value === statusFilter/);
 });
 
+test('Farmer product table and mobile cards show submitted prices while awaiting Admin review', async () => {
+  const [table, card, notice] = await Promise.all([
+    readFile(new URL('../src/components/products/ProductTable.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/cards/SellerProductCard.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/products/ProductPriceReviewNotice.jsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(table, /showSubmitted=\{\['pending', 'needs_adjustment'\]\.includes\(product\.priceReview\?\.status\)\}/);
+  assert.match(card, /showSubmitted=\{\['pending', 'needs_adjustment'\]\.includes\(product\.priceReview\?\.status\)\}/);
+  assert.match(notice, /Pending price review/);
+  assert.match(notice, /Your submitted price:/);
+});
+
 test('View reason appears only for an existing rejection reason, never the automatic pricing flag', async () => {
   const source = await readFile(new URL('../src/components/products/ProductStatusBadge.jsx', import.meta.url), 'utf8');
   const { code } = await transformWithOxc(source.replace(/import .*?;\s*/g, '').replace('export default ', ''), 'ProductStatusBadge.jsx', { jsx: { runtime: 'classic' } });

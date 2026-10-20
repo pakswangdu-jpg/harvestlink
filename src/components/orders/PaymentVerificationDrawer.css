@@ -1,0 +1,100 @@
+.payment-review-dialog {
+  box-sizing: border-box;
+  width: min(960px, calc(100vw - 24px));
+  max-width: none;
+  height: fit-content;
+  max-height: 92vh;
+  max-height: 92dvh;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  overflow: hidden;
+  font: 400 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: 0;
+}
+.payment-review-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.payment-review-dialog::backdrop { background: rgb(12 19 15 / 50%); }
+.payment-review-dialog *, .payment-review-dialog *::before, .payment-review-dialog *::after { box-sizing: border-box; }
+.payment-review-dialog :is(h2, h3, p, dl, dd, fieldset) { margin: 0; }
+.payment-review-dialog :is(button, input, textarea) { font-family: inherit; }
+.payment-review-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 18px; border-bottom: 1px solid var(--line); }
+.payment-review-header > div { min-width: 0; }
+.payment-review-eyebrow { color: var(--muted); font-size: 12px; font-weight: 500; }
+.payment-review-header h2 { margin: 3px 0 6px; font: 600 28px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; letter-spacing: 0; overflow-wrap: anywhere; }
+.payment-review-header p:last-child { max-width: 620px; font-size: 14px; color: var(--muted); }
+.payment-review-close { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 1px solid transparent; border-radius: 4px; color: var(--muted); background: transparent; cursor: pointer; }
+.payment-review-close:hover { color: var(--text); background: var(--soft); }
+.payment-review-dialog :is(button, a, input, textarea):focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; }
+.payment-review-body { min-height: 0; padding: 22px 24px; overflow-y: auto; overscroll-behavior: contain; }
+.payment-review-grid { display: grid; grid-template-columns: minmax(0, 0.39fr) minmax(0, 0.61fr); gap: 28px; align-items: start; }
+.payment-review-grid > * { min-width: 0; }
+.payment-review-dialog h3, .payment-review-dialog legend { padding: 0; font: 600 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; letter-spacing: 0; }
+.payment-review-evidence > h3 { margin-bottom: 10px; }
+.payment-review-dialog .payment-review-receipt-image { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 260px; max-height: 480px; aspect-ratio: 3 / 4; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); }
+.payment-review-dialog .payment-review-receipt-image img { display: block; width: 100%; height: 100%; max-height: 458px; object-fit: contain; border-radius: 0; }
+.payment-review-dialog .payment-review-receipt-image .profile-file-zoom-hint { font-size: 12px; font-weight: 500; border-radius: 4px; }
+.payment-review-placeholder { display: grid; align-content: center; justify-items: center; gap: 8px; min-height: 260px; padding: 20px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--muted); text-align: center; }
+.payment-review-placeholder strong { font-weight: 500; color: var(--text); }
+.payment-review-placeholder span { font-size: 13px; }
+.payment-review-original { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--green-700); font-size: 13px; font-weight: 500; text-decoration: none; }
+.payment-review-original:hover { text-decoration: underline; }
+.payment-review-summary { padding-bottom: 16px; }
+.payment-review-summary > span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; }
+.payment-review-summary > strong { display: block; margin-top: 2px; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.payment-review-group { padding: 14px 0; border-top: 1px solid var(--line); }
+.payment-review-group > h3 { margin-bottom: 7px; }
+.payment-review-fields > div { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; gap: 14px; padding: 5px 0; }
+.payment-review-fields dt { color: var(--muted); font-weight: 400; }
+.payment-review-fields dd { min-width: 0; text-align: right; overflow-wrap: anywhere; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.payment-review-fields dd .payment-method-label { justify-content: flex-end; }
+.payment-review-dialog .badge { max-width: 100%; min-height: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: 500; line-height: 1.5; letter-spacing: 0; white-space: normal; }
+.payment-review-dialog .badge-pending { color: #805816; background: #fbf5e8; border-color: #e8d9b6; }
+.payment-review-dialog :is(.badge-approved, .badge-paid) { color: #256343; background: #edf6ef; border-color: #c8dfcf; }
+.payment-review-dialog :is(.badge-rejected, .badge-failed) { color: #94453e; background: #fbefed; border-color: #eccfcb; }
+.payment-review-dialog .payment-review-checklist { display: grid; gap: 9px; min-width: 0; padding: 15px 0 0; border: 0; border-top: 1px solid var(--line); }
+.payment-review-checklist legend { padding-top: 14px; margin-bottom: 12px; }
+.payment-review-dialog :is(.payment-review-checklist, .payment-review-reasons) label { display: flex; align-items: flex-start; gap: 9px; min-height: 30px; font-size: 13px; cursor: pointer; }
+.payment-review-dialog input:is([type="checkbox"], [type="radio"]) { flex: 0 0 17px; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--green-700); }
+.payment-review-checklist:disabled { opacity: 0.65; }
+.payment-review-confirmation { max-width: 620px; margin: 0 auto; }
+.payment-review-confirmation > h3 { font-size: 20px; outline: none; }
+.payment-review-confirmation > p { margin: 8px 0 18px; color: var(--muted); }
+.payment-review-confirmation > .payment-review-fields { padding: 10px 0; border-block: 1px solid var(--line); }
+.payment-review-dialog .payment-review-reasons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; min-width: 0; margin-top: 18px; padding: 0; border: 0; }
+.payment-review-reasons legend { margin-bottom: 10px; }
+.payment-review-note { display: grid; gap: 8px; margin-top: 16px; font-size: 13px; font-weight: 500; }
+.payment-review-note textarea { width: 100%; max-height: 180px; min-height: 90px; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--text); font-size: 14px; line-height: 1.5; }
+.payment-review-error { margin-top: 16px !important; padding: 10px 12px; border: 1px solid #e8c9c5; border-radius: 4px; background: #fbefed; color: #94453e; font-size: 13px; }
+.payment-review-footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--line); background: var(--panel); }
+.payment-review-dialog .payment-review-footer .btn { min-height: 44px; padding: 10px 16px; border-radius: 4px; font-size: 14px; font-weight: 500; letter-spacing: 0; box-shadow: none; transform: none; }
+.payment-review-dialog .payment-review-footer .btn-secondary { color: var(--text); border-color: var(--line); background: var(--panel); }
+.payment-review-dialog .payment-review-footer .btn-secondary:hover { background: var(--soft); }
+.payment-review-dialog .payment-review-footer .payment-review-reject { color: #94453e; }
+.payment-review-dialog .payment-review-footer .btn-danger { color: #94453e; background: #fbefed; border-color: #eccfcb; }
+.payment-review-dialog .payment-review-footer .btn-danger:hover { background: #f6e2df; }
+.payment-review-readonly { margin-right: auto; color: var(--muted); font-size: 13px; }
+.payment-review-dialog button:disabled { cursor: default; }
+[data-theme="dark"] .payment-review-dialog .badge-pending { background: #30291d; color: #e1c17f; border-color: #59482b; }
+[data-theme="dark"] .payment-review-dialog :is(.badge-approved, .badge-paid) { background: #1d3026; color: #a3d4b3; border-color: #355d43; }
+[data-theme="dark"] .payment-review-dialog :is(.badge-rejected, .badge-failed), [data-theme="dark"] .payment-review-error { background: #342220; color: #e6b4ad; border-color: #68423d; }
+[data-theme="dark"] .payment-review-dialog .payment-review-footer .payment-review-reject { color: #e6b4ad; }
+[data-theme="dark"] .payment-review-dialog .payment-review-footer .btn-danger { background: #342220; color: #e6b4ad; border-color: #68423d; }
+[data-theme="dark"] .payment-review-dialog .payment-review-footer .btn-danger:hover { background: #432b28; }
+@media (max-width: 720px) {
+  .payment-review-header { padding: 16px 18px; }
+  .payment-review-header h2 { font-size: 24px; }
+  .payment-review-body { padding: 18px; }
+  .payment-review-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .payment-review-dialog .payment-review-receipt-image { max-height: 400px; }
+  .payment-review-dialog .payment-review-receipt-image img { max-height: 378px; }
+  .payment-review-footer { padding: 12px 18px; }
+}
+@media (max-width: 480px) {
+  .payment-review-footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .payment-review-approve, .payment-review-confirm { order: -1; }
+  .payment-review-readonly { margin: 0; }
+  .payment-review-dialog .payment-review-reasons { grid-template-columns: minmax(0, 1fr); }
+}

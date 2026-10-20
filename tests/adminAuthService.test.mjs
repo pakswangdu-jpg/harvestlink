@@ -169,3 +169,52 @@ test('disallowed network preserves ADMIN_NETWORK_NOT_ALLOWED error code and revo
   assert.ok(events.some(e => e.type === 'dispose'));
   assert.ok(!events.some(e => e.type === 'setSession'));
 });
+
+test('server role denial stops sign-in before fetching or storing a profile', async () => {
+  const denial = Object.assign(new Error('Forbidden'), { status: 403 });
+  const { loginAdmin, events } = await compileAuthService({ adminAccessError: denial });
+  await assert.rejects(loginAdmin('buyer@example.test', 'Pass123!'), /restricted to active administrator accounts/);
+  assert.ok(!events.some(e => e.type === 'setSession' || e.path === '/profiles/me'));
+  assert.equal(events.find(e => e.type === 'signOut').options.scope, 'local');
+});
+
+test('malformed, offline and failed access checks cannot become a saved login', async () => {
+  const cases = [
+    { adminAccessResult: null },
+    { adminAccessResult: { allowed: false } },
+    { adminAccessResult: { allowed: 'true' } },
+    { adminAccessError: new Error('Offline') },
+    { profileError: new Error('Profile unavailable') },
+    { profileResult: null },
+    { profileResult: { id: 'another-admin', role: 'admin', accountStatus: 'active' } },
+    { profileResult: { id: 'admin-1', role: 'admin' } },
+  ];
+  for (const options of cases) {
+    const { loginAdmin, events } = await compileAuthService(options);
+    await assert.rejects(loginAdmin('admin@example.test', 'Pass123!'));
+    assert.ok(!events.some(e => e.type === 'setSession'));
+    assert.equal(events.find(e => e.type === 'signOut').options.scope, 'local');
+    assert.equal(events.at(-1).type, 'dispose');
+  }
+});
+
+test('incomplete Supabase sessions are rejected before contacting Admin APIs', async () => {
+  for (const session of [null, {}, { access_token: 'token' }, { access_token: 'token', refresh_token: 'refresh' }]) {
+    const { loginAdmin, events } = await compileAuthService({ signInResult: { data: { session } } });
+    await assert.rejects(loginAdmin('admin@example.test', 'Pass123!'), /Unable to verify Admin sign-in/);
+    assert.ok(!events.some(e => e.type === 'apiGet' || e.type === 'setSession'));
+  }
+});
+
+test('failed session adoption is not reported as a successful Admin login', async () => {
+  for (const setSessionResult of [
+    { data: null, error: new Error('Session failed') },
+    { data: { session: null }, error: null },
+    { data: { session: { user: { id: 'another-account' } } }, error: null },
+  ]) {
+    const { loginAdmin, events } = await compileAuthService({ setSessionResult });
+    await assert.rejects(loginAdmin('admin@example.test', 'Pass123!'), /Unable to complete Admin sign-in/);
+    assert.equal(events.find(e => e.type === 'signOut').options.scope, 'local');
+    assert.equal(events.at(-1).type, 'dispose');
+  }
+});

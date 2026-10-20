@@ -1,18 +1,20 @@
 
 
 
+import './FarmersStatsRow.css';
+
 function Stat({ value, label }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-0.5 px-4 py-2 text-center sm:px-6">
-      <span className="text-2xl font-bold tracking-tight text-[var(--text)]">{value}</span>
-      <span className="text-[12.5px] font-medium text-[var(--muted)]">{label}</span>
+    <div className="farmers-stats-item">
+      <span className="farmers-stats-value">{value}</span>
+      <span className="farmers-stats-label">{label}</span>
     </div>
   );
 }
 
 export default function FarmersStatsRow({ farmerCount, averageRating, productCount, cityCount }) {
   return (
-    <div className="mx-auto flex max-w-3xl divide-x divide-[var(--line)] rounded-xl border border-[var(--line)] bg-[var(--panel)]">
+    <div className="farmers-stats-row">
       <Stat value={farmerCount} label="Verified Farmers" />
       <Stat value={averageRating ? averageRating.toFixed(1) : '—'} label="Average Rating" />
       <Stat value={productCount} label="Products Listed" />
