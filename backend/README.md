@@ -85,9 +85,13 @@ a session to the frontend.
 Set `VITE_RECAPTCHA_SITE_KEY` in the frontend/Vercel environment and
 `RECAPTCHA_SECRET_KEY` in the backend/Render environment. The backend also needs
 `SUPABASE_ANON_KEY` (the same public anon key used by the frontend) for its login
-proxy. Configure matching reCAPTCHA v2 checkbox keys in Google and allow the
-deployed frontend hostname. Never expose the secret key or commit real keys.
-Redeploy both services after changing deployment environment variables.
+proxy. Use a matching reCAPTCHA v2 Checkbox site/secret pair. Add frontend
+hostnames only (for example `harvestlink.dev`, without scheme or path) to the
+key's allowed domains in Google; keep domain verification enabled. Set
+`VITE_RECAPTCHA_SITE_KEY` in Vercel for Production (and Preview if needed).
+Vite embeds frontend variables at build time, so changing it requires a new
+frontend deployment. Never expose the secret key or commit real keys. Redeploy
+both services after changing deployment environment variables.
 The site key must be a reCAPTCHA v2 Checkbox key. Add each frontend hostname
 without a scheme or path (for example, `harvestlink.dev` and
 `www.harvestlink.dev`) to the key's allowed domains. If the widget cannot load,
