@@ -24,9 +24,11 @@
 .account-role-badge[data-role='admin'] { --role-badge-surface: #faf3dc; --role-badge-border: #dfc984; --role-badge-text: #76571b; }
 .account-role-badge[data-role='buyer'] { --role-badge-surface: #f4f0e9; --role-badge-border: #ddd4c6; --role-badge-text: #5d554a; }
 .account-role-badge[data-role='farmer'] { --role-badge-surface: #edf6ef; --role-badge-border: #bfd9c5; --role-badge-text: #326044; }
+.account-role-badge[data-role='farmer'][data-verified='true'] { --role-badge-surface: #dcfce7; --role-badge-border: #4ade80; --role-badge-text: #14532d; font-weight: 700; }
 .account-role-badge[data-role='stakeholder'] { --role-badge-surface: #f2eef8; --role-badge-border: #d6c9e6; --role-badge-text: #695084; }
 
 [data-theme='dark'] .account-role-badge[data-role='admin'] { --role-badge-surface: #383123; --role-badge-border: #625332; --role-badge-text: #e2ca87; }
 [data-theme='dark'] .account-role-badge[data-role='buyer'] { --role-badge-surface: #322f29; --role-badge-border: #514a3e; --role-badge-text: #d4c9b7; }
 [data-theme='dark'] .account-role-badge[data-role='farmer'] { --role-badge-surface: #25392d; --role-badge-border: #405d49; --role-badge-text: #a5ceaf; }
+[data-theme='dark'] .account-role-badge[data-role='farmer'][data-verified='true'] { --role-badge-surface: #173d29; --role-badge-border: #3e9b5f; --role-badge-text: #bbf7d0; }
 [data-theme='dark'] .account-role-badge[data-role='stakeholder'] { --role-badge-surface: #322c3e; --role-badge-border: #554764; --role-badge-text: #c9b6df; }

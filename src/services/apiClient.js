@@ -98,6 +98,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
     if (!response.ok) {
       const error = new Error(payload?.message || payload?.error || `Request failed with status ${response.status}`);
       error.status = response.status;
+      if (payload?.code) error.code = payload.code;
       if (payload?.error === 'ADMIN_NETWORK_NOT_ALLOWED') {
         error.code = payload.error;
         cacheGeneration += 1;

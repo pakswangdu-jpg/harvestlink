@@ -5,9 +5,11 @@ import { requestPasswordReset } from '../controllers/passwordRecovery.controller
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import { requireAdminEntryNetwork } from '../middleware/requireAdminNetwork.js';
+import { login, adminLogin } from '../controllers/login.controller.js';
 
 const router = Router();
 const requireAdminRole = requireRole('admin');
+const loginRateLimit = rateLimit({ name: 'login', limit: 8, windowMs: 15 * 60 * 1000, key: emailAndIpKey });
 router.get('/admin-entry-access', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
@@ -21,6 +23,8 @@ router.get('/admin-access', requireAuth, requireRole('admin'), (req, res) => {
   res.json({ allowed: true });
 });
 
+router.post('/login', loginRateLimit, login);
+router.post('/admin-login', loginRateLimit, requireAdminEntryNetwork, adminLogin);
 router.post('/register', rateLimit({ name: 'registration', limit: 5, windowMs: 60 * 60 * 1000 }), register);
 router.post('/verify-registration-code', rateLimit({ name: 'verification', limit: 5, windowMs: 10 * 60 * 1000, key: emailAndIpKey }), verifyRegistrationCode);
 router.post('/resend-registration-code', rateLimit({ name: 'verification-resend', limit: 3, windowMs: 15 * 60 * 1000, key: emailAndIpKey }), resendRegistrationCode);

@@ -75,6 +75,20 @@ statuses only, not additional transaction states.
    (reads `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` from `backend/.env` — copy
    `.env.example` first and fill it in.)
 
+## Login security verification
+
+Marketplace and Admin password sign-in use backend login endpoints. The backend
+rate-limits attempts, verifies the reCAPTCHA token with Google, authenticates through
+Supabase Auth using the public anon key, and checks account status before returning
+a session to the frontend.
+
+Set `VITE_RECAPTCHA_SITE_KEY` in the frontend/Vercel environment and
+`RECAPTCHA_SECRET_KEY` in the backend/Render environment. The backend also needs
+`SUPABASE_ANON_KEY` (the same public anon key used by the frontend) for its login
+proxy. Configure matching reCAPTCHA v2 checkbox keys in Google and allow the
+deployed frontend hostname. Never expose the secret key or commit real keys.
+Redeploy both services after changing deployment environment variables.
+
 ## Local development
 
 ```bash

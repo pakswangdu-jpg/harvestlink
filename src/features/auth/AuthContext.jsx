@@ -63,13 +63,13 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     currentUser,
     loading,
-    async login(email, password) {
-      const user = await loginUser(email, password);
+    async login(email, password, captchaToken) {
+      const user = await loginUser(email, password, captchaToken);
       setCurrentUserState(user);
       return user;
     },
-    async loginAdmin(email, password) {
-      const user = await loginAdminUser(email, password);
+    async loginAdmin(email, password, captchaToken) {
+      const user = await loginAdminUser(email, password, captchaToken);
       setCurrentUserState(user);
       return user;
     },

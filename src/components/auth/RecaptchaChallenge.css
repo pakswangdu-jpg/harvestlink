@@ -1,0 +1,27 @@
+.auth-recaptcha {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.auth-recaptcha-label {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.auth-recaptcha-frame {
+  max-width: 100%;
+  min-height: 78px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.auth-recaptcha-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}

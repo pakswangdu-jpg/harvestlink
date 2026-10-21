@@ -1,45 +1,48 @@
-import { createAdminLoginClient, supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { apiClient } from './apiClient';
 
 function adminOnlyError() {
-  return new Error('Admin sign-in is restricted to active administrator accounts.');
+  return Object.assign(new Error('Admin sign-in is restricted to active administrator accounts.'), { code: 'ADMIN_ONLY' });
 }
 
-export async function loginAdmin(emailValue, password) {
-  const client = createAdminLoginClient();
-  let accepted = false;
+export async function loginAdmin(emailValue, password, captchaToken) {
+  let sessionStored = false;
   try {
-    const { data, error } = await client.auth.signInWithPassword({
-      email: emailValue.trim().toLowerCase(), password,
+    const result = await apiClient.post('/auth/admin-login', {
+      email: emailValue.trim().toLowerCase(), password, captchaToken,
     });
-    if (error) throw new Error('Invalid admin email or password.');
-    const session = data?.session;
-    if (!session?.access_token || !session.refresh_token || !session.user?.id) {
-      throw new Error('Unable to verify Admin sign-in. Please try again.');
+    const session = result?.session;
+    if (!session?.access_token || !session.refresh_token) {
+      throw new Error('Unable to verify Admin sign-in. Please try again.', { cause: new Error('Backend returned an incomplete session.') });
     }
 
-    // Authorize the temporary session before storing or broadcasting any login.
+    const { data: saved, error: sessionError } = await supabase.auth.setSession(session);
+    if (sessionError || !saved?.session?.user?.id) {
+      throw new Error('Unable to complete Admin sign-in. Please try again.', { cause: sessionError || new Error('Supabase did not persist the session.') });
+    }
+    sessionStored = true;
+
     const options = { accessToken: session.access_token };
     const access = await apiClient.get('/auth/admin-access', options);
     if (access?.allowed !== true) throw new Error('Unable to verify Admin access. Please try again.');
     const profile = await apiClient.get('/profiles/me', options);
-    if (profile?.role !== 'admin' || profile.accountStatus !== 'active' || profile.id !== session.user.id) {
+    if (profile?.role !== 'admin' || profile.accountStatus !== 'active' || profile.id !== saved.session.user.id) {
       throw adminOnlyError();
     }
-
-    const { data: saved, error: sessionError } = await supabase.auth.setSession({
-      access_token: session.access_token, refresh_token: session.refresh_token,
-    });
-    if (sessionError || saved?.session?.user?.id !== profile.id) {
-      throw new Error('Unable to complete Admin sign-in. Please try again.');
-    }
-    accepted = true;
     return profile;
   } catch (error) {
-    if (error.status === 403 && error.code !== 'ADMIN_NETWORK_NOT_ALLOWED') throw adminOnlyError();
+    if (sessionStored) {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+      if (signOutError) throw new Error('Unable to clear the temporary Admin session. Please reload and try again.', { cause: error });
+    }
+    if (error.code === 'ADMIN_ONLY') throw error;
+    if (error.status === 403 && error.code !== 'ADMIN_NETWORK_NOT_ALLOWED') throw adminOnlyError(error);
+    if (error.status === 401 && error.code === 'INVALID_CREDENTIALS') {
+      throw new Error('Invalid admin email or password.', { cause: error });
+    }
+    if (error.status === 401 && error.code === 'email_not_confirmed') {
+      throw new Error('Email not confirmed', { cause: error });
+    }
     throw error;
-  } finally {
-    if (!accepted) await client?.auth?.signOut?.({ scope: 'local' })?.catch?.(() => {});
-    await client?.auth?.dispose?.()?.catch?.(() => {});
   }
 }

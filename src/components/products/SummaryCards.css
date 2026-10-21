@@ -47,15 +47,19 @@
 .inventory-overview .inventory-overview-title {
   margin: 0;
   color: var(--text);
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.35;
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 
 .inventory-overview-description {
   margin: 4px 0 0;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 450;
   line-height: 1.5;
 }
 
@@ -101,49 +105,75 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  color: var(--text-secondary);
+  gap: 12px;
+  color: var(--text);
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.inventory-metric-icon-wrap {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf2f5;
+  color: #526779;
 }
 
 .inventory-metric-icon {
   flex-shrink: 0;
-  width: 17px;
-  height: 17px;
-  color: var(--icon-muted);
+  width: 19px;
+  height: 19px;
+}
+
+.inventory-metric-total .inventory-metric-icon-wrap {
+  background: #eaf0f6;
+  color: #42627d;
+}
+
+.inventory-metric-active .inventory-metric-icon-wrap {
+  background: #e6f4e9;
+  color: #247343;
+}
+
+.inventory-metric-warning .inventory-metric-icon-wrap {
+  background: #fff0d8;
+  color: #9a5b08;
+}
+
+.inventory-metric-totalInventory .inventory-metric-icon-wrap {
+  background: #e8f0fb;
+  color: #365f98;
 }
 
 .inventory-metric-value {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   color: var(--text);
   font-family: inherit;
-  font-size: 30px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums lining-nums;
-  line-height: 1.15;
-  letter-spacing: 0;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
 
 .inventory-metric-hint {
-  margin: 3px 0 0;
-  color: var(--text-secondary);
+  margin: 5px 0 0;
+  color: var(--muted);
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.45;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
-.inventory-metric-active .inventory-metric-icon {
-  color: #567b5f;
-}
-
-.inventory-metric-warning .inventory-metric-icon,
 .inventory-metric-warning .inventory-metric-value {
-  color: #9a7135;
+  color: #8b560e;
 }
 
 [data-theme='dark'] .farmer-products-page .inventory-metric {
@@ -181,15 +211,26 @@
   color: #aebbb2;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-icon {
-  color: #a1b0a6;
+[data-theme='dark'] .farmer-products-page .inventory-metric-total .inventory-metric-icon-wrap {
+  background: #2e3b46;
+  color: #b1c7da;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-active .inventory-metric-icon {
-  color: #8eb69a;
+[data-theme='dark'] .farmer-products-page .inventory-metric-active .inventory-metric-icon-wrap {
+  background: #253d2d;
+  color: #a8d9b3;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-icon,
+[data-theme='dark'] .farmer-products-page .inventory-metric-totalInventory .inventory-metric-icon-wrap {
+  background: #29384b;
+  color: #b1c9ee;
+}
+
+[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-icon-wrap {
+  background: #403522;
+  color: #f1ca82;
+}
+
 [data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-value {
   color: #d2ae70;
 }
