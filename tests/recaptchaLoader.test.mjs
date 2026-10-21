@@ -6,6 +6,7 @@ class FakeScript {
     this.dataset = {};
     this.listeners = new Map();
     this.isConnected = false;
+    this.readyState = 'loading';
   }
 
   addEventListener(type, callback) {
@@ -22,6 +23,7 @@ class FakeScript {
   }
 
   dispatch(type) {
+    if (type === 'load') this.readyState = 'complete';
     this.listeners.get(type)?.();
   }
 }
@@ -96,6 +98,29 @@ test('failed script load clears the shared loader so retry can append one fresh 
     window.grecaptcha = api;
     browser.scripts[1].dispatch('load');
     assert.equal(await secondLoad, api);
+  } finally {
+    browser.restore();
+  }
+});
+
+test('script load waits for a delayed grecaptcha API instead of failing immediately', async () => {
+  const browser = setupBrowser();
+  try {
+    const { loadRecaptchaApi } = await import(`../src/components/auth/recaptchaLoader.js?delayed=${Date.now()}`);
+    const pending = loadRecaptchaApi();
+    browser.scripts[0].dispatch('load');
+
+    let readyCallback;
+    window.grecaptcha = {
+      render() {},
+      ready(callback) { readyCallback = callback; },
+    };
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.equal(typeof readyCallback, 'function');
+    readyCallback();
+
+    assert.equal(await pending, window.grecaptcha);
+    assert.equal(browser.scripts.length, 1);
   } finally {
     browser.restore();
   }
