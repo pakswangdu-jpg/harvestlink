@@ -11,6 +11,8 @@ test('login form requires a loaded CAPTCHA and keeps its token in component stat
   assert.match(form, /setCaptchaResetKey\(\(value\) => value \+ 1\)/);
   assert.match(widget, /callbacksRef\.current\.onTokenChange\(token\)/);
   assert.match(widget, /'expired-callback': \(\) => callbacksRef\.current\.onTokenChange\(''\)/);
+  assert.match(widget, /Retry verification/);
+  assert.match(widget, /allowed hostname in Google reCAPTCHA settings/);
   assert.doesNotMatch(widget, /localStorage|sessionStorage/);
 });
 

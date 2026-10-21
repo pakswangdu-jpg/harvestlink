@@ -25,3 +25,29 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+.auth-recaptcha-error {
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+}
+
+.auth-recaptcha-retry {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary, #2e8b57);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-recaptcha-retry:hover {
+  text-decoration: underline;
+}
+
+.auth-recaptcha-retry:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
