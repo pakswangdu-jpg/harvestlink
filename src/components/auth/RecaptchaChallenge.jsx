@@ -1,98 +1,97 @@
 import { useEffect, useRef, useState } from 'react';
 import './RecaptchaChallenge.css';
+import { useTheme } from '../../contexts/ThemeContext';
 import { RECAPTCHA_SITE_KEY } from './recaptchaConfig';
+import { loadRecaptchaApi } from './recaptchaLoader';
 
-const SCRIPT_URL = 'https://www.google.com/recaptcha/api.js?render=explicit';
+function logDiagnostic(message, details) {
+  console.info('[reCAPTCHA]', message, details);
+}
 
 export default function RecaptchaChallenge({ onTokenChange, onReadyChange, resetKey }) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
   const callbacksRef = useRef({ onTokenChange, onReadyChange });
-  const [status, setStatus] = useState(RECAPTCHA_SITE_KEY ? 'loading' : 'unavailable');
+  const [status, setStatus] = useState(RECAPTCHA_SITE_KEY ? 'loading' : 'unconfigured');
+  const [expired, setExpired] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const { effectiveTheme } = useTheme();
 
   useEffect(() => {
     callbacksRef.current = { onTokenChange, onReadyChange };
   }, [onTokenChange, onReadyChange]);
 
   useEffect(() => {
+    logDiagnostic('configuration', {
+      siteKeyConfigured: Boolean(RECAPTCHA_SITE_KEY),
+      hostname: window.location.hostname,
+    });
+  }, []);
+
+  useEffect(() => {
     let active = true;
-    let script = document.querySelector(`script[src="${SCRIPT_URL}"]`);
-    let timeoutId;
-    const setReady = (ready) => {
+    const container = containerRef.current;
+    const setReady = (ready, nextStatus) => {
       if (!active) return;
       callbacksRef.current.onReadyChange(ready);
-      setStatus(ready ? 'ready' : 'error');
+      setStatus(nextStatus || (ready ? 'ready' : 'render-error'));
     };
-    const handleLoad = () => {
-      window.clearTimeout(timeoutId);
-      const recaptcha = window.grecaptcha;
-      if (!recaptcha?.render) {
-        setReady(false);
-        return;
-      }
-      recaptcha.ready(() => {
-        if (!active || !containerRef.current || widgetIdRef.current !== null) return;
-        try {
-          widgetIdRef.current = recaptcha.render(containerRef.current, {
-            sitekey: RECAPTCHA_SITE_KEY,
-            callback: (token) => callbacksRef.current.onTokenChange(token),
-            'expired-callback': () => callbacksRef.current.onTokenChange(''),
-            'error-callback': () => {
-              callbacksRef.current.onTokenChange('');
-              setReady(false);
-            },
-          });
-          setReady(true);
-        } catch {
-          setReady(false);
-        }
-      });
-    };
-    const handleError = () => {
-      window.clearTimeout(timeoutId);
-      setReady(false);
+    const handleExpired = () => {
+      callbacksRef.current.onTokenChange('');
+      setExpired(true);
+      if (widgetIdRef.current !== null) window.grecaptcha?.reset(widgetIdRef.current);
     };
 
     callbacksRef.current.onReadyChange(false);
-    if (!RECAPTCHA_SITE_KEY) return () => {};
-
-    if (script && retryCount > 0 && !window.grecaptcha?.render) {
-      script.remove();
-      script = null;
+    callbacksRef.current.onTokenChange('');
+    if (!RECAPTCHA_SITE_KEY) {
+      logDiagnostic('site key missing', { hostname: window.location.hostname });
+      return () => {};
     }
 
-    if (!script) {
-      script = document.createElement('script');
-      script.src = SCRIPT_URL;
-      script.async = true;
-      script.defer = true;
-      script.addEventListener('load', handleLoad);
-      script.addEventListener('error', handleError);
-      document.head.appendChild(script);
-      timeoutId = window.setTimeout(handleError, 10000);
-    } else {
-      script.addEventListener('load', handleLoad);
-      script.addEventListener('error', handleError);
-      if (window.grecaptcha?.render) handleLoad();
-      else timeoutId = window.setTimeout(handleError, 10000);
-    }
+    loadRecaptchaApi().then((recaptcha) => {
+      if (!active || !container || widgetIdRef.current !== null) return;
+      logDiagnostic('API ready', { scriptLoaded: true, apiReady: true });
+      try {
+        widgetIdRef.current = recaptcha.render(container, {
+          sitekey: RECAPTCHA_SITE_KEY,
+          theme: effectiveTheme === 'dark' ? 'dark' : 'light',
+          callback: (token) => {
+            setExpired(false);
+            callbacksRef.current.onTokenChange(token);
+          },
+          'expired-callback': handleExpired,
+          'error-callback': () => {
+            callbacksRef.current.onTokenChange('');
+            setReady(false, 'render-error');
+          },
+        });
+        setReady(true);
+        logDiagnostic('widget rendered', { rendered: true });
+      } catch {
+        setReady(false, 'render-error');
+        logDiagnostic('widget render failed', { rendered: false });
+      }
+    }).catch(() => {
+      if (!active) return;
+      setReady(false, 'script-error');
+      logDiagnostic('script load failed', { scriptLoaded: false, apiReady: false });
+    });
 
     return () => {
       active = false;
-      window.clearTimeout(timeoutId);
-      script?.removeEventListener('load', handleLoad);
-      script?.removeEventListener('error', handleError);
       if (widgetIdRef.current !== null) {
         window.grecaptcha?.reset(widgetIdRef.current);
         widgetIdRef.current = null;
       }
+      container?.replaceChildren();
     };
-  }, [retryCount]);
+  }, [retryCount, effectiveTheme]);
 
   useEffect(() => {
     if (resetKey === 0 || widgetIdRef.current === null) return;
     callbacksRef.current.onTokenChange('');
+    setExpired(false);
     window.grecaptcha?.reset(widgetIdRef.current);
   }, [resetKey]);
 
@@ -103,13 +102,26 @@ export default function RecaptchaChallenge({ onTokenChange, onReadyChange, reset
         <div ref={containerRef} />
       </div>
       {status === 'loading' ? <p className="auth-recaptcha-status" role="status">Loading security verification…</p> : null}
-      {status === 'unavailable' ? <p className="auth-recaptcha-status" role="alert">Security verification is not configured.</p> : null}
-      {status === 'error' ? (
+      {status === 'unconfigured' ? <p className="auth-recaptcha-status" role="alert">Security verification is not configured for this environment.</p> : null}
+      {expired ? <p className="auth-recaptcha-status" role="status">Security verification expired. Please verify again.</p> : null}
+      {status === 'script-error' || status === 'render-error' ? (
         <div className="auth-recaptcha-error" role="alert">
           <p className="auth-recaptcha-status">
-            Security verification could not load. Check your connection or browser content blockers. If it continues, confirm the site key and allowed hostname in Google reCAPTCHA settings.
+            {status === 'script-error'
+              ? 'Security verification could not load. Check your connection or browser content blockers.'
+              : 'Security verification could not be initialized. Please try again.'}
           </p>
-          <button className="auth-recaptcha-retry" type="button" onClick={() => setRetryCount((count) => count + 1)}>
+          <button
+            className="auth-recaptcha-retry"
+            type="button"
+            onClick={() => {
+              setExpired(false);
+              setStatus('loading');
+              callbacksRef.current.onReadyChange(false);
+              callbacksRef.current.onTokenChange('');
+              setRetryCount((count) => count + 1);
+            }}
+          >
             Retry verification
           </button>
         </div>
