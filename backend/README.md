@@ -88,6 +88,11 @@ Set `VITE_RECAPTCHA_SITE_KEY` in the frontend/Vercel environment and
 proxy. Configure matching reCAPTCHA v2 checkbox keys in Google and allow the
 deployed frontend hostname. Never expose the secret key or commit real keys.
 Redeploy both services after changing deployment environment variables.
+The site key must be a reCAPTCHA v2 Checkbox key. Add each frontend hostname
+without a scheme or path (for example, `harvestlink.dev` and
+`www.harvestlink.dev`) to the key's allowed domains. If the widget cannot load,
+check the browser console/network for blocked Google requests, verify the
+Vercel site-key value and allowed domains, then redeploy the frontend.
 
 ## Local development
 
