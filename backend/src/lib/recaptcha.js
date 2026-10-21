@@ -37,11 +37,14 @@ export async function verifyRecaptchaToken(token, {
       throw captchaError('Security verification is temporarily unavailable.', 503, 'CAPTCHA_UNAVAILABLE');
     }
     if (result?.success !== true) {
+      if (result?.['error-codes']?.includes('timeout-or-duplicate')) {
+        throw captchaError('Security verification expired. Please verify again.', 400, 'CAPTCHA_EXPIRED');
+      }
       throw captchaError('Security verification failed. Please try again.', 400, 'CAPTCHA_FAILED');
     }
     return true;
   } catch (error) {
-    if (error.code === 'CAPTCHA_FAILED' || error.code === 'CAPTCHA_UNAVAILABLE') throw error;
+    if (['CAPTCHA_FAILED', 'CAPTCHA_EXPIRED', 'CAPTCHA_UNAVAILABLE'].includes(error.code)) throw error;
     throw captchaError('Security verification is temporarily unavailable.', 503, 'CAPTCHA_UNAVAILABLE');
   } finally {
     clearTimeout(timeoutId);

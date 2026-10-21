@@ -7,6 +7,7 @@ const anonymousLimit = rateLimit({
 });
 
 export function apiRateLimit(req, res, next) {
+  if (req.method === 'POST' && ['/auth/login', '/auth/admin-login'].includes(req.path)) return next();
   if (!req.headers.authorization?.startsWith('Bearer ')) return anonymousLimit(req, res, next);
   return requireAuth(req, res, (error) => {
     if (error?.code === 'ADMIN_NETWORK_NOT_ALLOWED') return next(error);

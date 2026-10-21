@@ -166,6 +166,31 @@ function formatAlertMessage(message) {
   return message;
 }
 
+function getLoginErrorPresentation(error) {
+  switch (error.code) {
+    case 'CAPTCHA_REQUIRED':
+      return { title: 'Security verification required', message: 'Please complete the CAPTCHA before signing in.' };
+    case 'CAPTCHA_FAILED':
+      return { title: 'Security verification failed', message: 'Please complete the CAPTCHA again.' };
+    case 'CAPTCHA_EXPIRED':
+      return { title: 'Security verification expired', message: 'Please verify again.' };
+    case 'CAPTCHA_UNAVAILABLE':
+      return { title: 'Security verification unavailable', message: 'Security verification is temporarily unavailable. Please try again later.' };
+    case 'INVALID_CREDENTIALS':
+      return { title: 'Unable to sign in', message: 'Check your email and password and try again.' };
+    case 'RATE_LIMITED':
+      return { title: 'Too many sign-in attempts', message: 'Please wait a few minutes before trying again.' };
+    case 'ACCOUNT_SUSPENDED':
+      return { title: 'Account temporarily suspended', message: 'Contact the HarvestLink administrator for account review.' };
+    case 'ACCOUNT_DEACTIVATED':
+      return { title: 'Account deactivated', message: 'Contact the HarvestLink administrator for assistance.' };
+    case 'AUTH_SERVICE_UNAVAILABLE':
+      return { title: 'Sign-in temporarily unavailable', message: 'Please try again later.' };
+    default:
+      return { title: 'Sign-in failed', message: error.message || 'Please try again.' };
+  }
+}
+
 
 
 
@@ -1075,7 +1100,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
         setIsSubmitting(false);
         return;
       }
-      setErrors({ form: error.message });
+      const loginError = isRegister ? null : getLoginErrorPresentation(error);
+      setErrors({
+        form: loginError?.message || error.message,
+        ...(loginError ? { formTitle: loginError.title } : {}),
+      });
       setMessage('');
       setIsSubmitting(false);
     } finally {
@@ -1237,7 +1266,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
           {errors.form ? (
             <FormAlert
               type="error"
-              title={isRegister ? 'Registration failed' : 'Sign-in failed'}
+              title={errors.formTitle || (isRegister ? 'Registration failed' : 'Sign-in failed')}
               message={formatAlertMessage(errors.form)}
             />
           ) : null}

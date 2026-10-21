@@ -29,9 +29,11 @@ export async function suspendInactiveAccounts(userId = null) {
 
 export async function assertAccountActive(profile) {
   if (profile.account_status === 'suspended') {
-    throw new ApiError(profile.inactivity_suspended_at
+    const error = new ApiError(profile.inactivity_suspended_at
       ? 'This account was suspended after six months of inactivity. Contact Admin to reactivate it.'
       : 'This account has been suspended. Contact support for assistance.', 403);
+    error.code = 'ACCOUNT_SUSPENDED';
+    throw error;
   }
   if (shouldCheckAccountInactivity(profile)) {
     const suspended = await suspendInactiveAccounts(profile.id);

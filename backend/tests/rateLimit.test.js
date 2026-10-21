@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { rateLimit } from '../src/middleware/rateLimit.js';
+import { loginProtection, rateLimit } from '../src/middleware/rateLimit.js';
 
 test('general API cap applies only to anonymous and invalid sessions', async (t) => {
   t.mock.module('../src/middleware/requireAuth.js', { namedExports: {
@@ -67,4 +67,88 @@ test('action-specific limits still reject excess writes and reset after their wi
   t.mock.timers.tick(60000);
   assert.equal(invoke(), undefined);
   assert.equal(headers['RateLimit-Remaining'], 4);
+});
+
+test('login failure limits are per email and IP; CAPTCHA failures do not count as bad passwords', () => {
+  const invoke = (email, ip, outcome) => {
+    const req = {
+      ip,
+      path: '/auth/login',
+      body: { email },
+      headers: {},
+      loginOutcome: outcome,
+    };
+    const headers = {};
+    let finish;
+    let error;
+    loginProtection(req, {
+      setHeader(name, value) { headers[name] = value; },
+      once(event, callback) { if (event === 'finish') finish = callback; },
+    }, (nextError) => { error = nextError; });
+    if (finish) finish();
+    return { error, headers };
+  };
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    assert.equal(invoke('same@example.com', 'shared-wifi', 'captcha-failed').error, undefined);
+  }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal(invoke('same@example.com', 'shared-wifi', 'invalid-credentials').error, undefined);
+  }
+  const blockedAccount = invoke('same@example.com', 'shared-wifi');
+  assert.equal(blockedAccount.error.code, 'RATE_LIMITED');
+  assert.equal(blockedAccount.error.status, 429);
+  assert.ok(blockedAccount.headers['Retry-After'] > 0);
+
+  assert.equal(invoke('another@example.com', 'shared-wifi').error, undefined);
+  assert.equal(invoke('same@example.com', 'different-network').error, undefined);
+});
+
+test('successful authentication clears only that email/IP failure counter', () => {
+  const invoke = (email, ip, outcome) => {
+    const req = { ip, path: '/auth/login', body: { email }, headers: {}, loginOutcome: outcome };
+    let finish;
+    let error;
+    loginProtection(req, {
+      setHeader() {},
+      once(event, callback) { if (event === 'finish') finish = callback; },
+    }, (nextError) => { error = nextError; });
+    finish?.();
+    return error;
+  };
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    assert.equal(invoke('reset@example.com', 'reset-network', 'invalid-credentials'), undefined);
+  }
+  assert.equal(invoke('reset@example.com', 'reset-network', 'authenticated'), undefined);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal(invoke('reset@example.com', 'reset-network', 'invalid-credentials'), undefined);
+  }
+  assert.equal(invoke('reset@example.com', 'reset-network').code, 'RATE_LIMITED');
+});
+
+test('login endpoints bypass the shared anonymous API request bucket but other routes remain limited', async (t) => {
+  t.mock.module('../src/middleware/requireAuth.js', { namedExports: {
+    requireAuth(req, res, next) { next(new Error('Unexpected auth request')); },
+  } });
+  const { apiRateLimit } = await import('../src/middleware/apiRateLimit.js');
+  const invoke = (path) => {
+    let error;
+    apiRateLimit({
+      method: 'POST',
+      path,
+      ip: 'login-shared-api-test',
+      headers: {},
+      socket: { remoteAddress: 'login-shared-api-test' },
+    }, { setHeader() {} }, (nextError) => { error = nextError; });
+    return error;
+  };
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    assert.equal(invoke('/auth/login'), undefined);
+  }
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    assert.equal(invoke('/profiles'), undefined);
+  }
+  assert.equal(invoke('/profiles').status, 429);
 });

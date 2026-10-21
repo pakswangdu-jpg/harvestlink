@@ -21,7 +21,7 @@ export async function login(req, res) {
 
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new ApiError('Sign-in is temporarily unavailable. Please try again later.', 503);
+    throw loginError('Sign-in is temporarily unavailable. Please try again later.', 503, 'AUTH_SERVICE_UNAVAILABLE');
   }
 
   const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -31,16 +31,21 @@ export async function login(req, res) {
   try {
     result = await authClient.auth.signInWithPassword({ email, password });
   } catch {
-    throw new ApiError('Sign-in is temporarily unavailable. Please try again later.', 503);
+    throw loginError('Sign-in is temporarily unavailable. Please try again later.', 503, 'AUTH_SERVICE_UNAVAILABLE');
   }
   const { data, error } = result;
   if (error) {
     if (error.message?.toLowerCase().includes('email not confirmed')) {
       throw loginError('Email not confirmed', 401, 'email_not_confirmed');
     }
+    if (error.status >= 500 || error.status === 429) {
+      throw loginError('Sign-in is temporarily unavailable. Please try again later.', 503, 'AUTH_SERVICE_UNAVAILABLE');
+    }
+    req.loginOutcome = 'invalid-credentials';
     throw loginError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
   }
 
+  req.loginOutcome = 'authenticated';
   const session = data?.session;
   const userId = data?.user?.id || session?.user?.id;
   if (!session?.access_token || !session.refresh_token || !userId) {
@@ -53,14 +58,16 @@ export async function login(req, res) {
     .eq('id', userId)
     .maybeSingle();
   if (profileError || !profile) {
-    throw new ApiError('Unable to verify this account. Please try again.', 401);
+    throw loginError('Unable to verify this account. Please try again.', profileError ? 503 : 403,
+      profileError ? 'AUTH_SERVICE_UNAVAILABLE' : 'ACCOUNT_UNAVAILABLE');
   }
 
   await assertAccountActive(profile);
   if (req.adminLogin && profile.role !== 'admin') {
-    throw new ApiError('Admin sign-in is restricted to active administrator accounts.', 403);
+    throw loginError('Admin sign-in is restricted to active administrator accounts.', 403, 'ADMIN_ONLY');
   }
 
+  console.info(JSON.stringify({ timestamp: new Date().toISOString(), event: 'LOGIN_SUCCESS', path: req.path }));
   res.setHeader('Cache-Control', 'no-store');
   res.json({
     session: {
