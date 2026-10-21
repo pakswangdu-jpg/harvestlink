@@ -18,10 +18,11 @@ function AccessScreen({
   errorCode = accountDenied && !String(title).includes('404') ? 403 : null,
 }) {
   const Icon = typeof CircleX !== 'undefined' ? CircleX : ShieldAlert;
+  const isNotFound = accountDenied && String(title).includes('404');
   return (
     <main className={`admin-access-screen${accountDenied ? ' admin-account-denied' : ''}`}>
       <div>
-        {accountDenied ? (
+        {accountDenied && !isNotFound ? (
           <div className="admin-access-icon-wrap" aria-hidden="true">
             <Icon className="admin-account-denied-icon" size={28} strokeWidth={2} />
           </div>
@@ -31,13 +32,15 @@ function AccessScreen({
           <p role={accountDenied ? 'alert' : 'status'}>{message}</p>
           {errorCode ? <p className="admin-access-error-code">Error code: {errorCode}</p> : null}
         </div>
-        <div className="admin-access-actions">
-          {retry ? <button type="button" onClick={retry}>Try again</button> : null}
-          <Link to={backTo}>
-            {accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}
-            {backLabel}
-          </Link>
-        </div>
+        {!isNotFound ? (
+          <div className="admin-access-actions">
+            {retry ? <button type="button" onClick={retry}>Try again</button> : null}
+            <Link to={backTo}>
+              {accountDenied ? <ArrowLeft size={15} strokeWidth={1.8} aria-hidden="true" /> : null}
+              {backLabel}
+            </Link>
+          </div>
+        ) : null}
       </div>
     </main>
   );

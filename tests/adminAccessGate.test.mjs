@@ -24,7 +24,7 @@ test('Admin routing waits for the session and checks the network before renderin
   assert.equal(AdminProtectedRoute().type.name,'AdminNetworkGate');
 });
 
-test('Buyer, Farmer and Stakeholder Admin URLs show 404 with a dashboard link without sign-out or Admin content',async()=>{
+test('Buyer, Farmer and Stakeholder Admin URLs show a minimal 404 without actions or Admin content',async()=>{
   let auth;
   let pathname;
   const {AdminProtectedRoute,AccessScreen}=await compile({useAuth:()=>auth,useLocation:()=>({pathname})});
@@ -41,9 +41,8 @@ test('Buyer, Farmer and Stakeholder Admin URLs show 404 with a dashboard link wi
       const screen=AccessScreen(denied.props);
       const children=screen.props.children[0].props.children;
       assert.equal(children[1].props.children[0],'404 - Page not found');
-      const link=children[3].props.children[1];
-      assert.equal(link.type,'Link');
-      assert.equal(link.props.to,ROLE_DASHBOARDS[role]);
+      assert.equal(children[0],null,'The 404 must not show an error icon');
+      assert.equal(children[3],null,'The 404 must not show retry or dashboard actions');
     }
   }
 });
