@@ -94,19 +94,29 @@ export async function getAllVerifiedFarmers() {
 
 
 
-export async function loginUser(emailValue, password) {
+export async function loginUser(emailValue, password, captchaToken) {
   const email = emailValue.trim().toLowerCase();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    if (error.message.toLowerCase().includes('email not confirmed')) {
-      const unconfirmedError = new Error('Email not confirmed');
+  let response;
+  try {
+    response = await apiClient.post('/auth/login', { email, password, captchaToken });
+  } catch (error) {
+    if (error.code === 'email_not_confirmed') {
+      const unconfirmedError = new Error('Email not confirmed', { cause: error });
       unconfirmedError.code = 'email_not_confirmed';
       throw unconfirmedError;
     }
-    throw new Error('Invalid email or password.');
+    throw error;
   }
 
-  return apiClient.get('/profiles/me');
+  const { data, error } = await supabase.auth.setSession(response.session);
+  if (error || !data?.session) throw new Error('Unable to complete sign-in. Please try again.', { cause: error });
+  try {
+    return await apiClient.get('/profiles/me');
+  } catch (profileError) {
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+    if (signOutError) throw new Error('Unable to finish sign-in or clear the temporary session. Please reload and try again.', { cause: profileError });
+    throw profileError;
+  }
 }
 
 export async function changePassword(id, currentPassword, newPassword) {

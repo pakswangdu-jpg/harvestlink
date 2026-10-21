@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import AddressAutocomplete from '../../components/common/AddressAutocomplete';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
+import RecaptchaChallenge from '../../components/auth/RecaptchaChallenge';
+import { isRecaptchaConfigured } from '../../components/auth/recaptchaConfig';
 import FormAlert from '../../components/common/FormAlert';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -773,6 +775,9 @@ export default function AuthPage({ mode, adminPortal = false }) {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaReady, setCaptchaReady] = useState(false);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
   const locationRequestRef = useRef(null);
@@ -1009,6 +1014,10 @@ export default function AuthPage({ mode, adminPortal = false }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!isRegister && !captchaToken) {
+      setErrors((previous) => ({ ...previous, form: 'Please complete the security verification.' }));
+      return;
+    }
     const nextErrors = validateAuthForm(form, mode);
     if (hasErrors(nextErrors)) {
       setErrors(nextErrors);
@@ -1029,8 +1038,8 @@ export default function AuthPage({ mode, adminPortal = false }) {
     try {
       if (!isRegister) setAuthPersistence(rememberMe);
       const result = isRegister ? await register(submitForm)
-        : adminPortal ? await loginAdmin(form.email, form.password)
-          : await login(form.email, form.password);
+        : adminPortal ? await loginAdmin(form.email, form.password, captchaToken)
+          : await login(form.email, form.password, captchaToken);
       if (isRegister && result.pendingVerification) {
         setOtpEmail(form.email.trim().toLowerCase());
         setPendingFiles({ govIdFile: form.govIdFile, accreditationFile: form.accreditationFile, role: form.role });
@@ -1069,6 +1078,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
       setErrors({ form: error.message });
       setMessage('');
       setIsSubmitting(false);
+    } finally {
+      if (!isRegister) {
+        setCaptchaToken('');
+        setCaptchaResetKey((value) => value + 1);
+      }
     }
   };
 
@@ -1495,6 +1509,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
                 </label>
                 {!adminPortal ? <Link className="auth-forgot-link" to="/forgot-password">Forgot password?</Link> : null}
               </div>
+              <RecaptchaChallenge
+                resetKey={captchaResetKey}
+                onTokenChange={setCaptchaToken}
+                onReadyChange={setCaptchaReady}
+              />
             </>
           )}
 
@@ -1544,6 +1563,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                 authStage === 'otp'
                   ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
                   : isSubmitting || !isRegisterFormReady
+                    || (!isRegister && (!isRecaptchaConfigured || !captchaReady || !captchaToken))
               }
             >
               {isBusy ? <span className="btn-spinner" aria-hidden="true" /> : null}

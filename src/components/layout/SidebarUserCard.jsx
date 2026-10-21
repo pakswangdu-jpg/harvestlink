@@ -32,7 +32,7 @@ export default function SidebarUserCard({ user, isCollapsed = false }) {
       {!isCollapsed ? (
         <span className="sidebar-user-details">
           <span className="sidebar-user-name block truncate text-[13px] font-semibold text-[var(--text)]">{user.name}</span>
-          <span className="account-role-badge" data-role={user.role} title={subtitle}>
+          <span className="account-role-badge" data-role={user.role} title={subtitle} data-verified={isVerifiedFarmer ? 'true' : undefined}>
             {isAdmin ? <Shield size={12} className="sidebar-admin-role-icon shrink-0" aria-hidden="true" />
               : isVerifiedFarmer ? <CircleCheck size={12} className="shrink-0" aria-hidden="true" />
                 : isPending ? <Clock3 size={12} className="shrink-0" aria-hidden="true" /> : null}

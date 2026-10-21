@@ -8,7 +8,10 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line no-un
     return res.status(403).json({ error: err.code, message: 'Admin access is not allowed from this network.' });
   }
   if (status >= 500) console.error(err);
-  res.status(status).json({ error: err.message || 'Something went wrong.' });
+  res.status(status).json({
+    ...(err.code ? { code: err.code } : {}),
+    error: err.message || 'Something went wrong.',
+  });
 }
 
 export function notFoundHandler(req, res) {

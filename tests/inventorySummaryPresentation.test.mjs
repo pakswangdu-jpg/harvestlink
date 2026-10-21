@@ -8,6 +8,8 @@ test('Inventory summary cards retain their four labels, values and live calculat
   assert.match(source, /label: 'Active Listings'/);
   assert.match(source, /label: 'Low Stock'/);
   assert.match(source, /label: 'Units in Stock'/);
+  assert.match(source, /<span className="inventory-metric-icon-wrap" aria-hidden="true">/);
+  assert.match(source, /<Icon size=\{19\} strokeWidth=\{2\.25\} className="inventory-metric-icon" \/>/);
   assert.match(source, /const value = summary\[key\]/);
   assert.match(source, /summary\.total > 0/);
   assert.match(source, /isWarning = !isUnavailable && key === 'lowStock' && value > 0/);
@@ -19,9 +21,11 @@ test('Inventory summary cards have compact alignment and readable dark-mode surf
   assert.match(css, /\.inventory-overview-grid \{\s*display: grid;[\s\S]*?gap: 12px/);
   assert.match(css, /\.inventory-metric \{[\s\S]*?min-height: 120px;[\s\S]*?padding: 16px 18px;[\s\S]*?border-radius: 8px/);
   assert.match(css, /\.inventory-metric \{[\s\S]*?font-family: var\(--font-ui\)/);
-  assert.match(css, /\.inventory-metric-label \{[\s\S]*?font-size: 14px;[\s\S]*?font-weight: 500/);
-  assert.match(css, /\.inventory-metric-value \{[\s\S]*?font-size: 30px;[\s\S]*?font-weight: 600;[\s\S]*?font-variant-numeric: tabular-nums lining-nums/);
-  assert.match(css, /\.inventory-metric-hint \{[\s\S]*?font-size: 13px;[\s\S]*?font-weight: 400/);
+  assert.match(css, /\.inventory-metric-label \{[\s\S]*?font-size: 15px;[\s\S]*?font-weight: 600/);
+  assert.match(css, /\.inventory-metric-value \{[\s\S]*?font-size: 32px;[\s\S]*?font-weight: 650;[\s\S]*?font-variant-numeric: tabular-nums lining-nums/);
+  assert.match(css, /\.inventory-metric-hint \{[\s\S]*?font-size: 14px;[\s\S]*?font-weight: 500/);
+  assert.match(css, /\.inventory-metric-icon-wrap \{[\s\S]*?width: 34px;[\s\S]*?height: 34px;[\s\S]*?border-radius: 50%/);
+  assert.match(css, /\.inventory-metric-warning \.inventory-metric-icon-wrap \{[\s\S]*?background: #fff0d8;[\s\S]*?color: #9a5b08/);
   assert.match(css, /@container \(min-width: 380px\)[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@container \(min-width: 880px\)[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /\[data-theme='dark'\] \.farmer-products-page \.inventory-metric \{[\s\S]*?background: #202923/);

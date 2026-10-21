@@ -1,29 +1,29 @@
 .farmer-dashboard-page .metrics-overview-panel.business-summary {
   container: business-summary / inline-size;
   min-width: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading .eyebrow {
   margin-bottom: 4px;
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.35;
   letter-spacing: 0.07em;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading h2 {
   font-family: inherit;
-  font-size: 21px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 650;
   line-height: 1.25;
   letter-spacing: -0.015em;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .section-heading .dashboard-chart-helper {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
   letter-spacing: 0;
@@ -58,7 +58,7 @@
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-mini-trend > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.2;
 }
 
@@ -104,14 +104,14 @@
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-label {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 550;
   line-height: 1.4;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-icon {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .business-summary-number-row {
@@ -127,8 +127,8 @@
   min-width: 0;
   max-width: 100%;
   margin: 0;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 29px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   letter-spacing: 0;
@@ -143,7 +143,7 @@
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .product-stats-hint {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.4;
 }
@@ -151,12 +151,12 @@
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary {
   margin-top: 12px;
   padding-top: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
 }
 
 .farmer-dashboard-page .metrics-overview-panel.business-summary .metrics-overview-secondary strong {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -165,8 +165,8 @@
   min-height: 28px;
   margin-top: 4px;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   line-height: 1.5;
 }
 

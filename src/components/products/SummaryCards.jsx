@@ -47,10 +47,12 @@ export default function SummaryCards({ summary, action, isLoading = false, hasEr
                   : key === 'active' && value === 0 ? emptyHint : hint;
 
           return (
-            <div key={key} className={`inventory-metric${isWarning ? ' inventory-metric-warning' : ''}${isActive ? ' inventory-metric-active' : ''}`}>
+            <div key={key} className={`inventory-metric inventory-metric-${key}${isWarning ? ' inventory-metric-warning' : ''}${isActive ? ' inventory-metric-active' : ''}`}>
               <dt className="inventory-metric-label" title={description}>
                 <span>{label}</span>
-                <Icon size={20} strokeWidth={2} className="inventory-metric-icon" aria-hidden="true" />
+                <span className="inventory-metric-icon-wrap" aria-hidden="true">
+                  <Icon size={19} strokeWidth={2.25} className="inventory-metric-icon" />
+                </span>
               </dt>
               <dd className="inventory-metric-value">{isUnavailable ? '—' : value}</dd>
               <dd className="inventory-metric-hint">{supportingText}</dd>
