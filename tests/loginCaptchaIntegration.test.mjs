@@ -31,11 +31,34 @@ test('marketplace and Admin login use rate-limited server endpoints with CAPTCHA
   const normalService = await readFile(new URL('../src/services/authService.js', import.meta.url), 'utf8');
   const adminService = await readFile(new URL('../src/services/adminAuthService.js', import.meta.url), 'utf8');
   const controller = await readFile(new URL('../backend/src/controllers/login.controller.js', import.meta.url), 'utf8');
-  assert.match(routes, /router\.post\('\/login', loginRateLimit, login\)/);
-  assert.match(routes, /router\.post\('\/admin-login', loginRateLimit, requireAdminEntryNetwork, adminLogin\)/);
+  const apiLimit = await readFile(new URL('../backend/src/middleware/apiRateLimit.js', import.meta.url), 'utf8');
+  const limitMiddleware = await readFile(new URL('../backend/src/middleware/rateLimit.js', import.meta.url), 'utf8');
+  assert.match(routes, /router\.post\('\/login', loginProtection, login\)/);
+  assert.match(routes, /router\.post\('\/admin-login', requireAdminEntryNetwork, loginProtection, adminLogin\)/);
+  assert.match(apiLimit, /auth\/login.*auth\/admin-login/);
+  assert.match(limitMiddleware, /FAILED_LOGIN_LIMIT = 5/);
+  assert.match(limitMiddleware, /req\.loginOutcome === 'invalid-credentials'/);
+  assert.match(limitMiddleware, /req\.loginOutcome === 'authenticated'/);
   assert.match(normalService, /apiClient\.post\('\/auth\/login', \{ email, password, captchaToken \}\)/);
   assert.match(adminService, /apiClient\.post\('\/auth\/admin-login'/);
   assert.match(controller, /await verifyRecaptchaToken\(req\.body\?\.captchaToken\)/);
   assert.match(controller, /auth\.signInWithPassword\(\{ email, password \}\)/);
   assert.match(controller, /await assertAccountActive\(profile\)/);
+});
+
+test('sign-in errors map to scoped CAPTCHA, credentials, rate-limit, and service messages', async () => {
+  const form = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
+  for (const code of [
+    'CAPTCHA_REQUIRED',
+    'CAPTCHA_FAILED',
+    'CAPTCHA_EXPIRED',
+    'CAPTCHA_UNAVAILABLE',
+    'INVALID_CREDENTIALS',
+    'RATE_LIMITED',
+    'ACCOUNT_SUSPENDED',
+    'AUTH_SERVICE_UNAVAILABLE',
+  ]) {
+    assert.match(form, new RegExp(`case '${code}'`));
+  }
+  assert.match(form, /setCaptchaResetKey\(\(value\) => value \+ 1\)/);
 });

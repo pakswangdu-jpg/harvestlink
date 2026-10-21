@@ -44,6 +44,19 @@ test('failed Google verification returns a safe CAPTCHA error', async () => {
   );
 });
 
+test('expired or already-used CAPTCHA tokens receive their own request-scoped error', async () => {
+  await assert.rejects(
+    verifyRecaptchaToken('expired-token', {
+      secretKey: 'server-secret',
+      fetchImpl: async () => ({
+        ok: true,
+        async json() { return { success: false, 'error-codes': ['timeout-or-duplicate'] }; },
+      }),
+    }),
+    (error) => error.code === 'CAPTCHA_EXPIRED' && error.status === 400,
+  );
+});
+
 test('missing backend secret and Google outages fail closed without leaking provider details', async () => {
   await assert.rejects(
     verifyRecaptchaToken('temporary-token', { secretKey: '' }),

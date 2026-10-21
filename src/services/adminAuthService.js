@@ -38,7 +38,7 @@ export async function loginAdmin(emailValue, password, captchaToken) {
     if (error.code === 'ADMIN_ONLY') throw error;
     if (error.status === 403 && error.code !== 'ADMIN_NETWORK_NOT_ALLOWED') throw adminOnlyError(error);
     if (error.status === 401 && error.code === 'INVALID_CREDENTIALS') {
-      throw new Error('Invalid admin email or password.', { cause: error });
+      throw Object.assign(new Error('Invalid admin email or password.', { cause: error }), { code: error.code });
     }
     if (error.status === 401 && error.code === 'email_not_confirmed') {
       throw new Error('Email not confirmed', { cause: error });
