@@ -82,11 +82,20 @@ rate-limits attempts, verifies the reCAPTCHA token with Google, authenticates th
 Supabase Auth using the public anon key, and checks account status before returning
 a session to the frontend.
 
-Set `VITE_RECAPTCHA_SITE_KEY` in the frontend/Vercel environment and
-`RECAPTCHA_SECRET_KEY` in the backend/Render environment. The backend also needs
-`SUPABASE_ANON_KEY` (the same public anon key used by the frontend) for its login
-proxy. Use a matching reCAPTCHA v2 Checkbox site/secret pair. Add frontend
-hostnames only (for example `harvestlink.dev`, without scheme or path) to the
+Set `VITE_RECAPTCHA_SITE_KEY` in the frontend environment and
+`RECAPTCHA_SECRET_KEY` in the backend environment. Use separate matching v2
+Checkbox key pairs for local development and production:
+
+```text
+Local:      .env.local       -> localhost site key
+            backend/.env     -> localhost secret
+Production: Vercel           -> harvestlink.dev site key
+            Render           -> production secret
+```
+
+The backend also needs `SUPABASE_ANON_KEY` (the same public anon key used by the
+frontend) for its login proxy. Add frontend hostnames only (for example,
+`localhost` or `harvestlink.dev`, without scheme, port, or path) to the matching
 key's allowed domains in Google; keep domain verification enabled. Set
 `VITE_RECAPTCHA_SITE_KEY` in Vercel for Production (and Preview if needed).
 Vite embeds frontend variables at build time, so changing it requires a new
@@ -99,6 +108,17 @@ check the browser console/network for blocked Google requests, verify the
 Vercel site-key value and allowed domains, then redeploy the frontend.
 
 ## Local development
+
+Create the frontend local environment file from the example:
+
+```powershell
+Copy-Item .env.local.example .env.local
+```
+
+Replace `your-localhost-recaptcha-site-key` with the site key whose Google
+allowed domain is exactly `localhost`. Do not enter `http://localhost:5173` in
+Google's domain list. Keep the matching secret in `backend/.env` as
+`RECAPTCHA_SECRET_KEY`; never create `VITE_RECAPTCHA_SECRET_KEY`.
 
 ```bash
 cd backend
