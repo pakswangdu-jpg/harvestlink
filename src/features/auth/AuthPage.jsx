@@ -179,7 +179,7 @@ function getLoginErrorPresentation(error) {
     case 'INVALID_CREDENTIALS':
       return { title: 'Unable to sign in', message: 'Check your email and password and try again.' };
     case 'RATE_LIMITED':
-      return { title: 'Too many sign-in attempts', message: 'Please wait a few minutes before trying again.' };
+      return { title: 'Too many sign-in attempts', message: 'For your security, sign-in has been temporarily limited. Please wait a few minutes before trying again.' };
     case 'ACCOUNT_SUSPENDED':
       return { title: 'Account temporarily suspended', message: 'Contact the HarvestLink administrator for account review.' };
     case 'ACCOUNT_DEACTIVATED':
@@ -803,6 +803,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaReady, setCaptchaReady] = useState(false);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
   const [locationNotice, setLocationNotice] = useState('');
   const locationRequestRef = useRef(null);
@@ -844,6 +845,12 @@ export default function AuthPage({ mode, adminPortal = false }) {
     const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return undefined;
+    const timer = setInterval(() => setRateLimitSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [rateLimitSeconds]);
 
 
 
@@ -1101,10 +1108,14 @@ export default function AuthPage({ mode, adminPortal = false }) {
         return;
       }
       const loginError = isRegister ? null : getLoginErrorPresentation(error);
+      const retryAfterSeconds = !isRegister && error.status === 429
+        ? error.retryAfterSeconds
+        : 0;
       setErrors({
         form: loginError?.message || error.message,
-        ...(loginError ? { formTitle: loginError.title } : {}),
+        ...(loginError ? { formTitle: loginError.title, formCode: error.code } : {}),
       });
+      setRateLimitSeconds(retryAfterSeconds || 0);
       setMessage('');
       setIsSubmitting(false);
     } finally {
@@ -1267,7 +1278,9 @@ export default function AuthPage({ mode, adminPortal = false }) {
             <FormAlert
               type="error"
               title={errors.formTitle || (isRegister ? 'Registration failed' : 'Sign-in failed')}
-              message={formatAlertMessage(errors.form)}
+              message={errors.formCode === 'RATE_LIMITED'
+                ? `${getLoginErrorPresentation({ code: 'RATE_LIMITED' }).message}${rateLimitSeconds > 0 ? ` Try again in ${Math.ceil(rateLimitSeconds / 60)} minute${Math.ceil(rateLimitSeconds / 60) === 1 ? '' : 's'}.` : ''}`
+                : formatAlertMessage(errors.form)}
             />
           ) : null}
           {message ? <FormAlert type="success" message={message} /> : null}
@@ -1592,7 +1605,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                 authStage === 'otp'
                   ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
                   : isSubmitting || !isRegisterFormReady
-                    || (!isRegister && (!isRecaptchaConfigured || !captchaReady || !captchaToken))
+                    || (!isRegister && (rateLimitSeconds > 0 || !isRecaptchaConfigured || !captchaReady || !captchaToken))
               }
             >
               {isBusy ? <span className="btn-spinner" aria-hidden="true" /> : null}
