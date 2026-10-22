@@ -48,6 +48,20 @@ test('Admin access checks bypass cache and a denied network clears protected cac
   assert.equal(calls.filter(url=>url.endsWith('/orders')).length,2);
 });
 
+test('429 responses preserve the server Retry-After cooldown and use the rate-limit code', async t => {
+  const client = await loadClient(t, async () => new Response(
+    JSON.stringify({ error: 'Too many sign-in attempts. Please try again later.' }),
+    { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '241' } },
+  ));
+
+  await assert.rejects(client.post('/auth/login', { email: 'buyer@example.com' }), error => {
+    assert.equal(error.status, 429);
+    assert.equal(error.code, 'RATE_LIMITED');
+    assert.equal(error.retryAfterSeconds, 241);
+    return true;
+  });
+});
+
 test('a backend taking a minute to start can complete without being aborted', async (t) => {
   const client = await loadClient(t, (url, { signal }) => new Promise((resolve, reject) => {
     assert.equal(url, 'https://harvestlink.example/api/profiles/me');
