@@ -322,6 +322,20 @@
   font-weight: 600 !important;
 }
 
+[data-theme='dark'] .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-nav-link {
+  color: var(--sidebar-text) !important;
+}
+
+[data-theme='dark'] .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-nav-link[aria-current='page'],
+[data-theme='dark'] .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-nav-link.active {
+  color: #d5f5dd !important;
+}
+
+[data-theme='dark'] .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-nav-link[aria-current='page'] .sidebar-nav-icon > svg,
+[data-theme='dark'] .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar .sidebar-nav-link.active .sidebar-nav-icon > svg {
+  color: #d5f5dd !important;
+}
+
 .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-scroll nav {
   gap: 10px !important;
 }
