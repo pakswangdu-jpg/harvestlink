@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Supabase CLI local project metadata
+supabase/.temp/
+backend/supabase/.temp/
+
 # Environment variables (contains API keys — never commit)
 .env
 .env.*

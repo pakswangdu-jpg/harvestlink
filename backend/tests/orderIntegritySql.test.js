@@ -8,7 +8,7 @@ const buyer = '20000000-0000-0000-0000-000000000001';
 const product = '30000000-0000-0000-0000-000000000001';
 const first = '40000000-0000-0000-0000-000000000001';
 const second = '40000000-0000-0000-0000-000000000002';
-const migration = await readFile(new URL('../../supabase/migrations/20261010_order_integrity.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../../supabase/migrations/2026101003_order_integrity.sql', import.meta.url), 'utf8');
 
 test('marketplace order decisions are atomic and protect stock', async (t) => {
   const db = new PGlite();

@@ -43,7 +43,7 @@ const CODE_BG = '#fafaf9';
 const PAGE_BG = '#f3f4f6';
 
 
-const FONT_STACK = "Arial, Helvetica, 'Segoe UI', sans-serif";
+const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 
 
@@ -210,16 +210,62 @@ export async function sendPasswordResetEmail(email, resetLink) {
     from: FROM_ADDRESS,
     to: [email],
     subject: 'Reset your HarvestLink password',
-    text: `Reset your HarvestLink password using this secure link:\n\n${resetLink}\n\nIf you did not request this reset, you can ignore this email.`,
-    html: `<!doctype html><html lang="en"><body style="margin:0;padding:32px 16px;background:${PAGE_BG};font-family:${FONT_STACK};color:${TEXT_DARK};">
-      <table role="presentation" style="width:100%;max-width:480px;margin:auto;background:white;border:1px solid ${LINE};border-radius:8px;"><tr><td style="padding:28px;">
-        <p style="margin:0 0 24px;font-size:18px;font-weight:600;"><span style="color:${BRAND_HARVEST};">Harvest</span><span style="color:${BRAND_LINK};">Link</span></p>
-        <h1 style="margin:0 0 12px;font-size:22px;">Reset your password</h1>
-        <p style="color:${TEXT_BODY};line-height:24px;">Use the secure link below to choose a new password for your account.</p>
-        <p style="margin:24px 0;"><a href="${safeLink}" style="display:inline-block;padding:12px 20px;background:${BRAND_HARVEST};color:white;border-radius:6px;text-decoration:none;">Reset password</a></p>
-        <p style="margin:0;color:${TEXT_MUTED};font-size:13px;line-height:20px;">If you did not request this reset, you can ignore this email.</p>
-      </td></tr></table>
-    </body></html>`,
+    text: `HarvestLink\n\nReset your password\n\nWe received a request to reset the password for your HarvestLink account.\n\nClick the button below to choose a new password.\n\nReset password: ${resetLink}\n\nIf you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.\n\nFor your security, never share this password reset link with anyone.\n\nThank you,\nThe HarvestLink team\n\nHarvestLink - Connecting farmers directly with buyers.`,
+    html: `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Reset your HarvestLink password</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:${PAGE_BG}; font-family:${FONT_STACK}; color:${TEXT_DARK};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; background-color:${PAGE_BG};">
+      <tr>
+        <td align="center" style="padding:28px 16px;">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%; max-width:560px;">
+            <tr>
+              <td style="padding:0 4px 18px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td valign="middle" style="padding-right:9px;">
+                      <img src="cid:harvestlink-logo" width="30" height="30" alt="HarvestLink" style="display:block; width:30px; height:30px; border:0; border-radius:50%;" />
+                    </td>
+                    <td valign="middle" style="font-family:${FONT_STACK}; font-size:19px; line-height:30px; font-weight:600;">
+                      <span style="color:${BRAND_HARVEST};">Harvest</span><span style="color:${BRAND_LINK};">Link</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px 28px; background-color:#ffffff; border:1px solid ${LINE}; border-radius:7px;">
+                <h1 style="margin:0 0 18px; font-family:${FONT_STACK}; font-size:29px; line-height:1.25; font-weight:600; color:${TEXT_DARK};">Reset your password</h1>
+                <p style="margin:0 0 14px; font-family:${FONT_STACK}; font-size:16px; line-height:1.6; color:${TEXT_BODY};">We received a request to reset the password for your HarvestLink account.</p>
+                <p style="margin:0 0 24px; font-family:${FONT_STACK}; font-size:16px; line-height:1.6; color:${TEXT_BODY};">Click the button below to choose a new password.</p>
+                <p style="margin:0 0 25px;"><a href="${safeLink}" style="display:inline-block; padding:12px 20px; min-height:20px; font-family:${FONT_STACK}; font-size:15px; line-height:20px; font-weight:600; color:#ffffff; background-color:${BRAND_HARVEST}; border-radius:6px; text-decoration:none;">Reset password</a></p>
+                <p style="margin:0 0 18px; font-family:${FONT_STACK}; font-size:14px; line-height:1.6; color:${TEXT_MUTED};">If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+                <p style="margin:0; padding-top:18px; border-top:1px solid ${LINE}; font-family:${FONT_STACK}; font-size:14px; line-height:1.6; color:${TEXT_MUTED};">For your security, never share this password reset link with anyone.</p>
+                <p style="margin:24px 0 0; font-family:${FONT_STACK}; font-size:15px; line-height:1.6; color:${TEXT_BODY};">Thank you,<br />The HarvestLink team</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 4px 0;">
+                <p style="margin:0; font-family:${FONT_STACK}; font-size:13px; line-height:1.5; color:${TEXT_FAINT};">HarvestLink &mdash; Connecting farmers directly with buyers.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`,
+    attachments: [{
+      filename: 'harvestlink-logo.png',
+      content: LOGO_BASE64,
+      contentId: 'harvestlink-logo',
+    }],
   });
   if (error || !data?.id) throw new Error('Unable to send the password reset email.');
   return data;

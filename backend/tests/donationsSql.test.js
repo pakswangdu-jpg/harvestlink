@@ -8,7 +8,7 @@ const stakeholder = '20000000-0000-0000-0000-000000000001';
 const other = '20000000-0000-0000-0000-000000000002';
 const pending = '20000000-0000-0000-0000-000000000003';
 const product = '30000000-0000-0000-0000-000000000001';
-const migration = await readFile(new URL('../../supabase/migrations/20261009_shared_donations.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../../supabase/migrations/2026100902_shared_donations.sql', import.meta.url), 'utf8');
 
 test('shared donation transaction lifecycle', async (t) => {
   const db = new PGlite();

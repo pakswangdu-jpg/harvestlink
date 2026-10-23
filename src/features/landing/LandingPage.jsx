@@ -213,11 +213,7 @@ export default function LandingPage() {
           </span>
         </Link>
         <div className="landing-links">
-          {NAV_LINKS.map((link) => (
-            <a key={link.id} href={`#${link.id}`} className={activeSection === link.id ? 'active' : ''}>
-              {link.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((link) => <a key={link.id} href={`#${link.id}`} className={activeSection === link.id ? 'active' : ''}>{link.label}</a>)}
         </div>
         <div className="landing-actions">
           <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
@@ -236,9 +232,7 @@ export default function LandingPage() {
           </button>
           {isMobileMenuOpen ? (
             <div className="landing-mobile-menu-panel" id="harvestlink-public-menu">
-              {NAV_LINKS.map((link) => (
-                <a key={link.id} href={`#${link.id}`} onClick={() => setIsMobileMenuOpen(false)}>{link.label}</a>
-              ))}
+              {NAV_LINKS.map((link) => <a key={link.id} href={`#${link.id}`} onClick={() => setIsMobileMenuOpen(false)}>{link.label}</a>)}
               <div className="landing-mobile-menu-actions">
                 <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
                 <Link className="btn btn-primary btn-md" to="/register">Create account</Link>

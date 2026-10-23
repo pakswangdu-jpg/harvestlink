@@ -18,7 +18,7 @@ test('admin reference updates notify marketplace roles atomically without changi
     ('10000000-0000-4000-8000-000000000004','admin','active'),
     ('10000000-0000-4000-8000-000000000005','buyer','suspended');
     insert into products values (1,55);`);
-  const migration = await readFile(new URL('../../supabase/migrations/20261010_market_price_notifications.sql', import.meta.url), 'utf8');
+  const migration = await readFile(new URL('../../supabase/migrations/2026101002_market_price_notifications.sql', import.meta.url), 'utf8');
   await db.exec(migration); await db.exec(migration);
   await db.exec("insert into market_price_overrides values('28','Cabbage',40,2025,'Local market reference');");
   const notifications = (await db.query('select n.*, p.role from notifications n join profiles p on p.id=n.user_id order by p.role')).rows;

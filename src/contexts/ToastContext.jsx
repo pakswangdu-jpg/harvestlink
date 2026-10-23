@@ -1,8 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
-  createContext, useCallback, useContext, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
 import ToastStack from '../components/common/ToastStack';
+
+const LOGOUT_NOTICE_KEY = 'harvestlink:logout-notice';
 
 const ToastContext = createContext(null);
 
@@ -34,6 +36,20 @@ export function ToastProvider({ children }) {
     timers.current[id] = setTimeout(() => dismissToast(id), TOAST_DURATION_MS);
     return id;
   }, [dismissToast]);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(LOGOUT_NOTICE_KEY) !== '1') return;
+      sessionStorage.removeItem(LOGOUT_NOTICE_KEY);
+      showToast({
+        type: 'success',
+        title: 'Signed out',
+        message: 'You have been safely signed out of HarvestLink.',
+      });
+    } catch {
+      // Storage can be unavailable in restricted browser sessions.
+    }
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

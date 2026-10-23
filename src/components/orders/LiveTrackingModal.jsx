@@ -426,7 +426,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
           <section className="tracking-people-status" aria-label="People and delivery status">
             <div className="tracking-status-summary">
               <span className="tracking-summary-label">Delivery status</span>
-              <span className={`tracking-status-pill ${statusClass}`}>
+              <span className={`tracking-status-pill ${statusClass} ${isDelivered ? 'is-delivered' : ''}`}>
                 {isDelivered ? <CheckCircle2 size={18} aria-hidden="true" /> : <Truck size={18} aria-hidden="true" />}
                 {statusLabel}
               </span>

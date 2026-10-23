@@ -98,6 +98,7 @@ export default function OrderTracking() {
   const [isStartDeliveryDialogOpen, setIsStartDeliveryDialogOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
+  const [trackingIdCopied, setTrackingIdCopied] = useState(false);
   const autoOpenedTrackingOrderRef = useRef(null);
 
   useEffect(() => {
@@ -293,6 +294,17 @@ export default function OrderTracking() {
     }
   };
 
+  const copyTrackingId = async () => {
+    if (!order.trackingId) return;
+    try {
+      await navigator.clipboard.writeText(order.trackingId);
+      setTrackingIdCopied(true);
+      window.setTimeout(() => setTrackingIdCopied(false), 1800);
+    } catch {
+      // Clipboard access is optional; the ID remains visible for manual copying.
+    }
+  };
+
   const run = async (action, successMessage) => {
     try {
       const updated = await action();
@@ -418,6 +430,21 @@ export default function OrderTracking() {
               <span>{formatCurrency(order.totalAmount)}</span>
               <span>{formatDate(order.createdAt)}</span>
             </div>
+            {order.trackingId ? (
+              <div className="ot-tracking-id">
+                <span className="ot-tracking-id-label">Tracking ID</span>
+                <strong>{order.trackingId}</strong>
+                <button
+                  type="button"
+                  className="ot-chip-copy"
+                  onClick={copyTrackingId}
+                  aria-label="Copy tracking ID"
+                  title={trackingIdCopied ? 'Copied' : 'Copy tracking ID'}
+                >
+                  {trackingIdCopied ? <Check size={12} /> : <Copy size={12} />}
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="ot-header-statuses" role="group" aria-label="Delivery and payment status">
             {isCourier ? <div className="ot-header-status-item"><span className="ot-header-status-label">Order</span><div className="ot-header-status-value"><StatusBadge value={order.status} type="orderStatus" /></div></div> : null}

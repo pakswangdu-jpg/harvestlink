@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useAuth } from '../features/auth/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
+export const LOGOUT_NOTICE_KEY = 'harvestlink:logout-notice';
+
 export function useLogout() {
   const { logout } = useAuth();
   const { showToast } = useToast();
@@ -23,6 +25,7 @@ export function useLogout() {
     setIsLoggingOut(true);
     try {
       await logout();
+      sessionStorage.setItem(LOGOUT_NOTICE_KEY, '1');
       window.location.assign('/');
     } catch {
       pendingRef.current = false;

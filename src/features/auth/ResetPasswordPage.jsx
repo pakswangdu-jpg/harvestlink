@@ -83,10 +83,19 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
     setError('');
     try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData?.session?.user?.id) {
+        throw new Error('This reset link is no longer active. Please request a new reset link.');
+      }
+
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
 
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch (refreshError) {
+        console.warn('Password changed, but the local profile could not refresh:', refreshError);
+      }
       navigate('/login', { replace: true });
     } catch (updateError) {
       setIsSubmitting(false);
