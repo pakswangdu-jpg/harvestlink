@@ -6632,21 +6632,21 @@ a.user-chip:hover {
 }
 
 .checkout-trust-icon svg {
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .checkout-trust-title {
   color: var(--text);
   font-size: 0.86rem;
-  font-weight: 750;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .checkout-trust-text {
   margin-top: 2px;
   color: var(--muted);
   font-size: 0.78rem;
-  font-weight: 550;
+  font-weight: 400;
 }
 
 @media (max-width: 640px) {
