@@ -104,6 +104,7 @@ export function serializeOrder(row) {
   if (!row) return null;
   return {
     id: row.id,
+    trackingId: row.tracking_id || null,
     productId: row.product_id,
     productName: row.product_name,
     productImageUrl: row.product_image_url || null,

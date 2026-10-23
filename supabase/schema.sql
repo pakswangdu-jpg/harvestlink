@@ -8,7 +8,7 @@
   -- Do not rerun this provisioning schema against production: it contains data
   -- cleanup steps which are not part of the profile-table consolidation.
   --
-  -- After provisioning, run migrations/20261009_shared_donations.sql for shared donations.
+  -- After provisioning, run migrations/2026100902_shared_donations.sql for shared donations.
   -- Scope: market-price overrides, reports, demand forecast, geocoding, and
   -- translation caches are NOT part of this schema — those stay on localStorage / free
   -- public APIs for now (see backend/README.md for why).
@@ -264,6 +264,7 @@ notify pgrst, 'reload schema';
   -- ============================================================================
   create table if not exists public.orders (
     id uuid primary key default gen_random_uuid(),
+    tracking_id text not null default ('HL-' || upper(encode(extensions.gen_random_bytes(5), 'hex'))),
     -- Nullable + on delete set null (not "not null"/restrict) — product_name/unit/unit_price
     -- etc. are already snapshotted below, so an order stays fully readable even after its
     -- product is deleted; the FK should reflect that, not silently block the farmer from ever
@@ -351,6 +352,7 @@ notify pgrst, 'reload schema';
   create index if not exists orders_buyer_id_idx on public.orders (buyer_id);
   create index if not exists orders_farmer_id_idx on public.orders (farmer_id);
   create index if not exists orders_product_id_idx on public.orders (product_id);
+  create unique index if not exists orders_tracking_id_idx on public.orders (tracking_id);
   create unique index if not exists orders_checkout_key_idx on public.orders (buyer_id, checkout_key);
 
   -- Safe to re-run against an already-created table from an earlier version of this schema.
@@ -831,9 +833,10 @@ notify pgrst, 'reload schema';
     with check ((select auth.uid()) = id);
 
   drop policy if exists profiles_prevent_user_delete on public.profiles;
-  create policy profiles_prevent_user_delete on public.profiles
-    as restrictive for delete to authenticated
-    using (false);
+  drop policy if exists "Users can delete own profile" on public.profiles;
+  create policy "Users can delete own profile" on public.profiles
+    as permissive for delete to authenticated
+    using ((select auth.uid()) = id);
 
   -- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
   -- directly — Realtime enforces RLS just like any other read, so without this policy the

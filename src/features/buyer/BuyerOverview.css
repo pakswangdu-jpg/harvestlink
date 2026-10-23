@@ -1,3 +1,5 @@
+.buyer-dashboard-page { color: #17221d; }
+
 .buyer-dashboard-page .buyer-overview {
   container-type: inline-size;
 }
@@ -14,10 +16,10 @@
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item {
-  --summary-tint: #f6f8fa;
-  --summary-border: #e0e6eb;
-  --summary-hover-tint: #f0f4f7;
-  --summary-hover-border: #d2dce4;
+  --summary-tint: #f4f7f4;
+  --summary-border: #d7e1da;
+  --summary-hover-tint: #eef3ef;
+  --summary-hover-border: #b7c7bc;
   --summary-icon: #667b8c;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(21px, auto) minmax(38px, auto) 46px minmax(20px, auto);
@@ -34,44 +36,58 @@
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-pending {
-  --summary-tint: #fcfbf8;
-  --summary-border: #e9e2d5;
-  --summary-hover-tint: #f8f3e8;
-  --summary-hover-border: #ded3be;
-  --summary-icon: #94764b;
+  --summary-tint: #faefd9;
+  --summary-border: #dec38b;
+  --summary-hover-tint: #f5e5c5;
+  --summary-hover-border: #cba866;
+  --summary-icon: #8b5b17;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-complete {
-  --summary-tint: #f8fbf9;
-  --summary-border: #dce8e0;
-  --summary-hover-tint: #edf6f0;
-  --summary-hover-border: #cbded2;
-  --summary-icon: #46775b;
+  --summary-tint: #e4f1e8;
+  --summary-border: #accfb8;
+  --summary-hover-tint: #d7eadf;
+  --summary-hover-border: #8fbea0;
+  --summary-icon: #246a42;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-orders {
-  --summary-tint: #f9fafc;
-  --summary-border: #dfe7ee;
-  --summary-hover-tint: #edf3f8;
-  --summary-hover-border: #d0dce6;
-  --summary-icon: #647f98;
+  --summary-tint: #edf0f7;
+  --summary-border: #c4cddc;
+  --summary-hover-tint: #e2e7f1;
+  --summary-hover-border: #aab8ce;
+  --summary-icon: #4a5f7c;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
-  --summary-tint: #fafbf8;
-  --summary-border: #e1e6dd;
-  --summary-hover-tint: #f0f4ed;
-  --summary-hover-border: #d3ddcd;
-  --summary-icon: #6b7b63;
+  --summary-tint: #e7f0e2;
+  --summary-border: #b8cbae;
+  --summary-hover-tint: #dce9d5;
+  --summary-hover-border: #9eb88f;
+  --summary-icon: #3f6b36;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online {
-  --summary-tint: #f9fafc;
-  --summary-border: #dfe7ee;
-  --summary-hover-tint: #edf3f8;
-  --summary-hover-border: #d0dce6;
-  --summary-icon: #647f98;
+  --summary-tint: #eaf1f8;
+  --summary-border: #b9cce0;
+  --summary-hover-tint: #dfeaf4;
+  --summary-hover-border: #9eb8d1;
+  --summary-icon: #35658f;
 }
+
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend > strong { color: #1f3320; }
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online > strong { color: #20384f; }
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-orders > strong { color: #263547; }
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-pending > strong { color: #5d3a0d; }
+.buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-complete > strong { color: #193d29; }
+.buyer-dashboard-page .buyer-overview .buyer-section-heading h2,
+.buyer-dashboard-page .buyer-nearby-section .buyer-section-heading h2 { font-size: 23px; font-weight: 600; }
+.buyer-dashboard-page .buyer-overview .buyer-section-heading p,
+.buyer-dashboard-page .buyer-nearby-section .buyer-section-heading p,
+.buyer-dashboard-page .buyer-nearby-section .registered-location-notice { color: #52645a; font-size: 15px; }
+.buyer-dashboard-page .buyer-overview .buyer-marketplace-count { border-color: #b8cbbd; background: #ffffff; color: #245a38; }
+.buyer-dashboard-page .buyer-overview .buyer-marketplace-count:hover,
+.buyer-dashboard-page .buyer-overview .buyer-marketplace-count:focus-visible { border-color: #7fa68b; background: #eef3ef; color: #174c2d; }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item:hover {
   border-color: var(--summary-hover-border);
@@ -92,7 +108,7 @@
   gap: 8px;
   color: #24332d;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
@@ -102,9 +118,9 @@
   flex: none;
   width: 19px;
   height: 19px;
-  stroke-width: 1.9;
+  stroke-width: 2.25;
   color: var(--summary-icon);
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-online-payment-icon {
@@ -114,7 +130,7 @@
   background-color: var(--summary-icon);
   -webkit-mask: var(--payment-icon) center / contain no-repeat;
   mask: var(--payment-icon) center / contain no-repeat;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .is-pending .buyer-summary-label svg {
@@ -132,7 +148,7 @@
   margin: 0;
   color: #24332d;
   font-family: inherit;
-  font-size: 30px;
+  font-size: 34px;
   font-weight: 600;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
@@ -157,8 +173,8 @@
 }
 
 .buyer-dashboard-page .buyer-summary-trend > span {
-  color: #68766c;
-  font-size: 12px;
+  color: #52645a;
+  font-size: 14px;
   line-height: 16px;
 }
 
@@ -174,7 +190,7 @@
   stroke: var(--summary-icon);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.6;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 
@@ -191,10 +207,10 @@
   grid-column: 1;
   grid-row: 4;
   align-self: center;
-  color: #59635e;
+  color: #52645a;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.35;
   letter-spacing: 0;
 }
@@ -214,7 +230,7 @@
 .buyer-dashboard-page .buyer-summary-support > span:first-child {
   flex: 1 1 auto;
   overflow: hidden;
-  color: #59635e;
+  color: #52645a;
   text-overflow: ellipsis;
 }
 
@@ -267,22 +283,24 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item {
-  --summary-background: #252c28;
-  --summary-hover-background: #2b342e;
-  --summary-tint: #242a2f;
-  --summary-border: #374148;
-  --summary-hover-tint: #2b3339;
-  --summary-hover-border: #48555f;
+  --summary-background: #17211b;
+  --summary-hover-background: #1c2821;
+  --summary-tint: #17211b;
+  --summary-border: #304138;
+  --summary-hover-tint: #1c2821;
+  --summary-hover-border: #43574b;
   --summary-icon: #9badbc;
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-summary-trend > span {
   color: #a8b4ac;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-pending {
-  --summary-background: #2d2b25;
-  --summary-hover-background: #353128;
+  --summary-background: #2b271c;
+  --summary-hover-background: #38301f;
   --summary-tint: #2b2923;
   --summary-border: #423e33;
   --summary-hover-tint: #343128;
@@ -291,8 +309,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-complete {
-  --summary-background: #25302a;
-  --summary-hover-background: #2b3930;
+  --summary-background: #1b2b20;
+  --summary-hover-background: #243a2b;
   --summary-tint: #232d28;
   --summary-border: #35473d;
   --summary-hover-tint: #2b3730;
@@ -301,8 +319,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-orders {
-  --summary-background: #252b30;
-  --summary-hover-background: #2b343b;
+  --summary-background: #1b2530;
+  --summary-hover-background: #253241;
   --summary-tint: #242a2f;
   --summary-border: #374148;
   --summary-hover-tint: #2b3339;
@@ -311,8 +329,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
-  --summary-background: #2b2f27;
-  --summary-hover-background: #34392d;
+  --summary-background: #202c1d;
+  --summary-hover-background: #2a3925;
   --summary-tint: #292d26;
   --summary-border: #3d4538;
   --summary-hover-tint: #31382d;
@@ -321,8 +339,8 @@
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online {
-  --summary-background: #252b30;
-  --summary-hover-background: #2b343b;
+  --summary-background: #192735;
+  --summary-hover-background: #23364a;
   --summary-tint: #242a2f;
   --summary-border: #374148;
   --summary-hover-tint: #2b3339;
@@ -342,8 +360,20 @@
   color: #e5eae6;
 }
 
+[data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+[data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item > strong {
+  font-size: 33px;
+  font-weight: 600;
+}
+
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item > small {
   color: #b4beb7;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item > small:has(svg) {
@@ -381,6 +411,12 @@
 [data-theme='dark'] .buyer-dashboard-page .buyer-nearby-section .nearby-list-header strong,
 [data-theme='dark'] .buyer-dashboard-page .buyer-nearby-section .nearby-farmer-title-row strong {
   color: #e5eae6;
+}
+
+[data-theme='dark'] .buyer-dashboard-page .buyer-overview .buyer-section-heading h2,
+[data-theme='dark'] .buyer-dashboard-page .buyer-nearby-section .buyer-section-heading h2 {
+  font-size: 23px;
+  font-weight: 600;
 }
 
 [data-theme='dark'] .buyer-dashboard-page .buyer-overview .buyer-section-heading p,

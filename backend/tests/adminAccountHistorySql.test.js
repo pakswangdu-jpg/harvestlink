@@ -15,7 +15,7 @@ test('admin account changes preserve identity, verification and history atomical
     create table orders(id int primary key,buyer_id uuid references profiles(id));
     insert into profiles(id,role,account_status,verification_status) values('${admin}','admin','active',null),('${farmer}','farmer','active','pending'),('${buyer}','buyer','active',null);
     insert into orders values(1,'${buyer}');`);
-  const migration = await readFile(new URL('../../supabase/migrations/20261010_admin_account_history.sql', import.meta.url), 'utf8');
+  const migration = await readFile(new URL('../../supabase/migrations/2026101001_admin_account_history.sql', import.meta.url), 'utf8');
   await db.exec(migration); await db.exec(migration);
   const act = async (user, kind, status, reason = null, expected = null, actor = admin) => (await db.query('select * from manage_admin_account($1,$2,$3,$4,$5,$6)', [actor,user,kind,status,reason,expected])).rows[0];
   await t.test('verification records admin, action, reason and timestamps', async () => {

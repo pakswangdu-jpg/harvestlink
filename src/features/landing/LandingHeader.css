@@ -99,11 +99,17 @@
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-toggle { width: 44px; height: 44px; border-radius: 6px; background: transparent; border-color: transparent; }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-toggle:hover { border-color: var(--line); }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel { width: min(300px, calc(100vw - 32px)); min-width: 0; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgb(0 0 0 / 8%); }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel { border: 1px solid #d7e1da; background: #fff; box-shadow: 0 8px 20px rgb(23 34 29 / 12%); }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a { display: flex; align-items: center; min-height: 44px; padding: 10px 8px; border-radius: 0; font-size: 14px; font-weight: 500; }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a:hover { background: transparent; color: var(--public-header-accent); }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel .landing-nav-tracker-link { min-height: 44px; padding: 10px 8px; color: var(--text); font-size: 14px; font-weight: 500; text-align: left; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel .landing-nav-tracker-link { margin-block: 3px; border: 1px solid #b8d6bf; border-left: 3px solid #2f855a; border-radius: 6px; background: #eef7f0; color: #166534; padding-left: 9px; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-panel .landing-nav-tracker-link:hover { color: var(--public-header-accent); }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-actions { align-items: center; gap: 12px; }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-actions .btn { flex: 0 1 auto; }
 .landing-farmer-friendly .landing-nav .landing-mobile-menu-actions .btn-primary { flex: 1; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-actions { margin-top: 10px; padding-top: 12px; border-top: 1px solid #d7e1da; }
+.landing-farmer-friendly .landing-nav .landing-mobile-menu-actions .btn-primary { border-radius: 7px; background: #166534; border-color: #166534; }
 
 [data-theme="dark"] .landing-farmer-friendly .landing-nav { --public-header-accent: #a5d7b2; }
 
@@ -115,6 +121,10 @@
 [data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-links a:hover,
 [data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-links a.active,
 [data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel > a:hover { color: var(--public-header-accent); }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel { border-color: #304138; background: #17211b; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel .landing-nav-tracker-link { color: #edf3ef; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-panel .landing-nav-tracker-link { border-color: #396249; border-left-color: #72c58b; background: #20372a; color: #b9e7c6; }
+[data-theme="dark"] .landing-farmer-friendly .landing-nav .landing-mobile-menu-actions { border-color: #304138; }
 
 @media (max-width: 1100px) {
   .landing-farmer-friendly .landing-nav {

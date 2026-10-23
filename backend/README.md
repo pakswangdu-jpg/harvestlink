@@ -18,7 +18,7 @@ records must not use browser-only storage: farmers and stakeholder organizations
 need the same server-side handoff state.
 
 Before deploying donation changes, run
-`supabase/migrations/20261009_shared_donations.sql` in the Supabase SQL Editor.
+`supabase/migrations/2026100902_shared_donations.sql` in the Supabase SQL Editor.
 This is required for existing projects and fresh projects provisioned with
 `supabase/schema.sql`. See `supabase/migrations/README.md` for rollout details.
 

@@ -177,13 +177,18 @@ function getLoginErrorPresentation(error) {
     case 'CAPTCHA_UNAVAILABLE':
       return { title: 'Security verification unavailable', message: 'Security verification is temporarily unavailable. Please try again later.' };
     case 'INVALID_CREDENTIALS':
-      return { title: 'Unable to sign in', message: 'Check your email and password and try again.' };
+      return {
+        title: 'Account not found or password incorrect',
+        message: 'We could not find an account with those details. Check your email and password, or register a new account.',
+      };
     case 'RATE_LIMITED':
       return { title: 'Too many sign-in attempts', message: 'For your security, sign-in has been temporarily limited. Please wait a few minutes before trying again.' };
     case 'ACCOUNT_SUSPENDED':
       return { title: 'Account temporarily suspended', message: 'Contact the HarvestLink administrator for account review.' };
     case 'ACCOUNT_DEACTIVATED':
       return { title: 'Account deactivated', message: 'Contact the HarvestLink administrator for assistance.' };
+    case 'ACCOUNT_UNAVAILABLE':
+      return { title: 'Account unavailable', message: 'Your login is valid, but the HarvestLink account profile is unavailable. Please contact support.' };
     case 'AUTH_SERVICE_UNAVAILABLE':
       return { title: 'Sign-in temporarily unavailable', message: 'Please try again later.' };
     default:
@@ -643,14 +648,12 @@ function StakeholderRegisterFields({
             <input id="province" value="Cebu" disabled />
           </FormField>
           <FormField label="Municipality / City" name="municipality" error={errors.municipality}>
-            <select
-              id="municipality"
+            <MunicipalityCombobox
+              id="stakeholder-municipality"
               value={form.municipality}
               onChange={(event) => updateField('municipality', event.target.value)}
               onBlur={() => handleBlur('municipality')}
-            >
-              {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-            </select>
+            />
           </FormField>
         </div>
         <FormField label="Barangay" name="barangay" error={errors.barangay}>
@@ -724,6 +727,74 @@ function StakeholderRegisterFields({
           />
         </FormField>
       </div>
+    </div>
+  );
+}
+
+function MunicipalityCombobox({ id, value, onChange, onBlur }) {
+  const [query, setQuery] = useState(value || '');
+  const [isOpen, setIsOpen] = useState(false);
+  const filteredMunicipalities = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return normalizedQuery
+      ? CEBU_MUNICIPALITIES.filter((municipality) => municipality.toLowerCase().includes(normalizedQuery))
+      : CEBU_MUNICIPALITIES;
+  }, [query]);
+
+  useEffect(() => {
+    if (!isOpen) setQuery(value || '');
+  }, [isOpen, value]);
+
+  const selectMunicipality = (municipality) => {
+    setQuery(municipality);
+    setIsOpen(false);
+    onChange({ target: { value: municipality } });
+    onBlur();
+  };
+
+  return (
+    <div className="municipality-combobox">
+      <input
+        id={id}
+        type="text"
+        role="combobox"
+        value={query}
+        autoComplete="off"
+        aria-autocomplete="list"
+        aria-expanded={isOpen}
+        aria-controls={`${id}-options`}
+        placeholder="Search municipality or city"
+        onFocus={() => setIsOpen(true)}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setIsOpen(true);
+          onChange({ target: { value: event.target.value } });
+        }}
+        onBlur={() => {
+          window.setTimeout(() => {
+            setIsOpen(false);
+            setQuery(value || '');
+            onBlur();
+          }, 120);
+        }}
+      />
+      {isOpen ? (
+        <div id={`${id}-options`} className="municipality-combobox-options" role="listbox">
+          {filteredMunicipalities.length ? filteredMunicipalities.map((municipality) => (
+            <button
+              key={municipality}
+              type="button"
+              role="option"
+              aria-selected={municipality === value}
+              className={municipality === value ? 'is-selected' : ''}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectMunicipality(municipality)}
+            >
+              {municipality}
+            </button>
+          )) : <p className="municipality-combobox-empty">No municipality found.</p>}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1397,14 +1468,12 @@ export default function AuthPage({ mode, adminPortal = false }) {
                           />
                         </FormField>
                         <FormField label="Farm location" name="municipality" error={errors.municipality}>
-                          <select
-                            id="municipality"
+                          <MunicipalityCombobox
+                            id="farmer-municipality"
                             value={form.municipality}
                             onChange={(event) => updateField('municipality', event.target.value)}
                             onBlur={() => handleBlur('municipality')}
-                          >
-                            {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-                          </select>
+                          />
                         </FormField>
                       </div>
                       <FormField label="Proof of certification / government ID" name="govIdFile" helper="Optional. Uploaded securely — only visible to admins for verification.">
@@ -1431,14 +1500,12 @@ export default function AuthPage({ mode, adminPortal = false }) {
                         />
                       </FormField>
                       <FormField label="Location" name="municipality" error={errors.municipality}>
-                        <select
-                          id="municipality"
+                        <MunicipalityCombobox
+                          id="buyer-municipality"
                           value={form.municipality}
                           onChange={(event) => updateField('municipality', event.target.value)}
                           onBlur={() => handleBlur('municipality')}
-                        >
-                          {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-                        </select>
+                        />
                       </FormField>
                     </div>
                   ) : null}

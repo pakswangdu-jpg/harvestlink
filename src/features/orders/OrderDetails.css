@@ -45,6 +45,33 @@
   content: '\00b7';
 }
 
+.ot-tracking-id {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-top: 9px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ot-tracking-id-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.ot-tracking-id strong {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ot-tracking-id .ot-chip-copy {
+  width: 26px;
+  height: 26px;
+  margin: 0;
+}
+
 .ot-page .ot-header-statuses .badge,
 .ot-page .ot-details-panel .ot-detail-row > .badge {
   width: fit-content;

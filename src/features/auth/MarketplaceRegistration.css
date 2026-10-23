@@ -1,17 +1,30 @@
 .auth-page.auth-page-marketplace-register {
+  --register-bg: #f4f7f4;
+  --register-form-bg: #ffffff;
+  --register-input-bg: #ffffff;
+  --register-surface: #eef3ef;
+  --register-text: #17221d;
+  --register-secondary: #52645a;
+  --register-placeholder: #718078;
+  --register-border: #d7e1da;
+  --register-border-hover: #b7c7bc;
+  --register-focus: #166534;
+  --register-accent: #166534;
   position: relative;
   display: block;
   width: 100%;
+  max-width: 100vw;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--panel);
+  background: var(--register-bg);
 }
 
 .auth-page-marketplace-register,
 .auth-page-marketplace-register * {
+  box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   letter-spacing: 0;
 }
@@ -27,6 +40,7 @@
   gap: 40px;
   width: 50%;
   min-width: 0;
+  max-width: 50vw;
   max-width: none;
   height: 100vh;
   height: 100dvh;
@@ -41,7 +55,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: rgba(240, 253, 244, 0.88);
+  background: rgba(244, 247, 244, 0.9);
   pointer-events: none;
 }
 
@@ -49,9 +63,8 @@
 .auth-page-marketplace-register .auth-brand { gap: 12px; }
 .auth-page-marketplace-register .auth-brand strong { font-size: 20px; font-weight: 600; }
 .auth-page-marketplace-register .auth-brand small { color: #52685a; font-size: 14px; font-weight: 400; }
-.auth-page-marketplace-register .auth-hero h1 { margin: 0; color: #183e2a; font-size: 44px; font-weight: 600; line-height: 1.12; }
+.auth-page-marketplace-register .auth-hero h1 { margin: 0; color: #183e2a; font-size: clamp(36px, 4vw, 50px); font-weight: 600; line-height: 1.12; }
 .auth-page-marketplace-register .auth-hero p { max-width: 500px; margin-top: 20px; color: #334d3d; font-size: 17px; font-weight: 400; line-height: 1.65; }
-[data-theme="dark"] .auth-page-marketplace-register .auth-hero h1 { color: #234e36; }
 .auth-page-marketplace-register .auth-hero .brand-wordmark-harvest { color: #3d7237; }
 .auth-page-marketplace-register .auth-hero .brand-wordmark-link { color: #8e6b15; }
 
@@ -62,6 +75,7 @@
   display: block;
   width: 50%;
   min-width: 0;
+  max-width: 50vw;
   max-width: none;
   height: 100vh;
   height: 100dvh;
@@ -74,14 +88,25 @@
   border: 0;
   border-left: 1px solid var(--line);
   border-radius: 0;
-  background: var(--panel);
+  background: var(--register-form-bg);
   box-shadow: none;
   scrollbar-gutter: stable;
 }
 
 [data-theme="dark"] .auth-page.auth-page-marketplace-register .auth-card.auth-card-register {
+  --register-bg: #0d1410;
+  --register-form-bg: #111a15;
+  --register-input-bg: #17211b;
+  --register-surface: #1c2821;
+  --register-text: #f2f6f3;
+  --register-secondary: #b7c4bc;
+  --register-placeholder: #8e9d94;
+  --register-border: #304138;
+  --register-border-hover: #43574b;
+  --register-focus: #4baa70;
+  --register-accent: #4baa70;
   border-color: var(--line);
-  background: var(--panel);
+  background: var(--register-form-bg);
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -98,12 +123,28 @@
 .auth-page-marketplace-register .auth-card-header p { margin-top: 8px; color: var(--muted); font-size: 15px; font-weight: 400; line-height: 1.5; }
 .auth-page-marketplace-register .register-form,
 .auth-page-marketplace-register .register-fields-scroll { gap: 18px; }
-.auth-page-marketplace-register .form-grid { gap: 16px; }
+.auth-page-marketplace-register .form-grid { align-items: start; gap: 16px; }
 .auth-page-marketplace-register .form-field { min-width: 0; gap: 7px; font-weight: 500; }
-.auth-page-marketplace-register .form-field > span:first-child { color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.4; }
-.auth-page-marketplace-register .form-field :is(input, select, textarea) { min-width: 0; border: 1px solid var(--line); border-radius: 8px; background-color: var(--input-bg); color: var(--text); font-size: 16px; font-weight: 400; line-height: 1.5; }
+.auth-page-marketplace-register .form-field > * { min-width: 0; max-width: 100%; }
+.auth-page-marketplace-register .form-field .field-error { min-height: 18px; overflow-wrap: anywhere; }
+.auth-page-marketplace-register .form-field > span:first-child { color: var(--register-text); font-size: 15px; font-weight: 600; line-height: 1.4; }
+.auth-page-marketplace-register .form-field small:not(.field-error),
+.auth-page-marketplace-register .muted { color: var(--register-secondary); font-size: 14px; font-weight: 500; line-height: 1.5; }
+.auth-page-marketplace-register .form-field .field-error { color: #b4232c; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.auth-page-marketplace-register .form-field :is(input, select, textarea) { min-width: 0; border: 1px solid var(--register-border); border-radius: 8px; background-color: var(--register-input-bg); color: var(--register-text); font-size: 16px; font-weight: 400; line-height: 1.5; }
 .auth-page-marketplace-register .form-field :is(input, select) { min-height: 50px; }
-.auth-page-marketplace-register .form-field :is(input, select, textarea):focus { border-color: var(--green-700); box-shadow: 0 0 0 2px color-mix(in srgb, var(--green-700) 18%, transparent); }
+.auth-page-marketplace-register .form-field :is(input, select, textarea)::placeholder { color: var(--register-placeholder); opacity: 1; }
+.auth-page-marketplace-register .form-field :is(input, select, textarea):hover { border-color: var(--register-border-hover); }
+.auth-page-marketplace-register .form-field :is(input, select, textarea):focus { border-color: var(--register-focus); box-shadow: none; }
+.auth-page-marketplace-register .municipality-combobox { position: relative; min-width: 0; }
+.auth-page-marketplace-register .municipality-combobox > input { width: 100%; min-height: 50px; box-sizing: border-box; }
+.auth-page-marketplace-register .municipality-combobox-options { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid var(--register-border); border-radius: 8px; background: var(--register-form-bg); box-shadow: 0 8px 18px rgb(16 24 40 / 12%); }
+.auth-page-marketplace-register .municipality-combobox-options button { display: block; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--register-text); font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+.auth-page-marketplace-register .municipality-combobox-options button:hover,
+.auth-page-marketplace-register .municipality-combobox-options button.is-selected { background: var(--register-surface); color: var(--register-text); }
+.auth-page-marketplace-register .municipality-combobox-empty { margin: 0; padding: 10px; color: var(--register-secondary); font-size: 14px; }
+.auth-page-marketplace-register .verification-upload-dropzone p { color: var(--register-text); font-size: 15px; font-weight: 600; line-height: 1.45; }
+.auth-page-marketplace-register .verification-upload-hint { color: var(--register-secondary); font-size: 13px; font-weight: 500; line-height: 1.45; }
 .auth-page-marketplace-register .input-icon-trailing-btn { width: 44px; height: 44px; right: 3px; border-radius: 4px; }
 .auth-page-marketplace-register .form-section { gap: 16px; }
 .auth-page-marketplace-register .form-section-header { gap: 10px; }
@@ -122,8 +163,8 @@
 .auth-page-marketplace-register .verification-accepted-docs li { font-size: 12px; font-weight: 400; }
 .auth-page-marketplace-register .auth-terms-row { padding: 12px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-subtle); color: var(--text); font-size: 13px; font-weight: 400; }
 .auth-page-marketplace-register .auth-terms-row strong { color: var(--green-800); font-weight: 600; }
-.auth-page-marketplace-register .auth-submit { min-height: 50px; border-radius: 8px; background: #15803d; color: #fff; box-shadow: none; transform: none; font-size: 15px; font-weight: 600; }
-.auth-page-marketplace-register .auth-submit:hover { background: #166534; transform: none; }
+.auth-page-marketplace-register .auth-submit { min-height: 50px; border-radius: 8px; background: var(--register-accent); color: #fff; box-shadow: none; transform: none; font-size: 15px; font-weight: 600; }
+.auth-page-marketplace-register .auth-submit:hover { background: color-mix(in srgb, var(--register-accent) 88%, #000); transform: none; }
 .auth-page-marketplace-register .auth-switch { margin-top: 18px; color: var(--muted); font-size: 14px; font-weight: 400; }
 .auth-page-marketplace-register .auth-switch a { color: var(--green-800); font-weight: 600; }
 .auth-page-marketplace-register :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; }
@@ -132,6 +173,11 @@
   .auth-page-marketplace-register .auth-hero { padding: 40px; }
   .auth-page-marketplace-register .auth-hero h1 { font-size: 36px; }
   .auth-page.auth-page-marketplace-register .auth-card.auth-card-register { padding-inline: 32px; }
+}
+
+@media (max-width: 1150px) and (min-width: 900px) {
+  .auth-page-marketplace-register .auth-card-register > * { width: 100%; }
+  .auth-page-marketplace-register .form-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 899px) {
@@ -145,8 +191,12 @@
   .auth-page.auth-page-marketplace-register { padding: 0; }
   .auth-page.auth-page-marketplace-register .auth-card.auth-card-register { padding-inline: 20px; }
   .auth-page-marketplace-register .auth-card-header h2 { font-size: 25px; }
+  .auth-page-marketplace-register .auth-card-brand { justify-content: flex-start; }
+  .auth-page-marketplace-register .auth-card-header { text-align: left; }
+  .auth-page-marketplace-register .auth-card-header p { max-width: 34rem; }
   .auth-page-marketplace-register .form-grid,
   .auth-page-marketplace-register .register-form .form-grid.three { grid-template-columns: minmax(0, 1fr); }
+  .auth-page-marketplace-register .form-grid { width: 100%; }
   .auth-page-marketplace-register .verification-upload-preview { align-items: flex-start; flex-wrap: wrap; }
   .auth-page-marketplace-register .verification-upload-actions { width: 100%; }
 }

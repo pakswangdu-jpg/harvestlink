@@ -22,6 +22,9 @@ test('reset email requires an actual successful email provider response', async 
   assert.equal(sent.subject, 'Reset your HarvestLink password');
   assert.ok(sent.text.includes(link));
   assert.ok(sent.html.includes('token=secret&amp;type=recovery'));
+  assert.ok(sent.html.includes('cid:harvestlink-logo'));
+  assert.equal(sent.attachments[0].contentId, 'harvestlink-logo');
+  assert.ok(sent.html.includes('We received a request to reset the password for your HarvestLink account.'));
 
   response = { data: null, error: { message: 'Provider rejected recipient' } };
   await assert.rejects(sendPasswordResetEmail('buyer@example.com', link), /Unable to send/);

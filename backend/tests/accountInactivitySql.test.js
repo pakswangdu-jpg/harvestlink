@@ -7,7 +7,7 @@ const admin = '10000000-0000-4000-8000-000000000001';
 const buyer = '20000000-0000-4000-8000-000000000001';
 const farmer = '30000000-0000-4000-8000-000000000001';
 const stakeholder = '40000000-0000-4000-8000-000000000001';
-const historyMigration = await readFile(new URL('../../supabase/migrations/20261010_admin_account_history.sql', import.meta.url), 'utf8');
+const historyMigration = await readFile(new URL('../../supabase/migrations/2026101001_admin_account_history.sql', import.meta.url), 'utf8');
 const migration = await readFile(new URL('../../supabase/migrations/20261019_inactive_account_suspension.sql', import.meta.url), 'utf8');
 
 test('six-month inactivity suspension preserves accounts and is atomic, auditable and recoverable by Admin', async (t) => {
