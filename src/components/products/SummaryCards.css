@@ -2,29 +2,10 @@
   background: #f5f8f4;
 }
 
-:root:not([data-theme='dark']) .inventory-metric:nth-child(1) {
-  border-color: #e0e6e9;
-  background: #fbfcfd;
-}
-
-:root:not([data-theme='dark']) .inventory-metric:nth-child(2) {
-  border-color: #dfe8df;
-  background: #fbfcfa;
-}
-
-:root:not([data-theme='dark']) .inventory-metric:nth-child(3) {
-  border-color: #ece4d6;
-  background: #fdfcf9;
-}
-
-:root:not([data-theme='dark']) .inventory-metric:nth-child(4) {
-  border-color: #e3e6dc;
-  background: #fcfcfa;
-}
-
 .inventory-overview {
   container-type: inline-size;
   min-width: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .farmer-products-page > .inventory-overview {
@@ -44,23 +25,31 @@
   margin-bottom: 14px;
 }
 
-.inventory-overview .inventory-overview-title {
+.inventory-overview-title {
   margin: 0;
-  color: var(--text);
-  font-family: var(--font-ui);
-  font-size: 20px;
-  font-weight: 650;
+  color: #17221d;
+  font-family: inherit;
+  font-size: 21px;
+  font-weight: 600;
   line-height: 1.3;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .inventory-overview-description {
   margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-family: var(--font-ui);
+  color: #52645a;
+  font-family: inherit;
   font-size: 14px;
-  font-weight: 450;
+  font-weight: 400;
   line-height: 1.5;
+}
+
+[data-theme='dark'] .inventory-overview-title {
+  color: #f2f6f3;
+}
+
+[data-theme='dark'] .inventory-overview-description {
+  color: #b7c4bc;
 }
 
 .inventory-overview .inventory-overview-header > .btn {
@@ -91,14 +80,15 @@
 }
 
 .inventory-metric {
+  display: block;
   min-width: 0;
-  min-height: 120px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  min-height: 148px;
+  padding: 20px 22px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 10px;
   box-shadow: none;
-  font-family: var(--font-ui);
+  font-family: inherit;
 }
 
 .inventory-metric-label {
@@ -106,142 +96,137 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--text);
+  margin: 0;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: -0.01em;
+  line-height: 1.35;
+  letter-spacing: 0;
 }
 
 .inventory-metric-icon-wrap {
   display: grid;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   place-items: center;
-  border-radius: 50%;
-  background: #edf2f5;
-  color: #526779;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .inventory-metric-icon {
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  width: 19px;
-  height: 19px;
-}
-
-.inventory-metric-total .inventory-metric-icon-wrap {
-  background: #eaf0f6;
-  color: #42627d;
-}
-
-.inventory-metric-active .inventory-metric-icon-wrap {
-  background: #e6f4e9;
-  color: #247343;
-}
-
-.inventory-metric-warning .inventory-metric-icon-wrap {
-  background: #fff0d8;
-  color: #9a5b08;
-}
-
-.inventory-metric-totalInventory .inventory-metric-icon-wrap {
-  background: #e8f0fb;
-  color: #365f98;
+  stroke-width: 2.2;
 }
 
 .inventory-metric-value {
-  margin: 8px 0 0;
-  color: var(--text);
+  margin: 9px 0 0;
   font-family: inherit;
-  font-size: 32px;
-  font-weight: 650;
+  font-size: 36px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 
 .inventory-metric-hint {
-  margin: 5px 0 0;
-  color: var(--muted);
+  margin: 6px 0 0;
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
-.inventory-metric-warning .inventory-metric-value {
-  color: #8b560e;
+/* Products: the primary HarvestLink forest green. */
+.inventory-metric-total {
+  border-color: #1f5d42;
+  background: #246b4b;
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric {
-  border-color: #39443d;
-  background: #202923;
-  color: #e5ebe6;
+.inventory-metric-total .inventory-metric-label,
+.inventory-metric-total .inventory-metric-value,
+.inventory-metric-total .inventory-metric-icon {
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(1) {
-  border-color: #39444a;
-  background: #20282d;
+.inventory-metric-total .inventory-metric-hint {
+  color: #e0f0e5;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(2) {
-  border-color: #39483e;
-  background: #202a24;
+/* Active listings: a brighter leaf green with dark readable text. */
+.inventory-metric-active {
+  border-color: #326b46;
+  background: #3f8255;
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(3) {
-  border-color: #4a4335;
-  background: #2a2822;
+.inventory-metric-active .inventory-metric-label,
+.inventory-metric-active .inventory-metric-value,
+.inventory-metric-active .inventory-metric-icon {
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric:nth-child(4) {
-  border-color: #41473a;
-  background: #252a23;
+.inventory-metric-active .inventory-metric-hint {
+  color: #e8f5ea;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-label,
-[data-theme='dark'] .farmer-products-page .inventory-metric-value {
-  color: #e5ebe6;
+/* Low stock: keep the warning card bright, but use mature dark text. */
+.inventory-metric-lowStock,
+.inventory-metric-warning {
+  border: 0;
+  background: #f5d500;
+  color: #352a0b;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-hint {
-  color: #aebbb2;
+.inventory-metric-lowStock .inventory-metric-label,
+.inventory-metric-lowStock .inventory-metric-value,
+.inventory-metric-lowStock .inventory-metric-icon,
+.inventory-metric-warning .inventory-metric-label,
+.inventory-metric-warning .inventory-metric-value,
+.inventory-metric-warning .inventory-metric-icon {
+  color: #352a0b;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-total .inventory-metric-icon-wrap {
-  background: #2e3b46;
-  color: #b1c7da;
+.inventory-metric-lowStock .inventory-metric-hint,
+.inventory-metric-warning .inventory-metric-hint {
+  color: #4a3a13;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-active .inventory-metric-icon-wrap {
-  background: #253d2d;
-  color: #a8d9b3;
+/* Units in stock: teal with white values for dependable contrast. */
+.inventory-metric-totalInventory {
+  border-color: #4c8b83;
+  background: #2c726d;
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-totalInventory .inventory-metric-icon-wrap {
-  background: #29384b;
-  color: #b1c9ee;
+.inventory-metric-totalInventory .inventory-metric-label,
+.inventory-metric-totalInventory .inventory-metric-value,
+.inventory-metric-totalInventory .inventory-metric-icon {
+  color: #ffffff;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-icon-wrap {
-  background: #403522;
-  color: #f1ca82;
+.inventory-metric-totalInventory .inventory-metric-hint {
+  color: #e4f2f0;
 }
 
-[data-theme='dark'] .farmer-products-page .inventory-metric-warning .inventory-metric-value {
-  color: #d2ae70;
+@container (max-width: 599px) {
+  .inventory-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-@container (min-width: 380px) {
+@container (min-width: 600px) and (max-width: 999px) {
   .inventory-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@container (min-width: 880px) {
+@container (min-width: 1000px) {
   .inventory-overview-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

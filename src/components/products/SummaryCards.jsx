@@ -51,10 +51,10 @@ export default function SummaryCards({ summary, action, isLoading = false, hasEr
               <dt className="inventory-metric-label" title={description}>
                 <span>{label}</span>
                 <span className="inventory-metric-icon-wrap" aria-hidden="true">
-                  <Icon size={19} strokeWidth={2.25} className="inventory-metric-icon" />
+                  <Icon size={21} strokeWidth={2} className="inventory-metric-icon" />
                 </span>
               </dt>
-              <dd className="inventory-metric-value">{isUnavailable ? '—' : value}</dd>
+              <dd className="inventory-metric-value">{isUnavailable ? '—' : Number(value).toLocaleString('en-US')}</dd>
               <dd className="inventory-metric-hint">{supportingText}</dd>
             </div>
           );

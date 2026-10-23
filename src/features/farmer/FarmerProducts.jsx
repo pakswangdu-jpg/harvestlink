@@ -128,7 +128,7 @@ export default function FarmerProducts() {
   const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
     return products
-      .filter((product) => !query || product.name.toLowerCase().includes(query))
+      .filter((product) => !query || [product.name, product.category, product.location].filter(Boolean).join(' ').toLowerCase().includes(query))
       .filter((product) => statusFilter === 'all' || getProductStatusInfo(product).value === statusFilter)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [products, search, statusFilter]);
@@ -228,7 +228,7 @@ export default function FarmerProducts() {
   const handleDeleteConfirm = async () => {
     try {
       await deleteProduct(deleteTarget.id);
-      showToast({ type: 'success', message: 'Product deleted.' });
+      showToast({ type: 'error', message: 'Product deleted.' });
       setDeleteTarget(null);
       reload();
     } catch (deleteError) {

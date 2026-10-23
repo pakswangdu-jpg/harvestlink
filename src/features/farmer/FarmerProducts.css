@@ -1,5 +1,7 @@
 .farmer-products-page {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 .farmer-products-page > section.rounded-lg {
@@ -11,11 +13,12 @@
 }
 
 .farmer-products-page > section.rounded-lg > .mb-3:first-child {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .farmer-products-page > section.rounded-lg h2 {
-  font-size: 17px;
+  color: #17221D;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: 0;
@@ -26,73 +29,118 @@
 }
 
 .farmer-products-page .product-filters {
-  align-items: center;
-  gap: 10px 12px;
-  padding-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  padding-bottom: 16px;
   border-bottom-color: var(--line);
 }
 
-.farmer-products-page .product-filters .search-field {
-  flex: 0 1 340px;
-  width: min(340px, 100%);
-  height: 40px;
-  padding-inline: 11px;
-  border-color: color-mix(in srgb, var(--line) 86%, var(--text-secondary));
-  border-radius: 7px;
-  background: var(--input-bg);
+.farmer-products-page .product-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
 }
 
-.farmer-products-page .product-filters .search-field svg {
-  width: 16px;
-  height: 16px;
-}
-
-.farmer-products-page .product-filters .search-field input {
+.farmer-products-page .product-filter-toolbar .search-field,
+.farmer-products-page .product-filter-select {
+  display: flex;
   min-width: 0;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 400;
+  height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #d7e1da;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #66756c;
+  box-sizing: border-box;
 }
 
-.farmer-products-page .product-filters .search-field input::placeholder {
-  color: var(--muted);
+.farmer-products-page .product-filter-toolbar .search-field {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+}
+
+.farmer-products-page .product-status-select {
+  flex: 0 0 240px;
+  width: 100%;
+  max-width: 240px;
+}
+
+.farmer-products-page .product-filter-toolbar .search-field svg,
+.farmer-products-page .product-filter-select svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #66756C;
+}
+
+.farmer-products-page .product-filter-toolbar .search-field input {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #17221d;
+  outline: none;
+}
+
+.farmer-products-page .product-filter-toolbar .search-field input::placeholder {
+  color: #66756c;
   opacity: 1;
 }
 
-.farmer-products-page .product-filters .filter-tabs {
-  max-width: 100%;
-  min-height: 38px;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel-subtle);
-  overflow-x: auto;
-}
-
-.farmer-products-page .product-filters .filter-tab {
-  flex: 0 0 auto;
-  height: 32px;
-  gap: 6px;
-  padding-inline: 9px;
-  border-radius: 5px;
+.farmer-products-page .product-filter-select select {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
-  white-space: nowrap;
+  line-height: 1.4;
+  color: #17221d;
+  outline: none;
+  cursor: pointer;
 }
 
-.farmer-products-page .product-filters .filter-tab.active {
-  color: var(--green-800);
-  background: var(--green-100);
-  font-weight: 600;
+.farmer-products-page .product-filter-toolbar .search-field:focus-within,
+.farmer-products-page .product-filter-select:focus-within {
+  border-color: #166534;
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.12);
 }
 
-.farmer-products-page .product-filters .filter-tab-count {
-  min-width: 18px;
-  height: 18px;
-  font-size: 11px;
-  font-weight: 500;
+[data-theme='dark'] .farmer-products-page .product-filter-toolbar .search-field,
+[data-theme='dark'] .farmer-products-page .product-filter-select {
+  border-color: #304138;
+  background: #17211B;
+  color: #B7C4BC;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filter-toolbar .search-field input,
+[data-theme='dark'] .farmer-products-page .product-filter-select select {
+  color: #F2F6F3;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filter-toolbar .search-field input::placeholder {
+  color: #B7C4BC;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filter-toolbar .search-field:focus-within,
+[data-theme='dark'] .farmer-products-page .product-filter-select:focus-within {
+  border-color: #4BAA70;
+  box-shadow: 0 0 0 3px rgba(75, 170, 112, 0.14);
 }
 
 .farmer-products-page .table-wrap {
@@ -109,9 +157,9 @@
   padding: 11px 10px;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
   line-height: 1.35;
   text-transform: none;
 }
@@ -136,8 +184,9 @@
 .farmer-products-page .table-wrap td strong {
   color: var(--text);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .farmer-products-page .table-wrap .muted {
@@ -145,6 +194,16 @@
   font-family: inherit;
   font-size: 13px;
   font-weight: 400;
+  line-height: 1.4;
+}
+
+.farmer-products-page .table-wrap td > div > strong {
+  letter-spacing: 0;
+}
+
+.farmer-products-page .table-wrap td > strong {
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .farmer-products-page .table-wrap .product-row-thumb {
@@ -183,6 +242,14 @@
   border-color: #ead9d9;
   color: #8e5c5c;
   background: #faf2f2;
+}
+
+.farmer-products-page .table-wrap .badge-inactive,
+.farmer-products-page .product-mobile-card .badge-inactive {
+  border-color: #E5B8B8;
+  color: #B4232C;
+  background: #FFF1F1;
+  font-weight: 600;
 }
 
 .farmer-products-page .table-wrap .price-original {
@@ -227,7 +294,7 @@
 
 .farmer-products-page .product-mobile-card-name {
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
 }
@@ -305,6 +372,27 @@
   color: #b6c2b9;
 }
 
+[data-theme='dark'] .farmer-products-page > section.rounded-lg h2 {
+  color: #F2F6F3;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filters .filter-tab,
+[data-theme='dark'] .farmer-products-page .product-filters .filter-tab-count {
+  color: #B7C4BC;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filters .search-field svg {
+  color: #B7C4BC;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filter-select {
+  color: #B7C4BC;
+}
+
+[data-theme='dark'] .farmer-products-page .product-filter-select svg {
+  color: #B7C4BC;
+}
+
 [data-theme='dark'] .farmer-products-page .table-wrap tbody tr:hover {
   background: #252f29;
 }
@@ -332,6 +420,13 @@
   background: #35292a;
 }
 
+[data-theme='dark'] .farmer-products-page .table-wrap .badge-inactive,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-inactive {
+  border-color: #704044;
+  color: #F0A3A3;
+  background: #352124;
+}
+
 @media (max-width: 640px) {
   .farmer-products-page > section.rounded-lg {
     padding: 15px;
@@ -355,6 +450,26 @@
     justify-content: center;
     flex: 1 0 auto;
     padding-inline: 7px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .farmer-products-page .product-filter-toolbar {
+    gap: 14px;
+  }
+}
+
+@media (max-width: 760px) {
+  .farmer-products-page .product-filter-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .farmer-products-page .product-filter-toolbar .search-field,
+  .farmer-products-page .product-status-select {
+    flex: 1 1 auto;
+    max-width: none;
   }
 }
 

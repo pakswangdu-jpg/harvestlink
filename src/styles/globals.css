@@ -1919,10 +1919,19 @@ a.lp-contact-card:hover {
   cursor: pointer;
 }
 
-.sidebar-logout:hover:not(:disabled) { background: var(--soft); }
-.sidebar-logout:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
+.sidebar-logout:hover:not(:disabled) {
+  background: #fff1f1;
+  color: #b4232c;
+}
+.sidebar-logout:focus-visible { outline: 2px solid #b4232c; outline-offset: 2px; }
 .sidebar-logout:disabled { cursor: wait; opacity: 0.6; }
 .sidebar-logout.is-collapsed { justify-content: center; padding-inline: 0; }
+
+[data-theme='dark'] .sidebar-logout:hover:not(:disabled) {
+  background: #352124;
+  color: #f0a3a3;
+}
+[data-theme='dark'] .sidebar-logout:focus-visible { outline-color: #f0a3a3; }
 
 .sidebar-general {
   flex: 0 0 auto;
