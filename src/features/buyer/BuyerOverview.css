@@ -36,43 +36,43 @@
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-pending {
-  --summary-tint: #faefd9;
-  --summary-border: #dec38b;
-  --summary-hover-tint: #f5e5c5;
+  --summary-tint: #fbefd8;
+  --summary-border: #dfc285;
+  --summary-hover-tint: #f4e3bf;
   --summary-hover-border: #cba866;
-  --summary-icon: #8b5b17;
+  --summary-icon: #8c5b15;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-complete {
-  --summary-tint: #e4f1e8;
-  --summary-border: #accfb8;
-  --summary-hover-tint: #d7eadf;
+  --summary-tint: #e2f0e7;
+  --summary-border: #a9cdb6;
+  --summary-hover-tint: #d4e8dc;
   --summary-hover-border: #8fbea0;
-  --summary-icon: #246a42;
+  --summary-icon: #246b43;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-orders {
-  --summary-tint: #edf0f7;
-  --summary-border: #c4cddc;
-  --summary-hover-tint: #e2e7f1;
+  --summary-tint: #e9edf5;
+  --summary-border: #c4cede;
+  --summary-hover-tint: #dfe6f0;
   --summary-hover-border: #aab8ce;
-  --summary-icon: #4a5f7c;
+  --summary-icon: #4b6384;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend {
-  --summary-tint: #e7f0e2;
-  --summary-border: #b8cbae;
-  --summary-hover-tint: #dce9d5;
+  --summary-tint: #e3eedc;
+  --summary-border: #b3c9a7;
+  --summary-hover-tint: #d7e6cf;
   --summary-hover-border: #9eb88f;
-  --summary-icon: #3f6b36;
+  --summary-icon: #3c6d36;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-online {
-  --summary-tint: #eaf1f8;
-  --summary-border: #b9cce0;
-  --summary-hover-tint: #dfeaf4;
+  --summary-tint: #e7f0f8;
+  --summary-border: #b8cde1;
+  --summary-hover-tint: #dce8f3;
   --summary-hover-border: #9eb8d1;
-  --summary-icon: #35658f;
+  --summary-icon: #3f709e;
 }
 
 .buyer-dashboard-page .buyer-order-summary.buyer-summary-cards .buyer-summary-item.is-spend > strong { color: #1f3320; }
