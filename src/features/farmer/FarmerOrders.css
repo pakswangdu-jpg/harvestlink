@@ -1,5 +1,8 @@
 .main-content.farmer-orders-page {
   gap: 16px;
+  font-family: var(--font-ui);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 .farmer-orders-attention {
