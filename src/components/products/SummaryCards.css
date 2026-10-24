@@ -82,8 +82,8 @@
 .inventory-metric {
   display: block;
   min-width: 0;
-  min-height: 148px;
-  padding: 20px 22px;
+  min-height: 124px;
+  padding: 14px 16px;
   box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -95,10 +95,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin: 0;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: 0;
@@ -106,9 +106,9 @@
 
 .inventory-metric-icon-wrap {
   display: grid;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
   place-items: center;
   border: 0;
   border-radius: 0;
@@ -116,16 +116,16 @@
 }
 
 .inventory-metric-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   stroke-width: 2.2;
 }
 
 .inventory-metric-value {
-  margin: 9px 0 0;
+  margin: 6px 0 0;
   font-family: inherit;
-  font-size: 36px;
+  font-size: 30px;
   font-weight: 600;
   font-variant-numeric: tabular-nums lining-nums;
   line-height: 1.08;
@@ -134,11 +134,11 @@
 }
 
 .inventory-metric-hint {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 /* Products: the primary HarvestLink forest green. */
