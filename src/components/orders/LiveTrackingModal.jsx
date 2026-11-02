@@ -19,10 +19,10 @@ import { useTrafficNavigation } from '../../hooks/useTrafficNavigation';
 import { getRecordedAverageSpeedKmh } from '../../utils/tripTelemetry';
 import TrafficRouteNotice from './TrafficRouteNotice';
 import { advanceDelivery, getLiveTransitProgress, getNextDeliveryStatus } from '../../services/orderService';
-import { getUserById } from '../../services/authService';
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatRelativeTime, getInitials } from '../../utils/formatters';
+import { getOrderTrackingProfiles } from '../../services/orderService';
 import deliveryTruckIcon from '../../assets/icons/delivery-truck.png';
 import deliveryVanIcon from '../../assets/icons/harvestlink-delivery-van.png?inline';
 import {
@@ -116,8 +116,8 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getUserById(order.farmerId), getUserById(order.buyerId)])
-      .then(([farmer, buyer]) => {
+    getOrderTrackingProfiles(order.id)
+      .then(({ farmer, buyer }) => {
         if (cancelled) return;
         setProfileLoad({
           farmerId: order.farmerId,
@@ -140,7 +140,7 @@ export default function LiveTrackingModal({ order, isFarmer, onClose, onOrderUpd
     return () => {
       cancelled = true;
     };
-  }, [order.farmerId, order.buyerId]);
+  }, [order.id, order.farmerId, order.buyerId]);
 
   const hasLoadedProfiles = profileLoad?.farmerId === order.farmerId
     && profileLoad?.buyerId === order.buyerId;

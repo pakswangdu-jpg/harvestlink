@@ -19,9 +19,13 @@ test('Sidebar and profile identity labels share badge styling without altering c
   assert.match(sidebar, /className="account-role-badge" data-role=\{user.role\} title=\{subtitle\} data-verified=\{isVerifiedFarmer \? 'true' : undefined\}/);
   assert.match(sidebar, /sidebar-user-role sidebar-admin-role-collapsed/);
   assert.match(sidebar, /\{subtitle\}/);
-  assert.match(sidebarCss, /\.sidebar-user-card \.sidebar-user-name \{[\s\S]*?font-family: var\(--font-ui\);[\s\S]*?font-size: 15px;[\s\S]*?font-weight: 650/);
-  assert.match(sidebarCss, /\.sidebar-user-card \.account-role-badge \{[\s\S]*?font-family: var\(--font-ui\);[\s\S]*?font-size: 13px/);
-  assert.match(sidebarCss, /\.sidebar-user-card \.account-role-badge\[data-verified='true'\] \{[\s\S]*?font-weight: 700/);
+  assert.match(sidebarCss, /\.sidebar-user-card \.sidebar-user-name \{[\s\S]*?font-family: var\(--font-ui\);[\s\S]*?font-size: 14px;[\s\S]*?font-weight: 500/);
+  assert.match(sidebarCss, /\.sidebar-user-card \.account-role-badge \{[\s\S]*?font-family: var\(--font-ui\);[\s\S]*?font-size: 12px;[\s\S]*?font-weight: 500;[\s\S]*?padding: 5px 8px/);
+  assert.match(sidebarCss, /\.app-shell \.sidebar-user-name \{[\s\S]*?font-family: var\(--font-ui\);[\s\S]*?font-weight: 500/);
+  assert.match(sidebarCss, /\.app-shell \.sidebar-user-card \.account-role-badge\[data-verified='true'\] \{[\s\S]*?font-weight: 500/);
+  const adminCss = await readFile(new URL('../src/components/layout/AdminSidebar.css', import.meta.url), 'utf8');
+  assert.match(adminCss, /\.app-shell\.role-admin \.sidebar-user-name \{[^}]*font-family: var\(--font-ui\);[^}]*font-size: 14px;[^}]*font-weight: 500/);
+  assert.match(adminCss, /\.app-shell\.role-admin \.sidebar-user-role \{[^}]*font-family: var\(--font-ui\);[^}]*font-size: 12px;[^}]*font-weight: 500/);
   const css = await readFile(new URL('../src/components/common/RoleBadge.css', import.meta.url), 'utf8');
   assert.match(css, /\.account-role-badge\[data-role='farmer'\]\[data-verified='true'\].*--role-badge-surface: #dcfce7;.*--role-badge-border: #4ade80;.*--role-badge-text: #14532d/);
   assert.match(css, /\[data-theme='dark'\] \.account-role-badge\[data-role='farmer'\]\[data-verified='true'\].*--role-badge-surface: #173d29;.*--role-badge-border: #3e9b5f;.*--role-badge-text: #bbf7d0/);

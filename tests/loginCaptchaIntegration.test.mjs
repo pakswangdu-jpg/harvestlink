@@ -60,5 +60,7 @@ test('sign-in errors map to scoped CAPTCHA, credentials, rate-limit, and service
   ]) {
     assert.match(form, new RegExp(`case '${code}'`));
   }
+  assert.match(form, /title: "Account doesn't exist or password is incorrect"/);
+  assert.match(form, /register a new account if you don't have one/);
   assert.match(form, /setCaptchaResetKey\(\(value\) => value \+ 1\)/);
 });

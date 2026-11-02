@@ -68,7 +68,7 @@ function mergeSeries(history, forecast, valueKey, forecastKey) {
   return [...points.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function ForecastLineChart({ title, description, data, unit, historyLabel, forecastLabel }) {
+function ForecastLineChart({ title, description, data, unit, listingUnit, historyLabel, forecastLabel }) {
   const forecastStart = data.find((point) => point.forecast != null)?.date;
   return (
     <section className="admin-forecast-chart" aria-label={title}>
@@ -77,7 +77,7 @@ function ForecastLineChart({ title, description, data, unit, historyLabel, forec
           <h3>{title}</h3>
           <p>{description}</p>
         </div>
-        <span>{unit === 'price' ? 'PHP / listed unit' : 'Order volume'}</span>
+        <span>{unit === 'price' ? `PHP / ${listingUnit || 'listed unit'}` : `Order volume / ${listingUnit || 'listed unit'}`}</span>
       </div>
       {data.length ? (
         <>
@@ -172,18 +172,19 @@ export default function AdminDemandForecast() {
   const listLoading = !awaitingCustomDate && !listIsCurrent;
   const listError = listIsCurrent ? listState.error : '';
   const crops = useMemo(() => listData?.crops || [], [listData]);
-  const activeCrop = crops.find((entry) => entry.crop === selectedCrop) || crops[0] || null;
+  const activeCrop = crops.find((entry) => entry.forecastKey === selectedCrop) || crops[0] || null;
   const cropName = activeCrop?.crop || '';
-  const detailKey = `${cropName}|${municipality}|${period}|${customDate}`;
+  const cropUnit = activeCrop?.unit || '';
+  const detailKey = `${cropName}|${cropUnit}|${municipality}|${period}|${customDate}`;
 
   useEffect(() => {
     if (!cropName || awaitingCustomDate) return undefined;
     let cancelled = false;
-    getCropForecastDetail(cropName, { period, municipality, customDate })
+    getCropForecastDetail(cropName, { period, municipality, customDate, unit: cropUnit })
       .then((data) => { if (!cancelled) setDetailState({ key: detailKey, data, error: '' }); })
       .catch((error) => { if (!cancelled) setDetailState({ key: detailKey, data: null, error: error.message }); });
     return () => { cancelled = true; };
-  }, [cropName, municipality, period, customDate, detailKey, awaitingCustomDate]);
+  }, [cropName, cropUnit, municipality, period, customDate, detailKey, awaitingCustomDate]);
 
   const categories = useMemo(() => {
     const available = crops.map((entry) => entry.category).filter(Boolean);
@@ -194,7 +195,8 @@ export default function AdminDemandForecast() {
     cropName
     && product.name.trim().toLowerCase() === cropName.trim().toLowerCase()
     && (!municipality || product.location === municipality)
-  )), [productsState.products, cropName, municipality]);
+    && String(product.unit || '').trim().toLowerCase() === String(cropUnit || '').trim().toLowerCase()
+  )), [productsState.products, cropName, cropUnit, municipality]);
 
   const detailIsCurrent = detailState.key === detailKey;
   const detailLoading = Boolean(cropName) && !detailIsCurrent;
@@ -262,16 +264,16 @@ export default function AdminDemandForecast() {
                 <h2 id="admin-forecast-crops-heading">Commodity demand and price monitoring</h2>
                 <p>Select a commodity to review its forecast and matching Farmer listings.</p>
               </div>
-              <span>{crops.length} commodities</span>
+              <span>{crops.length} crop/unit forecasts</span>
             </div>
             <div className="admin-forecast-table-wrap" role="region" aria-label="Commodity forecast table" tabIndex="0">
               <table>
                 <thead><tr>
-                  <th>Commodity</th><th>Recent orders</th><th>Active listings</th><th>Demand</th><th>Reference price</th><th>Expected change</th><th>Market trend</th><th>Confidence</th>
+                  <th>Commodity / unit</th><th>Recent orders</th><th>Active listings</th><th>Demand</th><th>Reference price</th><th>Expected change</th><th>Market trend</th><th>Confidence</th>
                 </tr></thead>
                 <tbody>{crops.map((entry) => (
-                  <tr key={entry.crop} className={entry.crop === cropName ? 'is-selected' : ''}>
-                    <td><button type="button" onClick={() => setSelectedCrop(entry.crop)} aria-pressed={entry.crop === cropName}>{entry.crop}</button></td>
+                  <tr key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`} className={entry.forecastKey === activeCrop?.forecastKey ? 'is-selected' : ''}>
+                    <td><button type="button" onClick={() => setSelectedCrop(entry.forecastKey)} aria-pressed={entry.forecastKey === activeCrop?.forecastKey}>{entry.crop} <small>/{entry.unit || 'unit unavailable'}</small></button></td>
                     <td>{displayValue(entry.orderCount)}</td>
                     <td>{displayValue(entry.activeListings)}</td>
                     <td>{displayValue(entry.forecastDemand)}</td>
@@ -288,7 +290,7 @@ export default function AdminDemandForecast() {
           <section className="admin-forecast-detail" aria-labelledby="admin-forecast-detail-heading">
             <div className="admin-forecast-section-heading">
               <div>
-                <h2 id="admin-forecast-detail-heading">{cropName}</h2>
+                <h2 id="admin-forecast-detail-heading">{cropName} · {cropUnit || 'unit unavailable'}</h2>
                 <p>{municipality || 'All locations'} · {detail?.periodLabel || listData.periodLabel || 'Forecast period unavailable'}</p>
               </div>
               {detailLoading ? <span role="status">Loading forecast details…</span> : null}
@@ -308,6 +310,7 @@ export default function AdminDemandForecast() {
                 description="Observed order volume and projected demand"
                 data={demandChart}
                 unit="demand"
+                listingUnit={cropUnit}
                 historyLabel="Observed"
                 forecastLabel="Forecast"
               />
@@ -316,6 +319,7 @@ export default function AdminDemandForecast() {
                 description="Historical prices and projected reference"
                 data={priceChart}
                 unit="price"
+                listingUnit={cropUnit}
                 historyLabel="Historical"
                 forecastLabel="Forecast"
               />
@@ -325,7 +329,7 @@ export default function AdminDemandForecast() {
           <section className="admin-forecast-listings" aria-labelledby="admin-forecast-listings-heading">
             <div className="admin-forecast-section-heading">
               <div>
-                <h2 id="admin-forecast-listings-heading">Farmer listings for {cropName}</h2>
+                <h2 id="admin-forecast-listings-heading">Farmer listings for {cropName} / {cropUnit || 'unit unavailable'}</h2>
                 <p>Review submitted selling prices alongside the forecast. Forecast values do not approve or change prices.</p>
               </div>
               <span>{productsState.loading ? 'Loading…' : `${cropListings.length} listings`}</span>

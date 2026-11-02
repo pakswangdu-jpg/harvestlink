@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeOrder, serializeDeliveryEvent } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
+import { linkProductConversationToOrder } from '../lib/messageTraceability.js';
 import { createHash } from 'node:crypto';
 import { getDeliverySequence, getNextDeliveryStatus, isCancellable } from '../lib/deliverySequence.js';
 import { PAYMENT_METHODS, DELIVERY_STEP_LABELS } from '../utils/constants.js';
@@ -117,6 +118,28 @@ export async function getOrder(req, res) {
   res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
 }
 
+export async function getOrderTrackingProfiles(req, res) {
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from('orders')
+    .select('id, buyer_id, farmer_id')
+    .eq('id', req.params.id)
+    .single();
+  if (orderError || !order) throw new ApiError('Order was not found.', 404);
+  assertParty(req, order);
+
+  const profileFields = 'id, role, name, farm_name, municipality, latitude, longitude';
+  const [{ data: farmer, error: farmerError }, { data: buyer, error: buyerError }] = await Promise.all([
+    supabaseAdmin.from('profiles').select(profileFields).eq('id', order.farmer_id).single(),
+    supabaseAdmin.from('profiles').select(profileFields).eq('id', order.buyer_id).single(),
+  ]);
+  if (farmerError || !farmer || buyerError || !buyer) {
+    throw new ApiError('Unable to load the saved delivery locations.', 500);
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ farmer, buyer });
+}
+
 export async function getOrderReceipt(req, res) {
   const { data: order, error } = await supabaseAdmin.from('orders').select('*').eq('id', req.params.id).single();
   if (error || !order) throw new ApiError('Order was not found.', 404);
@@ -149,7 +172,10 @@ export async function createOrder(req, res) {
   };
   if (checkoutKey) {
     const previous = await findPrevious();
-    if (previous) return res.json(serializeOrder(previous));
+    if (previous) {
+      await linkProductConversationToOrder(previous);
+      return res.json(serializeOrder(previous));
+    }
   }
   const { data: product, error: productError } = await supabaseAdmin
     .from('products')
@@ -158,6 +184,13 @@ export async function createOrder(req, res) {
     .single();
   if (productError || !product) throw new ApiError('Product was not found.', 404);
   if (product.farmer_id === req.profile.id) throw new ApiError('You cannot order your own product.', 400);
+  if (Number(product.quantity) <= 0) {
+    throw new ApiError(
+      'Sorry, this product is no longer available. Another buyer has already reserved the remaining stock.',
+      409,
+      'PRODUCT_OUT_OF_STOCK',
+    );
+  }
   if (product.status !== 'active') throw new ApiError('This product is no longer available.', 400);
 
 
@@ -167,7 +200,13 @@ export async function createOrder(req, res) {
 
   const quantity = Number(values.quantity);
   if (!Number.isFinite(quantity) || !(quantity > 0)) throw new ApiError('Enter a positive request quantity.', 400);
-  if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
+  if (quantity > Number(product.quantity)) {
+    throw new ApiError(
+      `Only ${product.quantity} ${product.unit} remaining. Please update your order quantity.`,
+      409,
+      'INSUFFICIENT_STOCK',
+    );
+  }
   if (product.selling_type === 'wholesale' && product.moq && quantity < Number(product.moq)) {
     throw new ApiError(`Minimum order quantity is ${product.moq} ${product.unit}.`, 400);
   }
@@ -226,6 +265,7 @@ export async function createOrder(req, res) {
     delivery_fee_tier: deliveryFeeTier,
     total_amount: quote.total,
     ...(checkoutKey ? { checkout_key: checkoutKey, checkout_fingerprint: fingerprint } : {}),
+    product_id_snapshot: product.id,
     message: values.message?.trim() || '',
     payment_method: values.paymentMethod,
 
@@ -241,22 +281,53 @@ export async function createOrder(req, res) {
     updated_at: now,
   };
 
-  const { data: order, error } = await supabaseAdmin.from('orders').insert(row).select().single();
+  let order;
+  let error;
+  if (typeof supabaseAdmin.rpc === 'function') {
+    ({ data: order, error } = await supabaseAdmin.rpc('create_marketplace_order', {
+      p_actor: req.profile.id,
+      p_order: row,
+    }));
+  } else {
+    throw new ApiError('Inventory safeguards are not configured. Please contact support.', 503);
+  }
   if (error) {
     if (checkoutKey && error.code === '23505') {
       const previous = await findPrevious();
-      if (previous) return res.json(serializeOrder(previous));
+      if (previous) {
+        await linkProductConversationToOrder(previous);
+        return res.json(serializeOrder(previous));
+      }
     }
-    throw new ApiError(error.message, 400);
+    if (['PGRST202', '42883'].includes(error.code)) {
+      throw new ApiError('Inventory safeguards are not configured. Please contact support.', 503);
+    }
+    if (error.code === '23514' && error.message === 'Requested quantity is no longer available.') {
+      const { data: latestProduct, error: stockReadError } = await supabaseAdmin
+        .from('products')
+        .select('quantity, unit')
+        .eq('id', product.id)
+        .maybeSingle();
+      if (stockReadError) {
+        throw new ApiError('We could not verify the latest stock. Please refresh the product and try again.', 503);
+      }
+      if (!latestProduct || Number(latestProduct.quantity) <= 0) {
+        throw new ApiError(
+          'Sorry, this product is no longer available. Another buyer has already reserved the remaining stock.',
+          409,
+          'PRODUCT_OUT_OF_STOCK',
+        );
+      }
+      if (Number(latestProduct.quantity) < Number(row.quantity)) {
+        throw new ApiError(
+          `Only ${latestProduct.quantity} ${latestProduct.unit} remaining. Please update your order quantity.`,
+          409,
+          'INSUFFICIENT_STOCK',
+        );
+      }
+    }
+    throw new ApiError(error.message, ['23514', '23505'].includes(error.code) ? 409 : error.code === '42501' ? 403 : 400);
   }
-
-  await supabaseAdmin.from('order_delivery_events').insert({
-    order_id: order.id,
-    status: 'pending',
-    title: 'Order placed',
-    description: 'Your order has been placed.',
-    source: 'system',
-  });
 
   await createNotification({
     userId: order.farmer_id,
@@ -265,6 +336,8 @@ export async function createOrder(req, res) {
     message: `${order.buyer_name} ordered ${order.quantity} ${order.unit} of ${order.product_name}.`,
     link: `/orders/${order.id}`,
   });
+
+  await linkProductConversationToOrder(order);
 
   res.status(201).json(serializeOrder(order));
 }
@@ -367,31 +440,44 @@ export async function advanceDelivery(req, res) {
     ...(isFinalStep ? { current_lat: null, current_lng: null, location_updated_at: null } : null),
   };
 
-  const { data: order, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id)
-    .eq('status', existing.status).eq('delivery_status', existing.delivery_status).select().maybeSingle();
-  if (error) throw new ApiError(error.message, 400);
-  if (!order) throw new ApiError('Order progress changed. Refresh before trying again.', 409);
+  let order;
+  if (isFinalStep) {
+    const { data, error } = await supabaseAdmin.rpc('complete_marketplace_order', {
+      p_actor: req.profile.id,
+      p_order: existing.id,
+      p_delivery_status: nextStatus,
+      p_payment_status: existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
+    });
+    if (error) {
+      if (['PGRST202', '42883'].includes(error.code)) {
+        throw new ApiError('Inventory safeguards are not configured. Please contact support.', 503);
+      }
+      throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+    }
+    order = { ...existing, ...row, ...data };
+  } else {
+    const { data, error } = await supabaseAdmin.from('orders').update(row).eq('id', existing.id)
+      .eq('status', existing.status).eq('delivery_status', existing.delivery_status).select().maybeSingle();
+    if (error) throw new ApiError(error.message, 400);
+    if (!data) throw new ApiError('Order progress changed. Refresh before trying again.', 409);
+    order = data;
+  }
 
-
-
-
-  await supabaseAdmin.from('order_delivery_events').insert({
-    order_id: order.id,
-    status: nextStatus,
-    title: DELIVERY_STEP_LABELS[nextStatus] || nextStatus,
-    description: nextStatus === 'preparing'
-      ? `${order.farmer_name} is preparing your order.`
-      : nextStatus === 'ready_for_pickup'
-        ? `Your order from ${order.farmer_name} is ready for pickup.`
-        : isTransitStep
-          ? `${order.farmer_name} started delivering your order${vehiclePlateNumber ? ` with vehicle plate ${vehiclePlateNumber}` : ''}.`
-          : isFinalStep
-            ? (order.delivery_method === 'buyer_pickup'
-              ? `You confirmed picking up your order from ${order.farmer_name}.`
-              : `Your order from ${order.farmer_name} has been delivered.`)
+  if (!isFinalStep) {
+    await supabaseAdmin.from('order_delivery_events').insert({
+      order_id: order.id,
+      status: nextStatus,
+      title: DELIVERY_STEP_LABELS[nextStatus] || nextStatus,
+      description: nextStatus === 'preparing'
+        ? `${order.farmer_name} is preparing your order.`
+        : nextStatus === 'ready_for_pickup'
+          ? `Your order from ${order.farmer_name} is ready for pickup.`
+          : isTransitStep
+            ? `${order.farmer_name} started delivering your order${vehiclePlateNumber ? ` with vehicle plate ${vehiclePlateNumber}` : ''}.`
             : DELIVERY_STEP_LABELS[nextStatus] || nextStatus,
-    source: isFinalStep ? 'buyer' : 'farmer',
-  });
+      source: 'farmer',
+    });
+  }
 
   if (nextStatus === 'preparing') {
     await createNotification({

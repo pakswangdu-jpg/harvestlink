@@ -11,6 +11,7 @@ let width = 280;
 const scope = {
   React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
   useMemo: (fn) => fn(), useState: () => [width, () => {}],
+  useEffect: () => {}, useRef: () => ({ current: null }),
   ...Object.fromEntries(['Bar', 'BarChart', 'CartesianGrid', 'LabelList', 'ResponsiveContainer', 'Tooltip', 'XAxis', 'YAxis', 'Bot', 'LineChart', 'Sprout'].map((name) => [name, name])),
 };
 const Chart = new Function('scope', `with(scope){${code};return SupplyDemandBarChart;}`)(scope);

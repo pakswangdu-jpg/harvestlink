@@ -130,8 +130,8 @@
 .app-shell.role-admin .sidebar-account { margin-top: 5px; padding-top: 8px; border-top: 1px solid var(--line); }
 .app-shell.role-admin .sidebar-account .sidebar-user-card { box-sizing: border-box; width: 100%; justify-content: center; padding: 8px 12px; gap: 0; }
 .app-shell.role-admin .sidebar-user-details { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; flex: 1 1 auto; align-items: center; gap: 2px; text-align: center; }
-.app-shell.role-admin .sidebar-user-name { display: block; width: 100%; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; color: var(--text); font-size: 13px; font-weight: 600; line-height: 18px; }
-.app-shell.role-admin .sidebar-user-role { width: fit-content; max-width: 100%; justify-content: center; gap: 5px; padding: 0; border: 0; border-radius: 0; background: transparent; color: #926700; font-size: 12px; font-weight: 600; line-height: 17px; text-align: center; }
+.app-shell.role-admin .sidebar-user-name { display: block; width: 100%; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; color: var(--text); font-family: var(--font-ui); font-size: 14px; font-weight: 500; line-height: 1.3; }
+.app-shell.role-admin .sidebar-user-role { width: fit-content; max-width: 100%; justify-content: center; gap: 5px; padding: 0; border: 0; border-radius: 0; background: transparent; color: #926700; font-family: var(--font-ui); font-size: 12px; font-weight: 500; line-height: 1.35; text-align: center; }
 .app-shell.role-admin .sidebar-admin-role-icon { display: block; flex: 0 0 12px; align-self: center; transform: translateY(1px); }
 [data-theme='dark'] .app-shell.role-admin .sidebar-user-role { color: #f0cf69; }
 .app-shell.role-admin .sidebar-admin-role-collapsed { display: grid; place-items: center; width: 32px; height: 28px; padding: 0; }

@@ -13,8 +13,12 @@ export async function getActiveProducts() {
   return apiClient.get('/products?activeOnly=true');
 }
 
-export async function getProductById(id) {
-  return apiClient.get(`/products/${id}`);
+export async function getMarketplaceProducts() {
+  return apiClient.get('/products/marketplace');
+}
+
+export async function getProductById(id, { fresh = false } = {}) {
+  return apiClient.get(`/products/${id}`, { fresh });
 }
 
 export async function getProductsByFarmer(farmerId) {

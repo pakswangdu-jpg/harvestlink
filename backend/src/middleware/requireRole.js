@@ -1,10 +1,5 @@
 import { ApiError } from '../lib/ApiError.js';
 
-
-
-
-
-
 export function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!allowedRoles.includes(req.profile?.role)) {

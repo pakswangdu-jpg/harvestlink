@@ -1,5 +1,58 @@
 # Registered profile coordinates
 
+## Admin profile-location reminders
+
+Run `20261103_profile_location_reminders.sql` against the Supabase project used
+by the backend before enabling the Admin location-reminder action. It adds the
+`profile` notification type to the existing notification constraint without
+changing existing notifications. The migration is safe to rerun. Fresh
+installations receive the same type from `supabase/schema.sql`.
+
+## Admin user locations map
+
+Run `20261102_admin_profile_location_access.sql` after the base schema. It adds
+an RLS-protected Admin-only read path for registered profiles. The Admin map API
+also requires authenticated Admin authorization and returns only the location,
+identity, account-status, and verification fields it needs, in pages of 500.
+Authenticated profile reads are column-limited to that same safe subset; contact
+numbers, identity documents, payment details, and credentials remain unavailable
+through direct profile reads. Existing profile coordinates are not changed.
+
+## Optional order-review photos
+
+Run `20261031_order_review_photos.sql` after the base schema. It adds the nullable
+`ratings.review_image_url` field and a public `review-images` bucket for optional
+JPG, PNG, or WebP photos (maximum 5 MB) on completed-order reviews. Authenticated
+users can upload and remove only files under their own user-ID folder; the
+backend accepts a photo URL only when it belongs to that reviewer and order.
+Photos are public because they appear with public farmer reviews. Deploy the
+frontend and backend with this migration; no existing ratings are changed.
+
+Run `20261102_order_review_videos.sql` after the review-photo migration. It adds
+the nullable `ratings.review_video_url` field and a public `review-videos` bucket
+for optional MP4 or WebM videos (maximum 20 MB) on completed-order reviews. The
+feedback form accepts up to five photos or one video per review; videos must be 30
+seconds or shorter. The frontend checks duration, storage enforces size and MIME
+type, and the backend scopes accepted URLs to the reviewer and order. Videos are
+public because they appear with public farmer reviews.
+
+Run `20261103_product_specific_ratings.sql` to add the product snapshot to each
+review and backfill existing order-based reviews from their order's product.
+New order reviews are linked to the ordered product, and stakeholder donation
+reviews include the donated product. Product detail pages use this link to show
+only reviews for that product. Historical donation reviews without an order
+cannot be assigned to a specific product and remain farmer-level only.
+
+Run `20261104_multiple_order_review_photos.sql` after the order-review photo
+migration. It adds a photo-array field while preserving and migrating existing
+single-photo reviews. Reviewers can attach several photos to an order review;
+the form does not display a count limit and only shows a message if the allowed
+number of photos is exceeded.
+
+Run `20261102_product_image_gallery.sql` after the base schema. It adds
+`products.image_urls`, migrates existing cover photos into the gallery, and
+supports up to 10 photos per product listing. Each photo is limited to 5 MB.
+
 ## Six-Month Inactivity Suspension
 
 Apply `20261019_inactive_account_suspension.sql` after the base schema and
@@ -73,8 +126,11 @@ This adds buyer-scoped checkout request keys, cancellation/rejection reasons,
 and a service-role-only order transition function. The function locks the order
 and product together: farmer confirmation deducts stock once, and eligible buyer
 cancellation restores it once. An event-history failure rolls back both writes.
-Stock is still deducted on farmer confirmation, not when a buyer places a
-pending order. This preserves the existing reservation business rule.
+The later `20261030_inventory_messaging_donations.sql` migration supersedes the
+confirmation-time stock rule: checkout now locks the product and reserves the
+requested quantity atomically, while rejection/cancellation releases it and
+buyer completion moves it to sold. Existing confirmed/completed orders are
+backfilled into the ledger before the new transition functions are used.
 
 Checkout uses `/orders/quote` for its current server-computed total. Submission
 includes that reviewed total and a stable request key. A changed price/fee is a
@@ -89,6 +145,66 @@ complete SQL file in that project's SQL Editor, then retry checkout.
 Deploy the frontend and backend together after the migration. Without it, stock
 decisions intentionally fail closed rather than falling back to unsafe writes.
 No live database migration is performed by the application at startup.
+
+## Inventory reservations, product messaging, and expiring donation claims
+
+Run `20261030_inventory_messaging_donations.sql` after the base schema and the
+existing order-integrity and shared-donations migrations. Deploy the backend and
+frontend together. The migration is rerunnable and intentionally fails closed
+when its service-role functions are not installed.
+Run `20261103_product_inventory_realtime.sql` after it to publish stock-only
+inventory events through Supabase Realtime. Authenticated clients can read
+public-listing stock events; farmers can also read events for their own listings.
+Product details continue to be loaded through the backend.
+
+Marketplace checkout uses a service-role transaction that locks the product,
+validates the server-computed price and quantity, decrements available stock,
+increments `reserved_quantity`, and records `stock_state = 'reserved'` before
+the order is visible. Rejection and eligible cancellation restore stock exactly
+once; buyer completion moves the reservation to `sold_quantity`. The product is
+never allowed to go negative, and the checkout key remains idempotent.
+
+Direct product conversations validate that the selected product belongs to the
+farmer being contacted and snapshot a small product context on the message.
+The existing authenticated message permissions remain in force.
+
+Donation offers now require a future Asia/Manila expiration date and time. The
+database stores the timestamp, exposes a service-role `expire_donations()` job,
+and optionally registers a Supabase Cron job when `pg_cron` is enabled. Claims
+are quantity-specific and locked in `donation_claims`; duplicate active claims,
+overclaims, negative quantities, and post-expiration claims are rejected.
+Farmer rejection and stakeholder cancellation release claimed quantity exactly
+once, while completed claim history is retained.
+
+Farmer withdrawal restores only the still-unclaimed quantity for a new offer and
+refuses to withdraw while an active claim is pending or scheduled. Stakeholder
+receipt and rating state is tracked per claim, so multiple organizations can use
+one donation offer without overwriting one another's history.
+
+The API still exposes the older donation transition endpoints for historical
+records. New donation offers and quantity claims use the new transaction
+functions. No live database migration is performed by the application at
+startup.
+
+## Unified product and donation messaging
+
+Run `20261101_unified_listing_messaging.sql` after `20261030_inventory_messaging_donations.sql`
+and `20261031_traceability_context.sql`, then deploy the backend and frontend together.
+The migration backfills one persistent direct conversation per participant pair,
+snapshots donation descriptions and listing context on messages, and enables
+participant-only message reads for Supabase Realtime. Message writes remain
+service-role-only through the authenticated backend.
+
+Product inquiries are revalidated against the listing owner, active status, and
+available stock. Donation inquiries are limited to verified stakeholders viewing
+available, unexpired offers; buyers do not receive donation access or claim
+permissions. Donation claim creation and status transitions write contextual
+system messages in the same database transaction as the real claim event.
+
+The existing pair-based direct message URLs continue to work. A pair has one
+conversation across multiple product, donation, and order contexts. Historical
+messages are backfilled where both participants can be resolved. Expired or
+removed listings do not delete stored conversation snapshots.
 
 ## Shared donations
 
@@ -230,5 +346,15 @@ reference price sends an in-app notification to every active buyer, farmer, and
 stakeholder in the same transaction. Saving the same price/year again does not
 duplicate notifications. A failed notification insert rolls back the override.
 Existing overrides are not backfilled. Product selling prices are never changed.
+
+## Product-to-order traceability
+
+Apply `20261031_traceability_context.sql` after the inventory and messaging
+migration. It preserves the original product identifier on orders, stores the
+listing details on direct product inquiries, and links the latest matching
+inquiry to the order created by that buyer or stakeholder. Snapshot identifiers
+are intentionally retained if a live listing is later removed. The association
+is private to the existing conversation and order parties; it does not broaden
+message or order access.
 The migration is rerunnable and must be applied for automatic notifications;
 marketplace reference labels use the existing overrides API independently.

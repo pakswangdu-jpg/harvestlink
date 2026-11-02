@@ -13,6 +13,8 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useToast } from '../../contexts/ToastContext';
 import AdminReferenceNotice from '../market/AdminReferenceNotice';
+import ProductReviewsFeed from '../products/ProductReviewsFeed';
+import ProductImageGallery from '../products/ProductImageGallery';
 import './ProductQuickView.css';
 
 
@@ -42,6 +44,15 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const isOutOfStock = !(product.quantity > 0);
   const isPendingReview = product.priceReview?.status === 'pending';
   const canAddToCart = ORDERING_ROLES.includes(currentUser?.role);
+  const farmerMarketplaceParams = new URLSearchParams({
+    farmerId: product.farmerId || '',
+    farmerName: currentUser?.farmName || currentUser?.name || product.farmerName || 'your listings',
+    productId: product.id,
+    productName: product.name || 'selected product',
+  });
+  const productActionHref = currentUser?.role === 'farmer'
+    ? `/marketplace?${farmerMarketplaceParams.toString()}`
+    : `/products/${product.id}`;
   const [loadedImage, setLoadedImage] = useState(null);
   const [failedImage, setFailedImage] = useState(null);
   const imageLoaded = Boolean(product.image && loadedImage === product.image);
@@ -248,12 +259,22 @@ export default function ProductCard({ product, actions, showStatus = false, clas
                   )}
                 </button>
               ) : null}
-              <Link
-                to={`/products/${product.id}`}
-                className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--green-600)] text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--green-700)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] [forced-color-adjust:none]"
-              >
-                View Details <ArrowRight size={15} />
-              </Link>
+              {currentUser?.role === 'farmer' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsQuickViewOpen(true)}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border-0 bg-[var(--green-600)] text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--green-700)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)]"
+                >
+                  View listing <ArrowRight size={15} />
+                </button>
+              ) : (
+                <Link
+                  to={productActionHref}
+                  className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--green-600)] text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[var(--green-700)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] [forced-color-adjust:none]"
+                >
+                  View Details <ArrowRight size={15} />
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -267,21 +288,27 @@ export default function ProductCard({ product, actions, showStatus = false, clas
           dialogLabel={`${titleCase(product.name)} product details`}
           className="product-quick-view-overlay"
           footer={(
-            <Link
-              to={`/products/${product.id}`}
-              className="btn btn-primary btn-md product-quick-view-action"
-              onClick={() => setIsQuickViewOpen(false)}
-            >
-              {isPendingReview ? 'View listing details' : 'View product & order'} <ArrowRight size={15} aria-hidden="true" />
-            </Link>
+            currentUser?.role === 'farmer' ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-md"
+                onClick={() => setIsQuickViewOpen(false)}
+              >
+                Close listing
+              </button>
+            ) : (
+              <Link
+                to={`/products/${product.id}`}
+                className="btn btn-primary btn-md product-quick-view-action"
+                onClick={() => setIsQuickViewOpen(false)}
+              >
+                {isPendingReview ? 'View listing details' : 'View product & order'} <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            )
           )}
         >
           <div className="product-quick-view">
-            <div className="product-quick-view-image">
-              {product.image && !imageFailed
-                ? <img src={product.image} alt={titleCase(product.name)} onError={() => setFailedImage(product.image)} />
-                : <Sprout size={34} strokeWidth={1.5} aria-hidden="true" />}
-            </div>
+            <ProductImageGallery product={product} className="product-quick-view-image" />
             <div className="product-quick-view-heading">
               <div>
                 <h3>{titleCase(product.name)}</h3>
@@ -309,6 +336,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
                 <div><dt>Minimum order</dt><dd>{formatQuantity(product.moq)} {product.unit}</dd></div>
               ) : null}
             </dl>
+            <ProductReviewsFeed productId={product.id} productName={product.name} />
           </div>
         </Modal>,
         document.body,

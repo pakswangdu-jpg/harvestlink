@@ -5,6 +5,7 @@ import {
   cancelOrder,
   createOrder,
   getOrder,
+  getOrderTrackingProfiles,
   getOrderReceipt,
   getCheckoutQuote,
   listOrders,
@@ -18,6 +19,7 @@ router.get('/', requireAuth, listOrders);
 router.post('/', requireAuth, createOrder);
 router.post('/quote', requireAuth, getCheckoutQuote);
 router.get('/:id', requireAuth, getOrder);
+router.get('/:id/tracking-profiles', requireAuth, getOrderTrackingProfiles);
 router.get('/:id/receipt', requireAuth, getOrderReceipt);
 router.patch('/:id/status', requireAuth, updateOrderStatus);
 router.patch('/:id/cancel', requireAuth, cancelOrder);

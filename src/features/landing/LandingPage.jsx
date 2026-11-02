@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import TopRatedFarmersCarousel from '../../components/landing/TopRatedFarmersCarousel';
 import BrandWordmark from '../../components/common/BrandWordmark';
+import ThemeToggle from '../../components/common/ThemeToggle';
 import logo from '../../assets/logo.png';
 import { apiClient } from '../../services/apiClient';
 import directTradingIcon from '../../assets/icons/feature-direct-trading.png';
@@ -218,6 +219,7 @@ export default function LandingPage() {
         <div className="landing-actions">
           <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
           <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
+          <ThemeToggle compact />
         </div>
         <div className="landing-mobile-menu" ref={mobileMenuRef}>
           <button
@@ -236,6 +238,10 @@ export default function LandingPage() {
               <div className="landing-mobile-menu-actions">
                 <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
                 <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
+              </div>
+              <div className="landing-mobile-theme-row">
+                <span>Appearance</span>
+                <ThemeToggle compact showLabel />
               </div>
             </div>
           ) : null}

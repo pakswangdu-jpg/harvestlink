@@ -37,8 +37,8 @@
   justify-items: start;
   row-gap: 8px;
   min-width: 0;
-  min-height: 148px;
-  padding: 20px;
+  min-height: 140px;
+  padding: 16px;
   border: 1px solid var(--status-border);
   border-radius: 8px;
   background: var(--status-surface);
@@ -108,7 +108,7 @@
   place-items: center;
   border: 1px solid var(--status-border);
   border-radius: 7px;
-  background: var(--status-icon-surface);
+  background: color-mix(in srgb, var(--status-accent) 10%, var(--status-icon-surface));
   color: var(--status-accent);
 }
 
@@ -123,7 +123,7 @@
   display: block;
   color: var(--text);
   margin-top: 8px;
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -155,8 +155,8 @@
 }
 
 [data-theme='dark'] .order-status-summary-item {
-  --status-border: #304138;
-  --status-surface: #17211B;
+  --status-border: #46534b;
+  --status-surface: #202723;
   --status-icon-surface: #202C24;
 }
 
@@ -173,8 +173,9 @@
 }
 
 [data-theme='dark'] .order-status-summary-pickup {
-  --status-accent: #8DB9AD;
+  --status-accent: #8db9ad;
   --status-border: #3E625B;
+  --status-surface: #222a27;
   --status-icon-surface: #23332F;
 }
 

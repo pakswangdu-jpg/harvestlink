@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PackageCheck, X } from 'lucide-react';
+import { LoaderCircle, PackageOpen, Plus, X } from 'lucide-react';
 import ProductForm from '../forms/ProductForm';
 import Button from '../common/Button';
 import { removeStorage } from '../../services/storageService';
 import { useToast } from '../../contexts/ToastContext';
+import { formatCurrency, formatQuantity } from '../../utils/formatters';
 
 const FORM_ID = 'product-drawer-form';
 
@@ -19,15 +20,33 @@ export default function ProductDrawer({
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [pendingValues, setPendingValues] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmationError, setConfirmationError] = useState('');
+  const cancelButtonRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  const wasConfirmationOpenRef = useRef(false);
+  const isSavingRef = useRef(false);
   const draftStorageKey = !product && currentUser?.id
     ? `harvestlink:product-draft:${currentUser.id}`
     : null;
+  const confirmationTitle = pendingValues?.isDonation
+    ? 'Ready to share this donation?'
+    : 'Ready to add this product?';
+  const confirmationMessage = pendingValues?.isDonation
+      ? 'Check the details below before sharing it with community partners.'
+      : 'Take a moment to check the details. If the price needs Admin review, the listing will wait for approval before it is available.';
+  const confirmationActionLabel = pendingValues?.isDonation ? 'List donation' : 'Add product';
+  const confirmationItemType = pendingValues?.isDonation ? 'Donation' : pendingValues?.category || 'Product listing';
+  const productImage = pendingValues?.imageUrls?.[0] || pendingValues?.image;
+  const previewPrice = Number(pendingValues?.price || 0)
+    * (1 - (Number(pendingValues?.discountPercent) || 0) / 100);
 
   const handleFormSubmit = (values) => {
     if (product) {
       onSubmit(values);
       return;
     }
+    returnFocusRef.current = document.activeElement;
+    setConfirmationError('');
     setPendingValues(values);
     setIsConfirmationOpen(true);
   };
@@ -36,14 +55,24 @@ export default function ProductDrawer({
     if (isSaving) return;
     setIsConfirmationOpen(false);
     setPendingValues(null);
+    setConfirmationError('');
   }, [isSaving]);
 
   const confirmSave = async () => {
-    if (!pendingValues || isSaving) return;
+    if (!pendingValues || isSavingRef.current) return;
+    isSavingRef.current = true;
     setIsSaving(true);
     try {
-      const saved = await onSubmit(pendingValues);
-      if (saved && draftStorageKey) {
+      const result = await onSubmit(pendingValues, { fromConfirmation: true });
+      if (result !== true) {
+        setConfirmationError(
+          result?.success === false
+            ? result.error || 'We could not save this product. Please try again.'
+            : 'We could not confirm that this product was saved. Your details are still here; please try again.',
+        );
+        return;
+      }
+      if (draftStorageKey) {
         try {
           removeStorage(draftStorageKey);
         } catch (error) {
@@ -52,10 +81,32 @@ export default function ProductDrawer({
       }
       setIsConfirmationOpen(false);
       setPendingValues(null);
+      setConfirmationError('');
+    } catch (error) {
+      setConfirmationError(error.message || 'We could not save this product. Please try again.');
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!isConfirmationOpen) {
+      if (wasConfirmationOpenRef.current) {
+        returnFocusRef.current?.focus();
+        wasConfirmationOpenRef.current = false;
+      }
+      return undefined;
+    }
+
+    wasConfirmationOpenRef.current = true;
+    cancelButtonRef.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isConfirmationOpen]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -70,6 +121,22 @@ export default function ProductDrawer({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, isConfirmationOpen, isSaving, closeConfirmation]);
+
+  const handleConfirmationKeyDown = (event) => {
+    if (event.key !== 'Tab') return;
+    const dialog = event.currentTarget;
+    const focusable = [...dialog.querySelectorAll('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -153,24 +220,71 @@ export default function ProductDrawer({
             aria-busy={isSaving}
             aria-labelledby="product-save-confirmation-title"
             aria-describedby="product-save-confirmation-message"
-            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              exit={{ opacity: 0, y: 6 }}
             onClick={(event) => event.stopPropagation()}
-          >
-            <div className="product-save-confirmation-icon" aria-hidden="true">
-              <PackageCheck size={21} strokeWidth={1.9} />
+              onKeyDown={handleConfirmationKeyDown}
+            >
+              <div className="product-save-confirmation-heading">
+                <div className="product-save-confirmation-icon" aria-hidden="true">
+                <PackageOpen size={20} strokeWidth={1.8} />
+              </div>
+              <div>
+                <p className="product-save-confirmation-eyebrow">Review product</p>
+                <h2 id="product-save-confirmation-title">{confirmationTitle}</h2>
+              </div>
             </div>
-            <h2 id="product-save-confirmation-title">Save this product?</h2>
             <p id="product-save-confirmation-message">
-              Please review the product details before adding it to your listings. Are you sure you want to save this product?
+              {confirmationMessage}
             </p>
+            <div className="product-save-confirmation-preview">
+              {productImage ? (
+                <img
+                  className="product-save-confirmation-image"
+                  src={productImage}
+                  alt=""
+                />
+              ) : (
+                <div className="product-save-confirmation-image-fallback" aria-hidden="true">
+                  <PackageOpen size={21} strokeWidth={1.8} />
+                </div>
+              )}
+              <div className="product-save-confirmation-product">
+                <span className="product-save-confirmation-item-label">{confirmationItemType}</span>
+                <strong>{pendingValues?.name || 'Untitled product'}</strong>
+                <span className="product-save-confirmation-category">{pendingValues?.category}</span>
+              </div>
+              <dl className="product-save-confirmation-details">
+                <div>
+                  <dt>{pendingValues?.isDonation ? 'For' : 'Price'}</dt>
+                  <dd>{pendingValues?.isDonation ? 'Donation' : `${formatCurrency(previewPrice)}/${pendingValues?.unit || ''}`}</dd>
+                </div>
+                <div>
+                  <dt>Available</dt>
+                  <dd>{formatQuantity(pendingValues?.quantity)} {pendingValues?.unit}</dd>
+                </div>
+              </dl>
+            </div>
+            {confirmationError ? (
+              <p className="product-save-confirmation-error" role="alert">{confirmationError}</p>
+            ) : null}
             <div className="product-save-confirmation-actions">
-              <Button variant="secondary" onClick={closeConfirmation} disabled={isSaving}>
+              <button
+                ref={cancelButtonRef}
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeConfirmation}
+                aria-disabled={isSaving}
+              >
                 Cancel
-              </Button>
+              </button>
               <Button variant="primary" onClick={confirmSave} disabled={isSaving}>
-                {isSaving ? 'Adding product...' : 'Yes, add product'}
+                {isSaving ? (
+                  <><LoaderCircle size={16} className="product-save-confirmation-spinner" aria-hidden="true" />Adding product...</>
+                ) : (
+                  <><Plus size={16} strokeWidth={2.2} aria-hidden="true" />{confirmationActionLabel}</>
+                )}
               </Button>
             </div>
           </motion.section>

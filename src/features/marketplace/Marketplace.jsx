@@ -7,11 +7,13 @@ import ProductCard from '../../components/cards/ProductCard';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
-import { getActiveProducts } from '../../services/productService';
+import { getMarketplaceProducts } from '../../services/productService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
+import { supabase } from '../../lib/supabaseClient';
 import { CEBU_MUNICIPALITIES, getExpiryStatus, PRODUCT_GRADES, SALES_TYPES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import { matchesMarketplaceProduct } from '../../utils/marketplaceSearch';
 
 
 
@@ -203,13 +205,15 @@ export default function Marketplace() {
 
   const farmerIdFilter = searchParams.get('farmerId') || '';
   const farmerNameLabel = searchParams.get('farmerName') || '';
+  const productIdFilter = searchParams.get('productId') || '';
+  const productNameLabel = searchParams.get('productName') || '';
 
 
 
 
 
 
-  const [location, setLocation] = useState(() => (farmerIdFilter ? '' : currentUser.municipality || ''));
+  const [location, setLocation] = useState('');
   const [category, setCategory] = useState('');
   const [grade, setGrade] = useState('');
   const [sellingType, setSellingType] = useState('');
@@ -243,49 +247,76 @@ export default function Marketplace() {
 
   useEffect(() => {
     let cancelled = false;
-    const reload = () => getActiveProducts()
-      .then((items) => {
-        if (cancelled) return;
-        setProducts(items.filter((product) => getExpiryStatus(product.expirationDate) !== 'expired'));
-        setLoadError('');
-      })
-      .catch(() => { if (!cancelled) setLoadError('Unable to refresh products right now. Please try again shortly.'); })
-      .finally(() => { if (!cancelled) setIsLoading(false); });
+    let requestInProgress = false;
+    const reload = () => {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      getMarketplaceProducts()
+        .then((items) => {
+          if (cancelled) return;
+          setProducts(items.filter((product) => getExpiryStatus(product.expirationDate) !== 'expired'));
+          setLoadError('');
+        })
+        .catch(() => { if (!cancelled) setLoadError('Unable to refresh products right now. Please try again shortly.'); })
+        .finally(() => {
+          requestInProgress = false;
+          if (!cancelled) setIsLoading(false);
+        });
+    };
     reload();
+    const channel = supabase
+      .channel(`marketplace-inventory-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'product_inventory_events',
+          filter: 'is_public=eq.true',
+        },
+        reload,
+      )
+      .subscribe((status) => {
+        if (!cancelled && ['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
+          setLoadError('Live stock updates are unavailable. We will keep checking products.');
+        }
+      });
     const interval = setInterval(reload, 4000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser.id]);
 
   const referencesByCommodity = useMemo(() => new Map(references.map((reference) => [reference.commodityId, reference])), [references]);
 
   const filteredProducts = useMemo(() => {
-    if (farmerIdFilter) {
-      return products.filter((product) => product.farmerId === farmerIdFilter);
-    }
     const normalized = query.trim().toLowerCase();
     return products.filter((product) => {
-      const matchesQuery = !normalized || [product.name, product.category, product.location, product.farmerName]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalized);
+      const matchesProduct = !productIdFilter || product.id === productIdFilter;
+      const matchesFarmer = !farmerIdFilter || product.farmerId === farmerIdFilter;
+      const matchesQuery = matchesMarketplaceProduct(product, normalized);
       const matchesLocation = !location || product.location === location;
       const matchesCategory = !category || product.category === category;
       const matchesGrade = !grade || product.grade === grade;
       const matchesSellingType = !sellingType || product.sellingType === sellingType;
       const matchesMinPrice = !minPrice || product.price >= Number(minPrice);
       const matchesMaxPrice = !maxPrice || product.price <= Number(maxPrice);
-      return matchesQuery && matchesLocation && matchesCategory && matchesGrade && matchesSellingType
+      return matchesProduct && matchesFarmer && matchesQuery && matchesLocation && matchesCategory && matchesGrade && matchesSellingType
         && matchesMinPrice && matchesMaxPrice;
     });
-  }, [products, query, location, category, grade, sellingType, minPrice, maxPrice, farmerIdFilter]);
+  }, [products, query, location, category, grade, sellingType, minPrice, maxPrice, farmerIdFilter, productIdFilter]);
 
   const hasActiveFilters = Boolean(
-    query || location || category || grade || sellingType || minPrice || maxPrice || farmerIdFilter,
+    query || location || category || grade || sellingType || minPrice || maxPrice || farmerIdFilter || productIdFilter,
   );
   const clearFarmerFilter = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('farmerId');
     nextParams.delete('farmerName');
+    nextParams.delete('productId');
+    nextParams.delete('productName');
     setSearchParams(nextParams, { replace: true });
   };
   const clearFilters = () => {
@@ -299,6 +330,8 @@ export default function Marketplace() {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('farmerId');
     nextParams.delete('farmerName');
+    nextParams.delete('productId');
+    nextParams.delete('productName');
     nextParams.delete('search');
     setSearchParams(nextParams, { replace: true });
   };
@@ -311,14 +344,30 @@ export default function Marketplace() {
       subtitle="Find active produce listings from Cebu farmers."
       pageClassName="marketplace-page"
     >
-      {farmerIdFilter ? (
+      {farmerIdFilter || productIdFilter ? (
         <div className="form-alert info farmer-filter-banner">
-          <span>Showing products from <strong>{farmerNameLabel || 'this farmer'}</strong></span>
+          {productIdFilter ? (
+            <span>Showing listing <strong>{productNameLabel || 'selected product'}</strong></span>
+          ) : (
+            <span>Showing products from <strong>{farmerNameLabel || 'this farmer'}</strong></span>
+          )}
           <button type="button" className="farmer-filter-clear" onClick={clearFarmerFilter}>
             <X size={14} /> View all products
           </button>
         </div>
       ) : null}
+
+      <section className="panel marketplace-price-toolbar">
+        <PriceRangeSlider
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          bounds={priceBounds}
+          onCommit={(nextMin, nextMax) => {
+            setMinPrice(nextMin);
+            setMaxPrice(nextMax);
+          }}
+        />
+      </section>
 
       <section className="panel marketplace-toolbar">
         <div className="marketplace-filters">
@@ -359,15 +408,6 @@ export default function Marketplace() {
               {SALES_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
           </label>
-          <PriceRangeSlider
-            minPrice={minPrice}
-            maxPrice={maxPrice}
-            bounds={priceBounds}
-            onCommit={(nextMin, nextMax) => {
-              setMinPrice(nextMin);
-              setMaxPrice(nextMax);
-            }}
-          />
         </div>
       </section>
 

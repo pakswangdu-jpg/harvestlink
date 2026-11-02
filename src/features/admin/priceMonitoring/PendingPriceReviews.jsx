@@ -43,7 +43,9 @@ export default function PendingReviews({ reviews, commodities, onNotice, onError
   useEffect(() => {
     if (!selected) return undefined;
     let cancelled = false;
-    getCropForecastDetail(selected.name, { period: '7_days', municipality: selected.location || '' })
+    getCropForecastDetail(selected.name, {
+      period: '7_days', municipality: selected.location || '', unit: selected.unit || '',
+    })
       .then((data) => { if (!cancelled) setForecastResult({ productId: selected.id, data, error: '' }); })
       .catch((failure) => { if (!cancelled) setForecastResult({ productId: selected.id, data: null, error: failure.message }); });
     return () => { cancelled = true; };

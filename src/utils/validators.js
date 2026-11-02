@@ -173,13 +173,21 @@ export function validateProductForm(values, availableUnits, existing = null) {
     }
   }
   if (toPositiveNumber(values.quantity) === null) errors.quantity = 'Enter a positive quantity.';
-  if (required(values.expirationDate)) {
+  if (values.isDonation) {
+    if (!required(values.expirationDate)) errors.expirationDate = 'Choose an expiration date for this donation.';
+    if (!required(values.expirationTime)) errors.expirationTime = 'Choose an expiration time for this donation.';
+    if (!errors.expirationDate && !errors.expirationTime) {
+      const expiration = new Date(`${values.expirationDate}T${values.expirationTime}:00+08:00`);
+      if (Number.isNaN(expiration.getTime()) || expiration <= new Date()) {
+        errors.expirationDate = 'Donation expiration must be a future date and time in the Philippines.';
+      }
+    }
+  } else if (required(values.expirationDate)) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (new Date(values.expirationDate) < today) errors.expirationDate = 'Expiration date cannot be in the past.';
   }
   if (!required(values.location)) errors.location = 'Enter the product location.';
-  if (!required(values.description)) errors.description = 'Add a short product description.';
   if (!required(values.image)) errors.image = 'Add a product photo before listing.';
   return errors;
 }
@@ -191,7 +199,7 @@ export function validateCheckoutForm(values, product, currentUser) {
   if (quantity === null) errors.quantity = 'Enter a positive request quantity.';
   else if (Number(quantity.toFixed(2)) !== quantity) errors.quantity = 'Use no more than two decimal places for the quantity.';
   else if (product && quantity > Number(product.quantity)) {
-    errors.quantity = `Only ${product.quantity} ${product.unit} available.`;
+    errors.quantity = `Only ${product.quantity} ${product.unit} remaining. Please update your order quantity.`;
   } else if (product?.sellingType === 'wholesale' && product.moq && quantity < Number(product.moq)) {
     errors.quantity = `This is a wholesale listing — minimum order is ${product.moq} ${product.unit}.`;
   }

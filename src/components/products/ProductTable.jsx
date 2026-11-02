@@ -1,5 +1,5 @@
 import {
-  Archive, ArchiveRestore, Copy, Eye, Gift, Package, Trash2,
+  Archive, ArchiveRestore, Eye, Gift, MessageSquareText, Package, Trash2,
 } from 'lucide-react';
 import DataTable from '../dashboard/DataTable';
 import Button from '../common/Button';
@@ -10,7 +10,7 @@ import { formatCurrency, formatDate, titleCase } from '../../utils/formatters';
 import ProductStatusBadge from './ProductStatusBadge';
 import ProductPriceReviewNotice from './ProductPriceReviewNotice';
 
-export default function ProductTable({ products, onView, onEdit, onDuplicate, onArchive, onDonate, onDelete }) {
+export default function ProductTable({ products, onView, onReviews, onEdit, onArchive, onDonate, onDelete }) {
   const columns = [
     {
       key: 'name',
@@ -70,7 +70,7 @@ export default function ProductTable({ products, onView, onEdit, onDuplicate, on
           <ActionMenu
             items={[
               { label: 'View', icon: Eye, onClick: () => onView(product) },
-              { label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(product) },
+              { label: 'Reviews', icon: MessageSquareText, onClick: () => onReviews(product) },
               {
                 label: 'Donate remaining stock',
                 icon: Gift,

@@ -35,8 +35,8 @@
 [data-theme="dark"] .stakeholder-operations-dashboard .stakeholder-summary-stat > svg { color: #9cb4a5; }
 [data-theme="dark"] .stakeholder-operations-dashboard .stakeholder-summary-stat.tone-blue > svg { color: #a0b7cd; }
 [data-theme="dark"] .stakeholder-operations-dashboard .stakeholder-summary-stat.tone-amber > svg { color: #d0ad6a; }
-.stakeholder-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-template-areas: "donations requests" "map activity"; align-items: start; gap: 24px; }
-.stakeholder-workspace-grid.has-pickup { grid-template-areas: "donations requests" "map pickup" "map activity"; }
+.stakeholder-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-template-areas: "donations map" "requests activity"; align-items: start; column-gap: 24px; row-gap: 20px; }
+.stakeholder-workspace-grid.has-pickup { grid-template-areas: "donations map" "requests pickup" "activity activity"; }
 .stakeholder-workspace-grid > .stakeholder-section:first-child { grid-area: donations; }
 .stakeholder-workspace-grid .stakeholder-requests-panel { grid-area: requests; }
 .stakeholder-workspace-grid .stakeholder-map-panel { grid-area: map; }
@@ -69,7 +69,7 @@
 .stakeholder-pickup-details p { margin: 6px 0; font-size: 14px; color: var(--muted); }
 .stakeholder-pickup-details time,.stakeholder-pickup-details p:has(svg) { display: flex; gap: 6px; align-items: center; font-size: 14px; }
 .stakeholder-pickup-details > div { display: flex; gap: 18px; margin-top: 8px; }
-.stakeholder-operations-dashboard .stakeholder-map-panel .farmer-map { height: 300px; border: 1px solid var(--line); border-radius: 8px; }
+.stakeholder-operations-dashboard .stakeholder-map-panel .farmer-map { height: 280px; border: 1px solid var(--line); border-radius: 8px; }
 .stakeholder-operations-dashboard .stakeholder-map-legend { padding-inline: 0; font-size: 13px; }
 .stakeholder-operations-dashboard .stakeholder-map-note { padding-inline: 0; font-size: 13px; }
 .stakeholder-operations-dashboard .stakeholder-compact-empty { padding: 16px 0; }
@@ -77,8 +77,8 @@
 .stakeholder-operations-dashboard .stakeholder-activity-list :is(strong,p,time) { font-size: 13px; line-height: 1.5; }
 .stakeholder-operations-dashboard .stakeholder-activity-list time { white-space: normal; text-align: right; }
 @media (max-width: 900px) {
-  .stakeholder-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "donations" "requests" "map" "activity"; }
-  .stakeholder-workspace-grid.has-pickup { grid-template-areas: "donations" "pickup" "requests" "map" "activity"; }
+  .stakeholder-workspace-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "donations" "map" "requests" "activity"; }
+  .stakeholder-workspace-grid.has-pickup { grid-template-areas: "donations" "map" "pickup" "requests" "activity"; }
 }
 @media (max-width: 560px) {
   .app-shell .stakeholder-operations-dashboard .page-header { flex-wrap: wrap; gap: 12px; }

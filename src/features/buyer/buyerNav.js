@@ -1,7 +1,6 @@
 import {
-  LayoutGrid, TrendingUp, UserRound, MapPin, Store, MessageSquare, Package,
+  LayoutGrid, TrendingUp, UserRound, MapPin, Store, Package,
 } from 'lucide-react';
-import { createElement } from 'react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import messagesNavIcon from '../../assets/icons/nav-messages.png';
 import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
@@ -11,10 +10,7 @@ import ordersNavIcon from '../../assets/icons/nav-orders.png';
 const NearbyNavIcon = createMaskNavIcon(nearbyNavIcon);
 const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
 const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
-
-function MessagesNavIcon({ size = 20, className }) {
-  return createElement('img', { src: messagesNavIcon, alt: '', width: size, height: size, className, 'aria-hidden': true });
-}
+const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
 
 
 

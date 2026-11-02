@@ -57,10 +57,6 @@ async function resolveAuth(token) {
 }
 
 
-
-
-
-
 export async function requireAuth(req, res, next) {
   try {
     const header = req.headers.authorization || '';

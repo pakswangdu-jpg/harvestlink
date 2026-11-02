@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { getReviewMediaExtension, REVIEW_IMAGE_MAX_SIZE, REVIEW_VIDEO_MAX_SIZE } from '../utils/reviewMedia';
 
 function extensionFor(file) {
   const parts = file.name.split('.');
@@ -9,8 +10,8 @@ function extensionFor(file) {
 
 
 
-async function uploadToBucket(bucket, path, file) {
-  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+async function uploadToBucket(bucket, path, file, upsert = true) {
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert });
   if (error) throw new Error(error.message);
   return path;
 }
@@ -82,7 +83,27 @@ export async function uploadPaymentReceipt(file, buyerId) {
   return data.publicUrl;
 }
 
+export async function uploadReviewImage(file, raterId, orderId) {
+  const extension = getReviewMediaExtension(file, 'image');
+  if (!extension) throw new Error('Choose a JPG, PNG, or WebP image.');
+  if (file.size > REVIEW_IMAGE_MAX_SIZE) throw new Error('Review photos must be 5 MB or smaller.');
 
+  const path = `${raterId}/${orderId}/${crypto.randomUUID()}.${extension}`;
+  await uploadToBucket('review-images', path, file, false);
+  const { data } = supabase.storage.from('review-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+export async function uploadReviewVideo(file, raterId, orderId) {
+  const extension = getReviewMediaExtension(file, 'video');
+  if (!extension) throw new Error('Choose an MP4 or WebM video.');
+  if (file.size > REVIEW_VIDEO_MAX_SIZE) throw new Error('Review videos must be 20 MB or smaller.');
+
+  const path = `${raterId}/${orderId}/${crypto.randomUUID()}.${extension}`;
+  await uploadToBucket('review-videos', path, file, false);
+  const { data } = supabase.storage.from('review-videos').getPublicUrl(path);
+  return data.publicUrl;
+}
 
 
 

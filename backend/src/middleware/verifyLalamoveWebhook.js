@@ -1,18 +1,6 @@
 import crypto from 'node:crypto';
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 export function verifyLalamoveWebhook(req, res, next) {
   const authHeader = req.get('Authorization') || '';
   const match = authHeader.match(/^hmac (.+):(\d+):([a-f0-9]{64})$/i);

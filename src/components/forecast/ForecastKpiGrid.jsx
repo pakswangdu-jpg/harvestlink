@@ -43,7 +43,7 @@ export default function ForecastKpiGrid({
   return (
     <section aria-label="Forecast summary">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryMetric icon={Sprout} label="High-demand crops">
+        <SummaryMetric icon={Sprout} label="High-demand crop/unit forecasts">
           <p className="text-[30px] font-semibold leading-none tracking-tight text-[var(--text)]">{highDemandCrops.length}</p>
           {highDemandCrops.length ? (
             <button
@@ -52,7 +52,7 @@ export default function ForecastKpiGrid({
               style={{ background: 'transparent', border: 0, padding: 0, color: 'var(--green-700)', minHeight: 44 }}
               className="mt-2 block w-full text-left text-[14px] font-medium leading-relaxed underline-offset-2 hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
             >
-              View {highDemandCrops.length} crop{highDemandCrops.length === 1 ? '' : 's'} with demand opportunities
+              View {highDemandCrops.length} crop/unit forecast{highDemandCrops.length === 1 ? '' : 's'} with demand opportunities
             </button>
           ) : (
             <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-secondary)]">No demand opportunities in this selection.</p>
@@ -69,12 +69,14 @@ export default function ForecastKpiGrid({
               : 'Not available'}
           </p>
           <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
-            {averagePriceChangePercent != null ? `Across priced crops · ${periodLabel}` : `No price changes available · ${periodLabel}`}
+            {averagePriceChangePercent != null ? `Across priced crop/unit forecasts · ${periodLabel}` : `No price changes available · ${periodLabel}`}
           </p>
         </SummaryMetric>
 
         <SummaryMetric icon={Award} label="Strongest price outlook">
-          <p className="truncate text-[24px] font-semibold leading-tight tracking-tight text-[var(--text)]">{bestCrop?.crop || 'Not available'}</p>
+          <p className="truncate text-[24px] font-semibold leading-tight tracking-tight text-[var(--text)]">
+            {bestCrop ? `${bestCrop.crop}${bestCrop.unit ? ` / ${bestCrop.unit}` : ''}` : 'Not available'}
+          </p>
           <p className={`mt-2 text-[14px] font-medium leading-relaxed ${
             bestCrop?.expectedChangePercent == null ? 'text-[var(--muted)]' : bestCrop.expectedChangePercent >= 0 ? 'text-[var(--green-700)]' : 'text-[var(--red-700)]'
           }`}
@@ -88,7 +90,7 @@ export default function ForecastKpiGrid({
         <SummaryMetric icon={TrendIcon} label="Overall price trend">
           <p className={`text-[26px] font-semibold leading-tight tracking-tight ${trendStyle.color}`}>{marketTrend}</p>
           <p className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">
-            {marketTrend === 'Unavailable' ? 'No price forecasts available' : 'Based on crops with a price forecast'}
+            {marketTrend === 'Unavailable' ? 'No price forecasts available' : 'Based on crop/unit forecasts'}
           </p>
         </SummaryMetric>
 

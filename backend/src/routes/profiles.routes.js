@@ -6,6 +6,8 @@ import {
   acknowledgeMyVerification,
   createProfile,
   getAllVerifiedFarmers,
+  getAdminUserLocations,
+  sendAdminLocationReminder,
   getNearbyMapProfiles,
   getMyProfile,
   getProfileById,
@@ -25,6 +27,8 @@ router.get('/me', requireAuth, getMyProfile);
 router.patch('/me', requireAuth, updateMyProfile);
 router.post('/me/acknowledge-verification', requireAuth, acknowledgeMyVerification);
 router.get('/nearby-map', requireAuth, getNearbyMapProfiles);
+router.get('/admin-locations', requireAuth, requireRole('admin'), getAdminUserLocations);
+router.post('/:id/location-reminder', requireAuth, requireRole('admin'), sendAdminLocationReminder);
 router.get('/', requireAuth, listProfiles);
 
 

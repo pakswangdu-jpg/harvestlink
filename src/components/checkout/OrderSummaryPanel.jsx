@@ -31,7 +31,7 @@ export default function OrderSummaryPanel({
   product, quantity, unitPrice, isWholesalePrice, subtotal, deliveryMethod, deliveryMethodLabel, deliveryMunicipality,
   estimate, isLoading, error, isPickup, locationStatus, locationNotice, onRetryLocation,
   isSubmitting, orderPlaced, isGcash, paymentMethod,
-  quote, isReviewed, onReview, onRetryQuote,
+  quote, isReviewed, onReview, onRetryQuote, retryLabel = 'Refresh total',
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
   const total = quote?.total ?? subtotal + fee;
@@ -88,7 +88,7 @@ export default function OrderSummaryPanel({
             </div>
           ) : null}
 
-          {error ? <div className="checkout-summary-warning" role="alert"><span>{error}</span>{onRetryQuote ? <button type="button" onClick={onRetryQuote}>Refresh total</button> : null}</div> : null}
+          {error ? <div className="checkout-summary-warning" role="alert"><span>{error}</span>{onRetryQuote ? <button type="button" onClick={onRetryQuote}>{retryLabel}</button> : null}</div> : null}
 
           {isLoading && !estimate ? (
             <p className="checkout-summary-note">

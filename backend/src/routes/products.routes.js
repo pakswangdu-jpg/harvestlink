@@ -13,6 +13,7 @@ import {
   getPendingPriceReviews,
   getProduct,
   listProducts,
+  listMarketplaceProducts,
   listPublicProducts,
   reactivatePriceReview,
   removeDiscount,
@@ -25,6 +26,7 @@ const router = Router();
 router.get('/price-reviews/pending', requireAuth, requireRole('admin'), getPendingPriceReviews);
 router.get('/price-reviews/declined', requireAuth, requireRole('admin'), getDeclinedPriceReviews);
 router.get('/public', listPublicProducts);
+router.get('/marketplace', requireAuth, requireRole('farmer', 'buyer', 'stakeholder'), listMarketplaceProducts);
 router.get('/historical-price', requireAuth, requireRole('farmer'), getHistoricalPriceAnalysis);
 
 router.get('/', requireAuth, listProducts);

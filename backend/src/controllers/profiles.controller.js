@@ -173,6 +173,115 @@ export async function getMyProfile(req, res) {
   res.json(serializeProfile(req.profile));
 }
 
+export async function getAdminUserLocations(req, res) {
+  if (req.profile?.role !== 'admin') throw new ApiError('Admin access required.', 403);
+
+  const page = Number(req.query.page || 1);
+  if (!Number.isSafeInteger(page) || page < 1 || page > 100000) {
+    throw new ApiError('Invalid user locations page.', 400);
+  }
+
+  const pageSize = 500;
+  const columns = [
+    'id',
+    'role',
+    'name',
+    'email',
+    'farm_name',
+    'organization_name',
+    'address',
+    'barangay',
+    'municipality',
+    'latitude',
+    'longitude',
+    'account_status',
+    'inactivity_suspended_at',
+    'verification_status',
+    'avatar_url',
+    'created_at',
+  ].join(', ');
+  let query = supabaseAdmin
+    .from('profiles')
+    .select(columns, page === 1 ? { count: 'exact' } : undefined)
+    .in('role', VALID_ROLES)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+    .range((page - 1) * pageSize, page * pageSize - 1);
+
+  const { data, error, count } = await query;
+  if (error) throw new ApiError(error.message, 400);
+
+  res.json({
+    users: (data || []).map((row) => {
+      const { latitude, longitude } = serializeProfile(row);
+      return {
+        id: row.id,
+        role: row.role,
+        name: row.name,
+        email: row.email,
+        farmName: row.farm_name || null,
+        organizationName: row.organization_name || null,
+        address: row.address || null,
+        barangay: row.barangay || null,
+        municipality: row.municipality || null,
+        latitude,
+        longitude,
+        accountStatus: row.account_status,
+        inactivitySuspendedAt: row.inactivity_suspended_at || null,
+        verificationStatus: row.verification_status || null,
+        avatarUrl: row.avatar_url || null,
+        createdAt: row.created_at,
+      };
+    }),
+    total: page === 1 ? count || 0 : null,
+    page,
+    pageSize,
+  });
+}
+
+export async function sendAdminLocationReminder(req, res) {
+  if (req.profile?.role !== 'admin') throw new ApiError('Admin access required.', 403);
+
+  const { data: user, error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, role, latitude, longitude')
+    .eq('id', req.params.id)
+    .maybeSingle();
+  if (profileError) throw new ApiError(profileError.message, 400);
+  if (!user || !VALID_ROLES.includes(user.role)) throw new ApiError('Account was not found.', 404);
+
+  const { latitude, longitude } = serializeProfile(user);
+  if (latitude !== null && longitude !== null) {
+    throw new ApiError('This account already has a valid saved location.', 409);
+  }
+
+  const message = user.role === 'buyer'
+    ? 'Please add or update your registered address and saved location in your profile so your registered location can be included on the HarvestLink user map.'
+    : 'Please add or update your registered address and saved location in your profile to support the Admin review of your account verification.';
+  const { error: notificationError } = await supabaseAdmin
+    .from('notifications')
+    .insert({
+      user_id: user.id,
+      type: 'profile',
+      title: 'Complete your profile location',
+      message,
+      link: '/profile',
+    });
+  if (notificationError) {
+    console.error('Failed to send Admin location reminder:', {
+      code: notificationError.code,
+      message: notificationError.message,
+      hint: notificationError.hint,
+    });
+    if (notificationError.code === '23514' && notificationError.message?.includes('notifications_type_check')) {
+      throw new ApiError('Profile reminders are not enabled in the database. Apply migration 20261103_profile_location_reminders.sql, then retry.', 503);
+    }
+    throw new ApiError('Unable to send the profile reminder. Please try again.', 500);
+  }
+
+  res.status(201).json({ message: 'Profile reminder sent.' });
+}
+
 export async function updateMyProfile(req, res) {
   const row = {
     ...buildCommonFields(req.body),
@@ -209,9 +318,21 @@ export async function acknowledgeMyVerification(req, res) {
 }
 
 export async function getProfileById(req, res) {
-  const { data, error } = await supabaseAdmin.from('profiles').select('*').eq('id', req.params.id).single();
+  const { data, error } = await supabaseAdmin.from('profiles')
+    .select('id, role, name, farm_name, avatar_url, verification_status, organization_name, last_active_at')
+    .eq('id', req.params.id)
+    .single();
   if (error || !data) throw new ApiError('Account was not found.', 404);
-  res.json(serializeProfile(data));
+  res.json({
+    id: data.id,
+    role: data.role,
+    name: data.name,
+    farmName: data.farm_name,
+    avatarUrl: data.avatar_url || null,
+    verificationStatus: data.verification_status,
+    organizationName: data.organization_name,
+    lastActiveAt: data.last_active_at,
+  });
 }
 
 export async function getNearbyMapProfiles(req, res) {
@@ -227,7 +348,8 @@ export async function getNearbyMapProfiles(req, res) {
 
   const farmerIds = data.filter(profile => profile.role === 'farmer').map(profile => profile.id);
   let donationFarmerIds = new Set();
-  if (farmerIds.length) {
+  const canViewDonationMarkers = ['farmer', 'stakeholder'].includes(req.profile.role);
+  if (canViewDonationMarkers && farmerIds.length) {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
     const result = await supabaseAdmin.from('donations').select('farmer_id')
       .in('farmer_id', farmerIds).eq('status', 'available')
@@ -235,7 +357,10 @@ export async function getNearbyMapProfiles(req, res) {
     if (result.error) console.warn('Unable to refresh map donation indicators:', result.error.code || 'unknown');
     else donationFarmerIds = new Set((result.data || []).map(item => item.farmer_id));
   }
-  res.json(data.map(row => ({ ...serializeProfile(row), hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) })).filter(profile => (
+  res.json(data.map(row => ({
+    ...serializeProfile(row),
+    ...(canViewDonationMarkers ? { hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) } : {}),
+  })).filter(profile => (
     profile.latitude !== null && profile.longitude !== null
   )));
 }

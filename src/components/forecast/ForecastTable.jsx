@@ -97,7 +97,7 @@ function CropDetailsButton({ entry, selected, onSelectCrop }) {
   return (
     <button
       type="button"
-      onClick={() => onSelectCrop(entry.crop)}
+      onClick={() => onSelectCrop(entry)}
       aria-pressed={selected}
       style={{
         background: 'transparent',
@@ -115,6 +115,7 @@ function CropDetailsButton({ entry, selected, onSelectCrop }) {
       }`}
     >
       {entry.crop}
+      {entry.unit ? <span className="ml-2 text-[12px] font-medium text-[var(--muted)]">/{entry.unit}</span> : null}
       {selected ? <span className="sr-only">, selected</span> : null}
     </button>
   );
@@ -135,11 +136,11 @@ function CropCard({ entry, selected, onSelectCrop }) {
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--line)] pt-3">
         <div>
-          <dt className="text-[14px] text-[var(--text-secondary)]">Current reference</dt>
+          <dt className="text-[14px] text-[var(--text-secondary)]">Current reference · {entry.unit || 'unit unavailable'}</dt>
           <dd className="mt-0.5 text-[15px] text-[var(--text-secondary)]"><PriceReference entry={entry} /></dd>
         </div>
         <div>
-          <dt className="text-[14px] text-[var(--text-secondary)]">Forecast reference</dt>
+          <dt className="text-[14px] text-[var(--text-secondary)]">Forecast reference · {entry.unit || 'unit unavailable'}</dt>
           <dd className="mt-0.5 text-[15px] font-semibold text-[var(--text)]">
             {entry.forecastPrice != null ? `${formatCurrency(entry.forecastPrice)}${entry.unit ? `/${entry.unit}` : ''}` : 'Not available'}
           </dd>
@@ -222,9 +223,9 @@ export default function ForecastTable({
               </thead>
               <tbody>
                 {rows.map((entry) => {
-                  const selected = entry.crop === selectedCrop;
+                const selected = entry.forecastKey === selectedCrop;
                   return (
-                    <tr key={entry.crop} className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}>
+                  <tr key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`} className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}>
                       <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-2 text-[15px] text-[var(--text)]">
                         <CropDetailsButton entry={entry} selected={selected} onSelectCrop={onSelectCrop} />
                       </td>
@@ -245,9 +246,9 @@ export default function ForecastTable({
           <div className="mt-4 flex flex-col gap-3 md:hidden">
             {rows.map((entry) => (
               <CropCard
-                key={entry.crop}
+                key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`}
                 entry={entry}
-                selected={entry.crop === selectedCrop}
+                selected={entry.forecastKey === selectedCrop}
                 onSelectCrop={onSelectCrop}
               />
             ))}

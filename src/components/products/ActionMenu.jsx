@@ -93,6 +93,7 @@ export default function ActionMenu({ items }) {
                 type="button"
                 onClick={() => {
                   setIsOpen(false);
+                  buttonRef.current?.focus();
                   item.onClick();
                 }}
                 className={`flex w-full items-center gap-2.5 border-0 bg-transparent px-3.5 py-2 text-left text-[14px] font-medium transition-colors duration-200 ${

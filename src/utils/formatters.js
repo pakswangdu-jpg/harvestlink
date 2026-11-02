@@ -71,6 +71,18 @@ export function formatTime(value) {
   }).format(new Date(value));
 }
 
+export function formatDateTimeManila(value) {
+  if (!value) return 'Not available';
+  return new Intl.DateTimeFormat('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
 export function formatRelativeTime(value) {
   if (!value) return '';
   const diffMinutes = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
@@ -161,6 +173,8 @@ const DONATION_STATUS_LABELS = {
   scheduled: 'Pickup scheduled',
   completed: 'Donation completed',
   cancelled: 'Cancelled',
+  expired: 'Expired',
+  fully_claimed: 'Fully claimed',
 };
 
 const PRICE_REVIEW_STATUS_LABELS = {

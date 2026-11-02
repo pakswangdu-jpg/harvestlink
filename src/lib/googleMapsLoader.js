@@ -2,22 +2,24 @@ import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-if (!apiKey) {
-  throw new Error('VITE_GOOGLE_MAPS_API_KEY must be set — see .env.example.');
-}
-
-
-setOptions({ key: apiKey, v: 'weekly' });
+if (apiKey) setOptions({ key: apiKey, v: 'weekly' });
 
 
 let mapsPromise = null;
 export function loadGoogleMaps() {
+  if (!apiKey) {
+    return Promise.reject(new Error('VITE_GOOGLE_MAPS_API_KEY must be set — see .env.example.'));
+  }
   if (!mapsPromise) {
     mapsPromise = Promise.all([
       importLibrary('maps'),
       importLibrary('marker'),
       importLibrary('core'),
-    ]).then(([mapsLib, markerLib, coreLib]) => ({ ...mapsLib, ...markerLib, ...coreLib }));
+    ]).then(([mapsLib, markerLib, coreLib]) => ({ ...mapsLib, ...markerLib, ...coreLib }))
+      .catch((error) => {
+        mapsPromise = null;
+        throw error;
+      });
   }
   return mapsPromise;
 }

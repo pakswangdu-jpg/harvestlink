@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Forward, Loader2, X } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import ConversationList from '../../components/messages/ConversationList';
 import ChatHeader from '../../components/messages/ChatHeader';
+import ProductContextCard from '../../components/messages/ProductContextCard';
+import DonationContextCard from '../../components/messages/DonationContextCard';
 import OrderContextCard from '../../components/messages/OrderContextCard';
 import MessageBubble from '../../components/messages/MessageBubble';
 import MessageInput from '../../components/messages/MessageInput';
@@ -13,6 +15,7 @@ import { StartConversationState, NoConversationSelectedState } from '../../compo
 import { useAuth } from '../auth/AuthContext';
 import { useChatTyping } from '../../hooks/useChatTyping';
 import { getUserById } from '../../services/authService';
+import { getDelivery } from '../../services/deliveryService';
 import { getOrderById } from '../../services/orderService';
 import {
   deleteMessage, editMessage, getDirectMessages, getDirectThreads, markDirectThreadRead, sendDirectMessage,
@@ -20,7 +23,9 @@ import {
 import { uploadChatAttachment } from '../../services/uploadService';
 import { MESSAGE_TRANSLATION_LANGUAGES, translateText } from '../../services/translateService';
 import { getInitials } from '../../utils/formatters';
+import { getListingContextMessageIds } from '../../utils/messageListingContext';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import { supabase } from '../../lib/supabaseClient';
 
 const LIST_POLL_MS = 4000;
 const MESSAGE_POLL_MS = 3000;
@@ -76,6 +81,7 @@ function mergeMessages(existing, incoming) {
 export default function MessagesPage() {
   const { orderId, userId: directUserId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser } = useAuth();
   const navItems = getNavItemsForRole(currentUser.role);
 
@@ -125,6 +131,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messagesUnavailable, setMessagesUnavailable] = useState(false);
+  const [messagesUnavailableReason, setMessagesUnavailableReason] = useState('');
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [threadDetail, setThreadDetail] = useState({ key: null, otherParty: null, notFound: false });
@@ -135,6 +142,7 @@ export default function MessagesPage() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
+  const [conversationOrderState, setConversationOrderState] = useState({ key: null, order: null, delivery: null });
 
 
 
@@ -213,6 +221,7 @@ export default function MessagesPage() {
     unreadCount: thread.unreadCount,
     lastOrder: thread.lastOrder,
     completedOrder: thread.completedOrder,
+    conversationId: thread.conversationId,
   })).sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()), [threads]);
   const activeThread = combinedThreads.find((thread) => thread.key === activeKey);
   const canSeeProductRecommendations = ['buyer', 'stakeholder'].includes(currentUser.role);
@@ -260,6 +269,7 @@ export default function MessagesPage() {
         setMessages([]);
         setHasMoreOlder(false);
         setMessagesUnavailable(false);
+        setMessagesUnavailableReason('');
       }
       try {
         const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
@@ -267,9 +277,15 @@ export default function MessagesPage() {
         setMessages((current) => (isFirstLoad ? result.messages : mergeMessages(current, result.messages)));
         if (isFirstLoad) setHasMoreOlder(result.hasMore);
         setMessagesUnavailable(false);
+        setMessagesUnavailableReason('');
         markDirectThreadRead(otherPartyId).catch(() => {});
-      } catch {
-        if (!cancelled) setMessagesUnavailable(true);
+      } catch (error) {
+        if (!cancelled) {
+          setMessagesUnavailable(true);
+          setMessagesUnavailableReason(error.code === 'MESSAGING_MIGRATION_REQUIRED'
+            ? error.message
+            : 'Messages are temporarily unavailable. Reconnecting…');
+        }
       } finally {
         if (isFirstLoad && !cancelled) setIsLoadingMessages(false);
       }
@@ -309,8 +325,98 @@ export default function MessagesPage() {
     }
   };
 
-  const otherPartyName = otherParty ? (otherParty.organizationName || otherParty.farmName || otherParty.name) : '';
+  const productContext = location.state?.productContext || null;
+  const donationContext = location.state?.donationContext || null;
+  const initialMessage = location.state?.initialMessage || '';
+  const suggestedMessages = Array.isArray(location.state?.suggestedMessages) ? location.state.suggestedMessages : [];
+  const inquiryKey = `${directUserId || ''}:${productContext?.productId || ''}:${donationContext?.donationId || ''}`;
+  const [sentInquiryKey, setSentInquiryKey] = useState(null);
+  const inquiryProductContext = sentInquiryKey === inquiryKey ? null : productContext;
+  const inquiryDonationContext = sentInquiryKey === inquiryKey ? null : donationContext;
+
+  const otherPartyName = otherParty ? (otherParty.name || otherParty.organizationName || otherParty.farmName) : '';
+  const linkedMessageOrderId = useMemo(() => [...messages].reverse().find((message) => message.contextOrderId)?.contextOrderId || null, [messages]);
+  const conversationOrderId = pinnedOrder?.id || linkedMessageOrderId || activeThread?.lastOrder?.id || null;
+  const latestListingMessage = useMemo(
+    () => [...messages].reverse().find((message) => message.productContext || message.donationContext) || null,
+    [messages],
+  );
+  const listingContextMessageIds = useMemo(() => getListingContextMessageIds(messages), [messages]);
+  const activeListingMessage = inquiryProductContext || inquiryDonationContext ? null : latestListingMessage;
+  const conversationProductContext = inquiryProductContext || activeListingMessage?.productContext || null;
+  const conversationDonationContext = inquiryDonationContext || activeListingMessage?.donationContext || null;
+
+  useEffect(() => {
+    if (!conversationOrderId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const order = await getOrderById(conversationOrderId);
+        if (cancelled) return;
+        let delivery = null;
+        if (order.deliveryMethod === 'courier') {
+          try {
+            delivery = await getDelivery(order.id);
+          } catch {
+            delivery = null;
+          }
+        }
+        if (!cancelled) setConversationOrderState({ key: conversationOrderId, order, delivery });
+      } catch {
+        if (!cancelled) setConversationOrderState((current) => ({ ...current, key: conversationOrderId }));
+      }
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 4000);
+    const channel = supabase
+      .channel(`message-order-context-${conversationOrderId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${conversationOrderId}` }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `order_id=eq.${conversationOrderId}` }, refresh)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [conversationOrderId]);
+
+  const conversationOrder = conversationOrderState.key === conversationOrderId && conversationOrderState.order
+    ? conversationOrderState.order
+    : pinnedOrder || activeThread?.lastOrder || null;
+  const conversationDelivery = conversationOrderState.key === conversationOrderId ? conversationOrderState.delivery : null;
   const { isOtherTyping, notifyTyping, notifyStoppedTyping } = useChatTyping(otherPartyId);
+
+  useEffect(() => {
+    if (!otherPartyId || threadNotFound) return undefined;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
+        if (cancelled) return;
+        setMessages((current) => mergeMessages(current, result.messages));
+        setMessagesUnavailable(false);
+      } catch {
+        if (!cancelled) setMessagesUnavailable(true);
+      }
+    };
+    const channel = supabase
+      .channel(`direct-messages-${currentUser.id}-${otherPartyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `sender_id=eq.${otherPartyId}`,
+      }, refresh)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [otherPartyId, currentUser.id, threadNotFound]);
 
 
   const refreshMessages = async () => {
@@ -325,7 +431,15 @@ export default function MessagesPage() {
       await refreshMessages();
       return;
     }
-    await sendDirectMessage(otherPartyId, text, replyingTo ? { replyToId: replyingTo.id } : {});
+    await sendDirectMessage(otherPartyId, text, {
+      ...(replyingTo ? { replyToId: replyingTo.id } : {}),
+      ...(inquiryProductContext ? { productContext: inquiryProductContext } : {}),
+      ...(inquiryDonationContext ? { donationContext: inquiryDonationContext } : {}),
+    });
+    if (inquiryProductContext || inquiryDonationContext) {
+      setSentInquiryKey(inquiryKey);
+      navigate(location.pathname, { replace: true, state: null });
+    }
     isNearBottomRef.current = true;
     await refreshMessages();
   };
@@ -339,7 +453,13 @@ export default function MessagesPage() {
       fileUrl: isImage ? undefined : url,
       fileName: isImage ? undefined : file.name,
       ...(replyingTo ? { replyToId: replyingTo.id } : {}),
+      ...(inquiryProductContext ? { productContext: inquiryProductContext } : {}),
+      ...(inquiryDonationContext ? { donationContext: inquiryDonationContext } : {}),
     });
+    if (inquiryProductContext || inquiryDonationContext) {
+      setSentInquiryKey(inquiryKey);
+      navigate(location.pathname, { replace: true, state: null });
+    }
     isNearBottomRef.current = true;
     await refreshMessages();
   };
@@ -417,21 +537,31 @@ export default function MessagesPage() {
                 targetLang={targetLang}
                 onTargetLangChange={(language) => { setTargetLang(language); setAutoTranslate(true); }}
               />
+              <ProductContextCard
+                context={conversationProductContext}
+                allowUnavailableListing={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
+                farmerReviewPopup={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
+              />
+              <DonationContextCard
+                context={conversationDonationContext}
+                showListingLink={currentUser.role === 'stakeholder'}
+              />
               <OrderContextCard
-                order={pinnedOrder || activeThread?.lastOrder}
+                order={conversationOrder}
+                delivery={conversationDelivery}
                 recommendationOrder={recommendationOrder}
                 showRecommendations={canSeeProductRecommendations}
               />
 
               <div ref={messageListRef} onScroll={handleScroll} className="messages-message-list flex-1 space-y-2 overflow-y-auto px-4 py-4">
-                {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">Reconnecting…</p> : null}
+                {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">{messagesUnavailableReason || 'Reconnecting…'}</p> : null}
                 {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
                 {isLoadingMessages && !messages.length ? (
                   <div className="flex h-full items-center justify-center gap-2 text-[13px] text-[var(--muted)]">
                     <Loader2 size={16} className="animate-spin" /> Loading messages…
                   </div>
                 ) : messagesUnavailable && !messages.length ? (
-                  <p className="py-8 text-center text-[13px] text-[var(--muted)]">Couldn’t load messages. Reconnecting…</p>
+                  <p className="py-8 text-center text-[13px] text-[var(--muted)]">{messagesUnavailableReason || 'Couldn’t load messages. Reconnecting…'}</p>
                 ) : !messages.length ? (
                   <StartConversationState name={otherPartyName} />
                 ) : (
@@ -464,6 +594,7 @@ export default function MessagesPage() {
                           onCopy={handleCopy}
                           translation={showTranslation ? translation : null}
                           onToggleTranslate={handleToggleTranslate}
+                          showProductContext={listingContextMessageIds.has(message.id)}
                         />
                       </div>
                     );
@@ -483,12 +614,15 @@ export default function MessagesPage() {
               ) : null}
 
               <MessageInput
+                key={`${otherPartyId}:${inquiryKey}`}
                 onSendText={handleSendText}
                 onSendAttachment={handleSendAttachment}
                 replyingTo={editingMessage ? null : replyingTo}
                 onCancelReply={() => setReplyingTo(null)}
                 onTyping={notifyTyping}
                 onStoppedTyping={notifyStoppedTyping}
+                initialDraft={initialMessage}
+                suggestedMessages={inquiryProductContext || inquiryDonationContext ? suggestedMessages : []}
               />
             </>
           ) : (

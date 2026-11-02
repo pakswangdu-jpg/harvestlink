@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Gift, History, Hourglass, Package, PackageCheck, Search, Truck,
 } from 'lucide-react';
@@ -19,8 +19,11 @@ import { donationTone } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
 import {
   acceptDonationRequest,
+  rejectDonationClaim,
+  scheduleDonationClaim,
   cancelDonation,
   declineDonationRequest,
+  createDonation,
 } from '../../services/donationService';
 import { useDonationList } from '../../hooks/useDonationList';
 import {
@@ -32,7 +35,18 @@ const HISTORY_STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
   { value: 'completed', label: 'Completed' },
   { value: 'cancelled', label: 'Cancelled' },
+  { value: 'rejected', label: 'Rejected claims' },
+  { value: 'expired', label: 'Expired' },
 ];
+
+function getDonationDraft() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return {
+    expirationDate: `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`,
+    expirationTime: '17:00',
+  };
+}
 
 
 
@@ -50,6 +64,12 @@ function buildRecentActivity(donations) {
       }
       if (donation.status === 'cancelled') {
         return { id: donation.id, message: `Donation of ${donation.productName} was cancelled`, at: donation.updatedAt };
+      }
+      if (donation.status === 'rejected') {
+        return { id: donation.claimId || donation.id, message: `${donation.requestedByName || 'Partner organization'} claim for ${donation.productName} was declined`, at: donation.updatedAt };
+      }
+      if (donation.status === 'expired') {
+        return { id: donation.id, message: `${donation.productName} donation expired`, at: donation.updatedAt };
       }
       return { id: donation.id, message: `Listed ${donation.productName} (${formatQuantity(donation.quantity)} ${donation.unit}) as a donation offer`, at: donation.createdAt };
     })
@@ -103,6 +123,8 @@ function PendingDonationRequestRow({ donation, onViewDetails }) {
 
 export default function FarmerDonations() {
   const { currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { donations, loading, loadError, reload } = useDonationList({ farmerId: currentUser.id });
   const [pickupDrafts, setPickupDrafts] = useState({});
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -112,6 +134,13 @@ export default function FarmerDonations() {
   const [saving, setSaving] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('all');
+  const [donationProduct, setDonationProduct] = useState(() => location.state?.donationProduct || null);
+  const [donationDraft, setDonationDraft] = useState(getDonationDraft);
+
+  useEffect(() => {
+    if (!location.state?.donationProduct) return;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   const run = async (action, successMessage) => {
     if (saving) return false;
@@ -139,8 +168,11 @@ export default function FarmerDonations() {
 
   const acceptRequest = async () => {
     if (!selectedRequest) return;
+    const requestKey = selectedRequest.claimId || selectedRequest.id;
     const accepted = await run(
-      () => acceptDonationRequest(selectedRequest.id, pickupDrafts[selectedRequest.id] || selectedRequest.pickupDate),
+      () => selectedRequest.claimId
+        ? scheduleDonationClaim(selectedRequest.claimId, pickupDrafts[requestKey] || selectedRequest.pickupDate)
+        : acceptDonationRequest(selectedRequest.id, pickupDrafts[requestKey] || selectedRequest.pickupDate),
       'Pickup scheduled.',
     );
     if (accepted) setSelectedRequest(null);
@@ -148,20 +180,61 @@ export default function FarmerDonations() {
 
   const declineRequest = async () => {
     if (!selectedRequest) return;
-    const declined = await run(() => declineDonationRequest(selectedRequest.id), 'Request declined.');
+    const declined = await run(
+      () => selectedRequest.claimId ? rejectDonationClaim(selectedRequest.claimId) : declineDonationRequest(selectedRequest.id),
+      'Request declined.',
+    );
     if (declined) setSelectedRequest(null);
+  };
+
+  const closeDonationComposer = () => {
+    if (!saving) setDonationProduct(null);
+  };
+
+  const createDonationOffer = async (event) => {
+    event.preventDefault();
+    if (!donationProduct || !donationDraft.expirationDate || !donationDraft.expirationTime) return;
+
+    const expirationAt = new Date(
+      `${donationDraft.expirationDate}T${donationDraft.expirationTime}:00+08:00`,
+    ).toISOString();
+    const created = await run(
+      () => createDonation(donationProduct, expirationAt),
+      `${donationProduct.name} is now available to partner organizations.`,
+    );
+    if (created) setDonationProduct(null);
   };
 
   const today = new Date();
   const minPickupDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const requestPickupDate = selectedRequest
-    ? pickupDrafts[selectedRequest.id] || selectedRequest.pickupDate || ''
+    ? pickupDrafts[selectedRequest.claimId || selectedRequest.id] || selectedRequest.pickupDate || ''
     : '';
 
-  const requested = donations.filter((donation) => donation.status === 'requested');
-  const scheduled = donations.filter((donation) => donation.status === 'scheduled');
-  const available = donations.filter((donation) => donation.status === 'available');
-  const history = donations.filter((donation) => ['completed', 'cancelled'].includes(donation.status));
+  const claimRows = useMemo(() => donations.flatMap((donation) => (donation.claims || []).map((claim) => ({
+    ...donation,
+    id: donation.id,
+    claimId: claim.id,
+    status: claim.status,
+    quantity: claim.quantity,
+    requestedByName: claim.stakeholderName,
+    pickupDate: claim.pickupDate,
+    updatedAt: claim.updatedAt,
+  }))), [donations]);
+  const requested = [
+    ...donations.filter((donation) => donation.status === 'requested'),
+    ...claimRows.filter((claim) => claim.status === 'pending'),
+  ];
+  const scheduled = [
+    ...donations.filter((donation) => donation.status === 'scheduled'),
+    ...claimRows.filter((claim) => claim.status === 'scheduled'),
+  ];
+  const available = donations.filter((donation) => donation.status === 'available'
+    && Number(donation.availableQuantity ?? donation.quantity) > 0);
+  const history = useMemo(() => [
+    ...donations.filter((donation) => ['completed', 'cancelled', 'expired'].includes(donation.status)),
+    ...claimRows.filter((claim) => ['completed', 'cancelled', 'rejected', 'expired'].includes(claim.status)),
+  ], [donations, claimRows]);
 
   const now = new Date();
   const thisMonthCount = donations.filter((donation) => {
@@ -177,7 +250,7 @@ export default function FarmerDonations() {
     ? { direction: thisMonthCount >= lastMonthCount ? 'up' : 'down', label: `${Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100)}% vs last month` }
     : undefined;
 
-  const recentActivity = useMemo(() => buildRecentActivity(donations), [donations]);
+  const recentActivity = useMemo(() => buildRecentActivity([...donations, ...claimRows]), [donations, claimRows]);
 
   const filteredHistory = useMemo(() => {
     const query = historySearch.trim().toLowerCase();
@@ -233,7 +306,7 @@ export default function FarmerDonations() {
           {requested.length ? (
             <div className="farmer-donation-requests">
               {requested.map((donation) => (
-                <PendingDonationRequestRow key={donation.id} donation={donation} onViewDetails={openRequest} />
+                <PendingDonationRequestRow key={donation.claimId || donation.id} donation={donation} onViewDetails={openRequest} />
               ))}
             </div>
           ) : (
@@ -247,11 +320,11 @@ export default function FarmerDonations() {
             <div className="grid gap-2.5">
               {available.map((donation) => (
                 <DonationRow
-                  key={donation.id}
+                  key={donation.claimId || donation.id}
                   donation={donation}
-                  meta={`${formatQuantity(donation.quantity)} ${donation.unit} · ${donation.location}`}
+                  meta={`${formatQuantity(donation.availableQuantity ?? donation.quantity)} ${donation.unit} · ${donation.location}`}
                   actions={(
-                    <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
+                    <Button size="sm" disabled={saving || donation.claims?.some((claim) => ['pending', 'scheduled'].includes(claim.status))} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
                       Withdraw
                     </Button>
                   )}
@@ -277,10 +350,10 @@ export default function FarmerDonations() {
             <div className="grid gap-2.5">
               {scheduled.map((donation) => (
                 <DonationRow
-                  key={donation.id}
+                  key={donation.claimId || donation.id}
                   donation={donation}
                   meta={`${formatQuantity(donation.quantity)} ${donation.unit} · Pickup ${formatDate(donation.pickupDate)}`}
-                  actions={(
+                  actions={donation.claimId ? null : (
                     <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
                       Cancel
                     </Button>
@@ -345,6 +418,58 @@ export default function FarmerDonations() {
       </Card>
 
       <Modal
+        open={Boolean(donationProduct)}
+        onClose={closeDonationComposer}
+        eyebrow="Donate remaining stock"
+        title="Create donation offer"
+        dialogLabel="Create donation offer for partner organizations"
+        className="farmer-donation-create-overlay"
+      >
+        {donationProduct ? (
+          <form className="flex flex-col gap-5" onSubmit={createDonationOffer}>
+            <div className="rounded-lg border border-[var(--line)] bg-[var(--soft)] px-4 py-3">
+              <p className="text-[15px] font-semibold text-[var(--text)]">{donationProduct.name}</p>
+              <p className="mt-1 text-[13px] text-[var(--muted)]">
+                {formatQuantity(donationProduct.quantity)} {donationProduct.unit} will be offered to verified partner organizations.
+              </p>
+            </div>
+            <div className="farmer-donation-expiration-grid">
+              <label className="farmer-donation-pickup-field">
+                <span>Offer expiration date</span>
+                <input
+                  type="date"
+                  min={minPickupDate}
+                  value={donationDraft.expirationDate}
+                  onChange={(event) => setDonationDraft((previous) => ({ ...previous, expirationDate: event.target.value }))}
+                  required
+                />
+                <small>Helps partner organizations prioritize pickup before it spoils.</small>
+              </label>
+              <label className="farmer-donation-pickup-field">
+                <span>Offer expiration time</span>
+                <input
+                  type="time"
+                  value={donationDraft.expirationTime}
+                  onChange={(event) => setDonationDraft((previous) => ({ ...previous, expirationTime: event.target.value }))}
+                  required
+                />
+                <small>Uses Philippines time (Asia/Manila).</small>
+              </label>
+            </div>
+            <p className="text-[13px] leading-5 text-[var(--muted)]">
+              Creating the offer moves the remaining stock out of your marketplace listing and notifies stakeholders that it is available.
+            </p>
+            <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
+              <Button type="button" variant="secondary" onClick={closeDonationComposer} disabled={saving}>Cancel</Button>
+              <Button type="submit" disabled={saving || !donationDraft.expirationDate || !donationDraft.expirationTime}>
+                {saving ? 'Creating offer...' : 'Create donation offer'}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal
         open={Boolean(selectedRequest)}
         onClose={() => { if (!saving) setSelectedRequest(null); }}
         eyebrow={requestStage === 'details' ? 'Pending request' : 'Review decision'}
@@ -367,7 +492,7 @@ export default function FarmerDonations() {
                   <dl>
                     <div><dt>Product</dt><dd>{selectedRequest.productName}</dd></div>
                     <div><dt>Quantity requested</dt><dd>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</dd></div>
-                    <div><dt>Available donation</dt><dd>{formatQuantity(selectedRequest.quantity)} {selectedRequest.unit}</dd></div>
+                    <div><dt>Available donation</dt><dd>{formatQuantity(selectedRequest.availableQuantity ?? selectedRequest.quantity)} {selectedRequest.unit}</dd></div>
                     <div><dt>Requested on</dt><dd>{formatDate(selectedRequest.updatedAt)}</dd></div>
                   </dl>
                 </section>
@@ -399,7 +524,7 @@ export default function FarmerDonations() {
                     min={minPickupDate}
                     max={selectedRequest.expirationDate || undefined}
                     value={requestPickupDate}
-                    onChange={(event) => setPickupDrafts((previous) => ({ ...previous, [selectedRequest.id]: event.target.value }))}
+                    onChange={(event) => setPickupDrafts((previous) => ({ ...previous, [selectedRequest.claimId || selectedRequest.id]: event.target.value }))}
                     required
                   />
                   {selectedRequest.expirationDate ? <small>Choose a date on or before {formatDate(selectedRequest.expirationDate)}.</small> : null}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Ban, Check, CircleCheck, RotateCcw, Search, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
 import Table from '../../components/admin/Table';
@@ -103,9 +104,17 @@ export default function AdminUsers() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedId, setSelectedId] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedId, setSelectedIdState] = useState(searchParams.get('user'));
   const [notice, setNotice] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const setSelectedId = (id) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (id) nextParams.set('user', id);
+    else nextParams.delete('user');
+    setSearchParams(nextParams, { replace: !id });
+    setSelectedIdState(id);
+  };
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(() => { getAdminUserPage(filters).then((data) => {

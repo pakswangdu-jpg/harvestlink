@@ -83,7 +83,7 @@ function defaultQuantity(product, initialQuantity) {
 }
 
 export default function CheckoutForm({
-  product, currentUser, onSubmit, initialQuantity = '', orderPlaced = false,
+  product, currentUser, onSubmit, onProductRefresh, onStockConflict, initialQuantity = '', orderPlaced = false,
 }) {
   const [values, setValues] = useState(() => ({
     quantity: defaultQuantity(product, initialQuantity),
@@ -99,7 +99,10 @@ export default function CheckoutForm({
   const [hasPlacedOrder, setHasPlacedOrder] = useState(false);
   const [quoted, setQuoted] = useState(null);
   const [quoteError, setQuoteError] = useState('');
+  const [quoteErrorCode, setQuoteErrorCode] = useState('');
   const [quoteRefresh, setQuoteRefresh] = useState(0);
+  const [isRefreshingProduct, setIsRefreshingProduct] = useState(false);
+  const [productRefreshError, setProductRefreshError] = useState('');
   const [reviewedKey, setReviewedKey] = useState('');
   const quoteKey = JSON.stringify([product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality]);
   const quote = quoted?.key === quoteKey ? quoted.data : null;
@@ -120,15 +123,30 @@ export default function CheckoutForm({
   useEffect(() => {
     let cancelled = false;
     setQuoteError('');
+    setQuoteErrorCode('');
     setQuoted(null);
     if (!(Number(values.quantity) > 0)) return undefined;
     const timer = setTimeout(() => {
       getCheckoutQuote({ productId: product.id, quantity: values.quantity, deliveryMethod: values.deliveryMethod, deliveryMunicipality: values.deliveryMunicipality })
         .then((data) => { if (!cancelled) setQuoted({ key: quoteKey, data }); })
-        .catch((error) => { if (!cancelled) setQuoteError(error.message || 'Unable to load the order total. Try again.'); });
+        .catch(async (error) => {
+          if (cancelled) return;
+          if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK'].includes(error.code)) {
+            onStockConflict?.(error);
+            setQuoteErrorCode(error.code);
+            try {
+              await onProductRefresh?.();
+            } catch {
+              if (!cancelled) setProductRefreshError('We could not refresh the latest stock. Please try again.');
+            }
+          }
+          if (!cancelled) {
+            setQuoteError(error.code === 'PRODUCT_OUT_OF_STOCK' ? `Product Out of Stock. ${error.message}` : error.message || 'Unable to load the order total. Try again.');
+          }
+        });
     }, 250);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality, quoteKey, quoteRefresh]);
+  }, [product.id, product.quantity, product.price, values.quantity, values.deliveryMethod, values.deliveryMunicipality, quoteKey, quoteRefresh, onProductRefresh, onStockConflict]);
 
 
 
@@ -256,7 +274,9 @@ export default function CheckoutForm({
 
 
 
-  const liveQuantityError = quantityNumber > stock ? `Only ${formatQuantity(stock)} ${product.unit} available.` : null;
+  const liveQuantityError = quantityNumber > stock
+    ? `Only ${formatQuantity(stock)} ${product.unit} remaining. Please update your order quantity.`
+    : null;
 
 
 
@@ -285,8 +305,33 @@ export default function CheckoutForm({
     } catch (error) {
       submittingRef.current = false;
       if (error.status === 409) { setReviewedKey(''); setQuoteRefresh((value) => value + 1); }
-      setErrors((previous) => ({ ...previous, form: error.message }));
+      if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK'].includes(error.code)) {
+        onStockConflict?.(error);
+        setIsRefreshingProduct(true);
+        setProductRefreshError('');
+        try {
+          await onProductRefresh?.();
+        } catch {
+          setProductRefreshError('We could not refresh the latest stock. Please try again.');
+        } finally {
+          setIsRefreshingProduct(false);
+        }
+      }
+      setErrors((previous) => ({ ...previous, form: error.message, formCode: error.code }));
       setIsSubmitting(false);
+    }
+  };
+
+  const refreshProduct = async () => {
+    if (!onProductRefresh || isRefreshingProduct) return;
+    setIsRefreshingProduct(true);
+    setProductRefreshError('');
+    try {
+      await onProductRefresh();
+    } catch {
+      setProductRefreshError('We could not refresh the latest stock. Please try again.');
+    } finally {
+      setIsRefreshingProduct(false);
     }
   };
 
@@ -301,7 +346,18 @@ export default function CheckoutForm({
         <div className="panel checkout-section">
           <h2 className="checkout-section-title">Order details</h2>
 
-          {errors.form ? <div className="form-alert error">{errors.form}</div> : null}
+          {errors.form ? (
+            <div className="form-alert error" role="alert">
+              {errors.formCode === 'PRODUCT_OUT_OF_STOCK' ? <strong className="form-alert-title">Product Out of Stock</strong> : null}
+              <span>{errors.form}</span>
+              {errors.formCode === 'PRODUCT_OUT_OF_STOCK' ? (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={refreshProduct} disabled={isRefreshingProduct}>
+                  {isRefreshingProduct ? 'Refreshing…' : 'Refresh Product'}
+                </button>
+              ) : null}
+              {productRefreshError ? <span>{productRefreshError}</span> : null}
+            </div>
+          ) : null}
 
           <div className="form-stack">
             <FormField
@@ -318,7 +374,7 @@ export default function CheckoutForm({
                 id="quantity"
                 value={values.quantity}
                 onChange={(value) => updateField('quantity', value)}
-                min={0}
+                min={1}
                 max={stock}
                 unit={product.unit}
               />
@@ -442,7 +498,11 @@ export default function CheckoutForm({
         quote={quote}
         isReviewed={isReviewed}
         onReview={(checked) => setReviewedKey(checked ? reviewKey : '')}
-        onRetryQuote={() => setQuoteRefresh((value) => value + 1)}
+        onRetryQuote={async () => {
+          if (quoteErrorCode && onProductRefresh) await refreshProduct();
+          setQuoteRefresh((value) => value + 1);
+        }}
+        retryLabel={quoteErrorCode ? 'Refresh Product' : 'Refresh total'}
       />
 
       <CheckoutTrustRow />

@@ -52,7 +52,7 @@ test('Farmer product table and mobile cards show submitted prices while awaiting
   assert.match(table, /showSubmitted=\{\['pending', 'needs_adjustment'\]\.includes\(product\.priceReview\?\.status\)\}/);
   assert.match(card, /showSubmitted=\{\['pending', 'needs_adjustment'\]\.includes\(product\.priceReview\?\.status\)\}/);
   assert.match(notice, /Pending price review/);
-  assert.match(notice, /Your submitted price:/);
+  assert.match(notice, /Your price:/);
 });
 
 test('View reason appears only for an existing rejection reason, never the automatic pricing flag', async () => {

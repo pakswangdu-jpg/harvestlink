@@ -17,7 +17,7 @@ import FarmerReviewsPanel from './FarmerReviewsPanel';
 import gcashLogo from '../../assets/icons/gcash-dashboard-logo.png';
 import codLogo from '../../assets/icons/cod-dashboard-transparent.png';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getStakeholders, getVerifiedFarmers } from '../../services/authService';
+import { getBuyers, getNearbyMapProfiles, getStakeholders, getVerifiedFarmers } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
 import { getOrdersByFarmer } from '../../services/orderService';
 import { useDonationList } from '../../hooks/useDonationList';
@@ -67,15 +67,19 @@ export default function FarmerDashboard() {
     let cancelled = false;
 
     const reload = async () => {
-      const [products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders] = await Promise.all([
+      const [products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders, nearbyMapProfiles] = await Promise.all([
         getProductsByFarmer(currentUser.id),
         getOrdersByFarmer(currentUser.id),
         getVerifiedFarmers(),
         getBuyers(),
         getStakeholders(),
+        getNearbyMapProfiles(),
       ]);
       if (cancelled) return;
       setLoadError('');
+      const donationsByFarmer = new Map(
+        nearbyMapProfiles.filter((profile) => profile.hasAvailableDonations).map((profile) => [profile.id, true]),
+      );
 
 
 
@@ -85,7 +89,8 @@ export default function FarmerDashboard() {
         orders,
         otherFarmers: nearestByMunicipality(
           currentUser.municipality,
-          verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id),
+          verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id)
+            .map((farmer) => ({ ...farmer, hasAvailableDonations: donationsByFarmer.has(farmer.id) })),
         ),
         registeredBuyers: nearestByMunicipality(currentUser.municipality, registeredBuyers),
         registeredStakeholders: nearestByMunicipality(currentUser.municipality, registeredStakeholders),
@@ -277,6 +282,7 @@ export default function FarmerDashboard() {
                 <span className="legend-dot farmer" /> Registered farmer
                 <span className="legend-dot buyer" /> Registered buyer
                 <span className="legend-dot stakeholder" /> Registered stakeholder
+                <span className="legend-dot donation" /> Surplus donation
               </p>
             </div>
             <span className="live-indicator"><span className="live-dot" /> Live</span>
@@ -286,6 +292,7 @@ export default function FarmerDashboard() {
             buyers={registeredBuyers}
             stakeholders={registeredStakeholders}
             alertStyle
+            showDonationAlerts
             viewerMunicipality={currentUser.municipality}
           />
         </div>

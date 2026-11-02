@@ -74,6 +74,7 @@ export function migrateLegacyProducts() {
       location: product.location || 'Cebu',
       description: product.description || 'Fresh local produce available from a Cebu farmer.',
       image: product.imageUrl || '',
+      imageUrls: product.imageUrls || (product.imageUrl ? [product.imageUrl] : []),
       status: Number(product.quantity) > 0 ? 'active' : 'inactive',
       createdAt: product.createdAt || new Date().toISOString(),
       updatedAt: product.createdAt || new Date().toISOString(),

@@ -61,6 +61,10 @@ function normalizeCropKey(name) {
   return String(name || '').trim().toLowerCase();
 }
 
+function cropUnitKey(name, unit) {
+  return `${normalizeCropKey(name)}|${normalizeCropKey(unit)}`;
+}
+
 function titleCaseCropName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -211,9 +215,7 @@ async function computeCropForecast(entry, {
 
 
 
-  const unitCounts = new Map();
-  entry.units.forEach((unit) => unitCounts.set(unit, (unitCounts.get(unit) || 0) + 1));
-  const unit = [...unitCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const { unit } = entry;
 
   const recommendation = buildRecommendation({
     crop: entry.crop, signal, harvestSeason, forecastPrice, currentPrice,
@@ -221,6 +223,7 @@ async function computeCropForecast(entry, {
 
   const forecast = {
     crop: entry.crop,
+    forecastKey: cropUnitKey(entry.crop, unit),
     category: entry.category,
     unit,
     imageUrl: entry.imageUrl,
@@ -276,11 +279,12 @@ async function computeCropForecast(entry, {
 
 function buildCropMap(products, orders, { hasFilter, productIdSet, productById }) {
   const cropMap = new Map();
-  const ensureCrop = (key, displayName, categoryName) => {
+  const ensureCrop = (key, displayName, categoryName, unit) => {
     if (!cropMap.has(key)) {
       cropMap.set(key, {
         crop: displayName,
         category: categoryName || null,
+        unit: unit || null,
         priceSampleTotal: 0,
         priceSampleCount: 0,
         activeListings: 0,
@@ -288,7 +292,6 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
         quantityOrdered: 0,
         priceHistory: [],
         demandHistory: [],
-        units: [],
         imageUrl: null,
         lastListedPrice: null,
         lastListedPriceAt: 0,
@@ -298,18 +301,22 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
   };
 
   products.filter((product) => product.status === 'active').forEach((product) => {
-    const key = normalizeCropKey(product.name);
-    const entry = ensureCrop(key, titleCaseCropName(product.name), product.category);
+    const entry = ensureCrop(cropUnitKey(product.name, product.unit), titleCaseCropName(product.name), product.category, product.unit);
     entry.activeListings += 1;
     entry.priceSampleTotal += Number(product.price) || 0;
     entry.priceSampleCount += 1;
-    if (product.unit) entry.units.push(product.unit);
 
 
 
     if (!entry.imageUrl && product.image_url) entry.imageUrl = product.image_url;
   });
 
+  const unitsByCrop = new Map();
+  products.forEach((product) => {
+    const cropKey = normalizeCropKey(product.name);
+    if (!unitsByCrop.has(cropKey)) unitsByCrop.set(cropKey, new Map());
+    if (product.unit) unitsByCrop.get(cropKey).set(normalizeCropKey(product.unit), product.unit);
+  });
 
 
 
@@ -319,8 +326,8 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
   products.forEach((product) => {
     const price = Number(product.price);
     if (!price) return;
-    const key = normalizeCropKey(product.name);
-    const entry = ensureCrop(key, titleCaseCropName(product.name), product.category);
+    const key = cropUnitKey(product.name, product.unit);
+    const entry = ensureCrop(key, titleCaseCropName(product.name), product.category, product.unit);
     const updatedAtMs = new Date(product.updated_at || product.created_at || 0).getTime();
     if (updatedAtMs >= entry.lastListedPriceAt) {
       entry.lastListedPrice = price;
@@ -332,8 +339,12 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
     !EXCLUDED_ORDER_STATUSES.includes(order.status) && (!hasFilter || productIdSet.has(order.product_id))
   )).forEach((order) => {
     const product = productById.get(order.product_id);
-    const key = normalizeCropKey(product?.name || order.product_name);
-    const entry = ensureCrop(key, titleCaseCropName(product?.name || order.product_name), product?.category);
+    const cropName = product?.name || order.product_name;
+    const cropKey = normalizeCropKey(cropName);
+    const availableUnits = [...(unitsByCrop.get(cropKey)?.values() || [])];
+    const unit = product?.unit || (availableUnits.length === 1 ? availableUnits[0] : null);
+    if (!product && availableUnits.length > 1) return;
+    const entry = ensureCrop(cropUnitKey(cropName, unit), titleCaseCropName(cropName), product?.category, unit);
     entry.orderCount += 1;
     const quantity = Number(order.quantity) || 0;
     entry.quantityOrdered += quantity;
@@ -364,12 +375,14 @@ export async function getDemandForecast(req, res) {
 
   const weatherMunicipality = municipality || req.profile.municipality || '';
   const cacheKey = `${category}|${municipality}|${period}|${daysBack}|${weatherMunicipality}|${customDate}`;
+  const forceRefresh = req.query.refresh !== undefined;
 
-  const cached = getCached(listCache, cacheKey, LIST_CACHE_TTL_MS);
+  const cached = forceRefresh ? null : getCached(listCache, cacheKey, LIST_CACHE_TTL_MS);
   if (cached) {
     res.json(cached);
     return;
   }
+  if (forceRefresh) listCache.delete(cacheKey);
 
   let productsQuery = supabaseAdmin.from('products').select('id, name, category, price, unit, location, status, image_url, created_at, updated_at');
   if (category) productsQuery = productsQuery.eq('category', category);
@@ -426,6 +439,7 @@ export async function getDemandForecast(req, res) {
 export async function getCropForecastDetail(req, res) {
   const cropName = String(req.params.cropName || '').trim();
   if (!cropName) throw new ApiError('Crop name is required.', 400);
+  const requestedUnit = String(req.query.unit || '').trim();
   const period = String(req.query.period || '7_days');
   validatePeriod(period);
   const customDate = period === 'custom' ? String(req.query.customDate || '') : null;
@@ -433,12 +447,14 @@ export async function getCropForecastDetail(req, res) {
   const weatherMunicipality = municipality || req.profile.municipality || '';
   const daysBack = DEFAULT_HISTORY_DAYS_BACK;
 
-  const cacheKey = `${normalizeCropKey(cropName)}|${period}|${municipality}|${customDate}`;
-  const cached = getCached(detailCache, cacheKey, DETAIL_CACHE_TTL_MS);
+  const cacheKey = `${normalizeCropKey(cropName)}|${normalizeCropKey(requestedUnit)}|${period}|${municipality}|${customDate}`;
+  const forceRefresh = req.query.refresh !== undefined;
+  const cached = forceRefresh ? null : getCached(detailCache, cacheKey, DETAIL_CACHE_TTL_MS);
   if (cached) {
     res.json(cached);
     return;
   }
+  if (forceRefresh) detailCache.delete(cacheKey);
 
   let productsQuery = supabaseAdmin.from('products').select('id, name, category, price, unit, location, status, image_url, created_at, updated_at');
   if (municipality) productsQuery = productsQuery.eq('location', municipality);
@@ -464,8 +480,14 @@ export async function getCropForecastDetail(req, res) {
   const cropMap = buildCropMap(matchingProducts, relevantOrders, {
     hasFilter: true, productIdSet: matchingIds, productById,
   });
-  const entry = cropMap.get(targetKey);
-  if (!entry) throw new ApiError('Crop not found.', 404);
+  const matchingEntries = [...cropMap.values()].filter((item) => normalizeCropKey(item.crop) === targetKey);
+  const entry = requestedUnit
+    ? matchingEntries.find((item) => normalizeCropKey(item.unit) === normalizeCropKey(requestedUnit))
+    : matchingEntries.length === 1 ? matchingEntries[0] : null;
+  if (!entry && matchingEntries.length > 1 && !requestedUnit) {
+    throw new ApiError('A listing unit is required when this crop has listings in multiple units.', 400);
+  }
+  if (!entry) throw new ApiError('Crop not found for the selected listing unit.', 404);
 
   const weather = await getWeatherForMunicipality(weatherMunicipality);
   const today = new Date();
@@ -514,7 +536,8 @@ export async function getCropForecastDetail(req, res) {
 
 
   const uniqueOrderDates = new Set(historicalChart.map((point) => point.date));
-  const psaHistoricalPoints = uniqueOrderDates.size < MIN_ORDER_HISTORY_POINTS_FOR_CHART
+  const isKilogramUnit = ['kg', 'kilogram', 'kilograms'].includes(normalizeCropKey(entry.unit));
+  const psaHistoricalPoints = isKilogramUnit && uniqueOrderDates.size < MIN_ORDER_HISTORY_POINTS_FOR_CHART
     ? internals.psaPoints
       .filter((point) => point.price != null)
       .map((point) => ({ date: `${point.year}-01-01`, price: point.price, source: 'psa' }))

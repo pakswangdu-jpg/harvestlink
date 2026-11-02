@@ -6,7 +6,7 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
-import { confirmReceipt, markDonationRated } from '../../services/donationService';
+import { confirmReceipt, markDonationClaimRated, markDonationRated, receiveDonationClaim } from '../../services/donationService';
 import { createRating } from '../../services/ratingService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
@@ -28,8 +28,15 @@ function DonationRatingPrompt({ donation, onRated }) {
     setIsSubmitting(true);
     setError('');
     try {
-      await createRating({ farmerId: donation.farmerId, rating: value });
-      await markDonationRated(donation.id);
+      await createRating({
+        farmerId: donation.farmerId,
+        productId: donation.productId,
+        donationId: donation.id,
+        claimId: donation.myClaim?.id,
+        rating: value,
+      });
+      if (donation.myClaim?.id) await markDonationClaimRated(donation.myClaim.id);
+      else await markDonationRated(donation.id);
       await onRated();
     } catch (rateError) {
       setError(rateError.message);
@@ -57,7 +64,8 @@ export default function StakeholderRequests() {
     if (confirming) return;
     setConfirming(true);
     try {
-      await confirmReceipt(donation.id);
+      if (donation.myClaim) await receiveDonationClaim(donation.myClaim.id);
+      else await confirmReceipt(donation.id);
       setError('');
       setNotice(`${donation.productName} marked as received. Thank you!`);
       await reload();
@@ -69,9 +77,11 @@ export default function StakeholderRequests() {
     }
   };
 
-  const requested = donations.filter((donation) => donation.status === 'requested');
-  const scheduled = donations.filter((donation) => donation.status === 'scheduled');
-  const history = donations.filter((donation) => ['completed', 'cancelled'].includes(donation.status));
+  const claimStatus = (donation) => donation.myClaim?.status;
+  const requested = donations.filter((donation) => donation.status === 'requested' || claimStatus(donation) === 'pending');
+  const scheduled = donations.filter((donation) => donation.status === 'scheduled' || claimStatus(donation) === 'scheduled');
+  const history = donations.filter((donation) => ['completed', 'cancelled', 'expired'].includes(donation.status)
+    || ['completed', 'cancelled', 'rejected', 'expired'].includes(claimStatus(donation)));
 
   return (
     <AppShell
@@ -142,7 +152,8 @@ export default function StakeholderRequests() {
               <DonationCard
                 key={donation.id}
                 donation={donation}
-                actions={donation.status === 'completed' ? <DonationRatingPrompt donation={donation} onRated={reload} /> : null}
+                actions={donation.status === 'completed' || donation.myClaim?.status === 'completed'
+                  ? <DonationRatingPrompt donation={donation} onRated={reload} /> : null}
               />
             ))}
           </div>

@@ -338,6 +338,7 @@ export default function BuyerDashboard() {
             buyers={nearbyBuyers}
             stakeholders={nearbyStakeholders}
             nearbyView
+            showDonationAlerts={false}
             viewerAddress={currentUser.address || currentUser.municipality || ''}
             viewerCoords={nearbyOrigin}
           />

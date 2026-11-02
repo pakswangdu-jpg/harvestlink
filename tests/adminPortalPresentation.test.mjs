@@ -14,10 +14,10 @@ test('Admin login identity is conditional and does not replace the shared authen
 
 test('Admin form uses the dedicated sign-in action and never starts marketplace email verification', async () => {
   const source = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
-  assert.match(source, /adminPortal \? await loginAdmin\(form\.email, form\.password\)\s*: await login\(form\.email, form\.password\)/);
+  assert.match(source, /adminPortal \? await loginAdmin\(form\.email, form\.password, captchaToken\)\s*: await login\(form\.email, form\.password, captchaToken\)/);
   assert.match(source, /!isRegister && !adminPortal && error\.code === 'email_not_confirmed'/);
   const auth = await readFile(new URL('../src/features/auth/AuthContext.jsx', import.meta.url), 'utf8');
-  assert.match(auth, /async loginAdmin\(email, password\)\s*\{\s*const user = await loginAdminUser\(email, password\);\s*setCurrentUserState\(user\);/);
+  assert.match(auth, /async loginAdmin\(email, password, captchaToken\)\s*\{\s*const user = await loginAdminUser\(email, password, captchaToken\);\s*setCurrentUserState\(user\);/);
 });
 
 test('Admin login portal uses a fixed light appearance', async () => {

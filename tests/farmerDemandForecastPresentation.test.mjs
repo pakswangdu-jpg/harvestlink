@@ -90,11 +90,31 @@ test('forecast labels distinguish price differences from profit and avoid invent
   assert.doesNotMatch(weather, /Favorable conditions for harvesting/);
   assert.match(report, /price difference estimate, not profit/);
   assert.match(report, /Why this recommendation\?/);
+  assert.match(report, /aria-pressed=\{chartTab === option\.value\}/);
+  assert.match(report, /border-\[var\(--green-700\)\] bg-\[var\(--green-50\)\] text-\[var\(--green-900\)\] shadow-sm/);
+  assert.match(report, /focus-visible:outline-\[var\(--green-700\)\]/);
+  assert.match(report, /text-\[14px\] font-medium/);
+  assert.match(page, /getDemandForecast\(\{ category, municipality, period, customDate, refreshKey: refreshToken \}\)/);
+  assert.match(page, /getCropForecastDetail\(selectedCrop, \{[\s\S]*?unit: selectedForecast\?\.unit \|\| ''/);
+  assert.match(page, /detailRequestKey = `\$\{selectedCrop\}:\$\{selectedForecast\?\.unit \|\| ''\}:\$\{period\}:/);
+  assert.match(page, /const isRefreshing = isListLoading \|\| \(refreshToken > 0 && isDetailLoading\)/);
+  assert.match(page, /if \(!selectedCrop \|\| isAwaitingCustomDate \|\| !listIsCurrent\)/);
   assert.match(page, /About this forecast/);
   assert.match(page, /Last updated:/);
   assert.match(page, /Best opportunity/);
   assert.match(page, /Data sources:/);
   assert.match(table, /Prices are per listed unit/);
-  assert.match(activityChart, /layout="vertical"/);
+  assert.match(table, /entry\.forecastKey === selectedCrop/);
+  assert.match(table, /onSelectCrop\(entry\)/);
+  assert.match(activityChart, /layout=\{isWide \? 'horizontal' : 'vertical'\}/);
   assert.match(page, /grid min-w-0 grid-cols-1 items-stretch gap-4 xl:grid-cols-2/);
+
+  const filters = await readFile(new URL('../src/components/forecast/ForecastFilters.jsx', import.meta.url), 'utf8');
+  assert.match(filters, /aria-busy=\{isRefreshing\}/);
+  assert.match(filters, /aria-label=\{isRefreshing \? 'Refreshing forecast' : 'Refresh forecast'\}/);
+  assert.match(filters, /className=\{isRefreshing \? 'animate-spin' : ''\}/);
+  assert.match(filters, /isRefreshing \? 'Refreshing…' : 'Refresh'/);
+
+  const service = await readFile(new URL('../src/services/demandForecastService.js', import.meta.url), 'utf8');
+  assert.match(service, /if \(refreshKey > 0\) params\.set\('refresh', String\(refreshKey\)\)/g);
 });

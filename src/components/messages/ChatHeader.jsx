@@ -32,7 +32,10 @@ export default function ChatHeader({
   otherParty, onBack, isMobile, viewProductsHref, targetLang, onTargetLangChange,
 }) {
   const rating = useFarmerRating(otherParty?.role === 'farmer' ? otherParty.id : null);
-  const displayName = otherParty ? (otherParty.organizationName || otherParty.farmName || otherParty.name) : '';
+  const displayName = otherParty ? (otherParty.name || otherParty.organizationName || otherParty.farmName) : '';
+  const affiliation = otherParty?.role === 'stakeholder'
+    ? otherParty.organizationName
+    : otherParty?.role === 'farmer' ? otherParty.farmName : null;
   const online = isRecentlyActive(otherParty?.lastActiveAt);
   const presenceLabel = online
     ? 'Active now'
@@ -73,6 +76,7 @@ export default function ChatHeader({
           </div>
           <div className="flex items-center gap-2 text-[12px] text-[var(--muted)]">
             <span>{presenceLabel}</span>
+            {affiliation ? <span className="truncate">{otherParty?.role === 'stakeholder' ? `Organization: ${affiliation}` : affiliation}</span> : null}
             {rating ? (
               <span className="flex items-center gap-0.5 text-[var(--amber-700)]">
                 <Star size={11} className="fill-[var(--amber-700)] text-[var(--amber-700)]" /> {rating.average.toFixed(1)} ({rating.count})
@@ -83,19 +87,6 @@ export default function ChatHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <label className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)] sm:flex" htmlFor="translate-lang">
-          <Globe size={14} className="shrink-0 text-[var(--muted)]" />
-          <select
-            id="translate-lang"
-            value={targetLang}
-            onChange={(event) => onTargetLangChange(event.target.value)}
-            className="appearance-none border-0 bg-transparent p-0 focus:outline-none"
-          >
-            {MESSAGE_TRANSLATION_LANGUAGES.map((lang) => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
-          </select>
-          <ChevronDown size={12} className="pointer-events-none -ml-1 shrink-0 text-[var(--muted)]" />
-        </label>
-
         {otherParty?.role === 'farmer' && viewProductsHref ? (
           <Link
             to={viewProductsHref}
@@ -113,6 +104,19 @@ export default function ChatHeader({
             <User size={13} /> Profile
           </Link>
         ) : null}
+
+        <label className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)] sm:flex" htmlFor="translate-lang">
+          <Globe size={14} className="shrink-0 text-[var(--muted)]" />
+          <select
+            id="translate-lang"
+            value={targetLang}
+            onChange={(event) => onTargetLangChange(event.target.value)}
+            className="appearance-none border-0 bg-transparent p-0 focus:outline-none"
+          >
+            {MESSAGE_TRANSLATION_LANGUAGES.map((lang) => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
+          </select>
+          <ChevronDown size={12} className="pointer-events-none -ml-1 shrink-0 text-[var(--muted)]" />
+        </label>
       </div>
     </div>
   );

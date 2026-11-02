@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Archive, ArchiveRestore, Copy, Eye, Gift, Plus, SearchX, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, Eye, Gift, MessageSquareText, Plus, SearchX, Trash2 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import Button from '../../components/common/Button';
 import EditSquareIcon from '../../components/icons/EditSquareIcon';
@@ -13,6 +13,7 @@ import ActionMenu from '../../components/products/ActionMenu';
 import ProductFilters from '../../components/products/ProductFilters';
 import ProductTable, { ProductTableSkeleton } from '../../components/products/ProductTable';
 import ProductDrawer from '../../components/products/ProductDrawer';
+import ProductReviewsDialog from '../../components/products/ProductReviewsDialog';
 import './FarmerProducts.css';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -28,6 +29,7 @@ import {
 import { createDonation } from '../../services/donationService';
 import { getProductStatusInfo } from '../../utils/constants';
 import { farmerNavItems } from './farmerNav';
+import { supabase } from '../../lib/supabaseClient';
 
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
@@ -40,37 +42,6 @@ const STATUS_TABS = [
   { value: 'inactive', label: 'Inactive' },
 ];
 
-
-
-function buildDuplicatePayload(product) {
-  return {
-    name: product.name,
-    category: product.category,
-    grade: product.grade,
-    sellingType: product.sellingType,
-    moq: product.sellingType === 'wholesale' ? product.moq : '',
-    price: product.price,
-    wholesaleEnabled: product.wholesalePrice != null,
-    wholesalePrice: product.wholesalePrice ?? '',
-    wholesaleMinQuantity: product.wholesaleMinQuantity ?? '',
-    unit: product.unit,
-    kgPerUnit: product.kgPerUnit ?? '',
-    quantity: product.quantity,
-    location: product.location,
-    description: product.description,
-    image: product.image,
-    costPrice: product.costPrice ?? '',
-    expirationDate: product.expirationDate || '',
-    status: 'active',
-    isDonation: false,
-
-
-
-
-    allowDuplicate: true,
-  };
-}
-
 export default function FarmerProducts() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -80,6 +51,7 @@ export default function FarmerProducts() {
   const [loadError, setLoadError] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [reviewsProduct, setReviewsProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [search, setSearch] = useState('');
@@ -87,7 +59,7 @@ export default function FarmerProducts() {
 
   const isVerified = currentUser.verificationStatus === 'verified';
 
-  const reload = () => getProductsByFarmer(currentUser.id)
+  const reload = useCallback(() => getProductsByFarmer(currentUser.id)
     .then((result) => {
       setProducts(result);
       setLoadError(false);
@@ -96,14 +68,33 @@ export default function FarmerProducts() {
     .catch(() => {
       setLoadError(true);
       setIsLoading(false);
-    });
+    }), [currentUser.id]);
 
   useEffect(() => {
     reload();
     window.addEventListener('focus', reload);
-    return () => window.removeEventListener('focus', reload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id]);
+    const channel = supabase
+      .channel(`farmer-inventory-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'product_inventory_events',
+          filter: `farmer_id=eq.${currentUser.id}`,
+        },
+        reload,
+      )
+      .subscribe((status) => {
+        if (['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) setLoadError(true);
+      });
+    const interval = setInterval(reload, 30000);
+    return () => {
+      window.removeEventListener('focus', reload);
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser.id, reload]);
 
   const summary = useMemo(() => {
     const counts = { total: products.length, active: 0, lowStock: 0, totalInventory: 0 };
@@ -140,6 +131,16 @@ export default function FarmerProducts() {
     setStatusFilter('all');
   };
 
+  const viewProductOnMarketplace = (product) => {
+    const params = new URLSearchParams({
+      farmerId: currentUser.id,
+      farmerName: currentUser.farmName || currentUser.name || 'your listings',
+      productId: product.id,
+      productName: product.name,
+    });
+    navigate(`/marketplace?${params.toString()}`);
+  };
+
   const openAddDrawer = () => {
     setEditingProduct(null);
     setIsDrawerOpen(true);
@@ -150,28 +151,34 @@ export default function FarmerProducts() {
     setIsDrawerOpen(true);
   };
 
+  const openProductReviews = (product) => setReviewsProduct(product);
+  const closeProductReviews = useCallback(() => setReviewsProduct(null), []);
+
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setEditingProduct(null);
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async (values, { fromConfirmation = false } = {}) => {
     try {
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id, values);
         showToast({ type: 'success', message: updated.priceReview?.status === 'pending' ? 'Product updated and submitted for Admin price review.' : 'Product updated successfully.' });
         closeDrawer();
       } else if (values.isDonation) {
-
-
+        const expirationAt = new Date(`${values.expirationDate}T${values.expirationTime}:00+08:00`).toISOString();
+        const createValues = { ...values };
+        delete createValues.id;
         const created = await createProduct({
-          ...values, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
+          ...createValues, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
         });
-        await createDonation(created);
+        await createDonation(created, expirationAt);
         showToast({ type: 'success', message: `${created.name} listed as a surplus donation for partner organizations.` });
         closeDrawer();
       } else {
-        const created = await createProduct(values);
+        const createValues = { ...values };
+        delete createValues.id;
+        const created = await createProduct(createValues);
         showToast({
           type: 'success',
           message: created.merged
@@ -179,26 +186,15 @@ export default function FarmerProducts() {
             : created.priceReview?.status === 'pending' ? 'Product submitted for Admin price review.' : 'Product added successfully.',
         });
 
-
-
-
         setEditingProduct(created);
       }
       reload();
       return true;
     } catch (submitError) {
-      showToast({ type: 'error', message: submitError.message || 'Something went wrong while saving this product. Please try again.' });
+      const message = submitError.message || 'Something went wrong while saving this product. Please try again.';
+      if (fromConfirmation) return { success: false, error: message };
+      showToast({ type: 'error', message });
       return false;
-    }
-  };
-
-  const handleDuplicate = async (product) => {
-    try {
-      const copy = await createProduct(buildDuplicatePayload(product));
-      showToast({ type: 'success', message: `${copy.name} duplicated as a new listing.` });
-      reload();
-    } catch (duplicateError) {
-      showToast({ type: 'error', message: duplicateError.message });
     }
   };
 
@@ -215,14 +211,12 @@ export default function FarmerProducts() {
     setArchiveTarget(null);
   };
 
-  const handleDonate = async (product) => {
-    try {
-      await createDonation(product);
-      showToast({ type: 'success', message: `${product.name} listed as a surplus donation for partner organizations.` });
-      reload();
-    } catch (donateError) {
-      showToast({ type: 'error', message: donateError.message });
-    }
+  const handleDonate = (product) => {
+    navigate('/farmer-donations', {
+      state: {
+        donationProduct: product,
+      },
+    });
   };
 
   const handleDeleteConfirm = async () => {
@@ -344,9 +338,9 @@ export default function FarmerProducts() {
             <div className="hidden lg:block">
               <ProductTable
                 products={visibleProducts}
-                onView={(product) => navigate(`/products/${product.id}`)}
+                onView={viewProductOnMarketplace}
+                onReviews={openProductReviews}
                 onEdit={openEditDrawer}
-                onDuplicate={handleDuplicate}
                 onArchive={setArchiveTarget}
                 onDonate={handleDonate}
                 onDelete={setDeleteTarget}
@@ -365,8 +359,8 @@ export default function FarmerProducts() {
                       </Button>
                       <ActionMenu
                         items={[
-                          { label: 'View', icon: Eye, onClick: () => navigate(`/products/${product.id}`) },
-                          { label: 'Duplicate', icon: Copy, onClick: () => handleDuplicate(product) },
+                          { label: 'View', icon: Eye, onClick: () => viewProductOnMarketplace(product) },
+                          { label: 'Reviews', icon: MessageSquareText, onClick: () => openProductReviews(product) },
                           {
                             label: 'Donate remaining stock',
                             icon: Gift,
@@ -418,6 +412,8 @@ export default function FarmerProducts() {
         onApplyDiscount={handleApplyDiscount}
         onRemoveDiscount={handleRemoveDiscount}
       />
+
+      <ProductReviewsDialog product={reviewsProduct} onClose={closeProductReviews} />
 
       <ConfirmDialog
         open={Boolean(archiveTarget)}

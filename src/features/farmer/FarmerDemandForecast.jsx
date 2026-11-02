@@ -68,14 +68,15 @@ export default function FarmerDemandForecast() {
   const [refreshToken, setRefreshToken] = useState(0);
   const isAwaitingCustomDate = period === 'custom' && !customDate;
   const listRequestKey = `${category}|${municipality}|${period}|${customDate}|${refreshToken}`;
-  const isRefreshing = !isAwaitingCustomDate && listResult.key !== listRequestKey;
+  const isListLoading = !isAwaitingCustomDate && listResult.key !== listRequestKey;
+  const listIsCurrent = !isListLoading;
   const data = listResult.data;
   const loadError = listResult.error;
 
   useEffect(() => {
     if (isAwaitingCustomDate) return undefined;
     let cancelled = false;
-    getDemandForecast({ category, municipality, period, customDate })
+    getDemandForecast({ category, municipality, period, customDate, refreshKey: refreshToken })
       .then((result) => {
         if (!cancelled) setListResult({ key: listRequestKey, data: result, error: '' });
       })
@@ -116,9 +117,10 @@ export default function FarmerDemandForecast() {
 
 
 
-  const selectedCrop = filtered.some((entry) => entry.crop === selectedCropOverride)
-    ? selectedCropOverride
-    : (featured?.crop || filtered[0]?.crop || '');
+  const selectedForecast = filtered.find((entry) => entry.forecastKey === selectedCropOverride)
+    || featured || filtered[0] || null;
+  const selectedCrop = selectedForecast?.crop || '';
+  const selectedForecastKey = selectedForecast?.forecastKey || '';
 
   const pricedCrops = filtered.filter((entry) => entry.forecastPrice != null);
   const cropsWithPriceChange = pricedCrops.filter((entry) => entry.expectedChangePercent != null);
@@ -139,7 +141,7 @@ export default function FarmerDemandForecast() {
 
 
   const supplyDemandData = filtered.slice(0, 8).map((entry) => ({
-    crop: entry.crop,
+    crop: entry.unit ? `${entry.crop} (${entry.unit})` : entry.crop,
     supply: entry.activeListings,
     demand: entry.orderCount,
     signal: entry.signal,
@@ -149,15 +151,19 @@ export default function FarmerDemandForecast() {
 
 
   const [detailResult, setDetailResult] = useState({ key: '', detail: null, error: '' });
-  const detailRequestKey = `${selectedCrop}:${period}:${municipality}:${customDate}`;
-  const isDetailLoading = Boolean(selectedCrop) && !isAwaitingCustomDate && detailResult.key !== detailRequestKey;
+  const detailRequestKey = `${selectedCrop}:${selectedForecast?.unit || ''}:${period}:${municipality}:${customDate}:${refreshToken}`;
+  const isDetailLoading = Boolean(selectedCrop) && !isAwaitingCustomDate
+    && (!listIsCurrent || detailResult.key !== detailRequestKey);
   const detail = isDetailLoading ? null : detailResult.detail;
   const detailError = isDetailLoading ? '' : detailResult.error;
+  const isRefreshing = isListLoading || (refreshToken > 0 && isDetailLoading);
 
   useEffect(() => {
-    if (!selectedCrop || isAwaitingCustomDate) return undefined;
+    if (!selectedCrop || isAwaitingCustomDate || !listIsCurrent) return undefined;
     let cancelled = false;
-    getCropForecastDetail(selectedCrop, { period, municipality, customDate })
+    getCropForecastDetail(selectedCrop, {
+      period, municipality, customDate, refreshKey: refreshToken, unit: selectedForecast?.unit || '',
+    })
       .then((result) => {
         if (!cancelled) setDetailResult({ key: detailRequestKey, detail: result, error: '' });
       })
@@ -168,7 +174,7 @@ export default function FarmerDemandForecast() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCrop, period, municipality, customDate, isAwaitingCustomDate]);
+  }, [selectedCrop, selectedForecast?.unit, period, municipality, customDate, refreshToken, isAwaitingCustomDate, listIsCurrent]);
 
   if (data === null && !loadError) {
     return (
@@ -250,14 +256,16 @@ export default function FarmerDemandForecast() {
                   <div>
                     <p className="text-[14px] font-semibold text-[var(--green-700)]">Best opportunity</p>
                     <h2 id="forecast-opportunity-heading" className="mt-1 text-[22px] font-semibold text-[var(--text)]">
-                      {bestOpportunity?.crop || 'No high-demand crop identified'}
+                      {bestOpportunity
+                        ? `${bestOpportunity.crop}${bestOpportunity.unit ? ` / ${bestOpportunity.unit}` : ''}`
+                        : 'No high-demand crop identified'}
                     </h2>
                   </div>
                   {bestOpportunity ? (
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedCropOverride(bestOpportunity.crop);
+                        setSelectedCropOverride(bestOpportunity.forecastKey);
                         detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
                       className="min-h-11 rounded-md border border-[var(--line)] bg-[var(--panel)] px-4 text-[14px] font-semibold text-[var(--green-700)] hover:bg-[var(--soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)]"
@@ -279,7 +287,7 @@ export default function FarmerDemandForecast() {
                     </dl>
                     <p className="mt-4 rounded-md bg-[var(--soft)] px-4 py-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
                       <span className="font-semibold text-[var(--text)]">Market opportunity: </span>
-                      Buyer demand for {bestOpportunity.crop} is outpacing active listings. This may indicate a stronger selling opportunity; it does not guarantee a sale or profit.
+                      Buyer demand for {bestOpportunity.crop}{bestOpportunity.unit ? ` listed per ${bestOpportunity.unit}` : ''} is outpacing active listings. This may indicate a stronger selling opportunity; it does not guarantee a sale or profit.
                     </p>
                   </>
                 ) : (
@@ -295,8 +303,8 @@ export default function FarmerDemandForecast() {
             <div ref={comparisonRef} className="scroll-mt-6">
               <ForecastTable
                 crops={filtered}
-                selectedCrop={selectedCrop}
-                onSelectCrop={setSelectedCropOverride}
+                selectedCrop={selectedForecastKey}
+                onSelectCrop={(entry) => setSelectedCropOverride(entry.forecastKey)}
                 category={category}
                 onCategoryChange={setCategory}
                 categoryOptions={categoryOptions}

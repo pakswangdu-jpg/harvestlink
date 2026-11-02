@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { apiClient } from './apiClient';
 import { uploadAccreditationFile, uploadGovIdFile } from './uploadService';
+import { fetchAllAdminUserLocations } from '../utils/fetchAdminUserLocations';
 
 
 
@@ -169,6 +170,10 @@ export async function getBuyers() {
 
 export const getAdminUserPage = (filters) => apiClient.get(`/profiles?${new URLSearchParams(filters)}`);
 export const getAdminUserDetails = (id, historyPage = 1) => apiClient.get(`/profiles/${id}/admin-details?historyPage=${historyPage}`);
+export const getAdminUserLocations = () => fetchAllAdminUserLocations(
+  (page) => apiClient.get(`/profiles/admin-locations?page=${page}`),
+);
+export const sendAdminLocationReminder = (id) => apiClient.post(`/profiles/${encodeURIComponent(id)}/location-reminder`, {});
 export async function setUserVerification(id, status, reason, expectedStatus) {
   return apiClient.patch(`/profiles/${id}/verification`, { status, reason, expectedStatus });
 }
