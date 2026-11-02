@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { canReviewPayment, paymentRejectionReason, paymentReviewKey, receiptPreviewUrl, PAYMENT_REVIEW_CHECKS } from '../src/components/orders/paymentReview.js';
+import { canReviewPayment, hasMinimumPaymentReviewChecks, paymentRejectionReason, paymentReviewKey, receiptPreviewUrl, PAYMENT_REVIEW_CHECKS, PAYMENT_REVIEW_MIN_CHECKS } from '../src/components/orders/paymentReview.js';
 
 const order = { id: 'order', paymentMethod: 'gcash', paymentStatus: 'pending', paymentVerificationStatus: 'pending', paymentReceiptUrl: 'https://uploads.example/receipt.png', totalAmount: 87, paymentReferenceNumber: 'REAL-REFERENCE', paymentSenderName: 'Saved Sender', paymentSubmittedAt: '2026-10-20T08:00:00Z' };
 const actions = { onApprove() {}, onReject() {} };
@@ -13,6 +13,11 @@ test('decisions require existing callbacks and a genuinely pending GCash payment
     assert.equal(canReviewPayment({ ...order, ...patch }, actions), false);
   }
   assert.equal(PAYMENT_REVIEW_CHECKS.length, 4);
+  assert.equal(PAYMENT_REVIEW_MIN_CHECKS, 2);
+  assert.equal(hasMinimumPaymentReviewChecks([false, false, false, false]), false);
+  assert.equal(hasMinimumPaymentReviewChecks([true, false, false, false]), false);
+  assert.equal(hasMinimumPaymentReviewChecks([true, true, false, false]), true);
+  assert.equal(hasMinimumPaymentReviewChecks([true, true, true, true]), true);
 });
 test('changed evidence invalidates prior manual review; unrelated polling does not reset it', () => {
   const key = paymentReviewKey(order);
@@ -43,5 +48,6 @@ test('Admin uses the shared modal read-only; existing Farmer callbacks close onl
   assert.match(source, /key=\{paymentReviewKey\(order\)\}/);
   assert.match(source, /submitting\.current \|\|[^\n]+!canReviewPayment/);
   assert.match(source, /disabled=\{busy \|\| !reviewComplete\}/);
+  assert.match(source, /Verify at least 2 before approving/);
   assert.doesNotMatch(source, /receiptAmount|extractedAmount|approveAnyway|window\.confirm/);
 });
