@@ -13,6 +13,27 @@ test('Buyer marketplace sections preserve records, recommendation logic and exis
   assert.match(source, /<MarketPricePanel commodityId=\{marketCommodityId\} perspective="buyer"/);
 });
 
+test('Buyer Messages navigation icon follows theme text color', async () => {
+  const source = await readFile(new URL('../src/features/buyer/buyerNav.js', import.meta.url), 'utf8');
+  assert.match(source, /const MessagesNavIcon = createMaskNavIcon\(messagesNavIcon\)/);
+  assert.doesNotMatch(source, /createElement\('img'/);
+});
+
+test('Marketplace shows eligible new listings from all locations by default and refreshes automatically', async () => {
+  const source = await readFile(new URL('../src/features/marketplace/Marketplace.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const \[location, setLocation\] = useState\(''\)/);
+  assert.match(source, /getMarketplaceProducts\(\)/);
+  assert.match(source, /setInterval\(reload, 4000\)/);
+  assert.match(source, /<option value="">All locations<\/option>/);
+});
+
+test('Marketplace keeps the Price Range filter sticky and separate from scrolling filters', async () => {
+  const source = await readFile(new URL('../src/features/marketplace/Marketplace.jsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+  assert.match(source, /<section className="panel marketplace-price-toolbar">\s*<PriceRangeSlider/);
+  assert.match(css, /\.marketplace-page \.marketplace-price-toolbar\s*\{[^}]*position: sticky;[^}]*top: 12px;/);
+});
+
 test('Product fallback recovers when the uploaded image URL changes without modifying photos', async () => {
   const source = await readFile(new URL('../src/components/cards/ProductCard.jsx', import.meta.url), 'utf8');
   assert.match(source, /failedImage === product.image/);

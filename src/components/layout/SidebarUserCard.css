@@ -49,22 +49,19 @@
 
 .sidebar-user-card .sidebar-user-name {
   font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.3;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
 }
 
 .sidebar-user-card .account-role-badge {
   font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0;
-}
-
-.sidebar-user-card .account-role-badge[data-verified='true'] {
-  font-weight: 700;
+  padding: 5px 8px;
 }
 
 .sidebar-user-card[data-role='farmer'] {
@@ -376,17 +373,26 @@
   padding-inline: 0;
 }
 
-.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-user-name {
-  font-family: inherit;
+.app-shell .sidebar-user-name {
+  font-family: var(--font-ui);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.3;
 }
 
-.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-user-role {
-  font-family: inherit;
+.app-shell .sidebar-user-card .account-role-badge {
+  font-family: var(--font-ui);
   font-size: 12px;
-  font-weight: 400;
+}
+
+.app-shell .sidebar-user-card .account-role-badge[data-verified='true'] {
+  font-weight: 500;
+}
+
+.app-shell .sidebar-user-role {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.35;
 }
 

@@ -36,7 +36,7 @@ test('sidebar polish is Admin-scoped with consistent icons and responsive densit
   assert.match(css, /\.sidebar-account \.sidebar-user-card \{ box-sizing: border-box; width: 100%; justify-content: center; padding: 8px 12px; gap: 0;/);
   assert.match(css, /\.sidebar-user-details \{ box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; flex: 1 1 auto; align-items: center; gap: 2px; text-align: center;/);
   assert.match(css, /\.sidebar-user-name \{ display: block; width: 100%; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center;/);
-  assert.match(css, /\.sidebar-user-role \{[^}]*color: #926700;[^}]*font-weight: 600;/);
+  assert.match(css, /\.sidebar-user-role \{[^}]*color: #926700;[^}]*font-family: var\(--font-ui\);[^}]*font-weight: 500;/);
   assert.match(css, /\.sidebar-admin-role-icon \{ display: block; flex: 0 0 12px; align-self: center; transform: translateY\(1px\);/);
   assert.match(css, /\[data-theme='dark'\] \.app-shell\.role-admin \.sidebar-user-role \{ color: #f0cf69;/);
   assert.match(css, /\[data-theme='dark'\]/);

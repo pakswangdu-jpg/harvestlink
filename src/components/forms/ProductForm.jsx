@@ -40,7 +40,9 @@ const PRODUCT_IMAGE_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 
 
-function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onValidationError, onRemove }) {
+const MAX_PRODUCT_IMAGES = 10;
+
+function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, onValidationError, onRemove }) {
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -48,19 +50,26 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
 
-  const validateAndSelect = (candidate) => {
-    if (!candidate) return;
-    const extension = `.${candidate.name.split('.').pop()?.toLowerCase() || ''}`;
-    const isAcceptedType = PRODUCT_IMAGE_ACCEPTED_TYPES.includes(candidate.type) || PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.includes(extension);
-    if (!isAcceptedType) {
-      onValidationError('Only JPG, PNG, or WEBP images are accepted.');
+  const validateAndSelect = (candidates) => {
+    const files = Array.from(candidates || []).filter(Boolean);
+    if (!files.length) return;
+    if (imageUrls.length + files.length > MAX_PRODUCT_IMAGES) {
+      onValidationError(`A product can have up to ${MAX_PRODUCT_IMAGES} photos.`);
       return;
     }
-    if (candidate.size > PRODUCT_IMAGE_MAX_SIZE_BYTES) {
-      onValidationError('Image size must be under 5 MB.');
-      return;
+    for (const candidate of files) {
+      const extension = `.${candidate.name.split('.').pop()?.toLowerCase() || ''}`;
+      const isAcceptedType = PRODUCT_IMAGE_ACCEPTED_TYPES.includes(candidate.type) || PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.includes(extension);
+      if (!isAcceptedType) {
+        onValidationError('Only JPG, PNG, or WEBP images are accepted.');
+        return;
+      }
+      if (candidate.size > PRODUCT_IMAGE_MAX_SIZE_BYTES) {
+        onValidationError('Image size must be under 5 MB.');
+        return;
+      }
     }
-    onFileSelect(candidate);
+    onFilesSelect(files);
   };
 
   const closeCamera = () => {
@@ -133,7 +142,7 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         setCameraError('The photo could not be captured. Try again.');
         return;
       }
-      validateAndSelect(new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+      validateAndSelect([new File([blob], `product-photo-${Date.now()}.jpg`, { type: 'image/jpeg' })]);
       closeCamera();
     }, 'image/jpeg', 0.92);
   };
@@ -152,14 +161,23 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={(event) => validateAndSelect(event.target.files?.[0])}
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          event.target.value = '';
+          validateAndSelect(files);
+        }}
         hidden
       />
       <input
         ref={uploadInputRef}
         type="file"
         accept={PRODUCT_IMAGE_ACCEPTED_EXTENSIONS.join(',')}
-        onChange={(event) => validateAndSelect(event.target.files?.[0])}
+        multiple
+        onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          event.target.value = '';
+          validateAndSelect(files);
+        }}
         hidden
       />
       {isCameraOpen ? createPortal(
@@ -212,22 +230,33 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
     );
   }
 
-  if (imageUrl) {
+  if (imageUrls.length) {
     return (
       <div className={`product-image-preview${error ? ' has-error' : ''}`}>
-        <img src={imageUrl} alt="" className="product-image-preview-img" />
+        <div className="product-image-preview-grid">
+          {imageUrls.map((imageUrl, index) => (
+            <div className="product-image-preview-item" key={`${imageUrl}-${index}`}>
+              <img src={imageUrl} alt={`Product photo ${index + 1}`} className="product-image-preview-img" />
+              {index === 0 ? <span className="product-image-primary-badge">Cover</span> : null}
+              <button type="button" className="product-image-remove" onClick={() => onRemove(index)} aria-label={`Remove product photo ${index + 1}`}>×</button>
+            </div>
+          ))}
+        </div>
         <div className="product-image-preview-actions">
-          <select
-            className="product-image-source-select"
-            defaultValue=""
-            onChange={handleSourceSelect}
-            aria-label="Change product image"
-          >
-            <option value="" disabled>Change image</option>
-            <option value="camera">Take Photo</option>
-            <option value="upload">Upload Image</option>
-          </select>
-          <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}>Remove</button>
+          <strong>{imageUrls.length} of {MAX_PRODUCT_IMAGES} photos</strong>
+          {imageUrls.length < MAX_PRODUCT_IMAGES ? (
+            <select
+              className="product-image-source-select"
+              defaultValue=""
+              onChange={handleSourceSelect}
+              aria-label="Add product photos"
+            >
+              <option value="" disabled>Add photos</option>
+              <option value="camera">Take Photo</option>
+              <option value="upload">Upload Images</option>
+            </select>
+          ) : <span className="muted">Photo limit reached</span>}
+          {error ? <p className="product-image-error" role="alert">{error}</p> : null}
         </div>
         {hiddenFileInputs}
       </div>
@@ -249,12 +278,12 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
         }}
       >
         <ImageIcon size={24} strokeWidth={1.8} aria-hidden="true" />
-        <span>Add a clear product photo</span>
-        <small>JPG, PNG, or WEBP · up to 5 MB</small>
+        <span>Add product photos</span>
+        <small>Up to 10 JPG, PNG, or WEBP photos · 5 MB each</small>
         <select id="image" className="product-image-empty-select" defaultValue="" onChange={handleSourceSelect}>
           <option value="" disabled>Select image source</option>
           <option value="camera">Take Photo</option>
-          <option value="upload">Upload Image</option>
+          <option value="upload">Upload Images</option>
         </select>
       </div>
       {hiddenFileInputs}
@@ -264,7 +293,7 @@ function ProductImageDropzone({ imageUrl, isUploading, error, onFileSelect, onVa
 
 
 
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'wholesalePrice', 'wholesaleMinQuantity', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'wholesalePrice', 'wholesaleMinQuantity', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'expirationTime', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 function focusFirstError(errors) {
   const firstField = FIELD_ORDER.find((field) => errors[field]);
@@ -287,6 +316,9 @@ function buildDefaultValues(product, currentUser) {
     status: 'active',
     isDonation: false,
     ...product,
+    imageUrls: Array.isArray(product?.imageUrls) && product.imageUrls.length
+      ? product.imageUrls.slice(0, MAX_PRODUCT_IMAGES)
+      : product?.image ? [product.image] : [],
     costPrice: product?.costPrice ?? '',
 
 
@@ -295,6 +327,7 @@ function buildDefaultValues(product, currentUser) {
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
+    expirationTime: product?.expirationTime ?? '',
     wholesaleEnabled: product?.sellingType !== 'wholesale' && product?.wholesalePrice != null,
     wholesalePrice: product?.wholesalePrice ?? '',
     wholesaleMinQuantity: product?.wholesaleMinQuantity ?? '',
@@ -318,7 +351,11 @@ export default function ProductForm({
   const [values, setValues] = useState(() => {
     const defaults = buildDefaultValues(product, currentUser);
     if (!draftStorageKey || product) return defaults;
-    return { ...defaults, ...readStorage(draftStorageKey, {}) };
+    const draft = readStorage(draftStorageKey, {});
+    const imageUrls = Array.isArray(draft.imageUrls)
+      ? draft.imageUrls.slice(0, MAX_PRODUCT_IMAGES)
+      : draft.image ? [draft.image] : [];
+    return { ...defaults, ...draft, imageUrls, image: imageUrls[0] || '' };
   });
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
@@ -468,15 +505,20 @@ export default function ProductForm({
   };
 
   const handleImageSelect = async (file) => {
-    if (!file) return;
+    if (!file?.length) return;
     setErrors((previous) => ({ ...previous, image: undefined }));
 
     try {
       setIsReadingImage(true);
-      const url = await uploadProductImage(file, currentUser.id);
-      updateField('image', url);
+      for (const imageFile of file) {
+        const url = await uploadProductImage(imageFile, currentUser.id);
+        setValues((previous) => {
+          const imageUrls = [...(previous.imageUrls || []), url].slice(0, MAX_PRODUCT_IMAGES);
+          return { ...previous, imageUrls, image: imageUrls[0] || '' };
+        });
+      }
     } catch {
-      setErrors((previous) => ({ ...previous, image: 'Unable to upload this image.' }));
+      setErrors((previous) => ({ ...previous, image: 'Unable to upload one or more images. Keep the uploaded photos and try again.' }));
     } finally {
       setIsReadingImage(false);
     }
@@ -532,7 +574,7 @@ export default function ProductForm({
         <div className="product-form-column product-form-primary">
       <div className="form-section">
         <p className="form-section-heading">Basic information</p>
-        <div className="form-grid">
+        <div className={`form-grid${values.isDonation ? ' two' : ''}`}>
           <FormField label="Category" name="category" error={errors.category}>
             <select id="category" value={values.category} onChange={(event) => updateField('category', event.target.value)}>
               {categoryOptions.map((category) => <option key={category}>{category}</option>)}
@@ -709,12 +751,13 @@ export default function ProductForm({
           </FormField>
         ) : null}
 
-        <div className="form-grid">
+        <div className={`form-grid${values.isDonation ? ' two donation-expiration-grid' : ''}`}>
           <FormField
-            label="Expiration date (optional)"
+            label={values.isDonation ? 'Expiration date' : 'Expiration date (optional)'}
             name="expirationDate"
             error={errors.expirationDate}
             helper={values.isDonation ? 'Helps partner organizations prioritize pickup before it spoils.' : 'Shown to buyers; this listing disappears from the marketplace after the date.'}
+            className={values.isDonation ? 'donation-expiration-field' : ''}
           >
             <input
               id="expirationDate"
@@ -724,24 +767,44 @@ export default function ProductForm({
             />
           </FormField>
 
-          <FormField
-            label="Cost per unit"
-            name="costPrice"
-            error={errors.costPrice}
-            helper={`Your cost to grow/prepare 1 ${values.unit || 'unit'} — never shown to buyers, powers your profit figure.`}
-          >
-            <input
-              id="costPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              value={values.costPrice}
-              onChange={(event) => updateField('costPrice', event.target.value)}
-              placeholder="e.g. 30.00"
-              disabled={values.isDonation}
-            />
-          </FormField>
+          {values.isDonation ? (
+            <FormField
+              label="Expiration time"
+              name="expirationTime"
+              error={errors.expirationTime}
+              helper="Uses Philippines time (Asia/Manila)."
+              className="donation-expiration-field"
+            >
+              <input
+                id="expirationTime"
+                type="time"
+                value={values.expirationTime}
+                onChange={(event) => updateField('expirationTime', event.target.value)}
+              />
+            </FormField>
+          ) : null}
+
+          {!values.isDonation ? (
+            <FormField
+              label="Cost per unit"
+              name="costPrice"
+              error={errors.costPrice}
+              helper={`Your cost to grow/prepare 1 ${values.unit || 'unit'} — never shown to buyers, powers your profit figure.`}
+            >
+              <input
+                id="costPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.costPrice}
+                onChange={(event) => updateField('costPrice', event.target.value)}
+                placeholder="e.g. 30.00"
+              />
+            </FormField>
+          ) : null}
         </div>
+
+        {values.isDonation ? <p className="form-helper">The donation becomes unavailable automatically when this expiration time is reached.</p> : null}
 
         {!values.isDonation && needsManualConversion ? (
           <FormField
@@ -900,11 +963,11 @@ export default function ProductForm({
           </div>
         </FormField>
 
-        <FormField label="Description" name="description" error={errors.description}>
+        <FormField label="Description (optional)" name="description" error={errors.description}>
           <textarea
             id="description"
             rows="6"
-            value={values.description}
+            value={values.description || ''}
             onChange={(event) => updateField('description', event.target.value)}
             placeholder="Describe freshness, harvest date, storage condition, pickup notes, or additional information."
           />
@@ -912,15 +975,19 @@ export default function ProductForm({
       </div>
 
       <div className="form-section">
-        <p className="form-section-heading">Product image</p>
-        <FormField label="Product image" name="image" error={errors.image} helper={!values.image ? 'Visible to every buyer browsing the marketplace.' : undefined}>
+        <p className="form-section-heading">Product photos</p>
+        <FormField label="Product photos" name="image" error={errors.image} helper={values.imageUrls.length ? 'The first photo is the marketplace cover. Remove it to use the next photo as the cover.' : 'Add up to 10 photos; the first photo is shown as the cover in the marketplace.'}>
           <ProductImageDropzone
-            imageUrl={values.image}
+            imageUrls={values.imageUrls || []}
             isUploading={isReadingImage}
             error={errors.image}
-            onFileSelect={handleImageSelect}
+            onFilesSelect={handleImageSelect}
             onValidationError={(message) => setErrors((previous) => ({ ...previous, image: message }))}
-            onRemove={() => updateField('image', '')}
+            onRemove={(index) => {
+              const imageUrls = values.imageUrls.filter((_, imageIndex) => imageIndex !== index);
+              updateField('imageUrls', imageUrls);
+              updateField('image', imageUrls[0] || '');
+            }}
           />
         </FormField>
       </div>

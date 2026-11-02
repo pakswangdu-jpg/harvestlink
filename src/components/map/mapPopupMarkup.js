@@ -50,7 +50,9 @@ function getDirectionsUrl({ coords, address, barangay, municipality }) {
 export function buildMapPopup({
   name, person, municipality, address, barangay, coords, contactNumber, presence, precision, products, links = [],
 }) {
-  const locationLabel = municipality || address || 'Location unavailable';
+  const locationLabel = [address, barangay, municipality]
+    .map((part) => String(part || '').trim())
+    .find(Boolean) || 'Location unavailable';
   const directionsUrl = getDirectionsUrl({ coords, address, barangay, municipality });
   const locationMarkup = directionsUrl
     ? `<a class="map-popup-row map-popup-location map-popup-location-link" href="${escapeAttribute(directionsUrl)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps" aria-label="Open ${escapeAttribute(locationLabel)} in Google Maps">${popupIcon('location')}${locationLabel}</a>`

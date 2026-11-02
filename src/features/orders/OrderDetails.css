@@ -127,6 +127,77 @@
   line-height: 28px;
 }
 
+.ot-review-photo-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ot-review-photo-input {
+  display: none;
+}
+
+.ot-review-photo-field > .btn {
+  min-height: 40px;
+}
+
+.ot-review-photo-help {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ot-review-photo-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--red-700);
+  font-size: 13px;
+}
+
+.ot-review-photo-preview {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ot-review-photo-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.ot-review-photo-grid .ot-review-photo-preview {
+  align-items: stretch;
+}
+
+.ot-review-photo-preview img,
+.ot-review-image,
+.ot-review-photo-preview video,
+.ot-review-video {
+  display: block;
+  width: min(100%, 280px);
+  max-height: 240px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.ot-review-photo-grid .ot-review-photo-preview img {
+  width: 100%;
+  height: 130px;
+}
+
+.ot-review-photo-field > .ot-review-photo-grid {
+  flex-basis: 100%;
+}
+
+.ot-review-photo-preview .btn {
+  flex-shrink: 0;
+}
+
 .ot-section-subtitle {
   margin: 4px 0 0;
   color: var(--muted);

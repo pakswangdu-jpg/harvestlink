@@ -44,15 +44,19 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
   });
 
   await t.test('creation accepts only a product ID, not caller-supplied stock or farmer', async () => {
-    await api.createDonation(req('create', { productId: id, quantity: 999, farmerId: id }), res);
-    assert.deepEqual(calls.at(-1), ['rpc', 'create_surplus_donation', { actor_id: actor, source_product_id: id }]);
+    await api.createDonation(req('create', {
+      productId: id, quantity: 999, farmerId: id, expirationAt: '2027-01-01T00:00:00.000Z',
+    }), res);
+    assert.deepEqual(calls.at(-1), ['rpc', 'create_surplus_donation', {
+      actor_id: actor, source_product_id: id, p_expiration_at: '2027-01-01T00:00:00.000Z',
+    }]);
     assert.equal(status, 201);
   });
 
   await t.test('stakeholders can list only available donations and their own requests', async () => {
     result.data = [donation];
     await api.listDonations(req(), res);
-    assert.ok(calls.some((call) => call[0] === 'or' && call[1] === `status.eq.available,requested_by_id.eq.${actor}`));
+    assert.ok(calls.some((call) => call[0] === 'or' && call[1] === `status.in.(available,fully_claimed),requested_by_id.eq.${actor}`));
     assert.equal(response.length, 1);
   });
 
@@ -74,11 +78,11 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
     assert.deepEqual(calls.find((call) => call[0] === 'gte'), ['gte', 'created_at', '2026-10-01T00:00:00+08:00']);
     assert.deepEqual(calls.find((call) => call[0] === 'lt'), ['lt', 'created_at', '2026-10-12T16:00:00.000Z']);
     assert.ok(calls.find((call) => call[0] === 'or')[1].includes('product_name.ilike."%Farm, (Cebu)%"'));
-    assert.equal(calls.filter((call) => call[0] === 'select' && call[2]?.head).length, 5);
+    assert.equal(calls.filter((call) => call[0] === 'select' && call[2]?.head).length, 7);
     assert.equal(response.pageSize, 20);
     assert.equal(response.total, 43);
     assert.equal(response.donations[0].quantity, 10.5);
-    assert.deepEqual(Object.keys(response.counts), ['available', 'requested', 'scheduled', 'completed', 'cancelled']);
+    assert.deepEqual(Object.keys(response.counts), ['available', 'requested', 'scheduled', 'completed', 'cancelled', 'expired', 'fully_claimed']);
   });
 
   await t.test('paged overview rejects non-admin access and malformed query values', async () => {

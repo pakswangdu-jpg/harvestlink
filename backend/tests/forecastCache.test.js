@@ -55,4 +55,8 @@ test('a fallback report expires after one minute while successful AI insights re
   now += 6 * 60 * 60 * 1000;
   await readReport();
   assert.equal(insightCalls, 3);
+
+  request.query.refresh = '1';
+  await readReport();
+  assert.equal(insightCalls, 4);
 });

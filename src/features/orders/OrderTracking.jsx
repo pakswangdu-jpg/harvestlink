@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  BadgeCheck, Check, CheckCircle2, Clock3, Copy, FileText, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, X,
+  BadgeCheck, Camera, Check, CheckCircle2, Clock3, Copy, FileText, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, Video, X,
 } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -22,8 +22,8 @@ import '../../components/orders/DeliveryTrackingInfo.css';
 import './OrderDetails.css';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { getUserById } from '../../services/authService';
 import { createRating, getRatingForOrder } from '../../services/ratingService';
+import { uploadReviewImage, uploadReviewVideo } from '../../services/uploadService';
 import { getDelivery } from '../../services/deliveryService';
 import {
   advanceDelivery,
@@ -33,6 +33,7 @@ import {
   getLiveTransitProgress,
   getNextDeliveryStatus,
   getOrderById,
+  getOrderTrackingProfiles,
   isCancellable,
   mapOrderRealtimeRow,
   updateOrderStatus,
@@ -49,6 +50,14 @@ import {
   shortOrderId,
 } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import {
+  getReviewMediaExtension,
+  getReviewVideoDuration,
+  REVIEW_IMAGE_MAX_SIZE,
+  REVIEW_PHOTO_MAX_COUNT,
+  REVIEW_VIDEO_MAX_DURATION_SECONDS,
+  REVIEW_VIDEO_MAX_SIZE,
+} from '../../utils/reviewMedia';
 
 
 
@@ -87,11 +96,19 @@ export default function OrderTracking() {
   const [existingRating, setExistingRating] = useState(null);
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
+  const [ratingPhotos, setRatingPhotos] = useState([]);
+  const [ratingVideo, setRatingVideo] = useState(null);
+  const [ratingVideoPreview, setRatingVideoPreview] = useState('');
+  const [ratingMediaError, setRatingMediaError] = useState('');
+  const [isCheckingRatingMedia, setIsCheckingRatingMedia] = useState(false);
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [feedbackSuccessOrderId, setFeedbackSuccessOrderId] = useState(null);
   const [isOrderThanksOpen, setIsOrderThanksOpen] = useState(false);
   const ratingSubmitInFlightRef = useRef(false);
   const feedbackPanelRef = useRef(null);
+  const ratingPhotosInputRef = useRef(null);
+  const ratingVideoInputRef = useRef(null);
+  const ratingPreviewUrlsRef = useRef(new Set());
   const [ratingError, setRatingError] = useState('');
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
@@ -99,6 +116,11 @@ export default function OrderTracking() {
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [orderIdCopied, setOrderIdCopied] = useState(false);
   const autoOpenedTrackingOrderRef = useRef(null);
+
+  useEffect(() => () => {
+    ratingPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    ratingPreviewUrlsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,8 +161,8 @@ export default function OrderTracking() {
   useEffect(() => {
     if (!order?.farmerId || !order?.buyerId) return undefined;
     let cancelled = false;
-    Promise.all([getUserById(order.farmerId), getUserById(order.buyerId)])
-      .then(([farmer, buyer]) => {
+    getOrderTrackingProfiles(order.id)
+      .then(({ farmer, buyer }) => {
         if (cancelled) return;
         const hasRegisteredLocations = getRegisteredCoordinates(farmer) && getRegisteredCoordinates(buyer);
         setTrackingProfiles({
@@ -149,7 +171,7 @@ export default function OrderTracking() {
           buyerId: order.buyerId,
           farmer,
           buyer,
-          error: order.deliveryMethod === 'courier' || hasRegisteredLocations
+          error: ['courier', 'buyer_pickup'].includes(order.deliveryMethod) || hasRegisteredLocations
             ? ''
             : 'Saved Farmer and Buyer profile coordinates are required for delivery tracking.',
         });
@@ -160,7 +182,7 @@ export default function OrderTracking() {
             orderId: order.id,
             farmerId: order.farmerId,
             buyerId: order.buyerId,
-            error: order.deliveryMethod === 'courier' ? '' : profileError.message || 'Could not load the saved delivery locations.',
+            error: ['courier', 'buyer_pickup'].includes(order.deliveryMethod) ? '' : profileError.message || 'Could not load the saved delivery locations.',
           });
         }
       });
@@ -332,7 +354,21 @@ export default function OrderTracking() {
     setIsSubmittingRating(true);
     setRatingError('');
     try {
-      const created = await createRating({ farmerId: order.farmerId, orderId: order.id, rating: ratingValue, comment: ratingComment });
+      const reviewImageUrls = await Promise.all(
+        ratingPhotos.map(({ file }) => uploadReviewImage(file, currentUser.id, order.id)),
+      );
+      const reviewVideoUrl = ratingVideo
+        ? await uploadReviewVideo(ratingVideo, currentUser.id, order.id)
+        : undefined;
+      const created = await createRating({
+        farmerId: order.farmerId,
+        productId: order.productIdSnapshot || order.productId,
+        orderId: order.id,
+        rating: ratingValue,
+        comment: ratingComment,
+        reviewImageUrls,
+        reviewVideoUrl,
+      });
       setExistingRating(created);
       setFeedbackSuccessOrderId(order.id);
     } catch (ratingSubmitError) {
@@ -341,6 +377,94 @@ export default function OrderTracking() {
       ratingSubmitInFlightRef.current = false;
       setIsSubmittingRating(false);
     }
+  };
+
+  const createRatingPreview = (file) => {
+    const preview = URL.createObjectURL(file);
+    ratingPreviewUrlsRef.current.add(preview);
+    return preview;
+  };
+
+  const handleRatingPhotosChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setRatingMediaError('');
+    if (!files.length) return;
+    if (ratingPhotos.length + files.length > REVIEW_PHOTO_MAX_COUNT) {
+      setRatingMediaError('You can add up to five photos to a review.');
+      event.target.value = '';
+      return;
+    }
+    const invalidFile = files.find((file) => !getReviewMediaExtension(file, 'image'));
+    if (invalidFile) {
+      setRatingMediaError('Choose JPG, PNG, or WebP photos.');
+      event.target.value = '';
+      return;
+    }
+    if (files.some((file) => file.size > REVIEW_IMAGE_MAX_SIZE)) {
+      setRatingMediaError('Review photos must be 5 MB or smaller.');
+      event.target.value = '';
+      return;
+    }
+    setRatingPhotos((current) => [
+      ...current,
+      ...files.map((file) => ({ file, preview: createRatingPreview(file) })),
+    ]);
+    event.target.value = '';
+  };
+
+  const handleRatingVideoChange = async (event) => {
+    const [file] = event.target.files || [];
+    setRatingMediaError('');
+    if (!file) return;
+    if (!getReviewMediaExtension(file, 'video')) {
+      setRatingMediaError('Choose an MP4 or WebM video.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > REVIEW_VIDEO_MAX_SIZE) {
+      setRatingMediaError('Review videos must be 20 MB or smaller.');
+      event.target.value = '';
+      return;
+    }
+    setIsCheckingRatingMedia(true);
+    try {
+      const duration = await getReviewVideoDuration(file);
+      if (duration > REVIEW_VIDEO_MAX_DURATION_SECONDS) {
+        setRatingMediaError('Review videos must be 30 seconds or shorter.');
+        event.target.value = '';
+        return;
+      }
+      if (ratingVideoPreview) {
+        URL.revokeObjectURL(ratingVideoPreview);
+        ratingPreviewUrlsRef.current.delete(ratingVideoPreview);
+      }
+      const preview = createRatingPreview(file);
+      setRatingVideo(file);
+      setRatingVideoPreview(preview);
+    } catch (mediaError) {
+      setRatingMediaError(mediaError.message);
+    } finally {
+      setIsCheckingRatingMedia(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleRemoveRatingPhoto = (previewToRemove) => {
+    URL.revokeObjectURL(previewToRemove);
+    ratingPreviewUrlsRef.current.delete(previewToRemove);
+    setRatingPhotos((photos) => photos.filter(({ preview }) => preview !== previewToRemove));
+    setRatingMediaError('');
+  };
+
+  const handleRemoveRatingVideo = () => {
+    if (ratingVideoPreview) {
+      URL.revokeObjectURL(ratingVideoPreview);
+      ratingPreviewUrlsRef.current.delete(ratingVideoPreview);
+    }
+    setRatingVideo(null);
+    setRatingVideoPreview('');
+    setRatingMediaError('');
+    if (ratingVideoInputRef.current) ratingVideoInputRef.current.value = '';
   };
 
   const handleConfirmReceived = async () => {
@@ -644,10 +768,20 @@ export default function OrderTracking() {
                   <span className="ot-verified-badge"><BadgeCheck size={14} /> Verified Purchase</span>
                 </div>
                 {existingRating.comment ? <p className="ot-review-comment">&quot;{existingRating.comment}&quot;</p> : null}
+                {existingRating.reviewImageUrls?.length || existingRating.reviewImageUrl ? (
+                  (existingRating.reviewImageUrls?.length ? existingRating.reviewImageUrls : [existingRating.reviewImageUrl]).map((imageUrl, index) => (
+                    <img key={`${imageUrl}-${index}`} className="ot-review-image" src={imageUrl} alt={`Photo ${index + 1} attached to your review`} loading="lazy" />
+                  ))
+                ) : null}
+                {existingRating.reviewVideoUrl ? (
+                  <video className="ot-review-video" src={existingRating.reviewVideoUrl} controls preload="metadata">
+                    Your browser does not support video playback.
+                  </video>
+                ) : null}
                 {existingRating.createdAt ? <p className="ot-review-date">Reviewed {formatDate(existingRating.createdAt)}</p> : null}
               </div>
             ) : (
-              <div className="form-stack" aria-busy={isSubmittingRating}>
+              <div className="form-stack" aria-busy={isSubmittingRating || isCheckingRatingMedia}>
                 {ratingError ? <div className="form-alert error">{ratingError}</div> : null}
                 <StarRating value={ratingValue} onChange={setRatingValue} size={26} />
                 <textarea
@@ -656,7 +790,68 @@ export default function OrderTracking() {
                   onChange={(event) => setRatingComment(event.target.value)}
                   placeholder="Optional — how was the produce and the farmer's service?"
                 />
-                <Button onClick={handleSubmitRating} disabled={isSubmittingRating}>
+                <div className="ot-review-photo-field">
+                  <input
+                    ref={ratingPhotosInputRef}
+                    className="ot-review-photo-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    aria-label="Choose optional review photos"
+                    disabled={isCheckingRatingMedia || isSubmittingRating}
+                    onChange={handleRatingPhotosChange}
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingVideo)}
+                    onClick={() => ratingPhotosInputRef.current?.click()}
+                  >
+                    <Camera size={16} aria-hidden="true" />
+                    {ratingPhotos.length ? 'Add more photos' : 'Add photos (optional)'}
+                  </Button>
+                  <input
+                    ref={ratingVideoInputRef}
+                    className="ot-review-photo-input"
+                    type="file"
+                    accept="video/mp4,video/webm"
+                    aria-label="Choose an optional review video"
+                    disabled={isCheckingRatingMedia || isSubmittingRating}
+                    onChange={handleRatingVideoChange}
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingPhotos.length)}
+                    onClick={() => ratingVideoInputRef.current?.click()}
+                  >
+                    <Video size={16} aria-hidden="true" />
+                    {isCheckingRatingMedia ? 'Checking video…' : ratingVideo ? 'Change video' : 'Add a video instead'}
+                  </Button>
+                  <span className="ot-review-photo-help">
+                    JPG, PNG, or WebP photos up to 5 MB each. Videos: MP4/WebM, up to 20 MB and 30 seconds.
+                  </span>
+                  {ratingMediaError ? <p className="ot-review-photo-error" role="alert">{ratingMediaError}</p> : null}
+                  {ratingPhotos.length ? (
+                    <div className="ot-review-photo-grid">
+                      {ratingPhotos.map(({ file, preview }) => (
+                        <div className="ot-review-photo-preview" key={`${file.name}-${preview}`}>
+                          <img src={preview} alt={`Preview of ${file.name}`} />
+                          <Button variant="ghost" disabled={isSubmittingRating} onClick={() => handleRemoveRatingPhoto(preview)}>
+                            Remove photo
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {ratingVideoPreview ? (
+                    <div className="ot-review-photo-preview">
+                      <video src={ratingVideoPreview} controls preload="metadata" aria-label="Preview of your review video">
+                        Your browser does not support video playback.
+                      </video>
+                      <Button variant="ghost" disabled={isSubmittingRating} onClick={handleRemoveRatingVideo}>Remove video</Button>
+                    </div>
+                  ) : null}
+                </div>
+                <Button onClick={handleSubmitRating} disabled={isSubmittingRating || isCheckingRatingMedia}>
                   {isSubmittingRating ? 'Submitting…' : 'Submit rating'}
                 </Button>
               </div>

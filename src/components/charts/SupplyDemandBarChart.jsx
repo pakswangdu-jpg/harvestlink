@@ -2,6 +2,7 @@ import {
   Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { LineChart } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import './SupplyDemandBarChart.css';
 
 const CHART_HEIGHT = 260;
@@ -43,11 +44,13 @@ function ChartTooltip({ active, payload }) {
   );
 }
 
-function CropTick({ x, y, payload }) {
+function CropTick({ x, y, payload, horizontal = false }) {
   const lines = String(payload.value).match(/.{1,13}(?:\s|$)|\S{1,13}/g) || [];
+  const tickX = horizontal ? x : x - 8;
+  const tickY = horizontal ? y + 12 : y;
   return (
-    <text x={x - 8} y={y} textAnchor="end" fill="var(--muted)" fontSize={12}>
-      {lines.map((line, index) => <tspan key={index} x={x - 8} dy={index === 0 ? 4 - (lines.length - 1) * 7 : 14}>{line.trim()}</tspan>)}
+    <text x={tickX} y={tickY} textAnchor={horizontal ? 'middle' : 'end'} fill="var(--muted)" fontSize={12}>
+      {lines.map((line, index) => <tspan key={index} x={tickX} dy={index === 0 ? 4 - (lines.length - 1) * 7 : 14}>{line.trim()}</tspan>)}
     </text>
   );
 }
@@ -58,8 +61,20 @@ function AlternatingBackground({ x, y, width, height, index }) {
 }
 
 export default function SupplyDemandBarChart({ data }) {
+  const [plotWidth, setPlotWidth] = useState(0);
+  const plotRef = useRef(null);
   const hasMeaningfulData = data.some((entry) => entry.demand > 0 || entry.supply > 0);
   const opportunity = data.find((entry) => entry.signal === 'opportunity');
+  const isWide = plotWidth >= 720;
+
+  useEffect(() => {
+    const plot = plotRef.current;
+    if (!plot || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(([entry]) => setPlotWidth(entry.contentRect.width));
+    observer.observe(plot);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section className="supply-demand-panel min-w-0 rounded-lg border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-6" aria-labelledby="supply-demand-title">
@@ -76,64 +91,89 @@ export default function SupplyDemandBarChart({ data }) {
           </div>
 
           <div
+            ref={plotRef}
             className="supply-demand-plot mt-3"
             role="group"
             aria-label="Bar chart comparing buyer orders and active listings for each crop. Counts use separate measures."
-            style={{ height: Math.max(CHART_HEIGHT, data.length * 68 + 36) }}
+            style={{ height: isWide ? CHART_HEIGHT : Math.max(CHART_HEIGHT, data.length * 68 + 36) }}
           >
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <BarChart
                 data={data}
-                layout="vertical"
+                layout={isWide ? 'horizontal' : 'vertical'}
                 margin={{ top: 8, right: 32, left: 0, bottom: 0 }}
                 barGap={4}
                 barCategoryGap="24%"
               >
                 <CartesianGrid vertical horizontal={false} stroke="var(--line)" strokeDasharray="3 3" />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 12, fill: 'var(--muted)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                  height={36}
-                  allowDecimals={false}
-                  minTickGap={24}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="crop"
-                  tick={<CropTick />}
-                  axisLine={false}
-                  tickLine={false}
-                  width={104}
-                  interval={0}
-                  allowDecimals={false}
-                />
+                {isWide ? (
+                  <>
+                    <XAxis
+                      type="category"
+                      dataKey="crop"
+                      tick={<CropTick horizontal />}
+                      axisLine={false}
+                      tickLine={false}
+                      interval={0}
+                      height={56}
+                    />
+                    <YAxis
+                      type="number"
+                      tick={{ fontSize: 12, fill: 'var(--muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={44}
+                      allowDecimals={false}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 12, fill: 'var(--muted)' }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval="preserveStartEnd"
+                      height={36}
+                      allowDecimals={false}
+                      minTickGap={24}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="crop"
+                      tick={<CropTick />}
+                      axisLine={false}
+                      tickLine={false}
+                      width={104}
+                      interval={0}
+                      allowDecimals={false}
+                    />
+                  </>
+                )}
                 <Tooltip cursor={{ fill: 'transparent' }} content={<ChartTooltip />} />
                 <Bar
                   dataKey="demand"
                   name="Buyer orders"
                   fill="var(--blue-700)"
                   radius={[0, 3, 3, 0]}
-                  maxBarSize={36}
+                  maxBarSize={isWide ? 28 : 36}
                   animationDuration={700}
                   animationEasing="ease-out"
                   background={<AlternatingBackground />}
                 >
-                  <LabelList dataKey="demand" position="right" style={{ fontSize: 13, fontWeight: 600, fill: 'var(--blue-700)' }} />
+                  <LabelList dataKey="demand" position={isWide ? 'top' : 'right'} style={{ fontSize: 13, fontWeight: 600, fill: 'var(--blue-700)' }} />
                 </Bar>
                 <Bar
                   dataKey="supply"
                   name="Active listings"
                   fill="var(--green-600)"
                   radius={[0, 3, 3, 0]}
-                  maxBarSize={36}
+                  maxBarSize={isWide ? 28 : 36}
                   animationDuration={700}
                   animationEasing="ease-out"
                   background={<AlternatingBackground />}
                 >
-                  <LabelList dataKey="supply" position="right" style={{ fontSize: 13, fontWeight: 600, fill: 'var(--green-700)' }} />
+                  <LabelList dataKey="supply" position={isWide ? 'top' : 'right'} style={{ fontSize: 13, fontWeight: 600, fill: 'var(--green-700)' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

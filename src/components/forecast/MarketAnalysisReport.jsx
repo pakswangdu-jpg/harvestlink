@@ -253,8 +253,10 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
                 type="button"
                 onClick={() => setChartTab(option.value)}
                 aria-pressed={chartTab === option.value}
-                className={`min-h-11 rounded-md border-0 px-4 text-[14px] font-semibold forced-color-adjust-none transition-colors duration-150 ${
-                  chartTab === option.value ? 'bg-[var(--soft)] text-[var(--text)]' : 'text-[var(--text-secondary)] hover:bg-[var(--soft)]'
+                className={`min-h-11 rounded-md border px-4 text-[14px] font-medium forced-color-adjust-none transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${
+                  chartTab === option.value
+                    ? 'border-[var(--green-700)] bg-[var(--green-50)] text-[var(--green-900)] shadow-sm'
+                    : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--soft)]'
                 }`}
               >
                 {option.label}

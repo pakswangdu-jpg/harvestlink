@@ -59,10 +59,12 @@ export default function ForecastFilters({
         onClick={onRefresh}
         whileTap={{ scale: 0.96 }}
         disabled={isRefreshing}
+        aria-busy={isRefreshing}
+        aria-label={isRefreshing ? 'Refreshing forecast' : 'Refresh forecast'}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[var(--green-700)] px-4 text-[14px] font-semibold text-white transition-colors duration-150 hover:bg-[var(--green-800)] disabled:opacity-60 sm:w-auto"
       >
-        <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-        Refresh
+        <RefreshCw size={16} aria-hidden="true" className={isRefreshing ? 'animate-spin' : ''} />
+        <span aria-live="polite">{isRefreshing ? 'Refreshing…' : 'Refresh'}</span>
       </motion.button>
     </div>
   );

@@ -479,6 +479,89 @@
   }
 }
 
+.farmer-product-reviews-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 18, 0.52);
+}
+
+.farmer-product-reviews-dialog {
+  width: min(100%, 720px);
+  max-height: min(88vh, 760px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  color: var(--text);
+  box-shadow: 0 18px 54px rgba(15, 23, 18, 0.24);
+}
+
+.farmer-product-reviews-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.farmer-product-reviews-header p {
+  margin: 0 0 4px;
+  color: var(--green-700);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.farmer-product-reviews-header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.farmer-product-reviews-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.farmer-product-reviews-close:hover {
+  background: var(--soft);
+  color: var(--text);
+}
+
+.farmer-product-reviews-close:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green-700) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.farmer-product-reviews-dialog .product-reviews-feed {
+  margin-top: 16px;
+}
+
+@media (max-width: 560px) {
+  .farmer-product-reviews-overlay {
+    padding: 10px;
+  }
+
+  .farmer-product-reviews-dialog {
+    max-height: 92vh;
+    padding: 16px;
+  }
+}
+
 .farmer-products-page .product-approval-status { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; max-width: 100%; }
 .farmer-products-page .product-approval-status .badge-pending-approval { padding: 3px 7px; border: 1px solid #e2d5b3; border-radius: 6px; background: #f6efde; color: #73561f; font-size: 12px; font-weight: 500; line-height: 1.4; white-space: normal; }
 .farmer-products-page .product-approval-status .badge-rejected { padding: 3px 7px; border: 1px solid #e4c9c9; border-radius: 6px; background: #f7eaea; color: #914444; font-size: 12px; font-weight: 500; line-height: 1.4; }

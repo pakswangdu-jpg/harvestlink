@@ -42,12 +42,155 @@
   object-fit: contain;
   object-position: center;
 }
+
+.product-quick-view-overlay .product-quick-view-image {
+  display: block;
+  max-height: none;
+  aspect-ratio: auto;
+  overflow: visible;
+  background: transparent;
+}
 .product-quick-view-overlay .product-quick-view-heading > div { min-width: 0; overflow-wrap: anywhere; }
 .product-quick-view-overlay .product-quick-view-heading > .badge { flex-shrink: 0; }
 .product-quick-view-overlay .product-quick-view-price,
 .product-quick-view-overlay .product-quick-view-stock { overflow-wrap: anywhere; }
 .product-quick-view-overlay .product-quick-view-meta dt,
 .product-quick-view-overlay .product-quick-view-meta dd { min-width: 0; overflow-wrap: anywhere; }
+
+.product-quick-view-overlay .product-quick-view .product-reviews-feed {
+  margin-top: 22px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.product-quick-view-overlay .product-reviews-feed-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.product-quick-view-overlay .product-reviews-feed-eyebrow {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.product-quick-view-overlay .product-reviews-feed-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.product-quick-view-overlay .product-reviews-feed-summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.product-quick-view-overlay .product-reviews-feed-summary strong { color: var(--text); font-size: 14px; }
+.product-quick-view-overlay .product-reviews-feed .star-rating { flex-shrink: 0; }
+.product-quick-view-overlay .product-reviews-feed .star-rating-star { color: #aa792c; }
+.product-quick-view-overlay .product-reviews-feed .star-rating-star.filled { color: #aa792c; }
+
+.product-quick-view-overlay .product-reviews-feed-state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.product-quick-view-overlay .product-reviews-feed-list {
+  display: grid;
+  gap: 10px;
+}
+
+.product-quick-view-overlay .product-review-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-subtle);
+}
+
+.product-quick-view-overlay .product-review-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.product-quick-view-overlay .product-review-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--green-50);
+  color: var(--green-800);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.product-quick-view-overlay .product-review-identity {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.product-quick-view-overlay .product-review-identity strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-quick-view-overlay .product-review-identity span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.product-quick-view-overlay .product-review-item-header time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.product-quick-view-overlay .product-review-item > .star-rating { display: flex; margin-top: 8px; }
+
+.product-quick-view-overlay .product-review-comment {
+  margin: 8px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.product-quick-view-overlay .product-review-comment.is-empty { color: var(--muted); font-style: italic; }
+
+.product-quick-view-overlay .product-reviews-feed.panel { margin-top: 20px; }
+
+@media (max-width: 560px) {
+  .product-quick-view-overlay .product-review-item-header { align-items: flex-start; }
+  .product-quick-view-overlay .product-review-item-header time { margin-left: auto; }
+}
 
 @media (max-width: 360px), (max-height: 500px) {
   .product-quick-view-overlay .admin-modal-header { padding-inline: 16px; padding-bottom: 12px; }

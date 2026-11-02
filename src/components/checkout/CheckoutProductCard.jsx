@@ -13,7 +13,7 @@ export default function CheckoutProductCard({ product }) {
   return (
     <div className="panel checkout-product-card">
       <div className="checkout-product-media">
-        {product.image ? <img src={product.image} alt={product.name} /> : <Package size={28} strokeWidth={1.5} />}
+        {product.image ? <img src={product.image} alt={product.name} /> : <Package size={28} strokeWidth={1.5} aria-hidden="true" />}
       </div>
 
       <div className="checkout-product-info">

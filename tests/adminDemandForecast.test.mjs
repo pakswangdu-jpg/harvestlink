@@ -16,12 +16,14 @@ test('Admin can open the shared Demand Forecast only inside the Admin-protected 
 test('Admin forecast uses existing demand APIs and real series, and labels unavailable values explicitly', async () => {
   const page = await read('../src/features/admin/AdminDemandForecast.jsx');
   assert.match(page, /getDemandForecast\(\{ category, municipality, period, customDate \}\)/);
-  assert.match(page, /getCropForecastDetail\(cropName, \{ period, municipality, customDate \}\)/);
+  assert.match(page, /getCropForecastDetail\(cropName, \{ period, municipality, customDate, unit: cropUnit \}\)/);
   assert.match(page, /getProducts\(\)/);
   assert.match(page, /detail\?\.demandHistoricalChart/);
   assert.match(page, /detail\?\.forecastCurve/);
   assert.match(page, /'Data unavailable'/);
   assert.match(page, /Farmer listings for/);
+  assert.match(page, /Commodity \/ unit/);
+  assert.match(page, /Order volume \/ \$\{listingUnit \|\| 'listed unit'\}/);
 });
 
 test('Forecast charts use compact dates, distinguish observed data from forecasts, and fit mobile', async () => {

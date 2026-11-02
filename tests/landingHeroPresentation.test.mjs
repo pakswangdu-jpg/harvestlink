@@ -57,10 +57,10 @@ test('Mobile hero stacks actions and trust items with readable spacing and image
   const css = await readFile(new URL('../src/features/landing/LandingHero.css', import.meta.url), 'utf8');
   assert.match(css, /\.landing-farmer-friendly \.landing-hero \{[\s\S]*?min-height: (?:660px|min\(640px, calc\(100svh - 100px\)\))/);
   const mobile = css.slice(css.indexOf('@media (max-width: 640px)'), css.indexOf('@media (max-width: 360px)'));
-  assert.match(mobile, /\.landing-hero::before \{ background: (?:radial-gradient\([^}]*rgb\(12 22 16 \/ 70%\)[^}]*\)|rgb\(12 22 16 \/ 70%\)); \}/);
+  assert.match(mobile, /\.landing-farmer-friendly \.landing-hero::before\s*\{\s*background: rgb\(12 22 16 \/ 70%\);\s*\}/);
   assert.match(mobile, /\.farmer-hero-photo \{ object-position: (?:12%|34%) center; \}/);
   assert.match(mobile, /\.hero-copy-block \{[^}]*flex-direction: column/);
-  assert.match(mobile, /\.landing-hero h1 \{[^}]*font-size: 32px; line-height: 1\.2/);
+  assert.match(mobile, /\.landing-hero h1 \{[^}]*font-size: 32px;\s*line-height: 1\.2/);
   assert.match(mobile, /\.landing-hero h1 br \{ display: none; \}/);
   assert.match(mobile, /\.hero-actions \{[^}]*flex-direction: column/);
   assert.match(mobile, /\.hero-actions \.btn \{[^}]*min-height: 48px/);

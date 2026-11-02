@@ -214,6 +214,10 @@ export async function getOrderById(id) {
   return apiClient.get(`/orders/${id}`);
 }
 
+export async function getOrderTrackingProfiles(id) {
+  return apiClient.get(`/orders/${id}/tracking-profiles`);
+}
+
 export function getOrderReceipt(id) {
   return apiClient.get(`/orders/${encodeURIComponent(id)}/receipt`);
 }
@@ -274,6 +278,7 @@ export function mapOrderRealtimeRow(row) {
     buyerName: row.buyer_name,
     buyerAvatarUrl: row.buyer_avatar_url || null,
     quantity: Number(row.quantity),
+    stockState: row.stock_state || null,
     deliveryFee: Number(row.delivery_fee || 0),
     totalAmount: Number(row.total_amount),
     message: row.message || '',

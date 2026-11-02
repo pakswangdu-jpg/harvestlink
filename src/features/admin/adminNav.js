@@ -1,5 +1,5 @@
 import {
-  BadgeAlert, ChartColumn, Handshake, LayoutGrid, Package, TrendingUp, UserRound, Users,
+  BadgeAlert, ChartColumn, Handshake, LayoutGrid, MapPin, Package, TrendingUp, UserRound, Users,
 } from 'lucide-react';
 import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import donationsNavIcon from '../../assets/icons/nav-donations-handshake.png';
@@ -13,6 +13,7 @@ const DonationsNavIcon = createMaskNavIcon(donationsNavIcon);
 export const adminNavItems = [
   { to: '/admin-dashboard', label: 'Dashboard', icon: LayoutGrid },
   { to: '/admin-users', label: 'Users', icon: Users },
+  { to: '/admin-user-locations', label: 'User Locations', icon: MapPin },
   { to: '/admin-price-monitoring', label: 'Price Monitoring', icon: BadgeAlert },
   { to: '/admin-demand-forecast', label: 'Demand Forecast', icon: TrendingUp },
   { to: '/admin-orders', label: 'Orders', icon: Package },

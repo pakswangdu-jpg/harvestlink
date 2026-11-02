@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Check, CheckCheck, Copy, Download, Forward, Globe, MoreHorizontal, Pencil, Reply, Trash2, File as FileIcon,
 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
 
 function BubbleTimestamp({ message, isMine, showStatus }) {
   const time = new Date(message.createdAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
@@ -39,8 +40,10 @@ const MENU_ITEM_CLASS = 'flex w-full items-center gap-2 border-0 bg-transparent 
 
 export default function MessageBubble({
   message, isMine, replyMessage, showStatus, onReply, onEdit, onDelete, onForward, onCopy, translation, onToggleTranslate,
+  showProductContext = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isSystem = message.messageType === 'system' || message.senderRole === 'system';
   const canTranslate = !isMine && message.messageType === 'text' && message.text;
   const showTranslation = Boolean(translation?.visible);
 
@@ -57,18 +60,63 @@ export default function MessageBubble({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      className={`messages-bubble-row group flex items-end gap-1.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}
+      className={`messages-bubble-row group flex items-end gap-1.5 px-1 ${isSystem ? 'justify-center' : isMine ? 'justify-end' : 'justify-start'}`}
     >
-      {!isMine ? <div className="w-6 shrink-0" /> : null}
+      {!isMine && !isSystem ? <div className="w-6 shrink-0" /> : null}
 
-      <div className="relative max-w-[75%] sm:max-w-[65%]">
+      <div className={`relative ${isSystem ? 'w-full max-w-[90%] sm:max-w-[75%]' : 'max-w-[85%] sm:max-w-[75%] lg:max-w-[68%]'}`}>
         <div className={`messages-bubble relative rounded-3xl px-4 py-2.5 shadow-sm ${
-          isMine
+          isSystem
+            ? 'rounded-xl border border-[var(--line)] bg-[var(--panel)] text-center text-[var(--muted)]'
+            : isMine
             ? 'rounded-br-lg bg-[var(--green-800)] text-white'
             : 'rounded-bl-lg border border-[var(--line)] bg-[var(--soft)] text-[var(--text)]'
         }`}
         >
+          {isSystem ? <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--green-700)]">HarvestLink update</p> : null}
           <ReplyPreview replyMessage={replyMessage} isMine={isMine} />
+
+          {showProductContext && message.productContext ? (
+            <div className={`mb-1.5 flex items-center gap-2 rounded-xl px-2 py-1.5 ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
+              {message.productContext.imageUrl ? (
+                <img src={message.productContext.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" />
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Product inquiry</p>
+                <p className="truncate text-[12px] font-medium">{message.productContext.productName}</p>
+                <p className="truncate text-[10px] opacity-75">
+                  {[message.productContext.category, message.productContext.farmerName].filter(Boolean).join(' · ')}
+                </p>
+                <p className="truncate text-[10px] opacity-75">
+                  {message.productContext.price != null ? `${formatCurrency(message.productContext.price)} / ${message.productContext.unit || 'unit'} · ` : ''}
+                  {message.productContext.availableQuantity != null ? `${message.productContext.availableQuantity} ${message.productContext.unit || 'available'} at inquiry` : 'Availability recorded'}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {showProductContext && message.donationContext ? (
+            <div className={`mb-1.5 flex items-start gap-2 rounded-xl px-2 py-1.5 text-left ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
+              {message.donationContext.imageUrl ? (
+                <img src={message.donationContext.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Donation inquiry</p>
+                <p className="truncate text-[12px] font-medium">{message.donationContext.donationName}</p>
+                <p className="truncate text-[10px] opacity-75">
+                  {[message.donationContext.farmerName, message.donationContext.location].filter(Boolean).join(' · ')}
+                </p>
+                <p className="truncate text-[10px] opacity-75">
+                  {message.donationContext.availableQuantity != null
+                    ? `${message.donationContext.availableQuantity} ${message.donationContext.unit || 'units'} available at inquiry`
+                    : 'Availability recorded'}
+                </p>
+                {message.donationContext.description ? (
+                  <p className="line-clamp-2 whitespace-pre-wrap text-[10px] opacity-75">{message.donationContext.description}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           {message.messageType === 'image' && message.imageUrl ? (
             <a href={message.imageUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
@@ -90,7 +138,7 @@ export default function MessageBubble({
           ) : null}
 
           {message.text ? (
-            <p className={`whitespace-pre-wrap break-words text-[14px] leading-relaxed ${message.messageType !== 'text' ? 'mt-1.5' : ''}`}>
+            <p className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed ${message.messageType !== 'text' ? 'mt-1.5' : ''}`}>
               {message.text}
             </p>
           ) : null}
@@ -115,12 +163,10 @@ export default function MessageBubble({
             </div>
           ) : null}
 
-          <BubbleTimestamp message={message} isMine={isMine} showStatus={showStatus} />
+          <BubbleTimestamp message={message} isMine={isMine && !isSystem} showStatus={showStatus && !isSystem} />
         </div>
 
-        {
-
-                                               }
+        {!isSystem ? (
         <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${isMine ? '-left-8' : '-right-8'}`}>
           <button
             type="button"
@@ -164,6 +210,7 @@ export default function MessageBubble({
             </motion.div>
           ) : null}
         </div>
+        ) : null}
       </div>
     </motion.div>
   );

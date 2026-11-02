@@ -65,7 +65,7 @@ async function withFarmerNames(rows) {
   if (!farmerIds.length) return rows.map((row) => serializeProduct(row));
 
   const [{ data: farmers }, { data: ratings }] = await Promise.all([
-    supabaseAdmin.from('profiles').select('id, name, verification_status, gcash_account_name, gcash_qr_url').in('id', farmerIds),
+    supabaseAdmin.from('profiles').select('id, name, farm_name, verification_status, gcash_account_name, gcash_qr_url').in('id', farmerIds),
     supabaseAdmin.from('ratings').select('farmer_id, rating').in('farmer_id', farmerIds),
   ]);
 
@@ -83,6 +83,7 @@ async function withFarmerNames(rows) {
     const ratingSummary = ratingSummaryById.get(row.farmer_id);
     return serializeProduct(row, {
       farmerName: farmer?.name || null,
+      farmerFarmName: farmer?.farm_name || null,
       farmerVerified: farmer?.verification_status === 'verified',
       farmerGcashEnabled: Boolean(farmer?.gcash_account_name && farmer?.gcash_qr_url),
       farmerRating: ratingSummary ? Math.round((ratingSummary.total / ratingSummary.count) * 10) / 10 : null,
@@ -101,6 +102,19 @@ function assertOwnership(req, product) {
   if (req.profile.role !== 'farmer' || req.profile.id !== product.farmer_id) {
     throw new ApiError('You do not have permission to modify this product.', 403);
   }
+}
+
+function getProductImageUrls(values, existing = null) {
+  const imageUrls = values.imageUrls !== undefined
+    ? values.imageUrls
+    : values.image !== undefined
+      ? values.image ? [values.image] : []
+      : existing?.image_urls || (existing?.image_url ? [existing.image_url] : []);
+  if (!Array.isArray(imageUrls) || imageUrls.length > 10
+      || imageUrls.some((url) => typeof url !== 'string' || !url.trim() || url.length > 2048)) {
+    throw new ApiError('A product can have up to 10 valid photos.', 400);
+  }
+  return imageUrls;
 }
 
 export async function listProducts(req, res) {
@@ -128,6 +142,19 @@ export async function listProducts(req, res) {
 
   const { data, error } = await query;
   if (error) throw new ApiError(error.message, 400);
+  res.json(await withFarmerNames(data));
+}
+
+export async function listMarketplaceProducts(req, res) {
+  const { data, error } = await supabaseAdmin
+    .from('products')
+    .select('*')
+    .or('and(status.eq.active,quantity.gt.0),and(status.eq.inactive,quantity.eq.0)')
+    .or('price_review.is.null,price_review->>status.eq.approved')
+    .or(`expiration_date.is.null,expiration_date.gte.${todayInCebu()}`)
+    .order('created_at', { ascending: false });
+  if (error) throw new ApiError(error.message, 400);
+  res.setHeader('Cache-Control', 'no-store');
   res.json(await withFarmerNames(data));
 }
 
@@ -159,6 +186,7 @@ export async function listPublicProducts(req, res) {
     id: product.id,
     farmerId: product.farmerId,
     farmerName: product.farmerName,
+    farmerFarmName: product.farmerFarmName,
     farmerVerified: product.farmerVerified,
     farmerRating: product.farmerRating,
     farmerRatingCount: product.farmerRatingCount,
@@ -176,6 +204,7 @@ export async function listPublicProducts(req, res) {
     location: product.location,
     description: product.description,
     image: product.image,
+    imageUrls: product.imageUrls,
     status: product.status,
     priceReview: product.priceReview,
     originalPrice: product.originalPrice,
@@ -266,6 +295,7 @@ export async function createProduct(req, res) {
     price, quantity: Number(values.quantity), unit: values.unit,
     sellingType: values.sellingType || 'retail', kgPerUnit,
   });
+  const imageUrls = getProductImageUrls(values);
 
   const now = new Date().toISOString();
   const row = {
@@ -283,7 +313,8 @@ export async function createProduct(req, res) {
     quantity: Number(values.quantity),
     location: values.location.trim(),
     description: values.description?.trim() || '',
-    image_url: values.image || null,
+    image_url: imageUrls[0] || null,
+    image_urls: imageUrls,
     status: values.isDonation ? 'inactive' : 'active',
     price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
@@ -322,6 +353,7 @@ export async function createProduct(req, res) {
         location: row.location,
         description: row.description,
         image_url: row.image_url || mergeTarget.image_url,
+        image_urls: row.image_urls.length ? row.image_urls : mergeTarget.image_urls || (mergeTarget.image_url ? [mergeTarget.image_url] : []),
         cost_price: row.cost_price,
 
 
@@ -374,6 +406,7 @@ export async function updateProduct(req, res) {
   const { wholesalePrice, wholesaleMinQuantity } = resolveWholesalePricing(values, {
     price, quantity, unit, sellingType, kgPerUnit,
   }, existing);
+  const imageUrls = getProductImageUrls(values, existing);
 
 
 
@@ -406,7 +439,8 @@ export async function updateProduct(req, res) {
     quantity,
     location: values.location?.trim() ?? existing.location,
     description: values.description?.trim() ?? existing.description,
-    image_url: values.image !== undefined ? values.image || null : existing.image_url,
+    image_url: imageUrls[0] || null,
+    image_urls: imageUrls,
     status: values.status || (quantity > 0 ? existing.status : 'inactive'),
     price_review: priceReview,
     cost_price: costPrice,

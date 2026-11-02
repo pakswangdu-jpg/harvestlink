@@ -18,3 +18,11 @@ test('Donation table wraps long names and becomes content-sized records in narro
   assert.match(css, /content: attr\(data-label\)/);
   assert.match(css, /tr \{[^}]*height: auto; min-height: 0/);
 });
+
+test('Farmer donation offers show remaining stock while claims are pending and refresh automatically', async () => {
+  const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
+  const hook = await readFile(new URL('../src/hooks/useDonationList.js', import.meta.url), 'utf8');
+  assert.match(page, /donation\.status === 'available'[\s\S]*?Number\(donation\.availableQuantity \?\? donation\.quantity\) > 0/);
+  assert.match(page, /formatQuantity\(donation\.availableQuantity \?\? donation\.quantity\)/);
+  assert.match(hook, /setInterval\(\(\) => \{ if \(!pending\.current\) reload\(\); \}, 4000\)/);
+});

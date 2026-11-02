@@ -64,6 +64,9 @@
 .admin-overview-page .overview-activity-icon-blue { color: var(--overview-blue); }
 .admin-overview-page .overview-activity-icon-amber { color: var(--overview-amber); }
 .admin-overview-page .overview-activity-icon-violet { color: var(--overview-slate); }
+.admin-overview-page .overview-activity-more { border: 0; padding: 4px 0; background: transparent; color: var(--overview-green); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.admin-overview-page .overview-activity-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.admin-overview-page .overview-activity-more:focus-visible { outline: 2px solid var(--overview-green); outline-offset: 3px; }
 .admin-overview-page .overview-activity-row p:first-child { font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--overview-primary); overflow-wrap: anywhere; }
 .admin-overview-page .overview-activity-row p + p { margin-top: 4px; font-size: 12px; color: var(--overview-secondary); }
 .admin-overview-page .overview-price-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }

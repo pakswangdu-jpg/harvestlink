@@ -98,22 +98,12 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(
-    ellipse 82% 115% at 0% 50%,
-    rgb(12 22 16 / 66%) 0%,
-    rgb(12 22 16 / 48%) 48%,
-    transparent 100%
-  );
+  background: rgb(12 22 16 / 56%);
   pointer-events: none;
 }
 
 [data-theme="dark"] .landing-farmer-friendly .landing-hero::before {
-  background: radial-gradient(
-    ellipse 84% 115% at 0% 50%,
-    rgb(12 22 16 / 72%) 0%,
-    rgb(12 22 16 / 54%) 48%,
-    transparent 100%
-  );
+  background: rgb(12 22 16 / 56%);
 }
 
 [data-theme="dark"] .landing-farmer-friendly .landing-hero p,
@@ -134,10 +124,10 @@
 .landing-farmer-friendly .landing-hero h1 {
   max-width: 660px;
   color: #fff;
-  font-size: clamp(3.625rem, 4.6vw, 3.75rem);
+  font-size: 58px;
   font-weight: 600;
   line-height: 1.1;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
 }
 .landing-farmer-friendly .landing-hero p { max-width: 630px; font-size: 18px; font-weight: 400; line-height: 1.55; color: #f0f2f0; }
 .landing-farmer-friendly .hero-actions { gap: 14px; }
@@ -232,32 +222,28 @@
 }
 
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid {
-  row-gap: 26px;
-  padding-block: 20px;
-  background: #101915;
+  row-gap: 22px;
+  background: transparent;
 }
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid .lp-feature-card {
-  padding: 28px;
-  border-color: rgb(160 200 170 / 14%);
-  border-radius: 16px;
-  background: #16211b;
+  border-color: #343b37;
+  border-radius: 11px;
+  background: #17211b;
   box-shadow: none;
 }
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid .lp-feature-card:hover {
-  transform: translateY(-2px);
-  border-color: rgb(160 200 170 / 25%);
-  background: #1a2820;
+  border-color: #526457;
   box-shadow: none;
 }
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid .lp-feature-icon {
-  border: 1px solid rgb(165 215 178 / 14%);
-  border-radius: 12px;
-  background: #1d2b23;
+  border: 1px solid #304138;
+  border-radius: 8px;
+  background: #1c2821;
   color: #a5d7b2;
 }
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid .lp-feature-card h3 {
   color: #e4ece6;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 600;
 }
 [data-theme="dark"] .landing-farmer-friendly .landing-feature-grid .lp-feature-card p {
@@ -310,7 +296,7 @@
   }
   .landing-farmer-friendly .landing-hero h1 {
     max-width: clamp(30rem, 60vw, 34rem);
-    font-size: clamp(2.75rem, 5.3vw, 3.5rem);
+    font-size: 56px;
   }
   .landing-farmer-friendly .farmer-benefits-section { gap: 28px; }
   .landing-farmer-friendly .farmer-listing-example { grid-template-columns: minmax(0, 1fr); }
@@ -324,10 +310,10 @@
     padding: 30px var(--farmer-page-inset) 34px;
   }
   .landing-farmer-friendly .landing-hero::before {
-    background: radial-gradient(ellipse 130% 110% at 0% 50%, rgb(12 22 16 / 70%) 0%, rgb(12 22 16 / 58%) 54%, rgb(12 22 16 / 38%) 100%);
+    background: rgb(12 22 16 / 70%);
   }
   [data-theme="dark"] .landing-farmer-friendly .landing-hero::before {
-    background: radial-gradient(ellipse 130% 110% at 0% 50%, rgb(12 22 16 / 76%) 0%, rgb(12 22 16 / 64%) 54%, rgb(12 22 16 / 44%) 100%);
+    background: rgb(12 22 16 / 70%);
   }
   .landing-farmer-friendly .farmer-hero-photo { object-position: 34% center; }
   .landing-farmer-friendly .hero-copy-block {
@@ -341,9 +327,9 @@
   }
   .landing-farmer-friendly .landing-hero h1 {
     max-width: 11.5ch;
-    font-size: clamp(2.125rem, 8.8vw, 2.375rem);
-    line-height: 1.08;
-    letter-spacing: -0.04em;
+    font-size: 32px;
+    line-height: 1.2;
+    letter-spacing: 0;
   }
   .landing-farmer-friendly .landing-hero h1 br { display: none; }
   .landing-farmer-friendly .landing-hero p { max-width: 38ch; font-size: 16px; line-height: 1.55; }

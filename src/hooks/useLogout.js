@@ -25,7 +25,7 @@ export function useLogout() {
     setIsLoggingOut(true);
     try {
       await logout();
-      sessionStorage.setItem(LOGOUT_NOTICE_KEY, '1');
+      window.sessionStorage?.setItem(LOGOUT_NOTICE_KEY, '1');
       window.location.assign('/');
     } catch {
       pendingRef.current = false;

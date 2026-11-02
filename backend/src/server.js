@@ -7,6 +7,7 @@ import { getAllowedOrigins } from './lib/appUrls.js';
 import { startInactivitySuspensionJob } from './lib/accountInactivity.js';
 import { invalidateAuthCacheForUser } from './middleware/requireAuth.js';
 import { startReceiptEmailJob } from './lib/receiptEmails.js';
+import { startDonationExpiryJob } from './lib/donationExpiry.js';
 
 const port = process.env.PORT || 4000;
 
@@ -67,6 +68,8 @@ async function tryListen(startPort, attempts = 5) {
 tryListen(port).then(() => {
   const stopReceiptJob = startReceiptEmailJob();
   httpServer.once('close', stopReceiptJob);
+  const stopDonationExpiryJob = startDonationExpiryJob();
+  httpServer.once('close', stopDonationExpiryJob);
   const stopInactivityJob = startInactivitySuspensionJob({ onSuspended: (userId) => {
     invalidateAuthCacheForUser(userId);
     for (const socket of io.sockets.sockets.values()) {

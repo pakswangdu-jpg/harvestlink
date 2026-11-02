@@ -9,8 +9,9 @@ const MAX_ATTACHMENT_MB = 10;
 
 export default function MessageInput({
   onSendText, onSendAttachment, replyingTo, onCancelReply, disabled, onTyping, onStoppedTyping,
+  initialDraft = '', suggestedMessages = [],
 }) {
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(initialDraft);
   const [showEmoji, setShowEmoji] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
@@ -139,6 +140,25 @@ export default function MessageInput({
 
       {error ? <p className="mb-2 text-[12px] text-[var(--red-700)]">{error}</p> : null}
 
+      {suggestedMessages.length ? (
+        <div className="messages-suggestion-list mb-2 flex flex-wrap items-start gap-1.5" aria-label="Suggested opening messages. Swipe horizontally on mobile to see more.">
+          {suggestedMessages.map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              onClick={() => {
+                setDraft(suggestion);
+                textareaRef.current?.focus();
+              }}
+              disabled={disabled || isSending}
+              className="messages-suggestion shrink-0 rounded-full border border-[var(--line)] bg-[var(--panel)] px-2.5 py-1.5 text-left text-[11px] text-[var(--text-secondary)] transition-colors hover:border-[var(--green-700)] hover:text-[var(--green-700)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex items-end gap-2">
         <div className="relative">
           <button
@@ -179,7 +199,7 @@ export default function MessageInput({
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
             disabled={disabled}
-            className="max-h-28 w-full resize-none bg-transparent text-[14px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none"
+            className="max-h-28 w-full resize-none bg-transparent text-[15px] text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none"
             style={{ minHeight: '22px' }}
           />
         </div>
@@ -188,7 +208,7 @@ export default function MessageInput({
           type="button"
           onClick={handleSend}
           disabled={!canSend}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--green-800)] p-0 text-white shadow-sm transition-all duration-150 hover:bg-[var(--green-700)] disabled:cursor-not-allowed disabled:bg-[var(--line)] disabled:text-[var(--muted)]"
+          className="messages-send-button flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--green-800)] p-0 text-white shadow-sm transition-all duration-150 hover:bg-[var(--green-700)] disabled:cursor-not-allowed disabled:bg-[var(--line)] disabled:text-[var(--muted)]"
         >
           {isSending ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />}
         </button>

@@ -64,13 +64,14 @@ export function serializeProfile(row) {
 export function serializeProduct(row, farmerInfo = {}) {
   if (!row) return null;
   const {
-    farmerName = null, farmerVerified = false, farmerRating = null, farmerRatingCount = 0,
+    farmerName = null, farmerFarmName = null, farmerVerified = false, farmerRating = null, farmerRatingCount = 0,
     farmerGcashEnabled = false,
   } = farmerInfo;
   return {
     id: row.id,
     farmerId: row.farmer_id,
     farmerName,
+    farmerFarmName,
     farmerVerified,
     farmerRating,
     farmerRatingCount,
@@ -86,9 +87,14 @@ export function serializeProduct(row, farmerInfo = {}) {
     unit: row.unit,
     kgPerUnit: row.kg_per_unit == null ? null : Number(row.kg_per_unit),
     quantity: Number(row.quantity),
+    reservedQuantity: Number(row.reserved_quantity || 0),
+    soldQuantity: Number(row.sold_quantity || 0),
     location: row.location,
     description: row.description,
-    image: row.image_url || '',
+    image: row.image_url || row.image_urls?.[0] || '',
+    imageUrls: Array.isArray(row.image_urls) && row.image_urls.length
+      ? row.image_urls
+      : row.image_url ? [row.image_url] : [],
     status: row.status,
     originalPrice: row.original_price == null ? null : Number(row.original_price),
     discountPercent: row.discount_percent == null ? null : Number(row.discount_percent),
@@ -105,7 +111,8 @@ export function serializeOrder(row) {
   return {
     id: row.id,
     trackingId: row.tracking_id || null,
-    productId: row.product_id,
+    productId: row.product_id_snapshot || row.product_id,
+    productIdSnapshot: row.product_id_snapshot || row.product_id || null,
     productName: row.product_name,
     productImageUrl: row.product_image_url || null,
     unit: row.unit,
@@ -120,6 +127,7 @@ export function serializeOrder(row) {
     buyerName: row.buyer_name,
     buyerAvatarUrl: row.buyer_avatar_url || null,
     quantity: Number(row.quantity),
+    stockState: row.stock_state || null,
     deliveryFee: Number(row.delivery_fee || 0),
 
 
@@ -211,7 +219,9 @@ export function serializeMessage(row) {
   if (!row) return null;
   return {
     id: row.id,
+    conversationId: row.conversation_id || null,
     orderId: row.order_id,
+    contextOrderId: row.context_order_id || null,
     recipientId: row.recipient_id,
     senderId: row.sender_id,
     senderName: row.sender_name,
@@ -222,6 +232,32 @@ export function serializeMessage(row) {
     fileUrl: row.file_url || null,
     fileName: row.file_name || null,
     replyToId: row.reply_to_id || null,
+    productContext: row.context_product_id ? {
+      productId: row.context_product_id,
+      productName: row.context_product_name || '',
+      imageUrl: row.context_product_image_url || null,
+      category: row.context_product_category || null,
+      farmerId: row.context_product_farmer_id || null,
+      farmerName: row.context_product_farmer_name || null,
+      availableQuantity: row.context_product_quantity == null ? null : Number(row.context_product_quantity),
+      status: row.context_product_status || null,
+      unit: row.context_product_unit || null,
+      price: row.context_product_price == null ? null : Number(row.context_product_price),
+    } : null,
+    donationContext: row.context_donation_id ? {
+      donationId: row.context_donation_id,
+      donationName: row.context_donation_name || '',
+      imageUrl: row.context_donation_image_url || null,
+      description: row.context_donation_description || '',
+      availableQuantity: row.context_donation_quantity == null ? null : Number(row.context_donation_quantity),
+      unit: row.context_donation_unit || null,
+      location: row.context_donation_location || null,
+      expirationAt: row.context_donation_expiration_at || null,
+      expirationDate: row.context_donation_expiration_date || null,
+      farmerId: row.context_donation_farmer_id || null,
+      farmerName: row.context_donation_farmer_name || null,
+      status: row.context_donation_status || null,
+    } : null,
     edited: Boolean(row.edited),
     deleted: Boolean(row.deleted),
     read: row.read,
@@ -234,11 +270,17 @@ export function serializeRating(row) {
   return {
     id: row.id,
     farmerId: row.farmer_id,
+    productId: row.product_id_snapshot || null,
     raterId: row.rater_id,
     raterRole: row.rater_role,
     orderId: row.order_id,
     rating: row.rating,
     comment: row.comment || '',
+    reviewImageUrl: row.review_image_url || row.review_image_urls?.[0] || '',
+    reviewImageUrls: Array.isArray(row.review_image_urls) && row.review_image_urls.length
+      ? row.review_image_urls
+      : row.review_image_url ? [row.review_image_url] : [],
+    reviewVideoUrl: row.review_video_url || '',
     createdAt: row.created_at,
   };
 }

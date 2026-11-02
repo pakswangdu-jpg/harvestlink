@@ -14,16 +14,7 @@ import { DONATION_MARKER_COLOR, donationAnimation, isDonationAlert } from '../ma
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
-
-
-
 const ROUTE_LINE_COLOR = '#1a73e8';
-
-
-
-
-
-
 
 const LIVE_REROUTE_MIN_INTERVAL_MS = 20000;
 const LIVE_REROUTE_MIN_MOVE_KM = 0.05;
@@ -37,7 +28,6 @@ const PRECISION_LABELS = {
   municipality: 'Approximate — municipality center',
   fallback: 'Approximate — municipality area',
 };
-
 
 
 const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
@@ -72,11 +62,6 @@ function buildTruckIcon(mapsApi) {
 function pointKey(point) {
   return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
 }
-
-
-
-
-
 
 function animateMarkerTo(entry, targetPosition, durationMs = MARKER_ANIMATION_DURATION_MS) {
   if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
@@ -125,6 +110,7 @@ export default function DeliveryMap({
   viewerCoords = null,
   viewerAddress = '',
   nearbyView = false,
+  showDonationAlerts = false,
 }) {
   const wrapperRef = useRef(null);
   const containerRef = useRef(null);
@@ -257,7 +243,7 @@ export default function DeliveryMap({
     const signature = farmers.map((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       return `${farmer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}:${farmer.hasAvailableDonations === true}`;
-    }).join('|') + `:${alertStyle}`;
+    }).join('|') + `:${alertStyle}:${showDonationAlerts}`;
     if (signature === markerSignaturesRef.current.farmers) return;
     markerSignaturesRef.current.farmers = signature;
 
@@ -267,7 +253,7 @@ export default function DeliveryMap({
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
       const displayName = farmer.farmName || farmer.name;
-      const donationAlert = isDonationAlert(farmer, coords);
+      const donationAlert = showDonationAlerts && isDonationAlert(farmer, coords);
       const marker = new mapsApi.Marker({
         position: coords,
         map,
@@ -296,7 +282,7 @@ export default function DeliveryMap({
       marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
       farmerMarkersRef.current.push(marker);
     });
-  }, [mapReady, farmers, farmerCoordsById, alertStyle]);
+  }, [mapReady, farmers, farmerCoordsById, alertStyle, showDonationAlerts]);
 
   useEffect(() => {
     const map = mapRef.current;

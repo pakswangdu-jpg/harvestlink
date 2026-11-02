@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Gift } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Gift, MessageCircle } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
@@ -9,22 +10,87 @@ import { requestDonation } from '../../services/donationService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
 
+const DONATION_MESSAGE_SUGGESTIONS = [
+  'Hi! Is this donation still available?',
+  'We are interested in claiming this donation.',
+  'Is the available quantity still accurate?',
+  'Can we claim only a portion of the quantity?',
+  'What is the pickup location?',
+  'Can we arrange a pickup schedule?',
+];
+
+function quantityLabel(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '0';
+  const rounded = Math.round(number * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function MessageFarmerLink({ donation, canMessage }) {
+  if (!canMessage || !donation.farmerId) return null;
+  return (
+    <Link
+      to={`/messages/direct/${donation.farmerId}`}
+      state={{
+        donationContext: {
+          donationId: donation.id,
+          donationName: donation.productName,
+          imageUrl: donation.image,
+          description: donation.description,
+          expirationAt: donation.expirationAt,
+          expirationDate: donation.expirationDate,
+          location: donation.location,
+          farmerId: donation.farmerId,
+          farmerName: donation.farmerName,
+          availableQuantity: Number(donation.availableQuantity ?? donation.quantity),
+          status: donation.status,
+          unit: donation.unit,
+        },
+        initialMessage: '',
+        suggestedMessages: DONATION_MESSAGE_SUGGESTIONS,
+      }}
+      className="donation-message-action"
+      aria-label={`Message ${donation.farmerName || 'farmer'} about ${donation.productName}`}
+    >
+      <MessageCircle size={15} aria-hidden="true" />
+      Message farmer
+    </Link>
+  );
+}
+
 export default function StakeholderDonations() {
   const { currentUser } = useAuth();
+  const location = useLocation();
   const { donations, loading, loadError, reload } = useDonationList({ availableOnly: true });
   const [requesting, setRequesting] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [claimQuantities, setClaimQuantities] = useState({});
 
   const canRequestDonations = currentUser.verificationStatus === 'verified';
+  const requestedDonationId = new URLSearchParams(location.search).get('donationId');
+
+  useEffect(() => {
+    if (!requestedDonationId || loading) return;
+    document.getElementById(`donation-${requestedDonationId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [requestedDonationId, loading, donations]);
 
   const handleRequest = async (donation) => {
     if (requesting) return;
+    const rawAvailable = donation.availableQuantity ?? donation.quantity;
+    const available = Number(rawAvailable);
+    const hasAvailableQuantity = Number.isFinite(available);
+    const quantity = Number(claimQuantities[donation.id] || 1);
+    if (!Number.isFinite(quantity) || quantity <= 0 || (hasAvailableQuantity && quantity > available)) {
+      setError(`Choose a quantity between 1 and ${quantityLabel(rawAvailable)} ${donation.unit}.`);
+      return;
+    }
     setRequesting(true);
     try {
-      await requestDonation(donation.id);
+      if (hasAvailableQuantity) await requestDonation(donation.id, quantity);
+      else await requestDonation(donation.id);
       setError('');
-      setNotice(`Request sent to ${donation.farmerName} for ${donation.productName}.`);
+      setNotice(`Request sent to ${donation.farmerName} for ${quantityLabel(quantity)} ${donation.unit} of ${donation.productName}.`);
       await reload();
     } catch (requestError) {
       setNotice('');
@@ -69,14 +135,49 @@ export default function StakeholderDonations() {
               donation={donation}
               variant="discovery"
               actions={(
-                <Button
-                  size="sm"
-                  onClick={() => handleRequest(donation)}
-                  disabled={!canRequestDonations || requesting}
-                  title={canRequestDonations ? undefined : 'Verify your account before requesting donations.'}
-                >
-                  <Gift size={15} /> Request donation
-                </Button>
+                donation.myClaim && ['pending', 'scheduled'].includes(donation.myClaim.status) ? (
+                  <div className="donation-request-status">
+                    <span>Claim {quantityLabel(donation.myClaim.quantity)} {donation.unit}: {donation.myClaim.status}</span>
+                    <MessageFarmerLink donation={donation} canMessage={canRequestDonations} />
+                  </div>
+                ) : (
+                  <div
+                    className="donation-request-controls"
+                    onClick={(event) => {
+                      if (!event || event.target === event.currentTarget) return handleRequest(donation);
+                      return undefined;
+                    }}
+                  >
+                    <div className="donation-request-quantity">
+                      <label htmlFor={`donation-quantity-${donation.id}`}>How much do you need?</label>
+                      <div className="donation-request-quantity-input">
+                        <input
+                          id={`donation-quantity-${donation.id}`}
+                          type="number"
+                          min="1"
+                          max={donation.availableQuantity ?? donation.quantity}
+                          step="any"
+                          value={claimQuantities[donation.id] ?? 1}
+                          onChange={(event) => setClaimQuantities((previous) => ({ ...previous, [donation.id]: event.target.value }))}
+                          aria-describedby={`donation-quantity-help-${donation.id}`}
+                        />
+                        <span>{donation.unit}</span>
+                      </div>
+                      <small id={`donation-quantity-help-${donation.id}`}>
+                        {quantityLabel(donation.availableQuantity ?? donation.quantity)} {donation.unit} available
+                      </small>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleRequest(donation)}
+                      disabled={!canRequestDonations || requesting}
+                      title={canRequestDonations ? undefined : 'Verify your account before requesting donations.'}
+                    >
+                      <Gift size={15} /> Request this amount
+                    </Button>
+                    <MessageFarmerLink donation={donation} canMessage={canRequestDonations} />
+                  </div>
+                )
               )}
             />
           ))}

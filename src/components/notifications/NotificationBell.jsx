@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, Gift, MessageCircle, Package, ShieldCheck, TrendingUp, Wallet, X } from 'lucide-react';
+import { Bell, Gift, MapPin, MessageCircle, Package, ShieldCheck, TrendingUp, Wallet, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   deleteNotification,
@@ -20,6 +20,7 @@ const TYPE_ICONS = {
   verification: ShieldCheck,
   donation: Gift,
   market_price: TrendingUp,
+  profile: MapPin,
 };
 
 export default function NotificationBell({ userId }) {

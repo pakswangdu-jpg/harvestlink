@@ -12,7 +12,7 @@ const pendingGets = new Map();
 let cacheGeneration = 0;
 
 function getCacheTtl(path) {
-  return ['/deliveries', '/messages', '/notifications', '/orders', '/donations', '/profiles?role=', '/profiles/nearby-map', '/products/price-reviews/', '/products?farmerId='].some((prefix) => path.startsWith(prefix))
+  return ['/deliveries', '/messages', '/notifications', '/orders', '/donations', '/profiles?role=', '/profiles/nearby-map', '/products/price-reviews/', '/products?farmerId=', '/products/marketplace', '/products/'].some((prefix) => path.startsWith(prefix))
     ? LIVE_GET_CACHE_TTL_MS
     : GET_CACHE_TTL_MS;
 }
@@ -21,7 +21,7 @@ if (!API_URL) {
   throw new Error('VITE_API_URL must be set — see .env.example.');
 }
 
-async function request(path, { method = 'GET', body, accessToken } = {}) {
+async function request(path, { method = 'GET', body, accessToken, fresh = false } = {}) {
   const isolated = accessToken !== undefined;
   let session;
   if (isolated) {
@@ -34,7 +34,7 @@ async function request(path, { method = 'GET', body, accessToken } = {}) {
   }
   const isGet = method === 'GET';
   const shareRead = isGet && !isolated;
-  const noStore = isolated || NON_CACHEABLE_PATHS.has(path);
+  const noStore = isolated || fresh || NON_CACHEABLE_PATHS.has(path);
   const cacheKey = `${session?.user?.id || 'anonymous'}:${path}`;
   const cached = isGet && !noStore ? getCache.get(cacheKey) : null;
   if (cached && (cached.expiresAt > Date.now() || globalThis.document?.visibilityState === 'hidden')) {
@@ -131,7 +131,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
 
 
 export const apiClient = {
-  get: (path, { accessToken } = {}) => request(path, { accessToken }),
+  get: (path, { accessToken, fresh } = {}) => request(path, { accessToken, fresh }),
   post: (path, body) => request(path, { method: 'POST', body }),
   patch: (path, body) => request(path, { method: 'PATCH', body }),
   delete: (path) => request(path, { method: 'DELETE' }),

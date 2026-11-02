@@ -9,7 +9,11 @@ async function compile(scope = {}) {
   const original = await readFile(new URL('../src/features/admin/AdminUsers.jsx', import.meta.url), 'utf8');
   const source = original.replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace(/import\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
   const { code } = await transformWithOxc(source, 'AdminUsers.jsx', { jsx: { runtime: 'classic' } });
-  return new Function('scope', `with(scope){${code};return {AdminUsers, UserDetails, verificationLabel, accountLabel, actionNotice};}`)({ React: { createElement: element }, ...scope });
+  return new Function('scope', `with(scope){${code};return {AdminUsers, UserDetails, verificationLabel, accountLabel, actionNotice};}`)({
+    React: { createElement: element },
+    useSearchParams: () => [new URLSearchParams(), () => {}],
+    ...scope,
+  });
 }
 test('verification remains independent from account status and buyers do not need verification', async () => {
   const { verificationLabel, accountLabel } = await compile();

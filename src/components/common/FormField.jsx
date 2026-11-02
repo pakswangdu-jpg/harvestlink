@@ -6,11 +6,12 @@ export default function FormField({
   error,
   helper,
   children,
+  className = '',
 }) {
   const errorId = error ? `${name}-error` : undefined;
 
   return (
-    <label className="form-field" htmlFor={name}>
+    <label className={`form-field${className ? ` ${className}` : ''}`} htmlFor={name}>
       <span>{label}</span>
       {children}
       {helper && !error ? <small>{helper}</small> : null}

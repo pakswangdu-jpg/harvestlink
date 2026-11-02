@@ -16,6 +16,22 @@ const defaults = {
 mock.module('../src/lib/supabaseClient.js', {
   namedExports: {
     supabaseAdmin: {
+      async rpc(name, { p_actor, p_order } = {}) {
+        if (name !== 'create_marketplace_order') return { data: null, error: { code: 'PGRST202' } };
+        const existing = p_order.checkout_key
+          ? placedOrders.find((order) => order.buyer_id === p_actor && order.checkout_key === p_order.checkout_key)
+          : null;
+        if (existing) {
+          if (existing.checkout_fingerprint !== p_order.checkout_fingerprint) {
+            return { data: null, error: { code: '23505', message: 'This checkout request was already used for another order.' } };
+          }
+          return { data: existing, error: null };
+        }
+        const savedOrder = { id: `saved-${placedOrders.length}`, ...p_order, buyer_id: p_actor };
+        writes.push({ table: 'orders', action: 'reserve', row: p_order });
+        placedOrders.push(savedOrder);
+        return { data: savedOrder, error: null };
+      },
       from(table) {
         let row;
         let action;
@@ -33,7 +49,7 @@ mock.module('../src/lib/supabaseClient.js', {
         };
         return {
           select() { return this; }, eq(key, value) { filters.push([key, value]); return this; }, in() { return this; },
-          order() { return this; }, limit() { return this; },
+          order() { return this; }, limit() { return this; }, is() { return this; },
           insert(value) { row = value; action = 'insert'; return this; },
           update(value) { row = value; action = 'update'; return this; },
           single() {
@@ -140,6 +156,22 @@ test('donation-only stock is never briefly published as a free marketplace listi
   assert.equal(writes[0].row.status, 'inactive');
 });
 
+test('product creation and edits enforce the 10-photo limit and preserve gallery photos', async () => {
+  const imageUrls = Array.from({ length: 10 }, (_, index) => `https://img.test/${index}.jpg`);
+  const created = await invoke(createProduct, listing({ imageUrls }));
+  assert.equal(created.body.image, imageUrls[0]);
+  assert.deepEqual(created.body.imageUrls, imageUrls);
+  assert.deepEqual(writes[0].row.image_urls, imageUrls);
+  await assert.rejects(invoke(createProduct, listing({ imageUrls: [...imageUrls, 'https://img.test/11.jpg'] })), { status: 400 });
+
+  product.image_url = imageUrls[0];
+  product.image_urls = imageUrls;
+  const updated = await invoke(updateProduct, { imageUrls: [imageUrls[1]] });
+  assert.equal(updated.body.image, imageUrls[1]);
+  assert.deepEqual(updated.body.imageUrls, [imageUrls[1]]);
+  await assert.rejects(invoke(updateProduct, { imageUrls: [...imageUrls, 'https://img.test/11.jpg'] }), { status: 400 });
+});
+
 test('create and edit reject non-positive, non-finite and over-precise tier inputs before writing', async () => {
   for (const handler of [createProduct, updateProduct]) {
     for (const wholesalePrice of [-1, 0, '', 'Infinity', 'invalid', 55, 48.001]) {
@@ -197,9 +229,8 @@ test('legacy wholesale orders retain their price while enforcing MOQ and availab
   product = { ...defaults, price: 32, selling_type: 'wholesale', moq: 5, wholesale_price: null, wholesale_min_quantity: null };
   const order = { productId: product.id, quantity: 5, paymentMethod: 'cod', deliveryMethod: 'buyer_pickup' };
   const buyer = { id: 'buyer-1', role: 'buyer', name: 'Buyer' };
-  for (const quantity of [4, 101]) {
-    await assert.rejects(invoke(createOrder, { ...order, quantity }, buyer), { status: 400 });
-  }
+  await assert.rejects(invoke(createOrder, { ...order, quantity: 4 }, buyer), { status: 400 });
+  await assert.rejects(invoke(createOrder, { ...order, quantity: 101 }, buyer), { status: 409, code: 'INSUFFICIENT_STOCK' });
   assert.equal(writes.length, 0);
   const response = await invoke(createOrder, order, buyer);
   assert.equal(response.body.unitPrice, 32);

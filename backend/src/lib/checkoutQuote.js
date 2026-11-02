@@ -12,6 +12,13 @@ export async function buildCheckoutQuote(product, values) {
   if (!Number.isFinite(quantity) || quantity <= 0 || Number(quantity.toFixed(2)) !== quantity) {
     throw new ApiError('Enter a positive quantity with no more than two decimal places.', 400);
   }
+  if (Number(product.quantity) <= 0) {
+    throw new ApiError(
+      'Sorry, this product is no longer available. Another buyer has already reserved the remaining stock.',
+      409,
+      'PRODUCT_OUT_OF_STOCK',
+    );
+  }
   if (product.status !== 'active' || product.price_review?.status === 'pending' || product.price_review?.status === 'declined') {
     throw new ApiError('This product is not available for ordering.', 400);
   }
@@ -19,7 +26,13 @@ export async function buildCheckoutQuote(product, values) {
   if (product.expiration_date && String(product.expiration_date).slice(0, 10) < today) {
     throw new ApiError('This listing has expired.', 400);
   }
-  if (quantity > Number(product.quantity)) throw new ApiError(`Only ${product.quantity} ${product.unit} available.`, 400);
+  if (quantity > Number(product.quantity)) {
+    throw new ApiError(
+      `Only ${product.quantity} ${product.unit} remaining. Please update your order quantity.`,
+      409,
+      'INSUFFICIENT_STOCK',
+    );
+  }
   if (!Number.isFinite(Number(product.quantity)) || !Number.isFinite(Number(product.price)) || Number(product.price) < 0) {
     throw new ApiError('This listing has invalid stock or pricing. Please contact the farmer.', 400);
   }

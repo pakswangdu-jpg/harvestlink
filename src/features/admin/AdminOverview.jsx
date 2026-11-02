@@ -6,6 +6,7 @@ import {
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
 import { Card, CardHeader } from '../../components/admin/Card';
+import Modal from '../../components/admin/Modal';
 import Table from '../../components/admin/Table';
 import EmptyState from '../../components/admin/EmptyState';
 import LoadingState from '../../components/admin/LoadingState';
@@ -17,7 +18,7 @@ import { getOrders } from '../../services/orderService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { MARKET_COMMODITIES, getAllPriceOverrides, matchCommodity } from '../../services/marketPriceService';
 import { getTotalRevenue } from '../../services/reportService';
-import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
+import { formatCurrency, formatDateTimeManila } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
 import './AdminOverview.css';
 
@@ -79,7 +80,9 @@ function ActivityRow({ icon: Icon, tone, message, at }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[13px] text-[var(--text)]">{message}</p>
-        <p className="mt-0.5 text-[12px] text-[var(--muted)]">{formatRelativeTime(at)}</p>
+        <time className="mt-0.5 block text-[12px] text-[var(--muted)]" dateTime={at}>
+          {formatDateTimeManila(at)}
+        </time>
       </div>
     </div>
   );
@@ -93,6 +96,7 @@ export default function AdminOverview() {
   const { currentUser } = useAuth();
   const [state, setState] = useState(EMPTY_STATE);
   const [loadError, setLoadError] = useState('');
+  const [activityOpen, setActivityOpen] = useState(false);
   const { donations, loading: donationsLoading, loadError: donationError } = useDonationList();
 
   useEffect(() => {
@@ -147,7 +151,6 @@ export default function AdminOverview() {
     return items
       .filter((item) => item.at)
       .sort((a, b) => new Date(b.at) - new Date(a.at))
-      .slice(0, 6);
   }, [users, orders, donations, priceOverrides]);
 
   return (
@@ -189,16 +192,44 @@ export default function AdminOverview() {
             </Card>
 
             <Card className="overview-panel overview-activity">
-              <CardHeader title="Recent activity" />
+              <CardHeader
+                title="Recent activity"
+                action={(
+                  <button
+                    type="button"
+                    className="overview-activity-more"
+                    onClick={() => setActivityOpen(true)}
+                  >
+                    View more
+                  </button>
+                )}
+              />
               {recentActivity.length ? (
                 <div className="divide-y divide-[var(--line)]">
-                  {recentActivity.map((item) => <ActivityRow key={item.id} {...item} />)}
+                  {recentActivity.slice(0, 6).map((item) => <ActivityRow key={item.id} {...item} />)}
                 </div>
               ) : (
                 <EmptyState title="No recent activity" message="There are no new administrative activities to display." />
               )}
             </Card>
           </div>
+
+          <Modal
+            open={activityOpen}
+            onClose={() => setActivityOpen(false)}
+            title="Recent activity"
+            eyebrow={`${recentActivity.length.toLocaleString()} activities`}
+            className="overview-activity-modal"
+            dialogLabel="All recent activity"
+          >
+            {recentActivity.length ? (
+              <div className="divide-y divide-[var(--line)]">
+                {recentActivity.map((item) => <ActivityRow key={item.id} {...item} />)}
+              </div>
+            ) : (
+              <EmptyState title="No recent activity" message="There are no administrative activities to display." />
+            )}
+          </Modal>
 
           <div className="overview-grid">
             <Card className="overview-panel">

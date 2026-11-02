@@ -108,7 +108,7 @@
   gap: 8px;
   color: #24332d;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
@@ -148,7 +148,7 @@
   margin: 0;
   color: #24332d;
   font-family: inherit;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 600;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
@@ -190,7 +190,7 @@
   stroke: var(--summary-icon);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
 }
 
@@ -209,8 +209,8 @@
   align-self: center;
   color: #52645a;
   font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 1.35;
   letter-spacing: 0;
 }

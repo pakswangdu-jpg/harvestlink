@@ -198,6 +198,7 @@ notify pgrst, 'reload schema';
     location text not null,
     description text,
     image_url text,
+    image_urls text[] not null default '{}',
     status text not null default 'active' check (status in ('active','inactive')),
     original_price numeric(12,2),
     discount_percent numeric(5,2),
@@ -221,8 +222,11 @@ notify pgrst, 'reload schema';
 
   alter table public.products add column if not exists cost_price numeric(12,2);
   alter table public.products add column if not exists expiration_date date;
+  alter table public.products add column if not exists image_urls text[] not null default '{}';
   alter table public.products add column if not exists wholesale_price numeric(12,2);
   alter table public.products add column if not exists wholesale_min_quantity numeric(12,2);
+  alter table public.products add column if not exists reserved_quantity numeric(12,2) not null default 0;
+  alter table public.products add column if not exists sold_quantity numeric(12,2) not null default 0;
 
   do $$
   begin
@@ -270,6 +274,8 @@ notify pgrst, 'reload schema';
     -- product is deleted; the FK should reflect that, not silently block the farmer from ever
     -- deleting a product once a single order has been placed against it.
     product_id uuid references public.products(id) on delete set null,
+    -- Immutable identifier retained even when the live product listing is deleted.
+    product_id_snapshot uuid,
     product_name text not null,
     product_image_url text,
     unit text not null,
@@ -355,6 +361,24 @@ notify pgrst, 'reload schema';
   create unique index if not exists orders_tracking_id_idx on public.orders (tracking_id);
   create unique index if not exists orders_checkout_key_idx on public.orders (buyer_id, checkout_key);
 
+  alter table public.orders add column if not exists product_id_snapshot uuid;
+  update public.orders set product_id_snapshot = product_id
+  where product_id_snapshot is null and product_id is not null;
+
+  create or replace function public.snapshot_order_product_id()
+  returns trigger
+  language plpgsql
+  as $function$
+  begin
+    new.product_id_snapshot := coalesce(new.product_id_snapshot, new.product_id);
+    return new;
+  end;
+  $function$;
+  drop trigger if exists orders_product_id_snapshot on public.orders;
+  create trigger orders_product_id_snapshot
+  before insert on public.orders
+  for each row execute function public.snapshot_order_product_id();
+
   -- Safe to re-run against an already-created table from an earlier version of this schema.
   alter table public.orders add column if not exists delivery_fee numeric(12,2) not null default 0;
   alter table public.orders add column if not exists current_lat double precision;
@@ -373,6 +397,7 @@ notify pgrst, 'reload schema';
   alter table public.orders add column if not exists farmer_farm_name text;
   alter table public.orders add column if not exists farmer_verification_status text;
   alter table public.orders add column if not exists buyer_avatar_url text;
+  alter table public.orders add column if not exists stock_state text not null default 'legacy';
 
   -- GCash payment module — set only by backend/src/controllers/payments.controller.js
   -- once the buyer submits payment, never by the client directly.
@@ -521,7 +546,7 @@ notify pgrst, 'reload schema';
   create table if not exists public.notifications (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references public.profiles(id),
-    type text not null check (type in ('verification','order','donation','message','payment','market_price')),
+    type text not null check (type in ('verification','order','donation','message','payment','market_price','profile')),
     title text not null,
     message text not null,
     link text,
@@ -543,7 +568,7 @@ notify pgrst, 'reload schema';
   -- matters for an already-existing install from before this migration.
   alter table public.notifications drop constraint if exists notifications_type_check;
   alter table public.notifications add constraint notifications_type_check
-    check (type in ('verification','order','donation','message','payment','market_price'));
+    check (type in ('verification','order','donation','message','payment','market_price','profile'));
 
   -- The Web Push notification feature (browser permission prompt, desktop/mobile push
   -- toggles) was tried and removed — this drops the table an already-migrated install would
@@ -559,8 +584,19 @@ notify pgrst, 'reload schema';
   -- backend/src/controllers/messages.controller.js. sender_name/sender_role are snapshotted
   -- at send time, same reasoning as orders' own snapshotted product_name/farmer_name/buyer_name.
   -- ============================================================================
+  create table if not exists public.direct_conversations (
+    id uuid primary key default gen_random_uuid(),
+    participant_one_id uuid not null references public.profiles(id) on delete cascade,
+    participant_two_id uuid not null references public.profiles(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint direct_conversations_distinct_participants check (participant_one_id < participant_two_id),
+    constraint direct_conversations_pair_unique unique (participant_one_id, participant_two_id)
+  );
+
   create table if not exists public.messages (
     id uuid primary key default gen_random_uuid(),
+    conversation_id uuid references public.direct_conversations(id) on delete set null,
     order_id uuid references public.orders(id) on delete cascade,
     recipient_id uuid references public.profiles(id) on delete cascade,
     sender_id uuid not null references public.profiles(id),
@@ -571,6 +607,7 @@ notify pgrst, 'reload schema';
     created_at timestamptz not null default now(),
     constraint messages_exactly_one_target check ((order_id is not null) <> (recipient_id is not null))
   );
+  revoke all on public.direct_conversations, public.messages from anon, authenticated;
 
   create index if not exists messages_order_id_idx on public.messages (order_id, created_at);
   create index if not exists messages_direct_idx on public.messages (recipient_id, sender_id, created_at) where order_id is null;
@@ -586,7 +623,7 @@ notify pgrst, 'reload schema';
   -- messages.controller.js). `text` stays required (empty string, not null) even for an
   -- image/file message with no caption, so the column's NOT NULL never needs relaxing.
   alter table public.messages add column if not exists message_type text not null default 'text'
-    check (message_type in ('text', 'image', 'file'));
+    check (message_type in ('text', 'image', 'file', 'system'));
   alter table public.messages add column if not exists image_url text;
   alter table public.messages add column if not exists file_url text;
   alter table public.messages add column if not exists file_name text;
@@ -598,6 +635,35 @@ notify pgrst, 'reload schema';
   -- thread can honestly render "This message was deleted" instead of a silent gap, while the
   -- row (and its id, for anything replying to it) stays in place.
   alter table public.messages add column if not exists deleted boolean not null default false;
+  -- Product/order context is a snapshot. It deliberately does not cascade when
+  -- a listing or order changes, so old conversations retain what they referred to.
+  alter table public.messages add column if not exists context_product_id uuid;
+  alter table public.messages add column if not exists context_product_name text;
+  alter table public.messages add column if not exists context_product_image_url text;
+  alter table public.messages add column if not exists context_product_unit text;
+  alter table public.messages add column if not exists context_product_price numeric(12,2);
+  alter table public.messages add column if not exists context_product_category text;
+  alter table public.messages add column if not exists context_product_farmer_id uuid;
+  alter table public.messages add column if not exists context_product_farmer_name text;
+  alter table public.messages add column if not exists context_product_quantity numeric(12,2);
+  alter table public.messages add column if not exists context_product_status text;
+  alter table public.messages add column if not exists context_order_id uuid;
+  alter table public.messages add column if not exists context_donation_id uuid;
+  alter table public.messages add column if not exists context_donation_name text;
+  alter table public.messages add column if not exists context_donation_image_url text;
+  alter table public.messages add column if not exists context_donation_description text;
+  alter table public.messages add column if not exists context_donation_quantity numeric(12,2);
+  alter table public.messages add column if not exists context_donation_unit text;
+  alter table public.messages add column if not exists context_donation_location text;
+  alter table public.messages add column if not exists context_donation_expiration_at timestamptz;
+  alter table public.messages add column if not exists context_donation_expiration_date date;
+  alter table public.messages add column if not exists context_donation_farmer_id uuid;
+  alter table public.messages add column if not exists context_donation_farmer_name text;
+  alter table public.messages add column if not exists context_donation_status text;
+  create index if not exists messages_conversation_created_idx on public.messages (conversation_id, created_at desc);
+  create index if not exists messages_context_product_idx on public.messages (context_product_id) where context_product_id is not null;
+  create index if not exists messages_context_order_idx on public.messages (context_order_id, created_at) where context_order_id is not null;
+  create index if not exists messages_context_donation_idx on public.messages (context_donation_id, sender_id, recipient_id, created_at) where context_donation_id is not null;
 
   -- ============================================================================
   -- ratings — a buyer rates the farmer after confirming receipt of a completed order
@@ -611,13 +677,20 @@ notify pgrst, 'reload schema';
     farmer_id uuid not null references public.profiles(id) on delete cascade,
     rater_id uuid not null references public.profiles(id) on delete cascade,
     rater_role text not null check (rater_role in ('buyer','stakeholder')),
+    product_id_snapshot uuid,
     order_id uuid references public.orders(id) on delete set null,
     rating smallint not null check (rating between 1 and 5),
     comment text,
+    review_image_url text,
+    review_image_urls text[] not null default array[]::text[]
+      check (cardinality(review_image_urls) <= 5 and array_position(review_image_urls, null) is null),
+    review_video_url text,
     created_at timestamptz not null default now()
   );
 
+  alter table public.ratings add column if not exists product_id_snapshot uuid;
   create index if not exists ratings_farmer_id_idx on public.ratings (farmer_id);
+  create index if not exists ratings_product_id_snapshot_idx on public.ratings (product_id_snapshot) where product_id_snapshot is not null;
   -- A buyer can only rate a given order once — no such constraint for stakeholder ratings
   -- (order_id null), since those aren't anchored to a unique backend record.
   create unique index if not exists ratings_order_id_unique on public.ratings (order_id) where order_id is not null;
@@ -805,15 +878,45 @@ notify pgrst, 'reload schema';
   alter table public.products enable row level security;
   alter table public.orders enable row level security;
   alter table public.notifications enable row level security;
+  alter table public.direct_conversations enable row level security;
   alter table public.messages enable row level security;
   alter table public.ratings enable row level security;
   alter table public.categories enable row level security;
   alter table public.units enable row level security;
 
+  create or replace function public.is_admin_profile()
+  returns boolean
+  language sql
+  stable
+  security definer
+  set search_path = ''
+  as $$
+    select exists (
+      select 1
+      from public.profiles
+      where id = (select auth.uid())
+        and role = 'admin'
+    );
+  $$;
+  revoke all on function public.is_admin_profile() from public, anon;
+  grant execute on function public.is_admin_profile() to authenticated;
+
+  revoke select on public.profiles from authenticated;
+  grant select (
+    id, role, name, email, farm_name, organization_name, address, barangay,
+    municipality, latitude, longitude, account_status, inactivity_suspended_at,
+    verification_status, avatar_url, created_at
+  ) on public.profiles to authenticated;
+
   drop policy if exists profiles_select_own on public.profiles;
   create policy profiles_select_own on public.profiles
     for select to authenticated
     using ((select auth.uid()) = id);
+
+  drop policy if exists profiles_select_admin on public.profiles;
+  create policy profiles_select_admin on public.profiles
+    for select to authenticated
+    using ((select public.is_admin_profile()));
 
   drop policy if exists profiles_insert_own on public.profiles;
   create policy profiles_insert_own on public.profiles
@@ -829,7 +932,7 @@ notify pgrst, 'reload schema';
   drop policy if exists profiles_own_row_guard on public.profiles;
   create policy profiles_own_row_guard on public.profiles
     as restrictive for all to authenticated
-    using ((select auth.uid()) = id)
+    using ((select auth.uid()) = id or (select public.is_admin_profile()))
     with check ((select auth.uid()) = id);
 
   drop policy if exists profiles_prevent_user_delete on public.profiles;
@@ -837,6 +940,36 @@ notify pgrst, 'reload schema';
   create policy "Users can delete own profile" on public.profiles
     as permissive for delete to authenticated
     using ((select auth.uid()) = id);
+
+  drop policy if exists direct_conversations_select_participant on public.direct_conversations;
+  create policy direct_conversations_select_participant on public.direct_conversations
+    for select to authenticated
+    using ((select auth.uid()) in (participant_one_id, participant_two_id));
+
+  drop policy if exists messages_select_participant on public.messages;
+  create policy messages_select_participant on public.messages
+    for select to authenticated
+    using (
+      exists (
+        select 1
+        from public.direct_conversations conversation
+        where conversation.id = messages.conversation_id
+          and (select auth.uid()) in (conversation.participant_one_id, conversation.participant_two_id)
+      )
+      or (
+        messages.conversation_id is null
+        and (
+          (messages.recipient_id is not null and (select auth.uid()) in (messages.sender_id, messages.recipient_id))
+          or exists (
+            select 1 from public.orders order_row
+            where order_row.id = messages.order_id
+              and (select auth.uid()) in (order_row.buyer_id, order_row.farmer_id)
+          )
+        )
+      )
+    );
+  grant select on public.direct_conversations, public.messages to authenticated;
+  grant all on public.direct_conversations, public.messages to service_role;
 
   -- Lets the buyer or farmer on an order receive Supabase Realtime updates for that row
   -- directly — Realtime enforces RLS just like any other read, so without this policy the
@@ -872,6 +1005,12 @@ notify pgrst, 'reload schema';
     ) then
       alter publication supabase_realtime add table public.notifications;
     end if;
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+    ) then
+      alter publication supabase_realtime add table public.messages;
+    end if;
   end $$;
 
   -- ============================================================================
@@ -882,6 +1021,7 @@ notify pgrst, 'reload schema';
   --   chat-attachments       public  — images/files sent in messages
   --   payment-qr             public  — a farmer's own GCash QR code
   --   payment-receipts       public  — a buyer's proof-of-payment screenshot
+  --   review-images          public  — optional photos attached to completed-order reviews
   -- ============================================================================
   insert into storage.buckets (id, name, public)
   values ('product-images', 'product-images', true)
@@ -1069,6 +1209,64 @@ notify pgrst, 'reload schema';
   insert into storage.buckets (id, name, public)
   values ('payment-receipts', 'payment-receipts', true)
   on conflict (id) do nothing;
+
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('review-images', 'review-images', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+  on conflict (id) do update
+  set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp'];
+
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('review-videos', 'review-videos', true, 20971520, array['video/mp4', 'video/webm'])
+  on conflict (id) do update
+  set public = true, file_size_limit = 20971520, allowed_mime_types = array['video/mp4', 'video/webm'];
+
+  drop policy if exists "review-images insert own folder" on storage.objects;
+  create policy "review-images insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'review-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "review-images select own folder" on storage.objects;
+  create policy "review-images select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'review-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "review-images delete own folder" on storage.objects;
+  create policy "review-images delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'review-images'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "review-videos insert own folder" on storage.objects;
+  create policy "review-videos insert own folder"
+    on storage.objects for insert
+    with check (
+      bucket_id = 'review-videos'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "review-videos select own folder" on storage.objects;
+  create policy "review-videos select own folder"
+    on storage.objects for select
+    using (
+      bucket_id = 'review-videos'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
+
+  drop policy if exists "review-videos delete own folder" on storage.objects;
+  create policy "review-videos delete own folder"
+    on storage.objects for delete
+    using (
+      bucket_id = 'review-videos'
+      and (select auth.uid())::text = (storage.foldername(name))[1]
+    );
 
   drop policy if exists "payment-receipts insert own folder" on storage.objects;
   create policy "payment-receipts insert own folder"

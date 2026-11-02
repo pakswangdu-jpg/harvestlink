@@ -14,8 +14,12 @@ import { adminNavItems } from './adminNav';
 import './AdminDonations.css';
 
 const STATUSES = [
-  ['available', 'Available'], ['requested', 'Reserved / Claimed'],
+  ['available', 'Available'], ['requested', 'Reserved / Claimed'], ['fully_claimed', 'Fully claimed'], ['expired', 'Expired'],
   ['scheduled', 'Pickup scheduled'], ['completed', 'Completed'], ['cancelled', 'Cancelled'],
+];
+const OVERVIEW_STATUSES = [
+  ['available', 'Available'], ['requested', 'Reserved / Claimed'], ['scheduled', 'Pickup scheduled'],
+  ['completed', 'Completed'], ['cancelled', 'Cancelled'],
 ];
 const statusLabel = (status) => STATUSES.find(([key]) => key === status)?.[1] || status;
 const dateLabel = (value) => value ? formatDate(value.length === 10 ? `${value}T12:00:00+08:00` : value) : 'Not recorded';
@@ -100,7 +104,7 @@ export default function AdminDonations() {
     <div className="admin-donations-page">
       <PageHeader title="Donations" description="Surplus donation lifecycle across every farmer and partner organization." />
       <dl className="admin-donation-overview" aria-label="Donation totals across all records">
-        {STATUSES.map(([status, label]) => <div key={status}><dt>{label}</dt><dd>{result?.counts?.[status] ?? '--'}</dd></div>)}
+        {OVERVIEW_STATUSES.map(([status, label]) => <div key={status}><dt>{label}</dt><dd>{result?.counts?.[status] ?? '--'}</dd></div>)}
       </dl>
       <section className="admin-donation-register" aria-label="Donation register">
         <div className="admin-donation-toolbar">

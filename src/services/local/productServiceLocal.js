@@ -110,8 +110,9 @@ export function createProduct(values, farmer) {
     kgPerUnit: values.unit === 'kg' ? null : kgPerUnit,
     quantity: Number(values.quantity),
     location: values.location.trim(),
-    description: values.description.trim(),
-    image: values.image || '',
+    description: values.description?.trim() || '',
+    image: values.imageUrls?.[0] || values.image || '',
+    imageUrls: Array.isArray(values.imageUrls) ? values.imageUrls.slice(0, 10) : values.image ? [values.image] : [],
     status: 'active',
     priceReview: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
     expirationDate: values.expirationDate || null,
@@ -137,6 +138,10 @@ export function updateProduct(id, values) {
     return {
       ...product,
       ...rest,
+      image: Array.isArray(rest.imageUrls) ? rest.imageUrls[0] || '' : rest.image ?? product.image,
+      imageUrls: Array.isArray(rest.imageUrls)
+        ? rest.imageUrls.slice(0, 10)
+        : product.imageUrls || (product.image ? [product.image] : []),
       ...wholesaleFields({ ...product, ...values }, product),
       price: Number(values.price),
       kgPerUnit: rest.unit === 'kg' ? null : kgPerUnit,

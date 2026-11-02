@@ -12,7 +12,7 @@ test('Public header styling is confined to the navbar and uses compact proportio
   assert.match(css, /min-height: 90px/);
   assert.match(css, /min-height: 68px/);
   assert.match(css, /width: 38px; height: 38px/);
-  assert.match(css, /width: 16px;\s*height: 2px/);
+  assert.match(css, /\.landing-nav \.landing-mobile-menu-toggle \{ width: 44px; height: 44px;/);
   assert.match(css, /border-bottom: 1px solid var\(--line\)/);
   assert.match(css, /\.landing-nav \{[\s\S]*?max-width: 1280px;[\s\S]*?min-height: 90px;[\s\S]*?padding: 10px clamp\(24px, 3vw, 32px\)/);
   assert.match(css, /\.landing-nav \.brand-mark \{ width: 38px; height: 38px; padding: 0; background: transparent; \}/);
@@ -36,6 +36,8 @@ test('Public header retains the existing labels, routes and mobile menu handler'
   const source = await readFile(new URL('../src/features/landing/LandingPage.jsx', import.meta.url), 'utf8');
   const nav = source.slice(source.indexOf('<nav className='), source.indexOf('</nav>'));
   assert.match(nav, /<BrandWordmark \/>/);
+  assert.match(nav, /<ThemeToggle compact \/>/);
+  assert.match(nav, /<ThemeToggle compact showLabel \/>/);
   assert.match(nav, /Cebu farm-to-market/);
   assert.match(nav, /to="\/login">Login/);
   assert.match(nav, /to="\/register">Create account/);
@@ -43,4 +45,5 @@ test('Public header retains the existing labels, routes and mobile menu handler'
   assert.match(nav, /setIsMobileMenuOpen\(\(previous\) => !previous\)/);
   assert.match(nav, /aria-expanded=\{isMobileMenuOpen\}/);
   assert.match(nav, /aria-controls="harvestlink-public-menu"/);
+  assert.match(nav, /isMobileMenuOpen \? <X size=\{22\} \/> : <Menu size=\{22\} \/>/);
 });

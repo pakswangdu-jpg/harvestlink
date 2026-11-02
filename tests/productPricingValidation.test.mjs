@@ -25,6 +25,13 @@ test('product form validates the saved tier against the discounted retail price'
   assert.ok(validateProductForm({ ...validListing, wholesaleMinQuantity: 101 }, ['kg']).wholesaleMinQuantity);
 });
 
+test('product descriptions are optional', () => {
+  for (const description of ['', undefined]) {
+    const errors = validateProductForm({ ...validListing, description }, ['kg']);
+    assert.equal(errors.description, undefined);
+  }
+});
+
 test('hidden tier fields cannot block donation or legacy wholesale-only forms', () => {
   const staleTier = { ...validListing, wholesalePrice: '', wholesaleMinQuantity: '' };
   for (const overrides of [{ wholesaleEnabled: false }, { isDonation: true }, { sellingType: 'wholesale', moq: 5 }]) {

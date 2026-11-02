@@ -148,9 +148,118 @@
 .donation-card-discovery .donation-date-expiring_soon svg,
 .donation-card-discovery .donation-date-expired svg { color: inherit; }
 .donation-card-discovery .donation-card-footer { padding: 0; border: 0; }
+.donation-card-discovery .donation-request-controls {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.donation-card-discovery .donation-request-quantity {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 5px;
+}
+.donation-card-discovery .donation-request-quantity label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.donation-card-discovery .donation-request-quantity-input {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.donation-card-discovery .donation-request-quantity-input:focus-within {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green-700) 16%, transparent);
+}
+.donation-card-discovery .donation-request-quantity-input input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 8px 9px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+.donation-card-discovery .donation-request-quantity-input span {
+  flex: 0 0 auto;
+  padding-right: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.donation-card-discovery .donation-request-quantity small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.donation-card-discovery .donation-request-controls > .btn {
+  width: 100%;
+  min-height: 42px;
+  white-space: nowrap;
+}
+.donation-card-discovery .donation-message-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.donation-card-discovery .donation-message-action:hover,
+.donation-card-discovery .donation-message-action:focus-visible {
+  border-color: var(--green-700);
+  background: var(--green-50);
+  color: var(--green-700);
+}
+.donation-card-discovery .donation-message-action:focus-visible {
+  outline: 2px solid var(--green-700);
+  outline-offset: 2px;
+}
+.donation-card-discovery .donation-request-status {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
 .donation-card-discovery .donation-card-footer > .btn { box-sizing: border-box; width: 100%; min-height: 42px; padding: 9px 12px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; line-height: 1.5; letter-spacing: 0; box-shadow: none; transform: none; }
 .donation-card-discovery .donation-card-footer > .btn svg { width: 16px; height: 16px; stroke-width: 1.8; }
 .donation-card-discovery .donation-card-footer > .btn:hover { transform: none; box-shadow: none; }
 .donation-card-discovery .donation-card-footer > .btn:focus-visible { outline: 2px solid var(--green-700); outline-offset: 3px; }
 [data-theme="dark"] .donation-card-discovery .donation-date-expiring_soon { color: #d4b16d; }
 [data-theme="dark"] .donation-card-discovery .donation-date-expired { color: #e3a1a1; }
+
+@media (max-width: 560px) {
+  .donation-card-discovery .donation-request-controls {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

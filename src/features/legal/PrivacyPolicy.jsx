@@ -52,7 +52,7 @@ const SECTIONS = [
           <li>Orders you place or receive, including items purchased, quantities, prices, delivery method, delivery address, order status, and order history.</li>
           <li>Payment-related records, including payment method, GCash reference number, sender name, payment receipt images you upload, and payment verification status. See <a href="#payment-processing">Payment Processing</a> below for more detail.</li>
           <li>Donation activity, if you list, request, or fulfill a surplus-produce donation as a Farmer or Partner Organization.</li>
-          <li>Ratings, star reviews, and written feedback you submit or receive.</li>
+          <li>Ratings, star reviews, written feedback, and one optional photo or video you choose to attach after a completed order. Review media is publicly visible with the review.</li>
         </ul>
 
         <h3>3. Communications</h3>

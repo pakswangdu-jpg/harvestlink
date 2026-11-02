@@ -7,8 +7,11 @@ export default function ProductPriceReviewNotice({ product, showSubmitted = fals
   const adjustment = review.status === 'needs_adjustment';
   const amount = adjustment ? review.maxAllowedPrice : review.approvedPrice ?? review.farmerPrice;
   return <div className="product-price-review-note">
-    {showSubmitted || adjustment ? <span>Your submitted price: {formatCurrency(product.price)}/{product.unit}</span> : null}
-    {adjustment ? <span>Needs price adjustment · Admin recommended maximum: {amount == null ? 'Data unavailable' : `${formatCurrency(amount)}/${review.reviewUnit || product.unit}`}</span>
+    {showSubmitted || adjustment ? <span>Your price: {formatCurrency(product.price)}/{product.unit}</span> : null}
+    {adjustment ? <>
+      <span>Needs price adjustment</span>
+      <span>Admin maximum price: {amount == null ? 'Data unavailable' : `${formatCurrency(amount)}/${review.reviewUnit || product.unit}`}</span>
+    </>
       : <span>Price approved{amount != null ? `: ${formatCurrency(amount)}/${review.reviewUnit || product.unit}` : ''}</span>}
     {adjustment && review.declineReason ? <span>Admin note: {review.declineReason}</span> : null}
     {!adjustment && review.decidedAt ? <span>{review.decidedBy ? 'Approved by Admin · ' : ''}{formatDate(review.decidedAt)}</span> : null}

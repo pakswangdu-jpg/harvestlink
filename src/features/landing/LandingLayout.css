@@ -307,6 +307,41 @@
 .landing-farmer-friendly .lp-back-to-top { min-height: 44px; flex-shrink: 0; }
 .landing-farmer-friendly .lp-floating-top { right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); }
 
+[data-theme="dark"] .landing-page.landing-farmer-friendly {
+  color: var(--text);
+  background: var(--page-bg);
+}
+[data-theme="dark"] .landing-farmer-friendly .landing-steps,
+[data-theme="dark"] .landing-farmer-friendly .lp-about,
+[data-theme="dark"] .landing-farmer-friendly .lp-contact {
+  color: var(--text);
+}
+[data-theme="dark"] .landing-farmer-friendly .landing-section-heading h2,
+[data-theme="dark"] .landing-farmer-friendly .lp-about-content h2,
+[data-theme="dark"] .landing-farmer-friendly .lp-timeline-content h3,
+[data-theme="dark"] .landing-farmer-friendly .lp-contact-form h3,
+[data-theme="dark"] .landing-farmer-friendly .lp-footer-brand strong,
+[data-theme="dark"] .landing-farmer-friendly .lp-footer-col h4 {
+  color: var(--text);
+}
+[data-theme="dark"] .landing-farmer-friendly .lp-timeline-number {
+  color: #a5d7b2;
+}
+[data-theme="dark"] .landing-farmer-friendly .lp-contact-card {
+  color: var(--text);
+}
+[data-theme="dark"] .landing-farmer-friendly .lp-contact-form input,
+[data-theme="dark"] .landing-farmer-friendly .lp-contact-form textarea {
+  color: var(--text);
+}
+[data-theme="dark"] .landing-farmer-friendly .lp-footer {
+  background: var(--page-bg);
+}
+[data-theme="dark"] .landing-farmer-friendly .lp-footer-col a:hover,
+[data-theme="dark"] .landing-farmer-friendly .lp-back-to-top {
+  color: #a5d7b2;
+}
+
 @media (max-width: 1100px) {
   .landing-farmer-friendly .landing-links { gap: 16px; }
   .landing-farmer-friendly .landing-nav { gap: 16px; }
