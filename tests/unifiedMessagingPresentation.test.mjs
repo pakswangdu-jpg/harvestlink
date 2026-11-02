@@ -126,6 +126,7 @@ test('message product inquiry preview follows the compact chat reference layout'
   assert.match(productContext, /messages-product-context-image/);
   assert.match(productContext, /Review product/);
   assert.match(chatHeader, /activityOrder \? \([\s\S]*?View Activity/);
+  assert.match(styles, /\.messages-page \.messages-header-activity-link\s*\{[^}]*color:\s*#fff;/);
   assert.match(styles, /\.messages-page \.messages-product-context-main\s*\{[^}]*grid-template-columns:\s*minmax\(220px,\s*1fr\)\s*minmax\(220px,\s*1fr\)\s*auto/);
   assert.match(styles, /\.messages-page \.messages-product-context-image\s*\{[^}]*width:\s*42px;[^}]*height:\s*42px/);
 });

@@ -5,6 +5,12 @@ export const PAYMENT_REVIEW_CHECKS = [
   'Receipt does not appear duplicated',
 ];
 
+export const PAYMENT_REVIEW_MIN_CHECKS = 2;
+
+export function hasMinimumPaymentReviewChecks(checks) {
+  return checks.filter(Boolean).length >= PAYMENT_REVIEW_MIN_CHECKS;
+}
+
 export const PAYMENT_REJECTION_REASONS = [
   'Amount does not match', 'Receipt unreadable', 'Invalid reference number', 'Duplicate receipt', 'Other',
 ];

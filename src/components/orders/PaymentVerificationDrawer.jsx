@@ -6,7 +6,7 @@ import ZoomableImage from '../common/ZoomableImage';
 import PaymentMethodLabel from '../common/PaymentMethodLabel';
 import StatusBadge from '../common/StatusBadge';
 import { formatCurrency, formatDate, formatTime, shortOrderId } from '../../utils/formatters';
-import { canReviewPayment, paymentReviewKey, paymentRejectionReason, receiptPreviewUrl, PAYMENT_REJECTION_REASONS, PAYMENT_REVIEW_CHECKS } from './paymentReview';
+import { canReviewPayment, hasMinimumPaymentReviewChecks, paymentReviewKey, paymentRejectionReason, receiptPreviewUrl, PAYMENT_REJECTION_REASONS, PAYMENT_REVIEW_CHECKS } from './paymentReview';
 import './PaymentVerificationDrawer.css';
 
 function ReviewFields({ rows }) {
@@ -23,7 +23,7 @@ function PaymentReviewContent({ order, titleId, busy, canReview, onClose, onDeci
   const decisionPending = useRef(false);
   const receiptUrl = receiptPreviewUrl(order.paymentReceiptUrl);
   const isPdf = receiptUrl && /\.pdf(?:[?#].*)?$/i.test(receiptUrl);
-  const reviewComplete = Boolean(receiptUrl) && checks.every(Boolean);
+  const reviewComplete = Boolean(receiptUrl) && hasMinimumPaymentReviewChecks(checks);
   const rejectReason = paymentRejectionReason(category, note);
   const isPending = order.paymentVerificationStatus === 'pending';
   const toggleCheck = (index, checked) => setChecks(current => current.map((value, i) => i === index ? checked : value));
@@ -77,7 +77,7 @@ function PaymentReviewContent({ order, titleId, busy, canReview, onClose, onDeci
             ...(order.paymentVerificationStatus ? [['Verification', <StatusBadge key="verification" value={order.paymentVerificationStatus} type="paymentVerificationStatus" />]] : []),
             ...(order.paymentRejectionReason ? [['Rejection reason', order.paymentRejectionReason]] : []),
           ]} /></section>
-          {canReview ? <fieldset className="payment-review-checklist" disabled={busy || !receiptUrl}><legend>Verify before approving</legend>
+          {canReview ? <fieldset className="payment-review-checklist" disabled={busy || !receiptUrl}><legend>Verify at least 2 before approving</legend>
             {PAYMENT_REVIEW_CHECKS.map((label, index) => <label key={label}><input type="checkbox" checked={checks[index]} onChange={event => toggleCheck(index, event.target.checked)} /><span>{label}</span></label>)}
           </fieldset> : null}
         </div>
