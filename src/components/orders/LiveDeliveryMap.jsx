@@ -263,10 +263,8 @@ export default function LiveDeliveryMap({
 
   const transit = getLiveTransitProgress(order, { origin, destination });
   const isDelivered = order.status === 'completed';
-  const currentPosition = transit.isInTransit ? livePosition : null;
-  const vehiclePosition = currentPosition
-    || (isDelivered ? livePosition : null)
-    || (transit.isInTransit && !isPickup && !isCourier ? origin : null);
+  const currentPosition = transit.isInTransit && livePosition && isFreshLivePosition(livePosition) ? livePosition : null;
+  const vehiclePosition = currentPosition;
   const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
   const canRecenter = mapReady && Boolean(validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng));
   const recenterLabel = !mapReady ? 'Loading map'
@@ -285,11 +283,11 @@ export default function LiveDeliveryMap({
     enabled: navigationEnabled,
   });
   const googleRoute = navigation.selected;
-  const remainingKm = !navigation.stale ? googleRoute?.distanceKm ?? null : null;
+  const remainingKm = currentPosition && !navigation.stale ? googleRoute?.distanceKm ?? null : null;
   const currentSpeedKmh = currentPosition && isFreshLivePosition(currentPosition) && Number.isFinite(currentPosition.speed)
     ? Math.max(0, currentPosition.speed * 3.6)
     : null;
-  const etaMinutes = !navigation.stale && googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
+  const etaMinutes = currentPosition && !navigation.stale && googleRoute?.durationMinutes != null ? Math.max(0, Math.round(googleRoute.durationMinutes)) : null;
   const arrivalLabel = estimatedArrivalLabel(isDelivered ? null : etaMinutes);
   const completedAverageSpeedKmh = getRecordedAverageSpeedKmh(order);
   const isArrived = !isDelivered && remainingKm != null && remainingKm <= ARRIVED_KM_THRESHOLD;
@@ -613,6 +611,9 @@ export default function LiveDeliveryMap({
           <div className="nav-map-overlay-banner">Waiting for driver connection…</div>
         ) : null}
       </div>
+      {deliveryState === 'navigating' && !currentPosition ? (
+        <p className="tracking-live-location-unavailable" role="status">Live location is not available yet.</p>
+      ) : null}
 
       {deliveryState === 'navigating' && order.deliveryMethod === 'farmer_delivery' ? (
         <LiveDeliverySummary

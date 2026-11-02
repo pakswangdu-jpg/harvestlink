@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, BadgeCheck, ChevronDown, Globe, Star, Store, User,
+  Activity, ArrowLeft, BadgeCheck, ChevronDown, Globe, Star,
 } from 'lucide-react';
 import { getRatingsForFarmer } from '../../services/ratingService';
 import { MESSAGE_TRANSLATION_LANGUAGES } from '../../services/translateService';
@@ -29,7 +29,7 @@ function useFarmerRating(farmerId) {
 }
 
 export default function ChatHeader({
-  otherParty, onBack, isMobile, viewProductsHref, targetLang, onTargetLangChange,
+  otherParty, onBack, isMobile, targetLang, onTargetLangChange, activityOrder, returnTo, returnState,
 }) {
   const rating = useFarmerRating(otherParty?.role === 'farmer' ? otherParty.id : null);
   const displayName = otherParty ? (otherParty.name || otherParty.organizationName || otherParty.farmName) : '';
@@ -87,25 +87,19 @@ export default function ChatHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        {otherParty?.role === 'farmer' && viewProductsHref ? (
+        {activityOrder ? (
           <Link
-            to={viewProductsHref}
-            className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--muted)] transition-colors duration-150 hover:border-[var(--green-100)] hover:text-[var(--green-700)] sm:flex"
+            to={`/orders/${activityOrder.id}`}
+            state={{ returnTo, returnState }}
+            aria-label={`View activity for order ${activityOrder.id}`}
+            className="messages-header-activity-link inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-[var(--green-700)] px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--green-800)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] sm:px-3 sm:text-[12px]"
           >
-            <Store size={13} /> Products
+            <Activity size={14} aria-hidden="true" />
+            <span>View Activity</span>
           </Link>
         ) : null}
 
-        {otherParty?.role === 'farmer' ? (
-          <Link
-            to={`/farmers/${otherParty.id}`}
-            className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--muted)] transition-colors duration-150 hover:border-[var(--green-100)] hover:text-[var(--green-700)] sm:flex"
-          >
-            <User size={13} /> Profile
-          </Link>
-        ) : null}
-
-        <label className="hidden items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)] sm:flex" htmlFor="translate-lang">
+        <label className="messages-language-selector flex items-center gap-1.5 rounded-full border border-[var(--line)] px-3 py-1.5 text-[12px] font-medium text-[var(--muted)]" htmlFor="translate-lang">
           <Globe size={14} className="shrink-0 text-[var(--muted)]" />
           <select
             id="translate-lang"

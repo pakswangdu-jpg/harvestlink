@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { notificationMessage, notificationTitle } from '../src/components/notifications/notificationPresentation.js';
+import {
+  isOrderCancellationNotification,
+  notificationMessage,
+  notificationTitle,
+} from '../src/components/notifications/notificationPresentation.js';
 
 test('payment rejection notifications use concise, human-readable copy', () => {
   const oldNotification = {
@@ -20,4 +24,12 @@ test('notification presentation preserves other notification content', () => {
   const notification = { type: 'order', title: 'Order confirmed', message: 'Your order is confirmed.' };
   assert.equal(notificationTitle(notification), 'Order confirmed');
   assert.equal(notificationMessage(notification), 'Your order is confirmed.');
+  assert.equal(isOrderCancellationNotification(notification), false);
+});
+
+test('order cancellation notifications are identified for red alert styling', () => {
+  assert.equal(isOrderCancellationNotification({ type: 'order', title: 'Order cancelled' }), true);
+  assert.equal(isOrderCancellationNotification({ type: 'order', title: 'ORDER CANCELLED by buyer' }), true);
+  assert.equal(isOrderCancellationNotification({ type: 'payment', title: 'Order cancelled' }), false);
+  assert.equal(isOrderCancellationNotification({ type: 'order', title: 'Order confirmed' }), false);
 });

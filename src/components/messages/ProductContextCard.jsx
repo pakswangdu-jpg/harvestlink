@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, UserRound, X } from 'lucide-react';
+import { Package, Store, X } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 import { getProductById } from '../../services/productService';
 
@@ -70,19 +70,19 @@ export default function ProductContextCard({
     <section className="messages-product-context mx-4 mt-3 rounded-xl border border-[var(--line)] bg-[var(--soft)] p-3" aria-label="Product context">
       <div className="messages-product-context-main">
         <div className="messages-product-context-product flex min-w-0 items-center gap-3">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--panel)] text-[var(--green-700)]">
+          <span className="messages-product-context-image flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--panel)] text-[var(--green-700)]">
           {context.imageUrl ? <img src={context.imageUrl} alt="" className="h-full w-full object-cover" /> : <Package size={19} />}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-[var(--text)]">{context.productName || 'Product listing'}</p>
-            {context.category ? <p className="mt-0.5 truncate text-[13px] text-[var(--muted)]">{context.category}</p> : null}
+            <p className="messages-product-context-name truncate text-[15px] font-semibold text-[var(--text)]">{context.productName || 'Product listing'}</p>
+            {context.category ? <p className="messages-product-context-category mt-0.5 truncate text-[13px] text-[var(--muted)]">{context.category}</p> : null}
           </div>
         </div>
 
         <div className="messages-product-context-details min-w-0">
           <div className="flex items-center gap-1.5 text-[13px] text-[var(--muted)]">
-            <UserRound size={14} aria-hidden="true" />
-            <span className="truncate">{context.farmerName || 'Farmer'}</span>
+            <Store size={14} aria-hidden="true" />
+            <span className="messages-product-context-farm truncate">{context.farmerFarmName || context.farmerName || 'Farmer'}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
             {context.price != null ? <span className="font-semibold text-[var(--text)]">{formatCurrency(context.price)} / {context.unit || 'unit'}</span> : null}

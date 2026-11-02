@@ -15,7 +15,6 @@ import { StartConversationState, NoConversationSelectedState } from '../../compo
 import { useAuth } from '../auth/AuthContext';
 import { useChatTyping } from '../../hooks/useChatTyping';
 import { getUserById } from '../../services/authService';
-import { getDelivery } from '../../services/deliveryService';
 import { getOrderById } from '../../services/orderService';
 import {
   deleteMessage, editMessage, getDirectMessages, getDirectThreads, markDirectThreadRead, sendDirectMessage,
@@ -127,8 +126,10 @@ export default function MessagesPage() {
   const pinnedOrder = orderId && orderContext.key === orderId ? orderContext.order : null;
   const hasActiveThread = Boolean(otherPartyId) || isResolvingOrder;
   const activeKey = otherPartyId ? `direct-${otherPartyId}` : null;
+  const messagesScopeKey = otherPartyId ? `${otherPartyId}:${location.key}` : null;
 
   const [messages, setMessages] = useState([]);
+  const [messagesLoadedFor, setMessagesLoadedFor] = useState(null);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messagesUnavailable, setMessagesUnavailable] = useState(false);
   const [messagesUnavailableReason, setMessagesUnavailableReason] = useState('');
@@ -142,7 +143,7 @@ export default function MessagesPage() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [forwardingMessage, setForwardingMessage] = useState(null);
-  const [conversationOrderState, setConversationOrderState] = useState({ key: null, order: null, delivery: null });
+  const [conversationOrderState, setConversationOrderState] = useState({ key: null, orders: [], error: '' });
 
 
 
@@ -275,6 +276,7 @@ export default function MessagesPage() {
         const result = await getDirectMessages(otherPartyId, { limit: PAGE_SIZE });
         if (cancelled) return;
         setMessages((current) => (isFirstLoad ? result.messages : mergeMessages(current, result.messages)));
+        setMessagesLoadedFor(messagesScopeKey);
         if (isFirstLoad) setHasMoreOlder(result.hasMore);
         setMessagesUnavailable(false);
         setMessagesUnavailableReason('');
@@ -297,7 +299,7 @@ export default function MessagesPage() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [otherPartyId, threadNotFound]);
+  }, [otherPartyId, messagesScopeKey, threadNotFound]);
 
 
   useEffect(() => {
@@ -335,8 +337,12 @@ export default function MessagesPage() {
   const inquiryDonationContext = sentInquiryKey === inquiryKey ? null : donationContext;
 
   const otherPartyName = otherParty ? (otherParty.name || otherParty.organizationName || otherParty.farmName) : '';
-  const linkedMessageOrderId = useMemo(() => [...messages].reverse().find((message) => message.contextOrderId)?.contextOrderId || null, [messages]);
-  const conversationOrderId = pinnedOrder?.id || linkedMessageOrderId || activeThread?.lastOrder?.id || null;
+  const conversationOrderIds = useMemo(() => [...new Set([
+    pinnedOrder?.id,
+    ...[...messages].reverse().map((message) => message.contextOrderId),
+    activeThread?.lastOrder?.id,
+  ].filter((id) => typeof id === 'string' && id))], [pinnedOrder?.id, messages, activeThread?.lastOrder?.id]);
+  const conversationOrdersKey = conversationOrderIds.join(':');
   const latestListingMessage = useMemo(
     () => [...messages].reverse().find((message) => message.productContext || message.donationContext) || null,
     [messages],
@@ -347,47 +353,56 @@ export default function MessagesPage() {
   const conversationDonationContext = inquiryDonationContext || activeListingMessage?.donationContext || null;
 
   useEffect(() => {
-    if (!conversationOrderId) {
+    if (!conversationOrderIds.length) {
       return undefined;
     }
 
     let cancelled = false;
     const refresh = async () => {
-      try {
-        const order = await getOrderById(conversationOrderId);
-        if (cancelled) return;
-        let delivery = null;
-        if (order.deliveryMethod === 'courier') {
-          try {
-            delivery = await getDelivery(order.id);
-          } catch {
-            delivery = null;
-          }
+      const results = await Promise.all(conversationOrderIds.map(async (id) => {
+        try {
+          return { order: await getOrderById(id), error: false };
+        } catch {
+          return { order: null, error: true };
         }
-        if (!cancelled) setConversationOrderState({ key: conversationOrderId, order, delivery });
-      } catch {
-        if (!cancelled) setConversationOrderState((current) => ({ ...current, key: conversationOrderId }));
-      }
+      }));
+      if (cancelled) return;
+      const orders = results.map((result) => result.order).filter(Boolean);
+      setConversationOrderState({
+        key: conversationOrdersKey,
+        orders,
+        error: results.some((result) => result.error) ? 'Some linked order activity could not be loaded.' : '',
+      });
     };
 
     refresh();
     const interval = setInterval(refresh, 4000);
-    const channel = supabase
-      .channel(`message-order-context-${conversationOrderId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${conversationOrderId}` }, refresh)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deliveries', filter: `order_id=eq.${conversationOrderId}` }, refresh)
-      .subscribe();
+    const channels = conversationOrderIds.map((id) => supabase
+      .channel(`message-order-context-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, refresh)
+      .subscribe());
     return () => {
       cancelled = true;
       clearInterval(interval);
-      supabase.removeChannel(channel);
+      channels.forEach((channel) => supabase.removeChannel(channel));
     };
-  }, [conversationOrderId]);
+  }, [conversationOrderIds, conversationOrdersKey]);
 
-  const conversationOrder = conversationOrderState.key === conversationOrderId && conversationOrderState.order
-    ? conversationOrderState.order
-    : pinnedOrder || activeThread?.lastOrder || null;
-  const conversationDelivery = conversationOrderState.key === conversationOrderId ? conversationOrderState.delivery : null;
+  const conversationOrders = conversationOrderState.key === conversationOrdersKey
+    ? conversationOrderState.orders
+    : [pinnedOrder || activeThread?.lastOrder].filter(Boolean);
+  const conversationOrder = conversationOrders[0] || null;
+  const openedOrderIsParticipantOrder = pinnedOrder
+    && [pinnedOrder.buyerId, pinnedOrder.farmerId].includes(currentUser.id);
+  const explicitlyOpenedOrder = openedOrderIsParticipantOrder ? pinnedOrder : null;
+  const orderContextsLoaded = messagesLoadedFor === messagesScopeKey
+    && (!conversationOrderIds.length || conversationOrderState.key === conversationOrdersKey);
+  const participantOrders = (orderContextsLoaded ? conversationOrders : explicitlyOpenedOrder ? [explicitlyOpenedOrder] : []).filter((order) => (
+    order?.id && [order.buyerId, order.farmerId].includes(currentUser.id)
+  ));
+  const currentTransactionId = explicitlyOpenedOrder?.id || activeThread?.lastOrder?.id || conversationOrderIds[0];
+  const currentTransaction = participantOrders.find((order) => order.id === currentTransactionId) || null;
+  const currentTrackingOrder = currentTransaction;
   const { isOtherTyping, notifyTyping, notifyStoppedTyping } = useChatTyping(otherPartyId);
 
   useEffect(() => {
@@ -504,7 +519,6 @@ export default function MessagesPage() {
   };
 
   const messagesById = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
-  const viewProductsHref = otherParty ? `/marketplace?farmerId=${otherParty.id}&farmerName=${encodeURIComponent(otherPartyName)}` : null;
 
   return (
     <AppShell user={currentUser} navItems={navItems} title="Messages" fullBleed pageClassName="messages-page">
@@ -533,77 +547,86 @@ export default function MessagesPage() {
                 otherParty={otherParty}
                 onBack={() => navigate('/messages')}
                 isMobile
-                viewProductsHref={viewProductsHref}
+                activityOrder={currentTrackingOrder}
+                returnTo={location.pathname}
+                returnState={location.state}
                 targetLang={targetLang}
                 onTargetLangChange={(language) => { setTargetLang(language); setAutoTranslate(true); }}
               />
-              <ProductContextCard
-                context={conversationProductContext}
-                allowUnavailableListing={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
-                farmerReviewPopup={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
-              />
-              <DonationContextCard
-                context={conversationDonationContext}
-                showListingLink={currentUser.role === 'stakeholder'}
-              />
-              <OrderContextCard
-                order={conversationOrder}
-                delivery={conversationDelivery}
-                recommendationOrder={recommendationOrder}
-                showRecommendations={canSeeProductRecommendations}
-              />
+              <div ref={messageListRef} onScroll={handleScroll} className="messages-conversation-scroll">
+                <ProductContextCard
+                  context={conversationProductContext}
+                  allowUnavailableListing={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
+                  farmerReviewPopup={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
+                />
+                <DonationContextCard
+                  context={conversationDonationContext}
+                  showListingLink={currentUser.role === 'stakeholder'}
+                />
+                <OrderContextCard
+                  order={conversationOrder}
+                  orders={currentTrackingOrder ? [currentTrackingOrder] : []}
+                  recommendationOrder={recommendationOrder}
+                  showRecommendations={canSeeProductRecommendations}
+                  viewerRole={currentUser.role}
+                  viewerId={currentUser.id}
+                />
+                {conversationOrderState.key === conversationOrdersKey && conversationOrderState.error ? (
+                  <p className="mx-4 mt-2 text-[12px] text-[var(--muted)]" role="status">{conversationOrderState.error}</p>
+                ) : null}
 
-              <div ref={messageListRef} onScroll={handleScroll} className="messages-message-list flex-1 space-y-2 overflow-y-auto px-4 py-4">
-                {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">{messagesUnavailableReason || 'Reconnecting…'}</p> : null}
-                {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
-                {isLoadingMessages && !messages.length ? (
-                  <div className="flex h-full items-center justify-center gap-2 text-[13px] text-[var(--muted)]">
-                    <Loader2 size={16} className="animate-spin" /> Loading messages…
-                  </div>
-                ) : messagesUnavailable && !messages.length ? (
-                  <p className="py-8 text-center text-[13px] text-[var(--muted)]">{messagesUnavailableReason || 'Couldn’t load messages. Reconnecting…'}</p>
-                ) : !messages.length ? (
-                  <StartConversationState name={otherPartyName} />
-                ) : (
-                  messages.map((message, index) => {
-                    const previous = messages[index - 1];
-                    const showDateSeparator = !previous || new Date(previous.createdAt).toDateString() !== new Date(message.createdAt).toDateString();
-                    const isMine = message.senderId === currentUser.id;
-                    const translation = translations[message.id];
-                    const showTranslation = Boolean(translation?.visible && translation.lang === targetLang);
-                    const isLastMine = isMine && index === messages.map((m) => m.senderId).lastIndexOf(currentUser.id);
+                <div className="messages-message-list flex-1 space-y-2 px-4 py-4">
+                  {messagesUnavailable ? <p className="messages-inline-status py-1 text-center text-[11px] text-[var(--muted)]">{messagesUnavailableReason || 'Reconnecting…'}</p> : null}
+                  {isLoadingOlder ? <p className="py-2 text-center text-[11px] text-[var(--muted)]">Loading earlier messages…</p> : null}
+                  {isLoadingMessages && !messages.length ? (
+                    <div className="flex h-full items-center justify-center gap-2 text-[13px] text-[var(--muted)]">
+                      <Loader2 size={16} className="animate-spin" /> Loading messages…
+                    </div>
+                  ) : messagesUnavailable && !messages.length ? (
+                    <p className="py-8 text-center text-[13px] text-[var(--muted)]">{messagesUnavailableReason || 'Couldn’t load messages. Reconnecting…'}</p>
+                  ) : !messages.length ? (
+                    <StartConversationState name={otherPartyName} />
+                  ) : (
+                    messages.map((message, index) => {
+                      const previous = messages[index - 1];
+                      const showDateSeparator = !previous || new Date(previous.createdAt).toDateString() !== new Date(message.createdAt).toDateString();
+                      const isMine = message.senderId === currentUser.id;
+                      const translation = translations[message.id];
+                      const showTranslation = Boolean(translation?.visible && translation.lang === targetLang);
+                      const isLastMine = isMine && index === messages.map((m) => m.senderId).lastIndexOf(currentUser.id);
 
-                    return (
-                      <div key={message.id}>
-                        {showDateSeparator ? (
-                          <div className="messages-date-divider my-3 flex items-center justify-center">
-                            <span className="rounded-full bg-[var(--soft)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
-                              {dateSeparatorLabel(message.createdAt)}
-                            </span>
-                          </div>
-                        ) : null}
-                        <MessageBubble
-                          message={message}
-                          isMine={isMine}
-                          showStatus={isLastMine}
-                          replyMessage={message.replyToId ? messagesById.get(message.replyToId) : null}
-                          onReply={setReplyingTo}
-                          onEdit={(m) => { setEditingMessage(m); setReplyingTo(null); }}
-                          onDelete={handleDelete}
-                          onForward={setForwardingMessage}
-                          onCopy={handleCopy}
-                          translation={showTranslation ? translation : null}
-                          onToggleTranslate={handleToggleTranslate}
-                          showProductContext={listingContextMessageIds.has(message.id)}
-                        />
-                      </div>
-                    );
-                  })
-                )}
-                <AnimatePresence>
-                  {isOtherTyping ? <TypingIndicator name={otherPartyName} /> : null}
-                </AnimatePresence>
-                <div ref={bottomRef} />
+                      return (
+                        <div key={message.id}>
+                          {showDateSeparator ? (
+                            <div className="messages-date-divider my-3 flex items-center justify-center">
+                              <span className="rounded-full bg-[var(--soft)] px-3 py-1 text-[11px] font-semibold text-[var(--muted)]">
+                                {dateSeparatorLabel(message.createdAt)}
+                              </span>
+                            </div>
+                          ) : null}
+                          <MessageBubble
+                            message={message}
+                            isMine={isMine}
+                            showStatus={isLastMine}
+                            replyMessage={message.replyToId ? messagesById.get(message.replyToId) : null}
+                            onReply={setReplyingTo}
+                            onEdit={(m) => { setEditingMessage(m); setReplyingTo(null); }}
+                            onDelete={handleDelete}
+                            onForward={setForwardingMessage}
+                            onCopy={handleCopy}
+                            translation={showTranslation ? translation : null}
+                            onToggleTranslate={handleToggleTranslate}
+                            showProductContext={listingContextMessageIds.has(message.id)}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                  <AnimatePresence>
+                    {isOtherTyping ? <TypingIndicator name={otherPartyName} /> : null}
+                  </AnimatePresence>
+                  <div ref={bottomRef} />
+                </div>
               </div>
 
               {editingMessage ? (

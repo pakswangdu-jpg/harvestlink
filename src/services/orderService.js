@@ -319,5 +319,5 @@ export function getNextDeliveryStatus(order) {
 }
 
 export function isCancellable(order) {
-  return order.status === 'pending' || (order.status === 'confirmed' && order.deliveryStatus === 'pending');
+  return order.status === 'pending';
 }

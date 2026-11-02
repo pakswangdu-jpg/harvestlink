@@ -19,10 +19,60 @@ const TERMINAL_STEP_LABEL = {
   cancelled: 'Cancelled',
 };
 
+function RecordedOrderEvents({ order, events, sequence }) {
+  const isTerminal = ['rejected', 'cancelled'].includes(order.status);
+  const currentIndex = sequence.indexOf(order.deliveryStatus);
+  const recordedStatuses = new Set(events.map((event) => event.status));
+  const upcomingSteps = order.status === 'confirmed' || order.status === 'completed'
+    ? sequence
+      .filter((step, index) => step !== 'pending' && index > currentIndex && !recordedStatuses.has(step))
+      .map((step) => ({ status: step, title: DELIVERY_STEP_LABELS[step] || step }))
+    : [];
+  const nextOrderStep = order.status === 'pending' && !recordedStatuses.has('confirmed')
+    ? [{ status: 'confirmed', title: 'Farmer confirmation' }]
+    : [];
+
+  return (
+    <ol className="tracker" aria-label="Order activity timeline">
+      {events.map((event, index) => {
+        const isCurrent = !isTerminal && order.status !== 'completed' && index === events.length - 1;
+        const state = event.status === 'rejected' || event.status === 'cancelled' ? 'error' : isCurrent ? 'active' : 'done';
+        return (
+          <li key={event.id} className={`tracker-step ${state}`}>
+            <span className="tracker-icon">{state === 'done' ? <Check size={14} /> : <span className="tracker-icon-dot" />}</span>
+            <span className="tracker-step-body">
+              <span className="tracker-label">{event.title || DELIVERY_STEP_LABELS[event.status] || labelStatus(event.status)}</span>
+              {event.occurredAt ? (
+                <time className="tracker-timestamp" dateTime={event.occurredAt} title={formatDate(event.occurredAt)}>
+                  {formatRelativeTime(event.occurredAt)}
+                </time>
+              ) : null}
+              {event.description ? <span className="tracker-event-description">{event.description}</span> : null}
+            </span>
+          </li>
+        );
+      })}
+      {[...nextOrderStep, ...upcomingSteps].map((step) => (
+        <li key={`upcoming-${step.status}`} className="tracker-step upcoming">
+          <span className="tracker-icon"><span className="tracker-icon-dot" /></span>
+          <span className="tracker-step-body"><span className="tracker-label">{step.title}</span></span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function labelStatus(value) {
+  return String(value || '').replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export default function OrderTracker({ order, isFarmer = false, showSummary = true }) {
   const isActive = order.status === 'confirmed' || order.status === 'completed';
   const sequence = getDeliverySequence(order.deliveryMethod);
   const currentIndex = sequence.indexOf(order.deliveryStatus);
+  const recordedEvents = Array.isArray(order.deliveryEvents)
+    ? order.deliveryEvents.filter((event) => event?.id && event.occurredAt)
+    : [];
 
   return (
     <div className="order-tracker">
@@ -37,7 +87,9 @@ export default function OrderTracker({ order, isFarmer = false, showSummary = tr
         </div>
       </div> : null}
 
-      {isActive ? (
+      {recordedEvents.length ? (
+        <RecordedOrderEvents order={order} events={recordedEvents} sequence={sequence} />
+      ) : isActive ? (
         <ol className="tracker">
           {sequence.map((step, index) => {
 
