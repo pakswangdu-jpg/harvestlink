@@ -168,6 +168,12 @@ Direct product conversations validate that the selected product belongs to the
 farmer being contacted and snapshot a small product context on the message.
 The existing authenticated message permissions remain in force.
 
+Run `20261104_prevent_confirmed_order_cancellation.sql` after this migration
+to allow Buyer cancellation only while an order is pending. Once the Farmer
+confirms, cancellation is rejected by the atomic database transition even
+before delivery starts; the Buyer should contact the Farmer to resolve changes.
+The frontend and backend must be deployed with this migration.
+
 Donation offers now require a future Asia/Manila expiration date and time. The
 database stores the timestamp, exposes a service-role `expire_donations()` job,
 and optionally registers a Supabase Cron job when `pg_cron` is enabled. Claims

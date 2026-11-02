@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  BadgeCheck, Camera, Check, CheckCircle2, Clock3, Copy, FileText, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, Video, X,
+  ArrowLeft, BadgeCheck, Camera, Check, CheckCircle2, Clock3, Copy, FileText, Info, Map, MapPin, MessageCircle, Navigation, Package, RotateCcw, Truck, Video, X,
 } from 'lucide-react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
@@ -198,7 +198,10 @@ export default function OrderTracking() {
     const channel = supabase
       .channel(`order-tracking-${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${id}` }, (payload) => {
-        setOrder(mapOrderRealtimeRow(payload.new));
+        setOrder((current) => ({
+          ...mapOrderRealtimeRow(payload.new),
+          deliveryEvents: current?.id === id ? current.deliveryEvents || [] : [],
+        }));
       })
       .subscribe();
     return () => {
@@ -303,6 +306,10 @@ export default function OrderTracking() {
   }
 
   const navItems = getNavItemsForRole(currentUser.role);
+  const returnToChat = typeof location.state?.returnTo === 'string'
+    && /^\/messages(?:\/|$)/.test(location.state.returnTo)
+    ? location.state.returnTo
+    : null;
 
   const copyOrderId = async () => {
     try {
@@ -318,7 +325,10 @@ export default function OrderTracking() {
   const run = async (action, successMessage) => {
     try {
       const updated = await action();
-      setOrder(updated);
+      setOrder((current) => ({
+        ...updated,
+        deliveryEvents: updated.deliveryEvents || current?.deliveryEvents || [],
+      }));
       setError('');
       setNotice(successMessage);
       return true;
@@ -334,7 +344,10 @@ export default function OrderTracking() {
     await requestDeviceOrientationPermission();
     try {
       const updated = await advanceDelivery(order.id, plateNumber);
-      setOrder(updated);
+      setOrder((current) => ({
+        ...updated,
+        deliveryEvents: updated.deliveryEvents || current?.deliveryEvents || [],
+      }));
       setError('');
       setNotice(`Order marked "${DELIVERY_STEP_LABELS.out_for_delivery}".`);
       setIsTrackingOpen(true);
@@ -508,6 +521,16 @@ export default function OrderTracking() {
       title={`Order — ${order.productName}`}
     >
       <div className="ot-page">
+        {returnToChat ? (
+          <Link
+            to={returnToChat}
+            state={location.state?.returnState}
+            className="ot-back-to-chat btn btn-secondary btn-md"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back to chat
+          </Link>
+        ) : null}
         {notice ? <div className="form-alert success">{notice}</div> : null}
         {error || profileLocationError
           ? <div className="form-alert error">{error || profileLocationError}</div>
@@ -749,6 +772,12 @@ export default function OrderTracking() {
               {isBuyer && isCancellable(order) ? (
                 <Button variant="danger" onClick={() => setIsCancelDialogOpen(true)}>Cancel order</Button>
               ) : null}
+              {isBuyer && order.status === 'confirmed' ? (
+                <p className="ot-cancellation-policy-note" role="note">
+                  <Info size={15} aria-hidden="true" />
+                  <span>This order is confirmed and can no longer be changed or cancelled here. Use the message button above to contact the farmer.</span>
+                </p>
+              ) : null}
             </div>
           </div>
         </section>
@@ -881,6 +910,7 @@ export default function OrderTracking() {
                 deliveryStatus: result.order.deliveryStatus,
                 transitStartedAt: result.order.transitStartedAt,
                 updatedAt: result.order.updatedAt,
+                deliveryEvents: previous.deliveryEvents || [],
               } : previous);
               setDelivery(result.delivery);
               setCourierLoad({ orderId: order.id, error: '' });

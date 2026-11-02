@@ -11,7 +11,7 @@ import { useNotificationsRealtime } from '../../hooks/useNotificationsRealtime';
 import { formatRelativeTime } from '../../utils/formatters';
 import { playNotificationSound } from '../../utils/notificationSound';
 import { areBrowserNotificationsEnabled, showBrowserNotification } from '../../utils/browserNotifications';
-import { notificationMessage, notificationTitle } from './notificationPresentation';
+import { isOrderCancellationNotification, notificationMessage, notificationTitle } from './notificationPresentation';
 
 const TYPE_ICONS = {
   order: Package,
@@ -110,11 +110,12 @@ export default function NotificationBell({ userId }) {
             <ul className="notification-list">
               {notifications.slice(0, 20).map((notification) => {
                 const TypeIcon = TYPE_ICONS[notification.type] || Bell;
+                const isCancellation = isOrderCancellationNotification(notification);
                 return (
-                  <li key={notification.id} className={notification.read ? '' : 'unread'}>
+                  <li key={notification.id} className={`${notification.read ? '' : 'unread'}${isCancellation ? ' notification-cancelled' : ''}`.trim()}>
                     <Link to={notification.link || '#'} onClick={() => handleNotificationClick(notification)}>
                       <span className="notification-item-title">
-                        <TypeIcon size={14} />
+                        <TypeIcon size={14} aria-hidden="true" />
                         <strong>{notificationTitle(notification)}</strong>
                       </span>
                       <span>{notificationMessage(notification)}</span>

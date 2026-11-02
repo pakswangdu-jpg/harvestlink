@@ -5,6 +5,10 @@ export function notificationTitle(notification) {
   return (notification.title || '').replace(/^❌\s*/, '');
 }
 
+export function isOrderCancellationNotification(notification) {
+  return notification.type === 'order' && /^order cancelled\b/i.test(notification.title || '');
+}
+
 export function notificationMessage(notification) {
   if (notification.type !== 'payment') return notification.message;
   const rejection = notification.message?.match(/^(.+?) could not verify your GCash payment for (.+?): (.+)$/i);

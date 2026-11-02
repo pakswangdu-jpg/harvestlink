@@ -204,6 +204,7 @@ export default function ProductDetails() {
           category: product.category,
           farmerId: product.farmerId,
           farmerName: product.farmerName,
+          farmerFarmName: product.farmerFarmName,
           availableQuantity: Number(product.quantity),
           status: product.status,
           unit: product.unit,

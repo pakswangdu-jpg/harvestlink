@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
   Check, CheckCheck, Copy, Download, Forward, Globe, MoreHorizontal, Pencil, Reply, Trash2, File as FileIcon,
 } from 'lucide-react';
@@ -46,6 +47,24 @@ export default function MessageBubble({
   const isSystem = message.messageType === 'system' || message.senderRole === 'system';
   const canTranslate = !isMine && message.messageType === 'text' && message.text;
   const showTranslation = Boolean(translation?.visible);
+  const productInquiryPreview = showProductContext && message.productContext ? (
+    <div className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
+      {message.productContext.imageUrl ? (
+        <img src={message.productContext.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" />
+      ) : null}
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Product inquiry</p>
+        <p className="truncate text-[12px] font-medium">{message.productContext.productName}</p>
+        <p className="truncate text-[10px] opacity-75">
+          {[message.productContext.category, message.productContext.farmerName].filter(Boolean).join(' · ')}
+        </p>
+        <p className="truncate text-[10px] opacity-75">
+          {message.productContext.price != null ? `${formatCurrency(message.productContext.price)} / ${message.productContext.unit || 'unit'} · ` : ''}
+          {message.productContext.availableQuantity != null ? `${message.productContext.availableQuantity} ${message.productContext.unit || 'available'} at inquiry` : 'Availability recorded'}
+        </p>
+      </div>
+    </div>
+  ) : null;
 
   if (message.deleted) {
     return (
@@ -76,24 +95,16 @@ export default function MessageBubble({
           {isSystem ? <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--green-700)]">HarvestLink update</p> : null}
           <ReplyPreview replyMessage={replyMessage} isMine={isMine} />
 
-          {showProductContext && message.productContext ? (
-            <div className={`mb-1.5 flex items-center gap-2 rounded-xl px-2 py-1.5 ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
-              {message.productContext.imageUrl ? (
-                <img src={message.productContext.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" />
-              ) : null}
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Product inquiry</p>
-                <p className="truncate text-[12px] font-medium">{message.productContext.productName}</p>
-                <p className="truncate text-[10px] opacity-75">
-                  {[message.productContext.category, message.productContext.farmerName].filter(Boolean).join(' · ')}
-                </p>
-                <p className="truncate text-[10px] opacity-75">
-                  {message.productContext.price != null ? `${formatCurrency(message.productContext.price)} / ${message.productContext.unit || 'unit'} · ` : ''}
-                  {message.productContext.availableQuantity != null ? `${message.productContext.availableQuantity} ${message.productContext.unit || 'available'} at inquiry` : 'Availability recorded'}
-                </p>
-              </div>
-            </div>
-          ) : null}
+          {productInquiryPreview && message.productContext.productId ? (
+            <Link
+              to={`/products/${message.productContext.productId}`}
+              state={{ productContext: message.productContext }}
+              aria-label={`View product ${message.productContext.productName || 'listing'}`}
+              className="messages-bubble-product-link mb-1.5 block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+            >
+              {productInquiryPreview}
+            </Link>
+          ) : productInquiryPreview ? <div className="mb-1.5">{productInquiryPreview}</div> : null}
 
           {showProductContext && message.donationContext ? (
             <div className={`mb-1.5 flex items-start gap-2 rounded-xl px-2 py-1.5 text-left ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>

@@ -11,6 +11,7 @@ const migration = await readFile(new URL('../../supabase/migrations/20261030_inv
 const traceabilityMigration = await readFile(new URL('../../supabase/migrations/20261031_traceability_context.sql', import.meta.url), 'utf8');
 const unifiedMessagingMigration = await readFile(new URL('../../supabase/migrations/20261101_unified_listing_messaging.sql', import.meta.url), 'utf8');
 const productInventoryRealtimeMigration = await readFile(new URL('../../supabase/migrations/20261103_product_inventory_realtime.sql', import.meta.url), 'utf8');
+const confirmedOrderCancellationMigration = await readFile(new URL('../../supabase/migrations/20261104_prevent_confirmed_order_cancellation.sql', import.meta.url), 'utf8');
 
 const baseSchema = `
   create function gen_random_uuid() returns uuid language sql volatile as $func$
@@ -82,6 +83,8 @@ test('inventory reservations, product context columns, and donation claims are a
   await db.exec(traceabilityMigration);
   await db.exec(unifiedMessagingMigration);
   await db.exec(unifiedMessagingMigration);
+  await db.exec(confirmedOrderCancellationMigration);
+  await db.exec(confirmedOrderCancellationMigration);
 
   const row = async (sql, params = []) => (await db.query(sql, params)).rows[0];
   const migratedThread = await row('select conversation_id from messages where text=$1', ['Existing direct thread']);
@@ -208,6 +211,26 @@ test('inventory reservations, product context columns, and donation claims are a
       { code: '23514' },
     );
     assert.equal(Number((await row('select quantity from products where id = $1', [product])).quantity), 2);
+  });
+
+  await t.test('a buyer cannot cancel after farmer confirmation', async () => {
+    await db.query('update products set quantity = 5, reserved_quantity = 0, sold_quantity = 0, status = $2 where id = $1', [product, 'active']);
+    const created = await row('select * from create_marketplace_order($1,$2::jsonb)', [
+      buyer,
+      JSON.stringify(orderPayload('40000000-0000-4000-8000-000000000016', 2)),
+    ]);
+    const confirmed = await row('select * from transition_marketplace_order($1,$2,$3,$4)', [farmer, created.id, 'confirmed', null]);
+    assert.equal(confirmed.status, 'confirmed');
+    assert.equal(confirmed.delivery_status, 'pending');
+    await assert.rejects(
+      row('select * from transition_marketplace_order($1,$2,$3,$4)', [buyer, created.id, 'cancelled', 'Changed my mind']),
+      { code: '23514', message: /Only pending orders can be cancelled/ },
+    );
+    const unchanged = await row('select status, stock_state from orders where id = $1', [created.id]);
+    assert.equal(unchanged.status, 'confirmed');
+    assert.equal(unchanged.stock_state, 'reserved');
+    assert.equal(Number((await row('select quantity from products where id = $1', [product])).quantity), 3);
+    assert.equal(Number((await row('select reserved_quantity from products where id = $1', [product])).reserved_quantity), 2);
   });
 
   await t.test('concurrent confirmation and cancellation leave stock in one valid state', async () => {

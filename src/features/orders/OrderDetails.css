@@ -4,6 +4,17 @@
   box-shadow: none;
 }
 
+.ot-page .ot-back-to-chat {
+  width: fit-content;
+  margin-bottom: 12px;
+  gap: 7px;
+  text-decoration: none;
+}
+
+.ot-page .ot-back-to-chat:hover {
+  text-decoration: none;
+}
+
 .ot-order-number {
   display: flex;
   align-items: center;
@@ -393,6 +404,27 @@
   font-weight: 500;
   overflow-wrap: anywhere;
   box-shadow: none;
+}
+
+.ot-cancellation-policy-note {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--red-700) 32%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red-100) 68%, var(--panel));
+  color: var(--red-700);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ot-cancellation-policy-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--red-700);
 }
 
 .ot-page .ot-details-panel .ot-payment-details .badge-paymentStatus.badge-paid,

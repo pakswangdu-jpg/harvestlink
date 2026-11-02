@@ -2321,6 +2321,16 @@ a.lp-contact-card:hover {
   background: var(--green-50);
 }
 
+.notification-list li.notification-cancelled,
+.notification-list li.notification-cancelled.unread {
+  background: color-mix(in srgb, var(--red-100) 68%, var(--panel));
+}
+
+.notification-list li.notification-cancelled .notification-item-title,
+.notification-list li.notification-cancelled .notification-item-title strong {
+  color: var(--red-700);
+}
+
 .notification-list a {
   display: grid;
   gap: 3px;
@@ -2330,6 +2340,10 @@ a.lp-contact-card:hover {
 
 .notification-list a:hover {
   background: var(--soft);
+}
+
+.notification-list li.notification-cancelled a:hover {
+  background: color-mix(in srgb, var(--red-100) 82%, var(--panel));
 }
 
 .notification-list small {
@@ -19345,52 +19359,116 @@ td {
   background: var(--panel);
 }
 
+.messages-page .messages-conversation-scroll {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.messages-page .messages-conversation-scroll > * {
+  flex-shrink: 0;
+}
+
 .messages-page .messages-chat-header {
-  min-height: 74px;
-  padding: 12px 18px;
+  min-height: 56px;
+  padding: 7px 18px;
   background: var(--panel);
   backdrop-filter: none;
 }
 
 .messages-page .messages-chat-header > div:first-child > .relative > div {
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   font-size: 12px;
 }
 
 .messages-page .messages-chat-header p.text-\[15px\] {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .messages-page .messages-chat-header .rounded-full.border {
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 7px;
-  font-size: 12px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 10px;
   font-weight: 500;
 }
 
 .messages-page .messages-product-context {
-  margin: 12px 16px 0;
-  border-radius: 10px;
-  background: var(--soft);
+  margin: 8px 16px 0;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--green-50) 58%, var(--panel));
 }
 
 .messages-page .messages-product-context-main {
   display: grid;
-  grid-template-columns: minmax(180px, 1.1fr) minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .messages-page .messages-product-context-main > div {
   min-width: 0;
 }
 
+.messages-page .messages-product-context-image {
+  width: 42px;
+  height: 42px;
+  border-radius: 7px;
+}
+
+.messages-page .messages-product-context-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.messages-page .messages-product-context-category {
+  margin-top: 1px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.messages-page .messages-product-context-details > div:first-child {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.messages-page .messages-product-context-details > div:first-child svg {
+  width: 12px;
+  height: 12px;
+}
+
+.messages-page .messages-product-context-details > div:last-child {
+  margin-top: 3px;
+  gap: 2px 7px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.messages-page .messages-product-context-link {
+  min-height: 34px;
+  border-color: color-mix(in srgb, var(--green-700) 22%, var(--line));
+  border-radius: 5px;
+  padding-inline: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .messages-page .messages-message-list {
-  background: var(--soft);
+  flex: 1 0 auto;
+  min-height: 100%;
+  background: var(--panel);
   padding: 18px 20px;
 }
 
@@ -19427,35 +19505,69 @@ td {
   width: auto;
   min-width: max-content;
   height: auto;
-  min-height: 34px;
+  min-height: 0;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 7px 11px;
-  border: 1px solid color-mix(in srgb, var(--green-700) 24%, transparent);
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   border-radius: 999px;
   font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.2;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
   white-space: nowrap;
 }
 
-.messages-page .messages-order-context > div:last-child {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
+.messages-page .messages-order-context-main {
+  min-width: 0;
 }
 
-.messages-page .messages-order-context > div:last-child a,
-.messages-page .messages-order-context > div:last-child > span {
-  font-family: var(--font-ui);
+.messages-page .messages-header-activity-link {
+  min-height: 26px;
+  padding-inline: 9px;
+  font-size: 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.messages-page .messages-header-activity-link:disabled {
+  cursor: not-allowed;
+}
+
+.messages-page .messages-language-selector {
+  height: 26px;
+  padding-inline: 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.messages-page .messages-language-selector select {
+  max-width: 80px;
+  font-size: 10px;
+}
+
+.messages-page .messages-header-activity-link:hover {
+  text-decoration: none;
+}
+
+.messages-page .messages-header-activity-link:focus-visible {
+  outline-offset: 3px;
+}
+
+.tracking-live-location-unavailable {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tracker-event-description {
+  flex-basis: 100%;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.45;
-}
-
-.messages-page .messages-order-context > div:last-child a {
-  text-underline-offset: 3px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .messages-page .messages-buy-again-mobile-toggle {
@@ -19612,8 +19724,8 @@ td {
   }
 
   .messages-page .messages-chat-header {
-    min-height: 68px;
-    padding: 9px 10px;
+    min-height: 54px;
+    padding: 7px 10px;
   }
 
   .messages-page .messages-chat-header > div:first-child {
@@ -19622,8 +19734,8 @@ td {
   }
 
   .messages-page .messages-chat-header > div:first-child > .relative > div {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
   }
 
   .messages-page .messages-chat-header p.text-\[15px\] {
@@ -19633,25 +19745,50 @@ td {
 
   .messages-page .messages-product-context {
     max-width: calc(100% - 20px);
-    margin: 10px 10px 0;
-    padding: 10px;
+    margin: 8px 10px 0;
+    padding: 8px;
   }
 
   .messages-page .messages-product-context-main {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px 12px;
+    gap: 8px 10px;
   }
 
   .messages-page .messages-product-context-details {
-    grid-column: 1 / -1;
-    padding-top: 8px;
-    border-top: 1px solid var(--line);
+    grid-column: 1;
+    grid-row: 2;
+    padding-left: 52px;
+  }
+
+  .messages-page .messages-product-context-link {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  .messages-page .messages-header-activity-link {
+    min-height: 32px;
+    gap: 5px;
+    padding-inline: 7px;
+    font-size: 10px;
+  }
+
+  .messages-page .messages-language-selector {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .messages-page .messages-language-selector select {
+    max-width: 54px;
   }
 
   .messages-page .messages-message-list {
     min-width: 0;
-    overflow-x: hidden;
     padding: 12px 10px;
+  }
+
+  .messages-page .messages-conversation-scroll {
+    touch-action: pan-y;
   }
 
   .messages-page .messages-bubble-row {
@@ -19720,8 +19857,14 @@ td {
     gap: 8px;
   }
 
-  .messages-page .messages-order-context > div:last-child {
-    gap: 6px;
+  .messages-page .messages-order-context-main {
+    align-items: flex-start;
+  }
+
+  .messages-page .messages-header-activity-link {
+    min-height: 36px;
+    padding-inline: 8px;
+    font-size: 10px;
   }
 
   .messages-page .messages-buy-again {

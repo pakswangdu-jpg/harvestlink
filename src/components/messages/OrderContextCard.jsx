@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowDown, ArrowRight, CheckCircle2, Package, Sprout, Truck,
+  ArrowDown, ArrowRight, Package, Sprout,
 } from 'lucide-react';
 import { formatCurrency, shortOrderId, statusTone } from '../../utils/formatters';
 import { getPublicFarmerProducts } from '../../services/productService';
@@ -17,13 +17,24 @@ function label(value) {
   return String(value || 'pending').replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function deliveryMethodLabel(value) {
-  if (value === 'buyer_pickup') return 'Buyer pickup';
-  if (value === 'courier') return 'Courier';
-  return 'Farmer delivery';
+function orderActivityStatus(order) {
+  if (['pending', 'rejected', 'cancelled', 'completed'].includes(order.status)) return order.status;
+  if (order.status === 'confirmed') {
+    if (order.deliveryStatus === 'out_for_delivery') return 'in_transit';
+    if (order.deliveryStatus && order.deliveryStatus !== 'pending') return order.deliveryStatus;
+    return 'confirmed';
+  }
+  return order.status;
 }
 
-export default function OrderContextCard({ order, delivery = null, recommendationOrder, showRecommendations = false }) {
+function statusLabel(status) {
+  if (status === 'in_transit') return 'In Transit';
+  return label(status);
+}
+
+export default function OrderContextCard({
+  order, orders, recommendationOrder, showRecommendations = false, viewerRole, viewerId,
+}) {
   const [recommendationState, setRecommendationState] = useState({ farmerId: null, products: [], error: '' });
   const isMobile = globalThis.matchMedia?.('(max-width: 767px)').matches ?? false;
   const completedOrder = recommendationOrder || (order?.status === 'completed' ? order : null);
@@ -47,58 +58,47 @@ export default function OrderContextCard({ order, delivery = null, recommendatio
     return () => { cancelled = true; };
   }, [isCompletedBuyerOrder, completedOrder?.farmerId]);
 
-  const tone = order ? TONE_CLASSES[statusTone(order.status)] || TONE_CLASSES.neutral : null;
   const products = recommendationState.farmerId === completedOrder?.farmerId ? recommendationState.products : [];
   const recommendationError = recommendationState.farmerId === completedOrder?.farmerId ? recommendationState.error : '';
   const availableProducts = products.filter((product) => product.status === 'active' && Number(product.quantity) > 0);
   const repeatProduct = availableProducts.find((product) => product.id === completedOrder?.productId);
   const recommendations = availableProducts.filter((product) => product.id !== completedOrder?.productId).slice(0, 2);
+  const orderCards = orders || (order ? [order] : []);
 
-  if (!order && !isCompletedBuyerOrder) return null;
+  if (!orderCards.length && !isCompletedBuyerOrder) return null;
 
   return (
     <div className="mx-4 mt-3">
-      {order ? (
-        <div className="messages-order-context rounded-xl border border-[var(--line)] bg-[var(--soft)] px-3 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="messages-order-product-image flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--panel)] text-[var(--green-700)]">
-                {order.productImageUrl ? <img src={order.productImageUrl} alt="" className="h-full w-full object-cover" /> : <Package size={18} />}
-              </span>
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Order #{shortOrderId(order.id)}</p>
-                <p className="messages-order-product-name truncate text-[13px] font-semibold text-[var(--text)]">{order.productName} · {order.quantity} {order.unit}</p>
-                <p className="messages-order-product-seller text-[12px] text-[var(--muted)]">{formatCurrency(order.totalAmount)} · {order.farmerName || 'Farmer'}</p>
+      {orderCards.map((orderItem) => {
+        const activityStatus = orderActivityStatus(orderItem);
+        const tone = TONE_CLASSES[statusTone(activityStatus === 'in_transit' ? 'out_for_delivery' : activityStatus)] || TONE_CLASSES.neutral;
+        const personName = viewerRole === 'farmer' && viewerId === orderItem.farmerId
+          ? orderItem.buyerName || 'Buyer'
+          : orderItem.farmerFarmName || orderItem.farmerName || 'Farmer';
+        return (
+          <div key={orderItem.id} className="messages-order-context mb-2 rounded-xl border border-[var(--line)] bg-[var(--soft)] px-3 py-3">
+            <div className="messages-order-context-main flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="messages-order-product-image flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--panel)] text-[var(--green-700)]">
+                  {orderItem.productImageUrl ? <img src={orderItem.productImageUrl} alt="" className="h-full w-full object-cover" /> : <Package size={18} />}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">Order #{shortOrderId(orderItem.id)}</p>
+                  <p className="messages-order-product-name truncate text-[15px] font-semibold text-[var(--text)]">
+                    {orderItem.productName} · {orderItem.quantity} {orderItem.unit}
+                  </p>
+                  <p className="messages-order-product-seller flex flex-wrap items-center gap-x-1.5 text-[12px] text-[var(--muted)]">
+                    <span>{formatCurrency(orderItem.totalAmount)} · {personName}</span>
+                    <span className={`messages-order-status inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${tone}`}>
+                      {statusLabel(activityStatus)}
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
-            <span className={`messages-order-status shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>
-              {order.status === 'completed' ? <CheckCircle2 size={15} aria-hidden="true" /> : null}
-              {label(order.status)}
-            </span>
           </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--line)] pt-2.5 text-[11px] sm:grid-cols-4">
-            <div><p className="text-[var(--muted)]">Order</p><p className="font-semibold text-[var(--text)]">{label(order.status)}</p></div>
-            <div><p className="text-[var(--muted)]">Payment</p><p className="font-semibold text-[var(--text)]">{label(order.paymentStatus)}</p></div>
-            <div><p className="text-[var(--muted)]">Delivery</p><p className="font-semibold text-[var(--text)]">{label(order.deliveryStatus)}</p></div>
-            <div><p className="text-[var(--muted)]">Method</p><p className="font-semibold text-[var(--text)]">{deliveryMethodLabel(order.deliveryMethod)}</p></div>
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--muted)]">
-            <span className="inline-flex items-center gap-1"><Truck size={13} /> Tracking ID: {order.trackingId || 'Not assigned'}</span>
-            {delivery?.bookingReference ? <span>Courier booking: {delivery.bookingReference}</span> : null}
-            {delivery?.trackingUrl ? <a href={delivery.trackingUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--green-700)] hover:underline">Official courier tracking</a> : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {order.deliveryMethod !== 'buyer_pickup' ? (
-              <Link to={`/orders/${order.id}`} className="inline-flex items-center rounded-lg border border-[var(--line)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text)] hover:bg-[var(--panel)]">
-                Track delivery
-              </Link>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+        );
+      })}
       {isCompletedBuyerOrder ? (
         <details
           className="messages-buy-again mt-2 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3"

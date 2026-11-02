@@ -239,6 +239,7 @@ export async function listDirectThreads(req, res) {
         id: lastOrder.id,
         trackingId: lastOrder.tracking_id || null,
         productId: lastOrder.product_id_snapshot || lastOrder.product_id,
+        buyerId: lastOrder.buyer_id,
         farmerId: lastOrder.farmer_id,
         productName: lastOrder.product_name,
         productImageUrl: lastOrder.product_image_url || null,
