@@ -34,3 +34,32 @@ test('Google receives exact GPS and saved destination; traffic failure falls bac
   assert.equal(routes[0].hasTrafficData, false);
   assert.deepEqual(JSON.parse(JSON.stringify(routes[0].points)), [origin, destination]);
 });
+
+test('road-route fallback keeps map geometry available when Google routing is unavailable', async () => {
+  const [google] = await loadFrontend([url('services/googleDirectionsService.js')], {
+    fetch: async () => ({ ok: false }),
+  }, {
+    [url('lib/googleMapsLoader.js')]: {
+      loadGoogleGeometry: async () => ({}),
+      loadGoogleRoutes: async () => ({ DirectionsService: class {
+        async route() { throw new Error('Google routing unavailable'); }
+      } }),
+    },
+    [url('services/routingService.js')]: {
+      fetchRoadRoute: async () => ({
+        points: [origin, destination],
+        distanceKm: 2.8,
+        durationMinutes: 8,
+      }),
+    },
+  });
+
+  const routes = await google.fetchTrafficRoutes(origin, destination);
+  assert.deepEqual(JSON.parse(JSON.stringify(routes)), [{
+    points: [origin, destination],
+    distanceKm: 2.8,
+    durationMinutes: 8,
+    hasTrafficData: false,
+    description: 'Road route',
+  }]);
+});

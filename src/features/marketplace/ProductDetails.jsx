@@ -7,7 +7,7 @@ import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
-import { ORDERING_ROLES } from '../../utils/constants';
+import { isLowStock, ORDERING_ROLES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import { useCart } from '../../contexts/CartContext';
 import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
@@ -28,8 +28,22 @@ const PRODUCT_MESSAGE_SUGGESTIONS = [
   'Can you provide more information about the product quality?',
 ];
 
-function getFarmerInquirySnapshot(context, id, currentUser) {
-  if (currentUser.role !== 'farmer' || context?.productId !== id || context.farmerId !== currentUser.id) return null;
+const OUT_OF_STOCK_MESSAGE_SUGGESTIONS = [
+  'Hi! When will this product be back in stock?',
+  "I'm interested in this product — can you let me know when it's available again?",
+  'Do you have a similar product available right now?',
+  'Can I reserve or pre-order this item?',
+];
+
+const LOW_STOCK_MESSAGE_SUGGESTIONS = [
+  'I see this product has limited stock. How much is currently available?',
+  'Can you reserve this quantity for me while I place my order?',
+  'When do you expect to restock this product?',
+  'Do you have more of this product available than the listing shows?',
+];
+
+function getFarmerInquirySnapshot(context, id, currentUserId, currentUserRole) {
+  if (currentUserRole !== 'farmer' || context?.productId !== id || context.farmerId !== currentUserId) return null;
   return {
     id: context.productId,
     farmerId: context.farmerId,
@@ -53,10 +67,9 @@ export default function ProductDetails() {
   const { currentUser } = useAuth();
   const { removeItem } = useCart();
   const { showToast } = useToast();
-  const [product, setProduct] = useState(() => getFarmerInquirySnapshot(location.state?.productContext, id, currentUser));
-  const [loadedId, setLoadedId] = useState(() => (
-    getFarmerInquirySnapshot(location.state?.productContext, id, currentUser) ? id : null
-  ));
+  const farmerInquirySnapshot = getFarmerInquirySnapshot(location.state?.productContext, id, currentUser.id, currentUser.role);
+  const [storedProduct, setStoredProduct] = useState(() => farmerInquirySnapshot);
+  const [loadedId, setLoadedId] = useState(() => (farmerInquirySnapshot ? id : null));
   const [loadError, setLoadError] = useState('');
   const [liveListingUnavailable, setLiveListingUnavailable] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -67,33 +80,28 @@ export default function ProductDetails() {
 
   useEffect(() => {
     let cancelled = false;
-    const snapshot = getFarmerInquirySnapshot(location.state?.productContext, id, currentUser);
-    if (snapshot) {
-      setProduct(snapshot);
-      setLoadedId(id);
-    } else {
-      setProduct(null);
-      setLoadedId(null);
-    }
-    setLoadError('');
-    setLiveListingUnavailable(false);
+    const snapshot = getFarmerInquirySnapshot(location.state?.productContext, id, currentUser.id, currentUser.role);
     getProductById(id)
       .then((result) => {
         if (cancelled) return;
         if (!result) throw new Error('The product listing could not be found.');
-        setProduct(result);
+        setStoredProduct(result);
         setLoadedId(id);
+        setLoadError('');
+        setLiveListingUnavailable(false);
       }).catch((error) => {
         if (cancelled) return;
         if (snapshot) {
-          setProduct(snapshot);
+          setStoredProduct(snapshot);
           setLiveListingUnavailable(true);
           setLoadedId(id);
+          setLoadError('');
           return;
         }
-        setProduct(null);
+        setStoredProduct(null);
         setLoadError(error instanceof Error ? error.message : 'Unable to load this product listing.');
         setLoadedId(id);
+        setLiveListingUnavailable(false);
       });
     return () => {
       cancelled = true;
@@ -106,7 +114,7 @@ export default function ProductDetails() {
     const refresh = () => getProductById(id, { fresh: true })
       .then((latestProduct) => {
         if (cancelled || !latestProduct) return;
-        setProduct(latestProduct);
+        setStoredProduct(latestProduct);
         setStockRefreshError('');
       })
       .catch((error) => {
@@ -143,7 +151,7 @@ export default function ProductDetails() {
     try {
       const latestProduct = await getProductById(id, { fresh: true });
       if (!latestProduct) throw new Error('The product listing could not be found.');
-      setProduct(latestProduct);
+      setStoredProduct(latestProduct);
       return latestProduct;
     } catch (error) {
       setStockRefreshError(error.message || 'Unable to refresh this listing right now.');
@@ -153,8 +161,9 @@ export default function ProductDetails() {
     }
   }, [id]);
 
+  const product = loadedId === id ? storedProduct : farmerInquirySnapshot;
   const navItems = getNavItemsForRole(currentUser.role);
-  if (loadedId !== id) {
+  if (loadedId !== id && !farmerInquirySnapshot) {
     return (
       <AppShell user={currentUser} navItems={navItems} title="Product listing" subtitle="Loading listing details…" pageClassName="checkout-page">
         <div className="panel flex min-h-40 items-center justify-center" role="status" aria-live="polite">
@@ -184,15 +193,14 @@ export default function ProductDetails() {
   const isFarmerOwner = currentUser.role === 'farmer' && currentUser.id === product.farmerId;
   const isPendingReview = product.priceReview?.status === 'pending';
   const isOutOfStock = !(Number(product.quantity) > 0);
+  const isLowStockQuantity = isLowStock(product.quantity);
   const canRequest = ORDERING_ROLES.includes(currentUser.role)
     && currentUser.id !== product.farmerId
     && product.status === 'active'
     && !isPendingReview
     && !isOutOfStock;
   const canMessageFarmer = ['buyer', 'stakeholder'].includes(currentUser.role)
-    && currentUser.id !== product.farmerId
-    && product.status === 'active'
-    && Number(product.quantity) > 0;
+    && currentUser.id !== product.farmerId;
 
   const openFarmerConversation = () => {
     navigate(`/messages/direct/${product.farmerId}`, {
@@ -211,7 +219,9 @@ export default function ProductDetails() {
           price: product.price,
         },
         initialMessage: '',
-        suggestedMessages: PRODUCT_MESSAGE_SUGGESTIONS,
+        suggestedMessages: isOutOfStock
+          ? OUT_OF_STOCK_MESSAGE_SUGGESTIONS
+          : isLowStockQuantity ? LOW_STOCK_MESSAGE_SUGGESTIONS : PRODUCT_MESSAGE_SUGGESTIONS,
       },
     });
   };
@@ -274,7 +284,7 @@ export default function ProductDetails() {
       {adminReference ? <AdminReferenceNotice reference={adminReference} /> : null}
       {isFarmerOwner ? (
         <section className="panel" aria-labelledby="own-product-listing-title">
-          {liveListingUnavailable ? (
+          {liveListingUnavailable && loadedId === id ? (
             <p className="mb-4 rounded-lg border border-[var(--line)] bg-[var(--soft)] px-3 py-2 text-sm text-[var(--text-secondary)]" role="status">
               Showing the listing details saved when the buyer sent the inquiry. Live listing details are currently unavailable.
             </p>
@@ -344,6 +354,11 @@ export default function ProductDetails() {
                     : 'You cannot order your own product or an inactive listing.'}
             </p>
             <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
+            {isOutOfStock && canMessageFarmer ? (
+              <Button variant="primary" onClick={openFarmerConversation}>
+                <MessageCircle size={16} aria-hidden="true" /> Message farmer
+              </Button>
+            ) : null}
           </div>
         </div>
       )}

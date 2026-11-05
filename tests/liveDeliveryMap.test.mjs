@@ -163,12 +163,14 @@ test('recenter indicates unavailable GPS and becomes usable when the driver loca
   h.cleanup();
 });
 
-test('farm fallback switches to GPS once and stopped/offline tracking never resets to the farm', async () => {
+test('moving vehicle marker waits for GPS and stopped/offline tracking never resets to the farm', async () => {
   const h = await harness(false, true, null);
-  const vehicle = h.markers.find(marker => marker.zIndex === 1000);
-  assert.equal(vehicle.position.lat, 10.3);
+  assert.equal(h.markers.some(marker => marker.zIndex === 1000), false, 'saved farm coordinates are not shown as a moving vehicle');
+  assert.equal(h.recenterProps().disabled, true, 'recenter waits for a live driver location');
   const stopped = { lat: 10.32, lng: 123.92, heading: 90, speed: 0 };
   h.update(stopped);
+  const vehicle = h.markers.find(marker => marker.zIndex === 1000);
+  assert.ok(vehicle, 'the moving vehicle appears when GPS arrives');
   assert.equal(vehicle.position.lat, stopped.lat);
   assert.equal(vehicle.position.lng, stopped.lng);
   assert.equal(h.navigationInputs().position, stopped, 'route and marker consume the same fix');

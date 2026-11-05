@@ -33,7 +33,6 @@
 .app-shell.role-admin .sidebar .brand strong { display: block; color: #34423a; font-family: var(--font-ui); font-size: 18px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; }
 [data-theme='dark'] .app-shell.role-admin .sidebar .brand strong { color: #e5ebe7; }
 .app-shell.role-admin .sidebar .brand small { margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.35; }
-.app-shell.role-admin .sidebar-collapse-toggle { width: 34px; height: 34px; border: 1px solid color-mix(in srgb, var(--line) 88%, transparent); border-radius: 8px; color: var(--muted); }
 .app-shell.role-admin .sidebar-scroll { flex: 1 1 auto; margin-top: 16px; overflow-y: auto; }
 .app-shell.role-admin .sidebar-scroll nav { gap: 16px !important; }
 
