@@ -1,4 +1,5 @@
 import { loadGoogleGeometry, loadGoogleRoutes } from '../lib/googleMapsLoader';
+import { fetchRoadRoute } from './routingService';
 
 const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const ROUTES_API_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
@@ -114,8 +115,20 @@ export async function fetchNavigationRoute(origin, destination) {
 
 export async function fetchTrafficRoutes(origin, destination) {
   const result = await fetchNavigationRoute(origin, destination) || await fetchGoogleRoute(origin, destination);
-  if (!result) return null;
-  const { alternatives = [], alternativeRoutes, ...primary } = result;
-  void alternativeRoutes;
-  return [primary, ...alternatives];
+  if (result) {
+    const { alternatives = [], alternativeRoutes, ...primary } = result;
+    void alternativeRoutes;
+    return [primary, ...alternatives];
+  }
+  const fallback = await fetchRoadRoute(origin, destination);
+  if (fallback?.points?.length) {
+    return [{
+      points: fallback.points,
+      distanceKm: fallback.distanceKm,
+      durationMinutes: fallback.durationMinutes,
+      hasTrafficData: false,
+      description: 'Road route',
+    }];
+  }
+  return null;
 }

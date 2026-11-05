@@ -2,12 +2,21 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-test('Expanded sidebar brand is centered and leaves room for its collapse control', async () => {
+test('Sidebar control sits beside Home and the brand no longer reserves space for it', async () => {
   const css = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+  const shell = await readFile(new URL('../src/components/layout/AppShell.jsx', import.meta.url), 'utf8');
   assert.match(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar-brand-row \{[^}]*justify-content: center/);
-  assert.match(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar \.brand \{[^}]*max-width: calc\(100% - 42px\)/);
+  assert.match(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar \.brand \{[^}]*max-width: 100%/);
   assert.doesNotMatch(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar \.brand > span:last-child \{[^}]*transform:/);
-  assert.match(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar-collapse-toggle \{[^}]*right: 0/);
+  assert.doesNotMatch(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar-collapse-toggle/);
+  assert.match(shell, /<nav className="app-breadcrumb" aria-label="Breadcrumb">\s*\{sidebarToggle\}\s*<Link to=\{ROLE_DASHBOARDS\[user\.role\]\} className="app-breadcrumb-home">Home<\/Link>\s*<ChevronRight size=\{13\}/);
+  assert.match(shell, /import sidebarHamburger from '\.\.\/\.\.\/assets\/icons\/sidebar-hamburger\.png'/);
+  assert.match(shell, /<img src=\{sidebarHamburger\} alt="" aria-hidden="true" \/>/);
+  assert.match(shell, /className="app-shell-fullbleed-sidebar-toggle"/);
+  assert.match(css, /\.app-breadcrumb \.sidebar-collapse-toggle \{\s*width: 36px;\s*height: 36px;[\s\S]*?border: 1px solid var\(--line\);[\s\S]*?background: var\(--panel\);/);
+  assert.match(css, /\.app-breadcrumb \.sidebar-collapse-toggle img \{\s*width: 26px;/);
+  assert.doesNotMatch(await readFile(new URL('../src/components/layout/SidebarUserCard.css', import.meta.url), 'utf8'), /sidebar-collapse-toggle/);
+  assert.match(css, /\[data-theme="dark"\] \.sidebar-collapse-toggle img \{\s*filter: invert\(1\);/);
   assert.match(css, /\.app-shell:not\(\.sidebar-collapsed\) \.sidebar \.brand strong \{[^}]*font-size: clamp\(14px, 5vw, 18px\)/);
   assert.match(css, /\.app-shell\.sidebar-collapsed \.sidebar-brand-row/);
 });

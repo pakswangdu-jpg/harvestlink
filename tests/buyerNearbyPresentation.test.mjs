@@ -10,7 +10,15 @@ test('Nearby UI retains the map inputs, real distances and marketplace destinati
   }
   assert.match(source, /formatNearbyDistance\(distanceKm\)/);
   assert.match(source, /sortByRegisteredDistance\(nearbyOrigin, verifiedFarmers\)/);
+  assert.match(source, /verifiedFarmersWithoutMapCoordinates/);
+  assert.match(source, /mappedFarmerIds\.has\(farmer\.id\)/);
   assert.match(source, /to=\{farmerMarketplacePath\(farmer\)\}/);
+});
+
+test('buyer nearby map places farmers without saved coordinates only at municipality precision', async () => {
+  const source = await readFile(new URL('../src/components/orders/DeliveryMap.jsx', import.meta.url), 'utf8');
+  assert.match(source, /useMapCoordinates\(farmers, \{ municipalityOnly: nearbyView \}\)/);
+  assert.match(source, /Approximate — municipality area/);
 });
 
 test('Nearby styles target surrounding UI only, with compact rows and responsive outer layout', async () => {

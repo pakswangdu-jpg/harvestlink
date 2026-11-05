@@ -26,7 +26,6 @@ test('sidebar polish is Admin-scoped with consistent icons and responsive densit
   assert.match(css, /\.sidebar \.brand \{ gap: 11px; \}/);
   assert.match(css, /\.sidebar \.brand-mark \{ width: 30px; height: 30px; flex: 0 0 30px; \}/);
   assert.match(css, /\.sidebar \.brand strong \{ display: block; color: #34423a; font-family: var\(--font-ui\); font-size: 18px; font-weight: 600; line-height: 1\.2; letter-spacing: -0\.01em; white-space: nowrap;/);
-  assert.match(css, /\.sidebar-collapse-toggle \{ width: 34px; height: 34px; border: 1px solid color-mix[\s\S]*?border-radius: 8px; color: var\(--muted\); \}/);
   assert.match(css, /\.sidebar-nav-icon \{ width: 18px; height: 18px; flex: 0 0 18px;/);
   assert.match(css, /sidebar-nav-link\[aria-current='page'\]::before[\s\S]*?height: 22px;[\s\S]*?border-radius: 0/);
   assert.ok(!css.includes('gradient'));

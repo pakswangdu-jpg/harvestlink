@@ -138,9 +138,9 @@ export default function DeliveryMap({
   const { effectiveTheme } = useTheme();
   const [roadGeometries, setRoadGeometries] = useState({});
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
-  const farmerCoordsById = useMapCoordinates(farmers, { registeredOnly: nearbyView });
-  const buyerCoordsById = useMapCoordinates(buyers, { registeredOnly: nearbyView });
-  const stakeholderCoordsById = useMapCoordinates(stakeholders, { registeredOnly: nearbyView });
+  const farmerCoordsById = useMapCoordinates(farmers, { municipalityOnly: nearbyView });
+  const buyerCoordsById = useMapCoordinates(buyers, { municipalityOnly: nearbyView });
+  const stakeholderCoordsById = useMapCoordinates(stakeholders, { municipalityOnly: nearbyView });
 
 
 

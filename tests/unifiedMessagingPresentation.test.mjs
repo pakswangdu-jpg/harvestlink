@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { isLowStock } from '../src/utils/constants.js';
+
+test('low-stock inquiry threshold matches inventory status', () => {
+  assert.equal(isLowStock(10), true);
+  assert.equal(isLowStock(1), true);
+  assert.equal(isLowStock(11), false);
+  assert.equal(isLowStock(0), false);
+});
 
 test('product and donation listings provide their own authorized messaging context and suggestions', async () => {
   const productDetails = await readFile(new URL('../src/features/marketplace/ProductDetails.jsx', import.meta.url), 'utf8');
@@ -28,18 +36,22 @@ test('product and donation listings provide their own authorized messaging conte
   assert.match(productDetails, /aria-labelledby="own-product-listing-title"/);
   assert.match(productDetails, /import \{ formatCurrency \} from '\.\.\/\.\.\/utils\/formatters';/);
   assert.match(productDetails, /<dd className="mt-0\.5 font-medium text-\[var\(--text\)\]">\{formatCurrency\(product\.price\)\}/);
-  assert.match(productDetails, /<ProductReviewsFeed farmerId=\{product\.farmerId\} className="panel" \/>/);
-  assert.match(productDetails, /function getFarmerInquirySnapshot\(context, id, currentUser\)/);
-  assert.match(productDetails, /context\?\.productId !== id \|\| context\.farmerId !== currentUser\.id/);
-  assert.match(productDetails, /useState\(\(\) => getFarmerInquirySnapshot\(location\.state\?\.productContext, id, currentUser\)\)/);
-  assert.match(productDetails, /setProduct\(snapshot\);\s*setLoadedId\(id\);/);
+  assert.match(productDetails, /<ProductReviewsFeed productId=\{product\.id\} productName=\{product\.name\} className="panel" \/>/);
+  assert.match(productDetails, /function getFarmerInquirySnapshot\(context, id, currentUserId, currentUserRole\)/);
+  assert.match(productDetails, /context\?\.productId !== id \|\| context\.farmerId !== currentUserId/);
+  assert.match(productDetails, /const farmerInquirySnapshot = getFarmerInquirySnapshot\(location\.state\?\.productContext, id, currentUser\.id, currentUser\.role\)/);
+  assert.match(productDetails, /setStoredProduct\(snapshot\);\s*setLiveListingUnavailable\(true\);\s*setLoadedId\(id\);/);
   assert.match(productDetails, /isInquirySnapshot: true/);
   assert.match(productDetails, /Showing the listing details saved when the buyer sent the inquiry/);
   assert.match(productDetails, /Loading product listing…/);
   assert.match(productDetails, /Unable to view product/);
   assert.match(productDetails, /error instanceof Error \? error\.message/);
   assert.match(productDetails, /Try again/);
-  assert.match(productDetails, /currentUser\.role\)\s*&& currentUser\.id !== product\.farmerId[\s\S]*?product\.status === 'active'[\s\S]*?Number\(product\.quantity\) > 0/);
+  assert.match(productDetails, /const canMessageFarmer = \['buyer', 'stakeholder'\]\.includes\(currentUser\.role\)\s*&& currentUser\.id !== product\.farmerId/);
+  assert.match(productDetails, /const isLowStockQuantity = isLowStock\(product\.quantity\)/);
+  assert.match(productDetails, /isOutOfStock\s*\?\s*OUT_OF_STOCK_MESSAGE_SUGGESTIONS\s*:\s*isLowStockQuantity\s*\?\s*LOW_STOCK_MESSAGE_SUGGESTIONS/);
+  assert.match(productDetails, /import \{[^}]*isLowStock[^}]*\} from '\.\.\/\.\.\/utils\/constants';/);
+  assert.match(productDetails, /LOW_STOCK_MESSAGE_SUGGESTIONS = \[/);
   assert.match(productDetails, /productContext:\s*\{[\s\S]*?productId: product\.id/);
   for (const suggestion of [
     'Hi! Is this product still available?',

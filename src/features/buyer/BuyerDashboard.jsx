@@ -237,7 +237,14 @@ export default function BuyerDashboard() {
   const nearbyFarmersWithDistance = sortedNearbyFarmers
     .slice(0, NEARBY_FARMERS_LIMIT)
     .map((farmer) => ({ farmer, distanceKm: farmer.distanceKm, listingCount: productsByFarmer.get(farmer.id)?.length || 0 }));
-  const nearbyFarmers = nearbyMapProfiles.filter((profile) => profile.role === 'farmer');
+  const nearbyFarmers = useMemo(() => {
+    const mapFarmers = nearbyMapProfiles.filter((profile) => profile.role === 'farmer');
+    const mappedFarmerIds = new Set(mapFarmers.map((farmer) => farmer.id));
+    const verifiedFarmersWithoutMapCoordinates = verifiedFarmers
+      .filter((farmer) => !mappedFarmerIds.has(farmer.id))
+      .map((farmer) => ({ ...farmer, role: 'farmer' }));
+    return [...mapFarmers, ...verifiedFarmersWithoutMapCoordinates];
+  }, [nearbyMapProfiles, verifiedFarmers]);
   const nearbyBuyers = nearbyMapProfiles.filter((profile) => profile.role === 'buyer');
   const nearbyStakeholders = nearbyMapProfiles.filter((profile) => profile.role === 'stakeholder');
 

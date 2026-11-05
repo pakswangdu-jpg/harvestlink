@@ -178,14 +178,6 @@
   line-height: 1.25;
 }
 
-.app-shell:is(.role-stakeholder, .role-buyer, .role-farmer):not(.sidebar-collapsed) .sidebar-collapse-toggle {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  flex: 0 0 34px;
-  transform: translateY(-50%);
-}
-
 .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -287,13 +279,6 @@
 .app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand strong,
 .app-shell.role-buyer:not(.sidebar-collapsed) .sidebar .brand small {
   text-align: center;
-}
-
-.app-shell.role-buyer:not(.sidebar-collapsed) .sidebar-collapse-toggle {
-  right: 12px;
-  width: 38px;
-  height: 38px;
-  flex-basis: 38px;
 }
 
 .app-shell:is(.role-stakeholder, .role-buyer, .role-farmer) .sidebar-scroll nav > div > p,

@@ -265,6 +265,12 @@ export default function LiveDeliveryMap({
   const isDelivered = order.status === 'completed';
   const currentPosition = transit.isInTransit && livePosition && isFreshLivePosition(livePosition) ? livePosition : null;
   const vehiclePosition = currentPosition;
+  // markerPosition: use last received GPS fix (even if slightly stale) for the car icon on the map.
+  // This keeps ETA/speed calculations on the fresh currentPosition, while the car marker stays
+  // visible at the farmer's last known GPS location rather than disappearing after 3 minutes of
+  // no updates. We never use the saved farm address (origin) as a vehicle position fallback.
+  const markerPosition = transit.isInTransit && livePosition && validateCoordinates(livePosition.lat, livePosition.lng)
+    ? livePosition : null;
   const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
   const canRecenter = mapReady && Boolean(validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng));
   const recenterLabel = !mapReady ? 'Loading map'
@@ -503,7 +509,7 @@ export default function LiveDeliveryMap({
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
-    if (deliveryState !== 'navigating' || !validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng)) {
+    if (deliveryState !== 'navigating' || !validateCoordinates(markerPosition?.lat, markerPosition?.lng)) {
       setVehicleMarkerMap(carEntryRef.current, null);
       cameraRef.current?.pause();
       autoEnabledRef.current = false;
@@ -511,13 +517,13 @@ export default function LiveDeliveryMap({
     }
     const vehicleHeading = resolveVehicleHeading({
       previousPosition: lastVehicleHeadingPositionRef.current,
-      currentPosition: vehiclePosition,
+      currentPosition: markerPosition,
       lastHeading: vehicleHeadingRef.current,
-      deviceHeading: vehiclePosition.deviceHeading,
-      gpsHeading: vehiclePosition.heading,
+      deviceHeading: markerPosition.deviceHeading,
+      gpsHeading: markerPosition.heading,
     });
     vehicleHeadingRef.current = vehicleHeading.heading;
-    if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = vehiclePosition;
+    if (vehicleHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = markerPosition;
 
     if (!carEntryRef.current) {
 
@@ -525,7 +531,7 @@ export default function LiveDeliveryMap({
         const content = buildVehicleMarkerContent();
         updateVehicleHeading(content, vehicleHeadingRef.current);
         const marker = new mapsApi.AdvancedMarkerElement({
-          position: vehiclePosition,
+          position: markerPosition,
           map,
           content,
           anchorLeft: '-50%',
@@ -536,16 +542,16 @@ export default function LiveDeliveryMap({
           kind: 'advanced',
           marker,
           content,
-          currentLatLng: vehiclePosition,
+          currentLatLng: markerPosition,
           renderedHeading: vehicleHeadingRef.current,
           animationFrameId: null,
         };
       } else {
-        const marker = new mapsApi.Marker({ position: vehiclePosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
+        const marker = new mapsApi.Marker({ position: markerPosition, map, icon: buildVehicleIcon(mapsApi, vehicleHeadingRef.current), zIndex: 1000 });
         carEntryRef.current = {
           kind: 'classic',
           marker,
-          currentLatLng: vehiclePosition,
+          currentLatLng: markerPosition,
           renderedHeading: vehicleHeadingRef.current,
           animationFrameId: null,
         };
@@ -553,15 +559,16 @@ export default function LiveDeliveryMap({
     } else {
       setVehicleMarkerMap(carEntryRef.current, map);
       setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
-      animateMarkerTo(carEntryRef.current, vehiclePosition);
+      animateMarkerTo(carEntryRef.current, markerPosition);
     }
     if (!autoEnabledRef.current) {
-      autoEnabledRef.current = cameraRef.current?.resume() || false;
+      // Only auto-follow the camera when GPS is fresh (currentPosition), not on stale fixes.
+      if (currentPosition) autoEnabledRef.current = cameraRef.current?.resume() || false;
     } else {
       cameraRef.current?.update();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, vehiclePosition?.lat, vehiclePosition?.lng, vehiclePosition?.heading, vehiclePosition?.deviceHeading, deliveryState]);
+  }, [mapReady, markerPosition?.lat, markerPosition?.lng, markerPosition?.heading, markerPosition?.deviceHeading, deliveryState]);
 
   useEffect(() => () => {
     cameraRef.current?.destroy();

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, LogOut, Settings } from 'lucide-react';
+import { ChevronRight, LogOut, Settings } from 'lucide-react';
 import BrandWordmark from '../common/BrandWordmark';
 import NotificationBell from '../notifications/NotificationBell';
 import CartButton from '../cart/CartButton';
@@ -18,6 +18,7 @@ import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliv
 import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
 import logo from '../../assets/logo.png';
+import sidebarHamburger from '../../assets/icons/sidebar-hamburger.png';
 import './HeaderUtilityControls.css';
 import './AdminSidebar.css';
 
@@ -52,6 +53,17 @@ export default function AppShell({
       return next;
     });
   };
+  const sidebarToggle = (
+    <button
+      type="button"
+      className="sidebar-collapse-toggle"
+      onClick={toggleSidebarCollapsed}
+      aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    >
+      <img src={sidebarHamburger} alt="" aria-hidden="true" />
+    </button>
+  );
   const hasProfile = ['farmer', 'buyer', 'stakeholder'].includes(user.role);
   const locationAccess = useLocationPermission(hasProfile);
 
@@ -124,15 +136,6 @@ export default function AppShell({
               </span>
             ) : null}
           </Link>
-          <button
-            type="button"
-            className="sidebar-collapse-toggle"
-            onClick={toggleSidebarCollapsed}
-            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isSidebarCollapsed ? <ChevronRight size={15} strokeWidth={2.25} /> : <ChevronLeft size={15} strokeWidth={2.25} />}
-          </button>
         </div>
 
         <div className="sidebar-scroll">
@@ -226,8 +229,10 @@ export default function AppShell({
         className={`main-content ${pageClassName} ${fullBleed ? 'main-content-full-bleed' : ''} ${!fullBleed && hideHeader ? 'main-content-flush' : ''} ${wide ? 'main-content-wide' : ''}`
           .trim().replace(/\s+/g, ' ')}
       >
+        {fullBleed ? <div className="app-shell-fullbleed-sidebar-toggle">{sidebarToggle}</div> : null}
         {!fullBleed ? (
           <nav className="app-breadcrumb" aria-label="Breadcrumb">
+            {sidebarToggle}
             <Link to={ROLE_DASHBOARDS[user.role]} className="app-breadcrumb-home">Home</Link>
             <ChevronRight size={13} aria-hidden="true" />
             {breadcrumbParent && breadcrumbParent !== title ? (
