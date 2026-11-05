@@ -163,9 +163,13 @@ test('recenter indicates unavailable GPS and becomes usable when the driver loca
   h.cleanup();
 });
 
-test('moving vehicle marker waits for GPS and stopped/offline tracking never resets to the farm', async () => {
+test('vehicle marker falls back to saved travel origin without changing GPS navigation', async () => {
   const h = await harness(false, true, null);
-  assert.equal(h.markers.some(marker => marker.zIndex === 1000), false, 'saved farm coordinates are not shown as a moving vehicle');
+  const savedOriginVehicle = h.markers.find(marker => marker.zIndex === 1000);
+  assert.ok(savedOriginVehicle, 'the car remains visible at the saved travel origin before GPS arrives');
+  assert.equal(savedOriginVehicle.position.lat, 10.3);
+  assert.equal(savedOriginVehicle.position.lng, 123.9);
+  assert.equal(h.navigationInputs().position, null, 'the saved origin is not sent to navigation as a GPS position');
   assert.equal(h.recenterProps().disabled, true, 'recenter waits for a live driver location');
   const stopped = { lat: 10.32, lng: 123.92, heading: 90, speed: 0 };
   h.update(stopped);

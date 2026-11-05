@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { getListingContextMessageIds } from '../src/utils/messageListingContext.js';
 
-test('message history shows one listing preview until the listing context changes', () => {
+test('message history shows the product on every product inquiry message', () => {
   const messages = [
     { id: 'm1', productContext: { productId: 'cabbage' } },
     { id: 'm2', productContext: { productId: 'cabbage' } },
@@ -16,6 +16,6 @@ test('message history shows one listing preview until the listing context change
 
   assert.deepEqual(
     [...getListingContextMessageIds(messages)],
-    ['m1', 'm5', 'm6', 'm8'],
+    ['m1', 'm2', 'm4', 'm5', 'm6', 'm8'],
   );
 });

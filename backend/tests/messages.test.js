@@ -105,8 +105,8 @@ test('direct message context is authorized, snapshot from listings, and uses one
     quantity: '8',
     unit: 'kg',
     location: 'Mandaue City',
-    expiration_at: '2026-11-02T09:00:00.000Z',
-    expiration_date: '2026-11-02',
+    expiration_at: '2027-11-02T09:00:00.000Z',
+    expiration_date: '2027-11-02',
     farmer_id: farmerId,
     farmer_name: 'North Farm',
     status: 'available',
@@ -148,10 +148,59 @@ test('direct message context is authorized, snapshot from listings, and uses one
     { productContext: { productId, productName: 'Forged name', price: 0, availableQuantity: 100 } },
   ), productResponse);
   const savedProductMessage = calls.find(([kind, table]) => kind === 'insert' && table === 'messages')[2];
+  assert.equal(savedProductMessage.context_product_id, productId);
+  assert.equal(savedProductMessage.context_product_farmer_id, farmerId);
   assert.equal(savedProductMessage.context_product_name, 'Tomatoes');
   assert.equal(savedProductMessage.context_product_price, '42.50');
   assert.equal(savedProductMessage.context_product_quantity, 7);
   assert.equal(productResponse.body.conversationId, conversationId);
+  assert.equal(notifications[0].userId, farmerId);
+
+  reset();
+  state.product = {
+    id: productId,
+    farmer_id: farmerId,
+    name: 'Tomatoes',
+    category: 'Vegetables',
+    unit: 'kg',
+    price: '42.50',
+    quantity: '0',
+    status: 'inactive',
+    price_review: { status: 'approved' },
+    expiration_date: null,
+  };
+  state.profiles[farmerId] = { id: farmerId, role: 'farmer', name: 'Farmer', farm_name: 'North Farm' };
+  const outOfStockResponse = response();
+  await api.sendMessage(makeRequest(
+    { id: buyerId, name: 'Buyer', role: 'buyer' },
+    farmerId,
+    { text: 'Hi, when will this be back in stock?', productContext: { productId } },
+  ), outOfStockResponse);
+  const savedOutOfStockMessage = calls.find(([kind, table]) => kind === 'insert' && table === 'messages')[2];
+  assert.equal(outOfStockResponse.statusCode, 201);
+  assert.equal(savedOutOfStockMessage.context_product_id, productId);
+  assert.equal(savedOutOfStockMessage.context_product_farmer_id, farmerId);
+  assert.equal(savedOutOfStockMessage.context_product_quantity, 0);
+  assert.equal(savedOutOfStockMessage.context_product_status, 'inactive');
+  assert.equal(notifications[0].userId, farmerId);
+  assert.equal(notifications[0].message, 'Hi, when will this be back in stock?');
+
+  reset();
+  state.product = {
+    id: productId,
+    farmer_id: farmerId,
+    quantity: '5',
+    status: 'inactive',
+    price_review: { status: 'approved' },
+    expiration_date: null,
+  };
+  await assert.rejects(api.sendMessage(makeRequest(
+    { id: buyerId, name: 'Buyer', role: 'buyer' },
+    farmerId,
+    { productContext: { productId } },
+  ), response()), { status: 409 });
+  assert.equal(calls.some(([kind]) => kind === 'rpc'), false);
+  assert.equal(notifications.length, 0);
 
   reset();
   state.donation = { id: donationId, farmer_id: farmerId, status: 'available', available_quantity: 4, quantity: 4 };
