@@ -10,7 +10,7 @@ test('low-stock inquiry threshold matches inventory status', () => {
   assert.equal(isLowStock(0), false);
 });
 
-test('product and donation listings provide their own authorized messaging context and suggestions', async () => {
+test('product inquiry context remains reviewable and donation listings provide messaging suggestions', async () => {
   const productDetails = await readFile(new URL('../src/features/marketplace/ProductDetails.jsx', import.meta.url), 'utf8');
   const productContext = await readFile(new URL('../src/components/messages/ProductContextCard.jsx', import.meta.url), 'utf8');
   const messagesPage = await readFile(new URL('../src/features/messages/MessagesPage.jsx', import.meta.url), 'utf8');
@@ -47,21 +47,12 @@ test('product and donation listings provide their own authorized messaging conte
   assert.match(productDetails, /Unable to view product/);
   assert.match(productDetails, /error instanceof Error \? error\.message/);
   assert.match(productDetails, /Try again/);
-  assert.match(productDetails, /const canMessageFarmer = \['buyer', 'stakeholder'\]\.includes\(currentUser\.role\)\s*&& currentUser\.id !== product\.farmerId/);
-  assert.match(productDetails, /const isLowStockQuantity = isLowStock\(product\.quantity\)/);
-  assert.match(productDetails, /isOutOfStock\s*\?\s*OUT_OF_STOCK_MESSAGE_SUGGESTIONS\s*:\s*isLowStockQuantity\s*\?\s*LOW_STOCK_MESSAGE_SUGGESTIONS/);
-  assert.match(productDetails, /import \{[^}]*isLowStock[^}]*\} from '\.\.\/\.\.\/utils\/constants';/);
-  assert.match(productDetails, /LOW_STOCK_MESSAGE_SUGGESTIONS = \[/);
+  assert.match(productDetails, /const canMessageFarmer = ORDERING_ROLES\.includes\(currentUser\.role\)\s*&& currentUser\.id !== product\.farmerId/);
+  assert.match(productDetails, /const messageFarmerAction = canMessageFarmer \? \([\s\S]*?Message farmer[\s\S]*?\) : null/);
+  assert.match(productDetails, /headerActions=\{messageFarmerAction\}/);
   assert.match(productDetails, /productContext:\s*\{[\s\S]*?productId: product\.id/);
-  for (const suggestion of [
-    'Hi! Is this product still available?',
-    'How many units are currently available?',
-    'Can I order this quantity?',
-    'Do you offer bulk pricing?',
-    'Do you offer delivery?',
-    'Can you provide more information about the product quality?',
-  ]) assert.ok(productDetails.includes(suggestion));
-
+  assert.match(productDetails, /suggestedMessages: isOutOfStock\s*\?\s*\[`Hi! When will \$\{product\.name\} be back in stock\?`, 'Thank you!'\]\s*:\s*\[`Hi! Is \$\{product\.name\} available\?`, 'Thank you!'\]/);
+  assert.doesNotMatch(productDetails.slice(productDetails.indexOf('<h3>Order unavailable</h3>')), /Message farmer/);
   assert.match(donations, /donationContext:\s*\{[\s\S]*?donationId: donation\.id/);
   assert.match(donations, /canMessage=\{canRequestDonations\}/);
   for (const suggestion of [
@@ -83,6 +74,23 @@ test('message composer suggestions are editable and donation previews retain lis
 
   assert.match(input, /setDraft\(suggestion\)/);
   assert.doesNotMatch(input, /onClick=\{\(\) => onSendText\(suggestion\)\}/);
+  assert.match(input, /messages-product-share-card/);
+  assert.match(input, /useState\(Boolean\(productContext\)\)/);
+  assert.match(input, /messages-product-share-image/);
+  assert.match(input, /messages-product-share-name/);
+  assert.match(input, /messages-product-share-price/);
+  assert.match(input, /messages-product-share-send min-h-11/);
+  assert.match(input, /messages-product-actions/);
+  assert.match(input, /Send product/);
+  assert.match(input, /to=\{`\/farmers\/\$\{productContext\.farmerId\}`\}/);
+  assert.match(input, /Visit store/);
+  assert.match(input, /aria-expanded=\{showProductShareCard\}/);
+  assert.match(input, /onClick=\{handleSendProductInquiry\}/);
+  assert.match(input, /await onSendText\(text, productContext\)/);
+  assert.match(input, /productContext\.productName/);
+  assert.match(messagesPage, /const handleSendText = async \(text, productContextOverride = null\)/);
+  assert.match(messagesPage, /const messageProductContext = productContextOverride \|\| inquiryProductContext/);
+  assert.match(messagesPage, /productContext=\{\['buyer', 'stakeholder'\]\.includes\(currentUser\.role\) \? conversationProductContext : null\}/);
   assert.match(input, /messages-suggestion-list[^"]*flex flex-wrap/);
   assert.match(input, /messages-suggestion shrink-0/);
   assert.match(input, /messages-send-button/);
@@ -99,10 +107,47 @@ test('message composer suggestions are editable and donation previews retain lis
   assert.match(donationCard, /context\.description/);
   assert.match(donationCard, /context\.expirationAt/);
   assert.match(messagesPage, /donationContext:\s*inquiryDonationContext/);
+  assert.match(messagesPage, /sendDirectMessage\(otherPartyId, text, \{[\s\S]*?\.\.\.\(messageProductContext \? \{ productContext: messageProductContext \} : \{\}\)/);
+  assert.match(messagesPage, /productContext=\{\['buyer', 'stakeholder'\]\.includes\(currentUser\.role\) \? conversationProductContext : null\}/);
+  assert.match(messagesPage, /onRemoveProductContext=\{inquiryProductContext\s*\?\s*\(\) => navigate\(location\.pathname, \{ replace: true, state: \{ \.\.\.location\.state, productContext: null \} \}\)/);
+  assert.match(messagesPage, /if \(inquiryProductContext \|\| inquiryDonationContext\) \{\s*setSentInquiryKey\(inquiryKey\)/);
   assert.match(messagesPage, /getListingContextMessageIds\(messages\)/);
   assert.match(messagesPage, /showProductContext=\{listingContextMessageIds\.has\(message\.id\)\}/);
   assert.match(messagesPage, /filter: `sender_id=eq\.\$\{otherPartyId\}`/);
+  assert.match(messagesPage, /<ChatHeader[\s\S]*?\/>\s*\{!inquiryProductContext \|\| currentUser\.role === 'farmer' \? \([\s\S]*?<ProductContextCard[\s\S]*?context=\{conversationProductContext\}[\s\S]*?\/>\s*\) : null\}\s*<div ref=\{messageListRef\} onScroll=\{handleScroll\} className="messages-conversation-scroll">/);
+  assert.doesNotMatch(messagesPage, /messages-conversation-scroll">[\s\S]*?<ProductContextCard/);
   assert.match(messagesPage, /<div ref=\{messageListRef\} onScroll=\{handleScroll\} className="messages-conversation-scroll">[\s\S]*?<OrderContextCard[\s\S]*?<div className="messages-message-list/);
+});
+
+test('public farmer profile hides sign-in links for authenticated users', async () => {
+  const profile = await readFile(new URL('../src/features/landing/PublicFarmerProfile.jsx', import.meta.url), 'utf8');
+
+  assert.match(profile, /const \{ currentUser, loading: authLoading \} = useAuth\(\)/);
+  assert.match(profile, /!authLoading && !currentUser \? \([\s\S]*?to="\/login"[\s\S]*?to="\/register"/);
+  assert.match(profile, /!authLoading && currentUser && dashboardPath/);
+  assert.match(profile, /getAuthDestination\(currentUser\.role\)/);
+  assert.match(profile, /!authLoading && !currentUser \? \([\s\S]*?public-farmer-signin-note/);
+});
+
+test('public farmer marketplace uses readable, centered, responsive product cards', async () => {
+  const profile = await readFile(new URL('../src/features/landing/PublicFarmerProfile.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+
+  assert.match(profile, /className="landing-page public-farmer-marketplace"/);
+  assert.match(styles, /\.public-farmer-marketplace\s*\{[^}]*font-family:\s*"Roboto",\s*"Segoe UI",\s*Arial,\s*sans-serif;[^}]*background-image:\s*none;/);
+  assert.match(styles, /\.public-farmer-marketplace \.landing-nav\s*\{[^}]*position:\s*relative;[^}]*border-radius:\s*0;[^}]*box-shadow:\s*none;/);
+  assert.match(styles, /\.public-farmer-marketplace \.btn\s*\{[^}]*min-height:\s*44px;[^}]*border-radius:\s*6px;/);
+  assert.match(styles, /\.public-farmer-header\s*\{[^}]*border-left:\s*4px solid var\(--green-700\);[^}]*background:\s*var\(--panel\);/);
+  assert.match(styles, /\.public-farmer-stat\s*\{[^}]*width:\s*126px;[^}]*min-height:\s*96px;[^}]*background:\s*var\(--panel\);/);
+  assert.match(styles, /\.public-farmer-stat strong\s*\{[^}]*font-size:\s*2rem;[^}]*font-variant-numeric:\s*tabular-nums;/);
+  assert.match(styles, /\.public-farmer-stat span\s*\{[^}]*font-size:\s*0\.9rem;[^}]*font-weight:\s*500;/);
+  assert.match(styles, /\.public-farmer-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*320px\),\s*360px\)\);[^}]*justify-content:\s*center;/);
+  assert.match(styles, /\.public-farmer-product-grid \.product-card-name\s*\{[^}]*font-size:\s*1\.35rem;/);
+  assert.match(styles, /\.public-farmer-product-grid \.product-card-description\s*\{[^}]*font-size:\s*1rem;/);
+  assert.match(styles, /\.public-farmer-product-grid \.product-card-actions a\s*\{[^}]*min-height:\s*48px;/);
+  assert.match(styles, /@media \(max-width: 767px\)[\s\S]*?\.public-farmer-header\s*\{[^}]*grid-template-columns:\s*72px minmax\(0,\s*1fr\)/);
+  assert.match(styles, /@media \(max-width: 360px\)[\s\S]*?\.public-farmer-header\s*\{[^}]*grid-template-columns:\s*56px minmax\(0,\s*1fr\)/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.public-farmer-product-grid \.product-card\s*\{[^}]*transition:\s*none;/);
 });
 
 test('order chat summary shows the other participant and current status together', async () => {
@@ -127,13 +172,11 @@ test('order chat summary shows the other participant and current status together
 });
 
 test('message product inquiry preview follows the compact chat reference layout', async () => {
-  const [productDetails, productContext, chatHeader, styles] = await Promise.all([
-    readFile(new URL('../src/features/marketplace/ProductDetails.jsx', import.meta.url), 'utf8'),
+  const [productContext, chatHeader, styles] = await Promise.all([
     readFile(new URL('../src/components/messages/ProductContextCard.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/components/messages/ChatHeader.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8'),
   ]);
-  assert.match(productDetails, /farmerFarmName: product\.farmerFarmName/);
   assert.match(productContext, /context\.farmerFarmName \|\| context\.farmerName/);
   assert.match(productContext, /messages-product-context-image/);
   assert.match(productContext, /Review product/);
@@ -214,6 +257,7 @@ test('buyers can cancel only pending orders in both frontend and backend', async
 
 test('product inquiry previews link to their exact listing', async () => {
   const messageBubble = await readFile(new URL('../src/components/messages/MessageBubble.jsx', import.meta.url), 'utf8');
+  assert.match(messageBubble, /const productInquiryPreview = message\.productContext \?/);
   assert.match(messageBubble, /<Link[\s\S]*?to=\{`\/products\/\$\{message\.productContext\.productId\}`\}[\s\S]*?state=\{\{ productContext: message\.productContext \}\}[\s\S]*?productInquiryPreview/);
 });
 

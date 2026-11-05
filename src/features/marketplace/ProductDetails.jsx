@@ -7,7 +7,7 @@ import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
-import { isLowStock, ORDERING_ROLES } from '../../utils/constants';
+import { ORDERING_ROLES } from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import { useCart } from '../../contexts/CartContext';
 import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
@@ -18,29 +18,6 @@ import AdminReferenceNotice from '../../components/market/AdminReferenceNotice';
 import ProductReviewsFeed from '../../components/products/ProductReviewsFeed';
 import ProductImageGallery from '../../components/products/ProductImageGallery';
 import { useToast } from '../../contexts/ToastContext';
-
-const PRODUCT_MESSAGE_SUGGESTIONS = [
-  'Hi! Is this product still available?',
-  'How many units are currently available?',
-  'Can I order this quantity?',
-  'Do you offer bulk pricing?',
-  'Do you offer delivery?',
-  'Can you provide more information about the product quality?',
-];
-
-const OUT_OF_STOCK_MESSAGE_SUGGESTIONS = [
-  'Hi! When will this product be back in stock?',
-  "I'm interested in this product — can you let me know when it's available again?",
-  'Do you have a similar product available right now?',
-  'Can I reserve or pre-order this item?',
-];
-
-const LOW_STOCK_MESSAGE_SUGGESTIONS = [
-  'I see this product has limited stock. How much is currently available?',
-  'Can you reserve this quantity for me while I place my order?',
-  'When do you expect to restock this product?',
-  'Do you have more of this product available than the listing shows?',
-];
 
 function getFarmerInquirySnapshot(context, id, currentUserId, currentUserRole) {
   if (currentUserRole !== 'farmer' || context?.productId !== id || context.farmerId !== currentUserId) return null;
@@ -193,15 +170,13 @@ export default function ProductDetails() {
   const isFarmerOwner = currentUser.role === 'farmer' && currentUser.id === product.farmerId;
   const isPendingReview = product.priceReview?.status === 'pending';
   const isOutOfStock = !(Number(product.quantity) > 0);
-  const isLowStockQuantity = isLowStock(product.quantity);
   const canRequest = ORDERING_ROLES.includes(currentUser.role)
     && currentUser.id !== product.farmerId
     && product.status === 'active'
     && !isPendingReview
     && !isOutOfStock;
-  const canMessageFarmer = ['buyer', 'stakeholder'].includes(currentUser.role)
+  const canMessageFarmer = ORDERING_ROLES.includes(currentUser.role)
     && currentUser.id !== product.farmerId;
-
   const openFarmerConversation = () => {
     navigate(`/messages/direct/${product.farmerId}`, {
       state: {
@@ -218,16 +193,14 @@ export default function ProductDetails() {
           unit: product.unit,
           price: product.price,
         },
-        initialMessage: '',
         suggestedMessages: isOutOfStock
-          ? OUT_OF_STOCK_MESSAGE_SUGGESTIONS
-          : isLowStockQuantity ? LOW_STOCK_MESSAGE_SUGGESTIONS : PRODUCT_MESSAGE_SUGGESTIONS,
+          ? [`Hi! When will ${product.name} be back in stock?`, 'Thank you!']
+          : [`Hi! Is ${product.name} available?`, 'Thank you!'],
       },
     });
   };
-
   const messageFarmerAction = canMessageFarmer ? (
-    <Button variant="secondary" onClick={openFarmerConversation}>
+    <Button variant="secondary" size="sm" onClick={openFarmerConversation}>
       <MessageCircle size={16} aria-hidden="true" /> Message farmer
     </Button>
   ) : null;
@@ -354,11 +327,6 @@ export default function ProductDetails() {
                     : 'You cannot order your own product or an inactive listing.'}
             </p>
             <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
-            {isOutOfStock && canMessageFarmer ? (
-              <Button variant="primary" onClick={openFarmerConversation}>
-                <MessageCircle size={16} aria-hidden="true" /> Message farmer
-              </Button>
-            ) : null}
           </div>
         </div>
       )}

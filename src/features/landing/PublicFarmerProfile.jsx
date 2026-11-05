@@ -10,7 +10,9 @@ import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import { getPublicFarmerProfile } from '../../services/authService';
 import { getPublicFarmerProducts } from '../../services/productService';
+import { getAuthDestination } from '../../utils/authDestination';
 import { getInitials } from '../../utils/formatters';
+import { useAuth } from '../auth/AuthContext';
 import logo from '../../assets/logo.png';
 
 
@@ -20,10 +22,12 @@ import logo from '../../assets/logo.png';
 
 export default function PublicFarmerProfile() {
   const { id } = useParams();
+  const { currentUser, loading: authLoading } = useAuth();
   const [farmer, setFarmer] = useState(null);
   const [products, setProducts] = useState([]);
   const [loadedId, setLoadedId] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const dashboardPath = currentUser ? getAuthDestination(currentUser.role) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +52,7 @@ export default function PublicFarmerProfile() {
   if (loadedId !== id) return null;
 
   return (
-    <main className="landing-page">
+    <main className="landing-page public-farmer-marketplace">
       <nav className="landing-nav">
         <Link className="brand" to="/">
           <span className="brand-mark"><img src={logo} alt="" /></span>
@@ -58,8 +62,15 @@ export default function PublicFarmerProfile() {
           </span>
         </Link>
         <div className="landing-actions">
-          <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-          <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+          {!authLoading && !currentUser ? (
+            <>
+              <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
+              <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+            </>
+          ) : null}
+          {!authLoading && currentUser && dashboardPath ? (
+            <Link className="btn btn-primary btn-md" to={dashboardPath}>Dashboard</Link>
+          ) : null}
         </div>
       </nav>
 
@@ -138,9 +149,11 @@ export default function PublicFarmerProfile() {
                   message="No produce is currently available from this farmer right now — check back soon."
                 />
               )}
-              <p className="public-farmer-signin-note">
-                <Link to="/register">Create a free account</Link> or <Link to="/login">sign in</Link> to place an order.
-              </p>
+              {!authLoading && !currentUser ? (
+                <p className="public-farmer-signin-note">
+                  <Link to="/register">Create a free account</Link> or <Link to="/login">sign in</Link> to place an order.
+                </p>
+              ) : null}
             </section>
           </>
         )}

@@ -3,13 +3,20 @@ export function getListingContextMessageIds(messages) {
   let previousContextKey = null;
 
   messages.forEach((message) => {
-    const contextKey = message.productContext?.productId
-      ? `product:${message.productContext.productId}`
-      : message.donationContext?.donationId
-        ? `donation:${message.donationContext.donationId}`
-        : null;
+    if (message.productContext?.productId) {
+      visibleMessageIds.add(message.id);
+      previousContextKey = `product:${message.productContext.productId}`;
+      return;
+    }
 
-    if (!contextKey) return;
+    const contextKey = message.donationContext?.donationId
+      ? `donation:${message.donationContext.donationId}`
+      : null;
+
+    if (!contextKey) {
+      previousContextKey = null;
+      return;
+    }
     if (contextKey !== previousContextKey) visibleMessageIds.add(message.id);
     previousContextKey = contextKey;
   });

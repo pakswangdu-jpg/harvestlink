@@ -1,18 +1,21 @@
 import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Loader2, Paperclip, Send, Smile, X,
+  Loader2, Package, Paperclip, Send, ShoppingBag, Smile, Store, X,
 } from 'lucide-react';
 import EmojiPicker from './EmojiPicker';
+import { formatCurrency } from '../../utils/formatters';
 
 const MAX_ATTACHMENT_MB = 10;
 
 export default function MessageInput({
   onSendText, onSendAttachment, replyingTo, onCancelReply, disabled, onTyping, onStoppedTyping,
-  initialDraft = '', suggestedMessages = [],
+  initialDraft = '', suggestedMessages = [], productContext = null, onRemoveProductContext,
 }) {
   const [draft, setDraft] = useState(initialDraft);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showProductShareCard, setShowProductShareCard] = useState(Boolean(productContext));
   const [pendingFile, setPendingFile] = useState(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
   const [isSending, setIsSending] = useState(false);
@@ -54,6 +57,24 @@ export default function MessageInput({
         await onSendText(trimmed);
       }
       setDraft('');
+      onCancelReply();
+    } catch (sendError) {
+      setError(sendError.message || 'Could not send that — please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendProductInquiry = async () => {
+    if (isSending || disabled || !productContext) return;
+    const text = draft.trim() || suggestedMessages[0] || `Hi! I'm interested in ${productContext.productName || 'this product'}.`;
+    onStoppedTyping?.();
+    setIsSending(true);
+    setError('');
+    try {
+      await onSendText(text, productContext);
+      setDraft('');
+      setShowProductShareCard(false);
       onCancelReply();
     } catch (sendError) {
       setError(sendError.message || 'Could not send that — please try again.');
@@ -139,6 +160,72 @@ export default function MessageInput({
       </AnimatePresence>
 
       {error ? <p className="mb-2 text-[12px] text-[var(--red-700)]">{error}</p> : null}
+
+      {productContext ? (
+        <div className="messages-product-actions mb-2 flex items-center gap-2" aria-label="Product actions">
+          <button
+            type="button"
+            onClick={() => setShowProductShareCard((open) => !open)}
+            disabled={disabled || isSending}
+            aria-expanded={showProductShareCard}
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border-0 bg-[var(--soft)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--line)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ShoppingBag size={18} aria-hidden="true" />
+            Send product
+          </button>
+          {productContext.farmerId ? (
+            <Link
+              to={`/farmers/${productContext.farmerId}`}
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border-0 bg-[var(--soft)] px-4 text-sm font-semibold text-[var(--text)] transition-colors hover:bg-[var(--line)]"
+            >
+              <Store size={18} aria-hidden="true" />
+              Visit store
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+
+      {productContext && showProductShareCard ? (
+        <div className="messages-product-share-card mb-2 flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3" aria-label={`Product to send: ${productContext.productName || 'Product listing'}`}>
+          <div className="messages-product-share-image flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--soft)] text-[var(--muted)]">
+            {productContext.imageUrl
+              ? <img src={productContext.imageUrl} alt="" className="h-full w-full object-cover" />
+              : <Package size={22} aria-hidden="true" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="messages-product-share-name line-clamp-2 text-base font-semibold leading-snug text-[var(--text)]">{productContext.productName || 'Product listing'}</p>
+            <p className="messages-product-share-category mt-0.5 truncate text-sm text-[var(--muted)]">{productContext.category || productContext.farmerFarmName || productContext.farmerName || 'Farmer listing'}</p>
+            <p className="messages-product-share-price mt-1 truncate text-sm font-medium text-[var(--text-secondary)]">
+              {productContext.price != null ? `${formatCurrency(productContext.price)} / ${productContext.unit || 'unit'}` : ''}
+              {productContext.price != null && productContext.availableQuantity != null ? ' · ' : ''}
+              {productContext.availableQuantity != null
+                ? Number(productContext.availableQuantity) <= 0
+                  ? 'Out of stock'
+                  : `${productContext.availableQuantity} ${productContext.unit || 'available'}`
+                : ''}
+            </p>
+          </div>
+          {onRemoveProductContext ? (
+            <button
+              type="button"
+              onClick={onRemoveProductContext}
+              disabled={disabled || isSending}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-[var(--muted)] hover:bg-[var(--soft)] hover:text-[var(--text)]"
+              aria-label="Remove product from message"
+            >
+              <X size={18} />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleSendProductInquiry}
+            disabled={disabled || isSending}
+            className="messages-product-share-send min-h-11 shrink-0 rounded-lg border-0 bg-[var(--green-700)] px-5 text-base font-semibold text-white hover:bg-[var(--green-800)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSending ? <Loader2 size={16} className="animate-spin" aria-label="Sending product" /> : 'Send'}
+          </button>
+        </div>
+      ) : null}
 
       {suggestedMessages.length ? (
         <div className="messages-suggestion-list mb-2 flex flex-wrap items-start gap-1.5" aria-label="Suggested opening messages. Swipe horizontally on mobile to see more.">

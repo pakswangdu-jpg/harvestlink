@@ -65,7 +65,7 @@ async function hasListingInquiry(listingColumn, listingId, senderId, recipientId
 
 async function loadProductContext(productId, req, recipient) {
   const { data: product, error: productError } = await supabaseAdmin.from('products')
-    .select('id, farmer_id, name, category, image_url, unit, price, quantity, status, expiration_date')
+    .select('id, farmer_id, name, category, image_url, unit, price, quantity, status, price_review, expiration_date')
     .eq('id', productId)
     .maybeSingle();
   if (productError || !product) throw new ApiError('That product is no longer available for this conversation.', 400);
@@ -80,8 +80,14 @@ async function loadProductContext(productId, req, recipient) {
       || product.farmer_id !== recipient.id) {
       throw new ApiError('You can only contact the farmer about their own product.', 403);
     }
-    if (product.status !== 'active' || Number(product.quantity) <= 0
-      || (product.expiration_date && product.expiration_date < new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }))) {
+    const quantity = Number(product.quantity);
+    const isOutOfStock = Number.isFinite(quantity) && quantity <= 0;
+    const isActiveListing = product.status === 'active' && quantity > 0;
+    const reviewStatus = product.price_review?.status;
+    const hasUnapprovedPrice = ['pending', 'declined', 'needs_adjustment'].includes(reviewStatus);
+    const isExpired = product.expiration_date
+      && product.expiration_date < new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    if ((!isActiveListing && !(isOutOfStock && !hasUnapprovedPrice)) || isExpired) {
       throw new ApiError('This product listing is no longer available.', 409);
     }
   }

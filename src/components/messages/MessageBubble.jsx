@@ -47,7 +47,7 @@ export default function MessageBubble({
   const isSystem = message.messageType === 'system' || message.senderRole === 'system';
   const canTranslate = !isMine && message.messageType === 'text' && message.text;
   const showTranslation = Boolean(translation?.visible);
-  const productInquiryPreview = showProductContext && message.productContext ? (
+  const productInquiryPreview = message.productContext ? (
     <div className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
       {message.productContext.imageUrl ? (
         <img src={message.productContext.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-cover" />

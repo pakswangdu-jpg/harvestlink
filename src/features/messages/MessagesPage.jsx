@@ -439,16 +439,17 @@ export default function MessagesPage() {
     setMessages((current) => mergeMessages(current, result.messages));
   };
 
-  const handleSendText = async (text) => {
+  const handleSendText = async (text, productContextOverride = null) => {
     if (editingMessage) {
       await editMessage(editingMessage.id, text);
       setEditingMessage(null);
       await refreshMessages();
       return;
     }
+    const messageProductContext = productContextOverride || inquiryProductContext;
     await sendDirectMessage(otherPartyId, text, {
       ...(replyingTo ? { replyToId: replyingTo.id } : {}),
-      ...(inquiryProductContext ? { productContext: inquiryProductContext } : {}),
+      ...(messageProductContext ? { productContext: messageProductContext } : {}),
       ...(inquiryDonationContext ? { donationContext: inquiryDonationContext } : {}),
     });
     if (inquiryProductContext || inquiryDonationContext) {
@@ -553,12 +554,14 @@ export default function MessagesPage() {
                 targetLang={targetLang}
                 onTargetLangChange={(language) => { setTargetLang(language); setAutoTranslate(true); }}
               />
-              <div ref={messageListRef} onScroll={handleScroll} className="messages-conversation-scroll">
+              {!inquiryProductContext || currentUser.role === 'farmer' ? (
                 <ProductContextCard
                   context={conversationProductContext}
                   allowUnavailableListing={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
                   farmerReviewPopup={currentUser.role === 'farmer' && currentUser.id === conversationProductContext?.farmerId}
                 />
+              ) : null}
+              <div ref={messageListRef} onScroll={handleScroll} className="messages-conversation-scroll">
                 <DonationContextCard
                   context={conversationDonationContext}
                   showListingLink={currentUser.role === 'stakeholder'}
@@ -646,6 +649,10 @@ export default function MessagesPage() {
                 onStoppedTyping={notifyStoppedTyping}
                 initialDraft={initialMessage}
                 suggestedMessages={inquiryProductContext || inquiryDonationContext ? suggestedMessages : []}
+                productContext={['buyer', 'stakeholder'].includes(currentUser.role) ? conversationProductContext : null}
+                onRemoveProductContext={inquiryProductContext
+                  ? () => navigate(location.pathname, { replace: true, state: { ...location.state, productContext: null } })
+                  : undefined}
               />
             </>
           ) : (

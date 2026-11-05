@@ -266,11 +266,11 @@ export default function LiveDeliveryMap({
   const currentPosition = transit.isInTransit && livePosition && isFreshLivePosition(livePosition) ? livePosition : null;
   const vehiclePosition = currentPosition;
   // markerPosition: use last received GPS fix (even if slightly stale) for the car icon on the map.
-  // This keeps ETA/speed calculations on the fresh currentPosition, while the car marker stays
-  // visible at the farmer's last known GPS location rather than disappearing after 3 minutes of
-  // no updates. We never use the saved farm address (origin) as a vehicle position fallback.
-  const markerPosition = transit.isInTransit && livePosition && validateCoordinates(livePosition.lat, livePosition.lng)
-    ? livePosition : null;
+  // Keep the car visible at the last GPS fix, or the saved travel origin until the first fix.
+  // Navigation, ETA, and camera follow continue to use only fresh GPS via currentPosition.
+  const markerPosition = transit.isInTransit
+    ? validateCoordinates(livePosition?.lat, livePosition?.lng) || travelOrigin
+    : null;
   const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
   const canRecenter = mapReady && Boolean(validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng));
   const recenterLabel = !mapReady ? 'Loading map'
