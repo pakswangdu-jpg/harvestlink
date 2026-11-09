@@ -10,6 +10,7 @@ export function priceDifference(price, reference) {
 
 export function listingComparison(product, commodity) {
   if (!commodity || commodity.loading) return null;
+  if (commodity.unit && commodity.unit !== 'kg') return null;
   const kg = getFixedKgPerUnit(product.unit) ?? (Number(product.kgPerUnit) > 0 ? Number(product.kgPerUnit) : null);
   if (!kg) return null;
   return priceDifference(Number(product.price) / kg, commodity.referencePrice);

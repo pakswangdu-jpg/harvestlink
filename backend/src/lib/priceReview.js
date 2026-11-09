@@ -64,6 +64,9 @@ export function buildPriceReview(marketReference, price, previousReview, kgPerUn
   const conversionNote = kgPerUnit && kgPerUnit !== 1
     ? ` — using your stated 1 unit = ${kgPerUnit}kg, this works out to ₱${pricePerKg.toFixed(2)}/kg`
     : '';
+  const sourceLabel = marketReference.referenceSource === 'psa'
+    ? 'PSA Central Visayas average'
+    : 'admin reference price';
 
   return {
     commodityLabel: marketReference.commodityLabel,
@@ -72,10 +75,10 @@ export function buildPriceReview(marketReference, price, previousReview, kgPerUn
     farmerPrice,
     deviationPct,
     status: 'pending',
-    reason: `Price is ${deviationPct}% above the PSA Central Visayas average of ₱${referencePrice.toFixed(2)}/kg for ${marketReference.commodityLabel} (${marketReference.referenceYear})${conversionNote} — exceeds the ${PRICE_DEVIATION_THRESHOLD_PERCENT}% fair-pricing threshold.`,
+    reason: `Price is ${deviationPct}% above the ${sourceLabel} of ₱${referencePrice.toFixed(2)}/kg for ${marketReference.commodityLabel} (${marketReference.referenceYear})${conversionNote} — exceeds the ${PRICE_DEVIATION_THRESHOLD_PERCENT}% fair-pricing threshold.`,
     createdAt: new Date().toISOString(),
     decidedAt: null,
-    referenceSource: marketReference.isOverride ? 'admin' : 'psa',
+    referenceSource: marketReference.referenceSource || (marketReference.isOverride ? 'admin' : 'psa'),
   };
 }
 
@@ -102,7 +105,7 @@ export function resubmitPriceReview(reference, price, previousReview, kgPerUnit,
     reason: fresh?.reason || 'Price revised and resubmitted for Admin review.',
     farmerPrice: Number(price), referencePrice,
     referenceYear: reference?.referenceYear ?? baseline.referenceYear,
-    referenceSource: reference ? reference.isOverride ? 'admin' : 'psa' : baseline.referenceSource,
+    referenceSource: reference ? reference.referenceSource || (reference.isOverride ? 'admin' : 'psa') : baseline.referenceSource,
     deviationPct: referencePrice > 0 ? Number((((Number(price) / kgPerUnit - referencePrice) / referencePrice) * 100).toFixed(1)) : null,
     status: 'pending', reviewUnit: unit,
     maxAllowedPrice: previousReview.reviewUnit && previousReview.reviewUnit !== unit ? null : previousReview.maxAllowedPrice,

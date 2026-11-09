@@ -13,6 +13,16 @@ const OVERRIDES_CACHE_TTL_MS = 60 * 1000;
 export const MARKET_REGION_LABEL = 'Central Visayas (Region VII)';
 export const PSA_SOURCE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
 
+function todayInManila() {
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(dateParts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
 export const MARKET_COMMODITIES = [
   { id: '28', label: 'Cabbage', keywords: ['cabbage'] },
@@ -57,11 +67,15 @@ export const MARKET_COMMODITIES = [
   { id: '7', label: 'Rubber', keywords: ['rubber'] },
   { id: '9', label: 'Tobacco (Native)', keywords: ['tobacco native', 'native tobacco'] },
   { id: '10', label: 'Tobacco (Virginia)', keywords: ['tobacco virginia', 'virginia tobacco'] },
-  { id: '11', label: 'Tobacco (Others)', keywords: ['tobacco'] },
 ];
 
-export function matchCommodity(productName) {
-  const normalized = String(productName || '').toLowerCase();
+export function matchCommodity(productName, catalogCommodities = []) {
+  const normalized = String(productName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const custom = catalogCommodities.find((commodity) => {
+    if (commodity.isActive === false) return false;
+    return normalized === String(commodity.label || commodity.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  });
+  if (custom) return { ...custom, label: custom.label || custom.name, isCustom: true, defaultUnit: custom.unit };
   return MARKET_COMMODITIES.find((commodity) => commodity.keywords.some((keyword) => normalized.includes(keyword))) || null;
 }
 
@@ -85,10 +99,7 @@ export const RECOMMENDED_MARGIN_PERCENT = 15;
 
 export function getRecommendedPrice(referencePrice) {
   if (!referencePrice || referencePrice <= 0) return null;
-  const raw = referencePrice * (1 + RECOMMENDED_MARGIN_PERCENT / 100);
-
-  const price = Math.ceil(raw * 100) / 100;
-  return { price, marginPercent: RECOMMENDED_MARGIN_PERCENT, referencePrice };
+  return { price: Math.round(referencePrice * 100) / 100, marginPercent: 0, referencePrice };
 }
 
 
@@ -118,8 +129,12 @@ async function getOverridesMap({ force = false } = {}) {
   return overridesCache;
 }
 
-function invalidateOverridesCache() {
+export function invalidatePriceOverridesCache() {
   overridesCache = null;
+}
+
+export function isPriceOverrideEffective(override) {
+  return Boolean(override?.isActive && (!override.effectiveDate || override.effectiveDate <= todayInManila()));
 }
 
 
@@ -151,26 +166,41 @@ export async function getPriceOverride(commodityId) {
 
 
 export async function setPriceOverride(commodityId, referencePrice, baseline = {}) {
-  const commodity = getCommodityById(commodityId);
+  const commodity = MARKET_COMMODITIES.find((item) => item.id === commodityId);
+  const commodityLabel = baseline.commodityLabel || commodity?.label;
+  if (!commodityLabel) throw new Error('Commodity details are required to set a reference price.');
   const override = await apiClient.patch(`/market-price-overrides/${commodityId}`, {
-    commodityLabel: commodity.label,
+    commodityLabel,
     referencePrice: Number(referencePrice),
-    referenceYear: baseline.referenceYear ?? new Date().getFullYear(),
+    referenceYear: baseline.referenceYear ?? Number(String(baseline.effectiveDate || new Date().toISOString()).slice(0, 4)),
     baselinePrice: baseline.baselinePrice ?? null,
+    unit: baseline.unit || 'kg',
+    customUnit: baseline.customUnit === true,
+    source: baseline.source || 'admin_entered',
+    effectiveDate: baseline.effectiveDate || new Date().toISOString().slice(0, 10),
+    supportingReference: baseline.supportingReference || '',
     reason: baseline.reason ?? '',
   });
-  invalidateOverridesCache();
+  invalidatePriceOverridesCache();
   return override;
 }
 
 export async function clearPriceOverride(commodityId) {
   await apiClient.delete(`/market-price-overrides/${commodityId}`);
-  invalidateOverridesCache();
+  invalidatePriceOverridesCache();
 }
 
+export async function getPriceRecommendation(commodityId, { unit, kgPerUnit, quantity }) {
+  return apiClient.post(`/market-price-overrides/${encodeURIComponent(commodityId)}/recommendation`, {
+    unit,
+    kgPerUnit,
+    quantity,
+  });
+}
 
-
-
+export async function createCommodity(values) {
+  return apiClient.post('/catalog/commodities', values);
+}
 
 export async function getOverrideHistory(commodityId) {
   return apiClient.get(`/market-price-overrides/${commodityId}/history`);
@@ -203,19 +233,9 @@ function writeCache(key, value) {
 
 async function applyOverride(commodityId, points) {
   const override = await getPriceOverride(commodityId);
-  if (!override) return points;
+  if (!isPriceOverrideEffective(override)) return points;
 
   const index = points.findIndex((point) => point.year === override.referenceYear);
-  const livePrice = index === -1 ? null : points[index].price;
-
-  if (livePrice != null && livePrice !== override.baselinePrice) {
-    await clearPriceOverride(commodityId);
-    return points;
-  }
-
-
-
-
 
   if (index === -1) {
     return [...points, { year: override.referenceYear, price: override.referencePrice, isOverride: true }]

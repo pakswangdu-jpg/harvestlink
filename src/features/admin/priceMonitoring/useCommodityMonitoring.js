@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, fetchRawAnnualPriceTrend, getPriceOverride, matchCommodity, setPriceOverride,
+  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, fetchRawAnnualPriceTrend, getPriceOverride, invalidatePriceOverridesCache, isPriceOverrideEffective, matchCommodity, setPriceOverride,
 } from '../../../services/marketPriceService';
 import { getFixedKgPerUnit } from '../../../utils/unitConversion';
 import { getProducts, getPendingPriceReviews } from '../../../services/productService';
+import { getCatalog } from '../../../services/catalogService';
+import { supabase } from '../../../lib/supabaseClient';
 import { getCommodityCategory } from './commodityCategories';
 import { resolveCommodityStatus } from './statusMeta';
 
@@ -36,24 +38,27 @@ export function useCommodityMonitoring() {
   const [priceData, setPriceData] = useState({});
   const [products, setProducts] = useState(null);
   const [reviews, setReviews] = useState(null);
+  const [commodities, setCommodities] = useState(MARKET_COMMODITIES);
   const [loadError, setLoadError] = useState('');
   const [pricesLoaded, setPricesLoaded] = useState(0);
 
   const loadCommodityPrice = useCallback(async (commodity) => {
     try {
-      const points = await fetchAnnualPriceTrend(commodity.id, 5);
-      const rawPoints = await fetchRawAnnualPriceTrend(commodity.id, 5);
+      const points = commodity.isCustom ? [] : await fetchAnnualPriceTrend(commodity.id, 5);
+      const rawPoints = commodity.isCustom ? [] : await fetchRawAnnualPriceTrend(commodity.id, 5);
       const psa = [...rawPoints].reverse().find((point) => point.price != null);
       const latest = [...points].reverse().find((point) => point.price != null);
       const override = await getPriceOverride(commodity.id);
+      const hasEffectiveOverride = isPriceOverrideEffective(override);
       setPriceData((previous) => ({
         ...previous,
         [commodity.id]: {
-          referencePrice: latest?.price ?? null,
+          referencePrice: hasEffectiveOverride ? override.referencePrice : latest?.price ?? null,
           psaPrice: psa?.price ?? null,
           psaYear: psa?.year ?? null,
-          referenceYear: latest?.year ?? null,
-          isOverride: Boolean(latest?.isOverride),
+          referenceYear: hasEffectiveOverride ? override.referenceYear : latest?.year ?? null,
+          isOverride: hasEffectiveOverride,
+          source: hasEffectiveOverride ? override.source : 'psa',
           override,
           trendPoints: points,
         },
@@ -62,14 +67,16 @@ export function useCommodityMonitoring() {
 
 
       const override = await getPriceOverride(commodity.id);
+      const hasEffectiveOverride = isPriceOverrideEffective(override);
       setPriceData((previous) => ({
         ...previous,
         [commodity.id]: {
-          referencePrice: override?.referencePrice ?? null,
+          referencePrice: hasEffectiveOverride ? override.referencePrice : null,
           psaPrice: null,
           psaYear: null,
-          referenceYear: override?.referenceYear ?? null,
-          isOverride: Boolean(override),
+          referenceYear: hasEffectiveOverride ? override.referenceYear : null,
+          isOverride: hasEffectiveOverride,
+          source: hasEffectiveOverride ? override.source : null,
           override,
           trendPoints: [],
         },
@@ -80,21 +87,64 @@ export function useCommodityMonitoring() {
   }, []);
 
   const reloadCommodityPrice = useCallback((commodityId) => {
-    const commodity = MARKET_COMMODITIES.find((item) => item.id === commodityId);
+    const commodity = commodities.find((item) => item.id === commodityId);
     if (commodity) loadCommodityPrice(commodity);
-  }, [loadCommodityPrice]);
+  }, [commodities, loadCommodityPrice]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      for (const commodity of MARKET_COMMODITIES) {
+      for (const commodity of commodities) {
         if (cancelled) return;
         await loadCommodityPrice(commodity);
         await new Promise((resolve) => setTimeout(resolve, PSA_REQUEST_PACING_MS));
       }
     })();
     return () => { cancelled = true; };
-  }, [loadCommodityPrice]);
+  }, [commodities, loadCommodityPrice]);
+
+  const reloadCommodityCatalog = useCallback(async () => {
+    const catalog = await getCatalog({ includeInactive: true });
+    const custom = (catalog.commodities || []).map((commodity) => ({
+      ...commodity,
+      keywords: [commodity.name, commodity.label].filter(Boolean).map((value) => value.toLowerCase()),
+      isCustom: true,
+    }));
+    setCommodities([...MARKET_COMMODITIES, ...custom]);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCatalog({ includeInactive: true }).then((catalog) => {
+      if (cancelled) return;
+      const custom = (catalog.commodities || []).map((commodity) => ({
+        ...commodity,
+        keywords: [commodity.name, commodity.label].filter(Boolean).map((value) => value.toLowerCase()),
+        isCustom: true,
+      }));
+      setCommodities([...MARKET_COMMODITIES, ...custom]);
+    }).catch((error) => {
+      if (!cancelled) setLoadError(error.message || 'Could not load the commodity catalog.');
+    });
+    return () => { cancelled = true; };
+  }, [reloadCommodityCatalog]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-market-price-monitoring')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'market_price_overrides' }, (payload) => {
+        const commodityId = payload.new?.commodity_id || payload.old?.commodity_id;
+        if (commodityId) {
+          invalidatePriceOverridesCache();
+          reloadCommodityPrice(commodityId);
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commodity_catalog' }, () => {
+        reloadCommodityCatalog().catch((error) => setLoadError(error.message || 'Could not refresh the commodity catalog.'));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [reloadCommodityCatalog, reloadCommodityPrice]);
 
   const reloadListings = useCallback(() => {
     Promise.all([getProducts(), getPendingPriceReviews()])
@@ -112,17 +162,17 @@ export function useCommodityMonitoring() {
     const activeProducts = (products || []).filter((product) => product.status === 'active');
     const productsByCommodity = new Map();
     for (const product of activeProducts) {
-      const commodity = matchCommodity(product.name);
+      const commodity = matchCommodity(product.name, commodities);
       if (!commodity) continue;
       if (!productsByCommodity.has(commodity.id)) productsByCommodity.set(commodity.id, []);
       productsByCommodity.get(commodity.id).push(product);
     }
 
     const reviewCommodityIds = new Set(
-      (reviews || []).map((review) => matchCommodity(review.name)?.id).filter(Boolean)
+      (reviews || []).map((review) => matchCommodity(review.name, commodities)?.id).filter(Boolean)
     );
 
-    return MARKET_COMMODITIES.map((commodity) => {
+    return commodities.map((commodity) => {
       const info = priceData[commodity.id];
       const matched = productsByCommodity.get(commodity.id) || [];
       const pricesPerKg = matched.map(toPricePerKg);
@@ -142,13 +192,16 @@ export function useCommodityMonitoring() {
       return {
         id: commodity.id,
         label: commodity.label,
-        category: getCommodityCategory(commodity.id),
+        isCustom: Boolean(commodity.isCustom),
+        category: commodity.isCustom ? commodity.category : getCommodityCategory(commodity.id),
         referencePrice,
         psaPrice: info?.psaPrice ?? null,
         psaYear: info?.psaYear ?? null,
-        relatedListings: (products || []).filter((product) => matchCommodity(product.name)?.id === commodity.id),
+        relatedListings: (products || [])        .filter((product) => matchCommodity(product.name, commodities)?.id === commodity.id),
         referenceYear: info?.referenceYear ?? null,
         isOverride: Boolean(info?.isOverride),
+        source: info?.source || null,
+        unit: info?.override?.unit || commodity.unit || 'kg',
         override: info?.override ?? null,
         trendPoints: info?.trendPoints ?? [],
         avgFarmerPrice,
@@ -159,13 +212,13 @@ export function useCommodityMonitoring() {
         loading: !info,
       };
     });
-  }, [priceData, products, reviews]);
+  }, [commodities, priceData, products, reviews]);
 
   const isInitialLoading = products === null || reviews === null;
-  const pricesProgress = Math.min(1, pricesLoaded / MARKET_COMMODITIES.length);
+  const pricesProgress = Math.min(1, pricesLoaded / Math.max(commodities.length, 1));
 
-  const saveOverride = useCallback(async (commodityId, price, reason, baseline) => {
-    await setPriceOverride(commodityId, price, { ...baseline, reason });
+  const saveOverride = useCallback(async (commodityId, price, details = {}) => {
+    await setPriceOverride(commodityId, price, details);
     reloadCommodityPrice(commodityId);
   }, [reloadCommodityPrice]);
 
@@ -176,6 +229,7 @@ export function useCommodityMonitoring() {
 
   return {
     rows,
+    commodities,
     products,
     reviews,
     loadError,
@@ -184,5 +238,7 @@ export function useCommodityMonitoring() {
     saveOverride,
     resetOverride,
     reloadListings,
+    reloadCommodityPrice,
+    reloadCommodityCatalog,
   };
 }

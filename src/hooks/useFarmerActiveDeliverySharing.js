@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getSocket } from '../lib/socketClient';
-import { getOrdersByFarmer } from '../services/orderService';
+import { getOrdersByFarmer, updateOrderLocation } from '../services/orderService';
 import { publishLiveOrderPosition, clearLiveOrderPositions } from '../services/liveTrackingStore';
 import { isFreshLivePosition, normalizeLivePosition } from '../utils/liveTrackingPosition';
 import { haversineKm } from '../utils/geo';
@@ -12,6 +12,7 @@ import {
 } from '../utils/vehicleMarker';
 
 const POLL_INTERVAL_MS = 6000;
+const LOCATION_FALLBACK_INTERVAL_MS = 4000;
 const MIN_RELIABLE_HEADING_SPEED_MPS = 0.8;
 
 function isActiveDeliveryOrder(order) {
@@ -39,6 +40,8 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
     const joined = new Set();
     const joining = new Map();
     const sending = new Set();
+    const fallbackSending = new Set();
+    const lastFallbackSentAt = new Map();
 
     const refreshStatus = () => {
       const status = navigator.onLine === false ? 'offline'
@@ -65,31 +68,49 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
       joining.set(orderId, promise);
       return promise;
     };
+    const sendLocationFallback = async (orderId, position) => {
+      if (cancelled || !activeIds.has(orderId) || fallbackSending.has(orderId)) return;
+      if (Date.now() - (lastFallbackSentAt.get(orderId) || 0) < LOCATION_FALLBACK_INTERVAL_MS) return;
+      fallbackSending.add(orderId);
+      try {
+        await updateOrderLocation(orderId, { lat: position.lat, lng: position.lng });
+        lastFallbackSentAt.set(orderId, Date.now());
+        if (!cancelled) setError('');
+      } catch (locationError) {
+        if (!cancelled) setError(locationError.message || 'Could not update your live location. Retrying.');
+      } finally {
+        fallbackSending.delete(orderId);
+      }
+    };
     const send = async (orderId) => {
-      if (cancelled || !socket.connected || sending.has(orderId)) return;
+      if (cancelled || sending.has(orderId) || !activeIds.has(orderId)) return;
       sending.add(orderId);
       let sentPosition = null;
       try {
-        if (!await join(orderId) || cancelled || !socket.connected || !activeIds.has(orderId)) return;
         // Read after joining: a newer GPS callback may have arrived during authentication.
         const position = latestPosition;
         if (!position || !isFreshLivePosition(position)) return;
         sentPosition = position;
-        await new Promise((resolve) => {
+        if (!socket.connected || !await join(orderId) || cancelled || !socket.connected || !activeIds.has(orderId)) {
+          await sendLocationFallback(orderId, position);
+          return;
+        }
+        const shared = await new Promise((resolve) => {
           socket.timeout(10000).emit('farmer-location', {
             orderId, lat: position.lat, lng: position.lng, accuracy: position.accuracy,
             heading: position.heading, speed: position.speed, timestamp: position.timestamp,
             sampleAgeMs: Math.max(0, Date.now() - position.timestamp),
           }, (err, response) => {
-            if (!cancelled) setError(err ? 'Location connection interrupted. Retrying.'
-              : response?.ok ? '' : response?.error || 'Could not share your location.');
-            resolve();
+            if (!cancelled && !err && response?.ok) setError('');
+            resolve(!err && Boolean(response?.ok));
           });
         });
+        if (!shared) await sendLocationFallback(orderId, position);
       } finally {
         sending.delete(orderId);
         // Drain a newer real fix received while the previous socket ack was pending.
-        if (sentPosition && latestPosition !== sentPosition && !cancelled && socket.connected && activeIds.has(orderId)) {
+        if (sentPosition && !cancelled && socket.connected && activeIds.has(orderId)
+          && (latestPosition !== sentPosition || !joined.has(orderId))) {
           void send(orderId);
         }
       }
@@ -175,7 +196,9 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
           permissionDenied = false;
           setError('');
         }
-      } catch { /* The existing watcher continues through temporary order API failures. */ }
+      } catch (pollError) {
+        if (!cancelled) setError(pollError.message || 'Could not check for active delivery orders. Retrying.');
+      }
       finally { polling = false; }
     };
     const handleConnect = () => {

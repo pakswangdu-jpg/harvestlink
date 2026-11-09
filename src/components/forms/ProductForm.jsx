@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Gift, Image as ImageIcon, MapPin, UploadCloud,
@@ -17,8 +17,9 @@ import { CEBU_MUNICIPALITIES, PRODUCT_GRADES, SALES_TYPES } from '../../utils/co
 import { readStorage, writeStorage } from '../../services/storageService';
 import { useToast } from '../../contexts/ToastContext';
 import { useCatalog } from '../../contexts/CatalogContext';
+import { supabase } from '../../lib/supabaseClient';
 import {
-  fetchAnnualPriceTrend, getRecommendedPrice, matchCommodity, RECOMMENDED_MARGIN_PERCENT,
+  getPriceRecommendation, MARKET_COMMODITIES, matchCommodity, RECOMMENDED_MARGIN_PERCENT,
 } from '../../services/marketPriceService';
 import { getHistoricalPriceAnalysis } from '../../services/productService';
 import { uploadProductImage } from '../../services/uploadService';
@@ -346,7 +347,7 @@ export default function ProductForm({
   product, currentUser, onSubmit, onCancel, formId, hideActions = false, onSubmittingChange,
   onApplyDiscount, onRemoveDiscount, draftStorageKey = null,
 }) {
-  const { getCategoryOptions, getUnitOptions } = useCatalog();
+  const { getCategoryOptions, getUnitOptions, commodities } = useCatalog();
   const { showToast } = useToast();
   const [values, setValues] = useState(() => {
     const defaults = buildDefaultValues(product, currentUser);
@@ -360,7 +361,9 @@ export default function ProductForm({
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [marketResult, setMarketResult] = useState({ commodityId: null, reference: null });
+  const [marketResult, setMarketResult] = useState({
+    commodityId: null, reference: null, recommendation: null, loading: false, error: '',
+  });
   const draftStorageFailed = useRef(false);
 
 
@@ -391,36 +394,94 @@ export default function ProductForm({
   const categoryOptions = getCategoryOptions(values.category);
   const availableUnits = getUnitOptions(values.unit);
 
-  const matchedCommodity = matchCommodity(values.name);
+  const matchedCommodity = useMemo(
+    () => matchCommodity(values.name, commodities),
+    [values.name, commodities],
+  );
   const marketReference = matchedCommodity && marketResult.commodityId === matchedCommodity.id ? marketResult.reference : null;
 
   useEffect(() => {
     if (!matchedCommodity || values.isDonation) return undefined;
 
     let cancelled = false;
-    fetchAnnualPriceTrend(matchedCommodity.id, 3)
-      .then((points) => {
+    const requestUnit = values.unit || matchedCommodity.defaultUnit || 'kg';
+    const loadRecommendation = () => {
+      setMarketResult((previous) => ({
+        ...previous,
+        commodityId: matchedCommodity.id,
+        loading: true,
+        error: '',
+      }));
+      getPriceRecommendation(matchedCommodity.id, {
+        unit: requestUnit,
+        kgPerUnit: values.kgPerUnit,
+        quantity: values.quantity || '0',
+      }).then((result) => {
         if (cancelled) return;
-        const latest = [...points].reverse().find((point) => point.price != null);
+        const reference = result.referencePrice == null ? null : {
+          commodityId: result.commodityId,
+          commodityLabel: result.commodityLabel,
+          referencePrice: result.referencePrice,
+          referenceUnit: result.referenceUnit,
+          referenceYear: result.referenceYear,
+          effectiveDate: result.effectiveDate,
+          source: result.source,
+          supportingReference: result.supportingReference,
+          isOverride: result.source !== 'psa',
+        };
         setMarketResult({
           commodityId: matchedCommodity.id,
-          reference: latest ? {
-            commodityId: matchedCommodity.id,
-            commodityLabel: matchedCommodity.label,
-            referencePrice: latest.price,
-            referenceYear: latest.year,
-            isOverride: Boolean(latest.isOverride),
+          reference,
+          recommendation: result.available ? {
+            price: result.recommendedUnitPrice,
+            estimatedTotal: result.estimatedTotal,
+            unit: result.requestedUnit,
           } : null,
+          unavailableReason: result.reason || '',
+          loading: false,
+          error: '',
         });
-      })
-      .catch(() => {
-        if (!cancelled) setMarketResult({ commodityId: matchedCommodity.id, reference: null });
+      }).catch((error) => {
+        if (cancelled) return;
+        setMarketResult({
+          commodityId: matchedCommodity.id,
+          reference: null,
+          recommendation: null,
+          loading: false,
+          error: error.message || 'Could not load the current reference price.',
+        });
       });
+    };
+
+    const timeout = window.setTimeout(loadRecommendation, 220);
+    const channel = supabase
+      .channel(`farmer-reference-${matchedCommodity.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'market_price_overrides',
+        filter: `commodity_id=eq.${matchedCommodity.id}`,
+      }, loadRecommendation)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'commodity_catalog',
+        filter: `id=eq.${matchedCommodity.id}`,
+      }, loadRecommendation)
+      .subscribe();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
+      supabase.removeChannel(channel);
     };
-  }, [matchedCommodity, values.isDonation]);
+  }, [
+    matchedCommodity,
+    values.isDonation,
+    values.unit,
+    values.kgPerUnit,
+    values.quantity,
+  ]);
 
 
 
@@ -432,17 +493,24 @@ export default function ProductForm({
   const hasKgConversion = fixedKgPerUnit != null || (values.kgPerUnit !== '' && Number.isFinite(kgPerUnitValue) && kgPerUnitValue > 0);
 
   const pricePerKg = hasKgConversion && values.price ? Number(values.price) / kgPerUnitValue : null;
-  const deviationPct = marketReference && pricePerKg != null
-    ? Number((((pricePerKg - marketReference.referencePrice) / marketReference.referencePrice) * 100).toFixed(1))
+  const referencePricePerKg = marketReference
+    ? marketReference.referenceUnit === 'kg'
+      ? marketReference.referencePrice
+      : marketReference.referenceUnit === values.unit && hasKgConversion
+        ? marketReference.referencePrice / kgPerUnitValue
+        : null
+    : null;
+  const deviationPct = referencePricePerKg != null && pricePerKg != null
+    ? Number((((pricePerKg - referencePricePerKg) / referencePricePerKg) * 100).toFixed(1))
     : null;
 
 
 
-  const equivalentPsaPricePerUnit = marketReference && hasKgConversion ? marketReference.referencePrice * kgPerUnitValue : null;
-  const recommendedPrice = equivalentPsaPricePerUnit != null ? getRecommendedPrice(equivalentPsaPricePerUnit) : null;
+  const recommendedPrice = marketResult.commodityId === matchedCommodity?.id ? marketResult.recommendation : null;
   const isOverThreshold = deviationPct != null && deviationPct > PRICE_DEVIATION_THRESHOLD_PERCENT;
   const hasTypedName = values.name.trim().length > 0;
-  const isLoadingReference = Boolean(matchedCommodity) && marketResult.commodityId !== matchedCommodity.id;
+  const isLoadingReference = Boolean(matchedCommodity)
+    && (marketResult.commodityId !== matchedCommodity.id || marketResult.loading);
 
   const costNum = Number(values.costPrice);
 
@@ -459,7 +527,8 @@ export default function ProductForm({
 
 
 
-  const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit) && !isLoadingReference && !marketReference;
+  const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit)
+    && !matchedCommodity && !isLoadingReference && !marketReference;
   const historicalKey = wantsHistoricalLookup ? `${values.name.trim().toLowerCase()}::${values.unit}` : null;
 
   useEffect(() => {
@@ -486,7 +555,7 @@ export default function ProductForm({
 
 
 
-  const isPsaRecommendationLoss = Boolean(marketReference) && hasKgConversion && Boolean(recommendedPrice) && costNum > 0 && recommendedPrice.price <= costNum;
+  const isReferenceRecommendationLoss = Boolean(marketReference) && Boolean(recommendedPrice) && costNum > 0 && recommendedPrice.price <= costNum;
   const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice <= costNum;
 
   const updateField = (field, value) => {
@@ -497,6 +566,21 @@ export default function ProductForm({
         ? { wholesaleEnabled: false, wholesalePrice: '', wholesaleMinQuantity: '' } : {}),
     }));
     setErrors((previous) => ({ ...previous, [field]: undefined }));
+  };
+
+  const handleProductNameChange = (event) => {
+    const name = event.target.value;
+    const selectedCommodity = matchCommodity(name, commodities);
+    setValues((previous) => ({
+      ...previous,
+      name,
+      ...(selectedCommodity?.isCustom ? {
+        category: selectedCommodity.category,
+        unit: selectedCommodity.unit,
+        kgPerUnit: '',
+      } : {}),
+    }));
+    setErrors((previous) => ({ ...previous, name: undefined }));
   };
 
   const handleUnitChange = (event) => {
@@ -534,31 +618,8 @@ export default function ProductForm({
     }
 
     setIsSubmitting(true);
-    let reference = marketReference;
-
-
-
-
-    if (!values.isDonation && matchedCommodity && marketResult.commodityId !== matchedCommodity.id) {
-      try {
-        const points = await fetchAnnualPriceTrend(matchedCommodity.id, 3);
-        const latest = [...points].reverse().find((point) => point.price != null);
-        reference = latest
-          ? {
-            commodityId: matchedCommodity.id,
-            commodityLabel: matchedCommodity.label,
-            referencePrice: latest.price,
-            referenceYear: latest.year,
-            isOverride: Boolean(latest.isOverride),
-          }
-          : null;
-      } catch {
-        reference = null;
-      }
-    }
-
     setIsSubmitting(false);
-    onSubmit({ ...values, marketReference: reference });
+    onSubmit({ ...values, marketReference });
   };
 
   return (
@@ -581,7 +642,13 @@ export default function ProductForm({
             </select>
           </FormField>
           <FormField label="Product" name="name" error={errors.name}>
-            <input id="name" value={values.name} onChange={(event) => updateField('name', event.target.value)} placeholder="e.g. Cabbage" />
+            <input id="name" list="farmer-commodity-options" value={values.name} onChange={handleProductNameChange} placeholder="e.g. Cabbage" />
+            <datalist id="farmer-commodity-options">
+              {[...MARKET_COMMODITIES.map((commodity) => commodity.label), ...commodities.map((commodity) => commodity.label)]
+                .filter(Boolean)
+                .filter((label, index, list) => list.indexOf(label) === index)
+                .map((label) => <option key={label} value={label} />)}
+            </datalist>
           </FormField>
         </div>
 
@@ -839,55 +906,57 @@ export default function ProductForm({
             <div className="price-analysis-card">
               <p className="price-analysis-card-title">Checking market data…</p>
             </div>
-          ) : isPsaRecommendationLoss ? (
+          ) : isReferenceRecommendationLoss ? (
             <SellingBelowCostWarning
               costPrice={costNum}
               unit={values.unit}
-              marketPriceLabel="PSA Price"
-              marketPriceValue={marketReference.referencePrice}
-              marketPriceUnit="kg"
+              marketPriceLabel="Reference price"
+              marketPriceValue={recommendedPrice.price}
+              marketPriceUnit={values.unit}
               recommendedPrice={recommendedPrice}
               currentPrice={values.price}
             />
           ) : marketReference ? (
-            <div className={`price-analysis-card tone-ai${isOverThreshold ? ' warning' : ''}`}>
+            <div className={`price-analysis-card${isOverThreshold ? ' warning' : ''}`}>
               <p className="price-analysis-card-title">
                 <span>
-                  {marketReference.isOverride ? 'Reference price' : 'PSA farmgate reference'}: {formatCurrency(marketReference.referencePrice)}/kg
+                  {marketReference.source === 'psa' ? 'PSA farmgate reference' : 'Effective reference'}: {formatCurrency(marketReference.referencePrice)}/{marketReference.referenceUnit}
                 </span>
-                {marketReference.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
+                {marketReference.source === 'admin_entered' ? <span className="badge badge-verified price-hint-badge">Admin-entered</span> : null}
+                {marketReference.source === 'verified_local_market' ? <span className="badge badge-verified price-hint-badge">Verified local survey</span> : null}
               </p>
               <p className="price-analysis-card-desc">
-                {marketReference.commodityLabel}, Central Visayas ({marketReference.referenceYear})
-                {marketReference.isOverride ? ', overriding the PSA figure for this year' : ''}
+                {marketReference.commodityLabel}
+                {marketReference.source === 'psa' ? `, Central Visayas (${marketReference.referenceYear})` : ` · Effective ${marketReference.effectiveDate}`}
+                {marketReference.supportingReference ? ` · ${marketReference.supportingReference}` : ''}
               </p>
-              {hasKgConversion ? (
+              {recommendedPrice ? (
                 <PriceRecommendationBreakdown
-                  sellingType={values.sellingType}
                   unit={values.unit}
-                  kgPerUnitValue={kgPerUnitValue}
+                  referenceUnit={marketReference.referenceUnit}
                   referencePrice={marketReference.referencePrice}
-                  equivalentPsaPricePerUnit={equivalentPsaPricePerUnit}
                   recommendedPrice={recommendedPrice}
-                  costPrice={values.costPrice}
+                  estimatedTotal={recommendedPrice.estimatedTotal}
+                  quantity={values.quantity}
                   onUsePrice={(price) => updateField('price', String(price))}
-                  wholesaleEnabled={Boolean(values.wholesaleEnabled)}
-                  availableQuantity={values.quantity}
-                  onUseWholesalePrice={({ price, minimumQuantity }) => {
-                    updateField('wholesalePrice', String(price));
-                    updateField('wholesaleMinQuantity', String(minimumQuantity));
-                  }}
                 />
               ) : (
-                <p className="price-analysis-prompt">
-                  Enter how many kg 1 {values.unit} is above to see a recommended price for your unit.
-                </p>
+                <p className="price-analysis-prompt">A recommendation is unavailable for {values.unit || 'this unit'}. Choose the registered commodity unit or enter a manual conversion where applicable.</p>
               )}
               {isOverThreshold ? (
                 <p className="price-analysis-warning-note">
-                  Your price is {deviationPct}% above this reference — it will be sent to DTI for review when saved.
+                  Your price is {deviationPct}% above this reference — it will be sent to an Admin for review when saved.
                 </p>
               ) : null}
+            </div>
+          ) : matchedCommodity ? (
+            <div className="price-analysis-card">
+              <p className="price-analysis-card-title">Reference price unavailable</p>
+              <p className="price-analysis-card-desc">
+                {marketResult.error
+                  ? `Could not load current pricing data: ${marketResult.error}`
+                  : 'There is no active admin reference or PSA price for this commodity. You can still enter your own selling price.'}
+              </p>
             </div>
           ) : isHistoricalRecommendationLoss ? (
             <SellingBelowCostWarning

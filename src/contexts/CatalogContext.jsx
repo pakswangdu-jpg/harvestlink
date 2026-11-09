@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../features/auth/AuthContext';
 import { getCatalog } from '../services/catalogService';
+import { supabase } from '../lib/supabaseClient';
 
 const CatalogContext = createContext(null);
 
@@ -13,6 +14,7 @@ export function CatalogProvider({ children }) {
   const { currentUser } = useAuth();
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
+  const [commodities, setCommodities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,6 +24,7 @@ export function CatalogProvider({ children }) {
       const data = await getCatalog();
       setCategories(data.categories || []);
       setUnits(data.units || []);
+      setCommodities(data.commodities || []);
       setError('');
     } catch (fetchError) {
       setError(fetchError.message || 'Unable to load the product catalog.');
@@ -41,6 +44,7 @@ export function CatalogProvider({ children }) {
         if (!cancelled) {
           setCategories([]);
           setUnits([]);
+          setCommodities([]);
         }
         return;
       }
@@ -52,6 +56,20 @@ export function CatalogProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id, refresh]);
 
+  useEffect(() => {
+    if (!currentUser?.id) return undefined;
+    const channel = supabase
+      .channel(`commodity-catalog-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commodity_catalog' }, () => {
+        refresh().catch((refreshError) => setError(refreshError.message || 'Unable to refresh the product catalog.'));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, () => {
+        refresh().catch((refreshError) => setError(refreshError.message || 'Unable to refresh measurement units.'));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id, refresh]);
+
   const value = useMemo(() => {
     const categoryNames = categories.map((category) => category.name);
 
@@ -59,6 +77,7 @@ export function CatalogProvider({ children }) {
       categories,
       categoryNames,
       units,
+      commodities,
       loading,
       error,
       refresh,
@@ -78,7 +97,7 @@ export function CatalogProvider({ children }) {
         return [...values, currentValue];
       },
     };
-  }, [categories, units, loading, error, refresh]);
+  }, [categories, units, commodities, loading, error, refresh]);
 
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }

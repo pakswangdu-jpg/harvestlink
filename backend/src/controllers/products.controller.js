@@ -6,6 +6,7 @@ import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 import { getWholesalePricingErrors } from '../../shared/pricing.js';
 import { notifyAdminsOfPriceReview, notifyFarmerOfPriceDecision } from '../lib/priceReviewNotifications.js';
+import { getServerPriceReviewReference } from '../lib/effectiveMarketPrice.js';
 
 function resolveWholesalePricing(values, { price, quantity, unit, sellingType, kgPerUnit }, existing = null) {
   const enabled = !values.isDonation && sellingType === 'retail'
@@ -262,6 +263,9 @@ export async function createProduct(req, res) {
   await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
+  const marketReference = values.isDonation
+    ? null
+    : await getServerPriceReviewReference(values.name, values.unit, kgPerUnit);
 
 
 
@@ -316,7 +320,7 @@ export async function createProduct(req, res) {
     image_url: imageUrls[0] || null,
     image_urls: imageUrls,
     status: values.isDonation ? 'inactive' : 'active',
-    price_review: buildPriceReview(values.marketReference, values.price, null, kgPerUnit),
+    price_review: buildPriceReview(marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
     original_price: originalPrice,
     discount_percent: discountPercent,
@@ -336,7 +340,7 @@ export async function createProduct(req, res) {
     const mergedQuantity = Number(mergeTarget.quantity) + Number(values.quantity);
     const mergePriceChanged = Number(mergeTarget.price) !== row.price || mergeTarget.unit !== row.unit;
     const mergedReview = mergeTarget.price_review
-      ? mergePriceChanged ? resubmitPriceReview(values.marketReference, row.price, mergeTarget.price_review, kgPerUnit, row.unit) : mergeTarget.price_review
+      ? mergePriceChanged ? resubmitPriceReview(marketReference, row.price, mergeTarget.price_review, kgPerUnit, row.unit) : mergeTarget.price_review
       : row.price_review;
     const { data, error } = await supabaseAdmin
       .from('products')
@@ -399,6 +403,11 @@ export async function updateProduct(req, res) {
   await assertValidCategoryAndUnit({ category, unit }, existing);
 
   const kgPerUnit = resolveKgPerUnit(unit, values.kgPerUnit ?? existing.kg_per_unit);
+  const marketReference = await getServerPriceReviewReference(
+    values.name ?? existing.name,
+    unit,
+    kgPerUnit,
+  );
   const price = values.price !== undefined ? Number(values.price) : Number(existing.price);
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
   const sellingType = values.sellingType ?? existing.selling_type;
@@ -415,12 +424,12 @@ export async function updateProduct(req, res) {
   if (values.costPrice !== undefined) assertPlausiblePricePerKg('Cost per unit', costPrice, kgPerUnit);
 
   let priceReview = values.marketReference !== undefined
-    ? buildPriceReview(values.marketReference, price, existing.price_review, kgPerUnit)
+    ? buildPriceReview(marketReference, price, existing.price_review, kgPerUnit)
     : existing.price_review;
   const priceChanged = price !== Number(existing.price) || unit !== existing.unit
     || kgPerUnit !== resolveKgPerUnit(existing.unit, existing.kg_per_unit);
   if (existing.price_review && priceChanged) {
-    priceReview = resubmitPriceReview(values.marketReference, price, existing.price_review, kgPerUnit, unit);
+    priceReview = resubmitPriceReview(marketReference, price, existing.price_review, kgPerUnit, unit);
   } else if (existing.price_review && ['needs_adjustment', 'declined', 'approved'].includes(existing.price_review.status)) {
     priceReview = existing.price_review;
   }

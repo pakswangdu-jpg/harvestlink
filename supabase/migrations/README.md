@@ -1,5 +1,18 @@
 # Registered profile coordinates
 
+## Admin and Farmer commodity reference pricing
+
+Apply `20261110_commodity_reference_pricing.sql` after `supabase/schema.sql` and
+before deploying the pricing changes. It adds the shared custom-commodity catalog,
+source and effective-date metadata for Admin reference prices, append-only price
+history, and atomic service-role-only save/deactivation functions. Admin references
+take priority over PSA data only after their effective date; custom commodities
+without an Admin reference have no recommendation. Farmer listing prices remain
+manually controlled and are never changed by reference-price updates. Admins can
+register a typed unit while saving a reference; it is added to the shared unit
+catalog so Farmers can select it. Deploy the frontend and backend together after
+applying the migration.
+
 ## Admin profile-location reminders
 
 Run `20261103_profile_location_reminders.sql` against the Supabase project used

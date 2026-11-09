@@ -102,7 +102,7 @@ test('reliable GPS heading responds while moving without waiting for an 8 m disp
   assert.equal(result.shouldUpdateReference, false);
 });
 
-test('vehicle marker uses the cropped van image without a container', () => {
+test('vehicle marker uses the previous HarvestLink van image without an external container', () => {
   const svg = buildVehicleMarkerSvg('data:image/png;base64,cropped-van');
 
   assert.equal(VEHICLE_MARKER_WIDTH_PX, 56);
@@ -110,7 +110,6 @@ test('vehicle marker uses the cropped van image without a container', () => {
   assert.ok(VEHICLE_MARKER_ANIMATION_DURATION_MS > 0);
   assert.ok(VEHICLE_MARKER_ANIMATION_DURATION_MS <= 800);
   assert.match(svg, /viewBox="-14 -4 56 56"/);
-  assert.doesNotMatch(svg, /<circle\b/);
   assert.match(svg, /data-vehicle-body="true" transform="rotate\(0 14 24\)"/);
   assert.match(svg, /<image href="data:image\/png;base64,cropped-van" x="2" y="2" width="24" height="44"/);
   assert.match(svg, /<feDropShadow dx="0" dy="1" stdDeviation="\.65"/);

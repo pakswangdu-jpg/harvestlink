@@ -99,9 +99,9 @@ test('raster maps remain north-up even with a configured map ID', async () => {
 
 test('resize preserves a manually panned view and follows the last driver location when resumed', async () => {
   const h = await harness();
-  h.resize();
+  assert.equal(h.camera.resize(), true);
   assert.equal(h.calls.at(-1)[0], 'center');
   h.camera.resume();
-  h.resize();
+  assert.equal(h.camera.resize(), true);
   assert.equal(h.calls.at(-1)[0], 'pan');
 });

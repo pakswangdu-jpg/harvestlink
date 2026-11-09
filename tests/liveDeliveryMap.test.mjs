@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
 import { loadFrontend } from './helpers/loadFrontend.mjs';
 
-async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }) {
+async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, initialMapVisible = true) {
   const slots = [];
   let index = 0;
   let pending = [];
@@ -12,12 +12,15 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
   let tree;
   let position = initialPosition;
   let connection = 'online';
+  let mapVisible = initialMapVisible;
+  let mapZoom = 12;
   let navigationInputs;
   const maps = [];
   const markers = [];
   const routes = [];
+  const trafficLayers = [];
   const calls = [];
-  const container = { getBoundingClientRect: () => ({ width: 600, height: 400 }) };
+  const container = { getBoundingClientRect: () => ({ width: mapVisible ? 600 : 0, height: mapVisible ? 400 : 0 }) };
   const navigation = { selected: null, alternatives: [], stale: true };
   const react = {
     createElement(type, props, ...children) {
@@ -43,10 +46,12 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     },
   };
   class MockMap {
-    constructor() { this.listeners = new Map(); maps.push(this); }
+    constructor(_container, options) { this.options = options; this.listeners = new Map(); maps.push(this); }
     addListener(event, handler) { this.listeners.set(event, handler); return { remove: () => this.listeners.delete(event) }; }
     panTo(center) { calls.push(['pan', center]); }
     fitBounds() { calls.push(['fit']); this.listeners.get('zoom_changed')?.(); }
+    getZoom() { return mapZoom; }
+    setZoom(zoom) { mapZoom = zoom; calls.push(['zoom', zoom]); this.listeners.get('zoom_changed')?.(); }
     getRenderingType() { return vector ? 'VECTOR' : 'RASTER'; }
     setHeading(heading) { assert.ok(Number.isFinite(heading)); calls.push(['heading', heading]); }
     setTilt() {}
@@ -58,9 +63,14 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     setPosition(value) { this.position = value; }
     setIcon(value) { this.icon = value; }
   }
+  class TrafficLayer {
+    constructor() { trafficLayers.push(this); }
+    setMap(map) { this.map = map; calls.push(['traffic', map]); }
+  }
   const mapsApi = { Map: MockMap, Marker, AdvancedMarkerElement: Marker,
-    ControlPosition: { RIGHT_TOP: 1 },
+    TrafficLayer, ControlPosition: { RIGHT_TOP: 1, LEFT_TOP: 2 },
     RenderingType: { VECTOR: 'VECTOR' }, Size: class {}, Point: class {},
+    event: { trigger: (_map, event) => calls.push([event]) },
     LatLngBounds: class { extend() {} },
     Polyline: class { constructor() { routes.push(this); } setMap() {} }, Circle: class { setMap() {} },
   };
@@ -68,7 +78,7 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     '../src/utils/geo.js', '../src/utils/vehicleMarker.js', '../src/utils/liveMapCamera.js', '../src/utils/tripTelemetry.js',
   ].map((path) => new URL(path, import.meta.url).href));
   const scope = { React: react, ...react, ...geo, ...vehicle, ...camera, ...trip,
-    createPortal: (child) => child, GOOGLE_MAPS_MAP_ID: vector ? 'test-map' : null, DARK_MAP_STYLE: [],
+    GOOGLE_MAPS_MAP_ID: vector ? 'test-map' : null, DARK_MAP_STYLE: [],
     loadGoogleMaps: async () => mapsApi, useTheme: () => ({ effectiveTheme: 'light' }),
     useOrderTrackingSocket: () => ({ livePosition: position }), useOrderConnectionStatus: () => connection,
     useMapCoordinates: () => profiles ? { farmer: { lat: 10.3, lng: 123.9 }, buyer: { lat: 10.4, lng: 123.95 } } : {},
@@ -78,7 +88,7 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     document: { createElement: () => ({ className: '', querySelector: () => ({ style: {}, removeAttribute() {} }) }) },
     performance: { now: () => 0 }, requestAnimationFrame: (callback) => { callback(1000); return null; }, cancelAnimationFrame() {},
   };
-  for (const name of ['CheckCircle2', 'Clock3', 'Crosshair', 'Gauge', 'MapPin', 'Truck', 'TrafficRouteNotice', 'DriverConnectionBadge', 'LiveDeliverySummary']) scope[name] = name;
+  for (const name of ['CheckCircle2', 'Clock3', 'Crosshair', 'Gauge', 'MapPin', 'Minus', 'Plus', 'Truck', 'TrafficRouteNotice', 'DriverConnectionBadge', 'LiveDeliverySummary']) scope[name] = name;
   const source = (await readFile(new URL('../src/components/orders/LiveDeliveryMap.jsx', import.meta.url), 'utf8'))
     .replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
   const result = await transformWithOxc(source, 'LiveDeliveryMap.jsx', { jsx: { runtime: 'classic' } });
@@ -89,7 +99,7 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     do {
       assert.ok(++renders < 15, 'map must not create an effect/camera render loop');
       dirty = false; index = 0; pending = [];
-      tree = component({ order });
+      tree = component({ order, navigationEnabled: mapVisible });
       pending.forEach((effect) => effect());
     } while (dirty);
   };
@@ -98,17 +108,74 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     if (node.props?.className?.startsWith('nav-recenter-btn')) return node;
     return node.props?.children?.flat(Infinity).map(find).find(Boolean);
   };
+  const findAll = (node, predicate, result = []) => {
+    if (!node || typeof node !== 'object') return result;
+    if (predicate(node)) result.push(node);
+    node.props?.children?.flat(Infinity).forEach((child) => findAll(child, predicate, result));
+    return result;
+  };
   render();
   await new Promise(setImmediate);
   render();
   return { maps, markers, routes, calls, render, recenter: () => { find(tree).props.onClick(); render(); },
     recenterProps: () => find(tree).props,
+    zoomControls: () => findAll(tree, (node) => ['Zoom in', 'Zoom out'].includes(node.props?.['aria-label'])),
+    trafficButton: () => findAll(tree, (node) => node.props?.className?.startsWith('nav-traffic-toggle'))[0],
+    trafficLayers,
     navigationInputs: () => navigationInputs,
+    showMap() { mapVisible = true; render(); },
     offline() { connection = 'offline'; render(); },
     update(next) { position = next; render(); },
     cleanup() { slots.forEach((slot) => slot?.cleanup?.()); },
   };
 }
+
+test('map resizes when tracking opens and exposes working zoom controls', async () => {
+  const h = await harness(false, true, { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, false);
+  assert.equal(h.maps[0].options.zoomControl, false);
+  assert.equal(h.calls.some(([kind]) => kind === 'resize'), false);
+  h.showMap();
+  assert.equal(h.calls.some(([kind]) => kind === 'resize'), true);
+  assert.equal(h.calls.findLast(([kind]) => kind === 'pan')[1].lat, 10.31, 'opening tracking recenters on the current live driver location');
+  assert.equal(h.recenterProps()['aria-pressed'], true);
+  const [zoomIn, zoomOut] = h.zoomControls();
+  assert.equal(zoomIn.props.disabled, false);
+  zoomIn.props.onClick({ stopPropagation() {} });
+  assert.equal(h.calls.filter(([kind]) => kind === 'zoom').at(-1)[1], 13);
+  zoomOut.props.onClick({ stopPropagation() {} });
+  assert.equal(h.calls.filter(([kind]) => kind === 'zoom').at(-1)[1], 12);
+  h.cleanup();
+});
+
+test('map zoom controls stop at supported zoom limits', async () => {
+  const h = await harness();
+  const [zoomIn, zoomOut] = h.zoomControls();
+  for (let i = 0; i < 12; i++) zoomIn.props.onClick({ stopPropagation() {} });
+  assert.equal(h.calls.filter(([kind]) => kind === 'zoom').at(-1)[1], 21);
+  for (let i = 0; i < 20; i++) zoomOut.props.onClick({ stopPropagation() {} });
+  assert.equal(h.calls.filter(([kind]) => kind === 'zoom').at(-1)[1], 3);
+  h.cleanup();
+});
+
+test('traffic control is placed on the left, away from right-side zoom controls', async () => {
+  const source = await readFile(new URL('../src/components/orders/LiveDeliveryMap.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+  assert.match(source, /className=\{`nav-traffic-toggle\$\{trafficEnabled \? ' active' : ''\}`\}/);
+  assert.match(styles, /\.nav-traffic-toggle\s*\{\s*position:\s*absolute;\s*top:\s*12px;\s*left:\s*12px;\s*z-index:\s*20;/);
+  assert.match(styles, /\.nav-map-zoom-controls\s*\{[^}]*right:\s*12px;/);
+});
+
+test('Traffic button is visible and toggles the map traffic layer', async () => {
+  const h = await harness();
+  const button = h.trafficButton();
+  assert.ok(button, 'Traffic button is rendered inside the map controls');
+  assert.equal(button.props['aria-pressed'], true);
+  button.props.onClick();
+  h.render();
+  assert.equal(h.trafficButton().props['aria-pressed'], false);
+  assert.equal(h.trafficLayers[0].map, null);
+  h.cleanup();
+});
 
 for (const vector of [false, true]) {
   test(`live map keeps one ${vector ? 'vector' : 'raster'} instance and driver marker across clicks, GPS, drag and cleanup`, async () => {
@@ -119,7 +186,7 @@ for (const vector of [false, true]) {
     assert.equal(h.maps.length, 1);
     assert.equal(h.markers.length, 3);
     assert.equal(h.routes.length, routeCount, 'GPS and recenter must not recreate route layers');
-    assert.equal(h.calls.filter(([kind]) => kind === 'fit').length, 1);
+    assert.equal(h.calls.filter(([kind]) => kind === 'fit').length, 0, 'opening live tracking keeps the current driver centered');
     const vehicle = h.markers.find((marker) => marker.zIndex === 1000);
     assert.equal(vehicle.position.lat, 10.32);
     h.maps[0].listeners.get('dragstart')();

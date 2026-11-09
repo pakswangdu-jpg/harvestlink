@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { CheckCircle2, Clock3, Crosshair, Gauge, MapPin, Truck } from 'lucide-react';
+import { CheckCircle2, Clock3, Crosshair, Gauge, MapPin, Minus, Plus, Truck } from 'lucide-react';
 import { DARK_MAP_STYLE, GOOGLE_MAPS_MAP_ID, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useOrderTrackingSocket } from '../../hooks/useOrderTrackingSocket';
 import { isFreshLivePosition } from '../../utils/liveTrackingPosition';
@@ -209,12 +208,6 @@ export default function LiveDeliveryMap({
   const [mapReady, setMapReady] = useState(false);
   const [autoFollow, setAutoFollow] = useState(false);
   const [trafficAvailable, setTrafficAvailable] = useState(false);
-  const [trafficControl] = useState(() => {
-    const control = document.createElement('div');
-    control.className = 'nav-map-traffic-control';
-    control.index = -1;
-    return control;
-  });
   const [trafficOverride, setTrafficOverride] = useState(null);
 
   const hasVectorMap = Boolean(GOOGLE_MAPS_MAP_ID);
@@ -306,6 +299,12 @@ export default function LiveDeliveryMap({
   const speedCardValue = isDelivered
     ? (completedAverageSpeedKmh != null ? `${completedAverageSpeedKmh.toFixed(1)} km/h avg` : '—')
     : (currentSpeedKmh != null ? `${currentSpeedKmh.toFixed(0)} km/h` : '—');
+  const adjustMapZoom = (change) => {
+    const map = mapRef.current;
+    const zoom = map?.getZoom?.();
+    if (!Number.isFinite(zoom) || typeof map.setZoom !== 'function') return;
+    map.setZoom(Math.max(3, Math.min(21, zoom + change)));
+  };
 
   useEffect(() => {
     if (!isDelivered) onRouteUpdate?.({ etaMinutes, remainingKm, currentSpeedKmh, isInTransit: Boolean(currentPosition) });
@@ -322,10 +321,7 @@ export default function LiveDeliveryMap({
         zoom: 12,
         mapId: GOOGLE_MAPS_MAP_ID || undefined,
         disableDefaultUI: true,
-        zoomControl: true,
-
-
-        zoomControlOptions: { position: mapsApi.ControlPosition.RIGHT_TOP },
+        zoomControl: false,
         gestureHandling: 'greedy',
 
 
@@ -368,6 +364,17 @@ export default function LiveDeliveryMap({
     };
   }, [mapReady]);
 
+  useEffect(() => {
+    if (!navigationEnabled || !mapReady) return undefined;
+    const frame = requestAnimationFrame(() => {
+      cameraRef.current?.resize();
+      if (liveTargetRef.current) {
+        autoEnabledRef.current = cameraRef.current?.resume() || false;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [navigationEnabled, mapReady]);
+
 
 
   useEffect(() => {
@@ -379,17 +386,6 @@ export default function LiveDeliveryMap({
     if (!mapReady || !trafficLayerRef.current) return;
     trafficLayerRef.current.setMap(trafficEnabled ? mapRef.current : null);
   }, [mapReady, trafficEnabled]);
-
-  useEffect(() => {
-    if (!mapReady || !trafficAvailable) return undefined;
-    // Let Maps reserve space above its native zoom control instead of overlaying it.
-    const controls = mapRef.current.controls[mapsApiRef.current.ControlPosition.RIGHT_TOP];
-    controls.push(trafficControl);
-    return () => {
-      const index = controls.getArray().indexOf(trafficControl);
-      if (index !== -1) controls.removeAt(index);
-    };
-  }, [mapReady, trafficAvailable, trafficControl]);
 
   useEffect(() => () => {
     trafficLayerRef.current?.setMap(null);
@@ -586,8 +582,16 @@ export default function LiveDeliveryMap({
       <TrafficRouteNotice navigation={navigation} allowChoice={canChooseAlternative && transit.isInTransit} />
       <div className="nav-map-container">
         <div ref={containerRef} className="live-delivery-map" />
+        <div className="nav-map-zoom-controls" role="group" aria-label="Map zoom controls">
+          <button type="button" onClick={(event) => { event.stopPropagation(); adjustMapZoom(1); }} disabled={!mapReady} aria-label="Zoom in" title="Zoom in">
+            <Plus size={22} aria-hidden="true" />
+          </button>
+          <button type="button" onClick={(event) => { event.stopPropagation(); adjustMapZoom(-1); }} disabled={!mapReady} aria-label="Zoom out" title="Zoom out">
+            <Minus size={22} aria-hidden="true" />
+          </button>
+        </div>
 
-        {trafficAvailable ? createPortal(
+        {trafficAvailable ? (
           <button
             type="button"
             className={`nav-traffic-toggle${trafficEnabled ? ' active' : ''}`}
@@ -596,8 +600,7 @@ export default function LiveDeliveryMap({
             title={trafficEnabled ? 'Turn traffic off' : 'Turn traffic on'}
           >
             Traffic
-          </button>,
-          trafficControl,
+          </button>
         ) : null}
 
         {deliveryState === 'navigating' ? (

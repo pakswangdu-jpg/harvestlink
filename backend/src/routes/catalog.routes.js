@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { requireRole } from '../middleware/requireRole.js';
 import {
-  createCategory, createUnit, deleteCategory, deleteUnit, getCatalogHandler, updateCategory, updateUnit,
+  createCategory, createCommodity, createUnit, deleteCategory, deleteUnit, getCatalogHandler, updateCategory, updateUnit,
 } from '../controllers/catalog.controller.js';
 
 const router = Router();
 const admin = [requireAuth, requireRole('admin')];
 
 router.get('/', requireAuth, getCatalogHandler);
+router.post('/commodities', ...admin, createCommodity);
 
 router.post('/categories', ...admin, createCategory);
 router.patch('/categories/:categoryId', ...admin, updateCategory);

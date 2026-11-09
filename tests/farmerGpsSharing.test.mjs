@@ -5,11 +5,12 @@ import { loadFrontend } from './helpers/loadFrontend.mjs';
 const url = (path) => new URL(`../src/${path}`, import.meta.url).href;
 const flush = () => new Promise(setImmediate);
 
-async function harness(locationPermission) {
+async function harness(locationPermission, ordersError = null) {
   const effects = [];
   const intervals = new Map();
   const socketListeners = new Map();
   const sends = [];
+  const fallbacks = [];
   const local = [];
   const errors = [];
   let pendingAck = null;
@@ -50,21 +51,33 @@ async function harness(locationPermission) {
     },
     [url('lib/supabaseClient.js')]: { supabase: { auth: { getSession: async () => ({ data: { session: { access_token: 'farmer' } } }) } } },
     [url('lib/socketClient.js')]: { getSocket: () => socket },
-    [url('services/orderService.js')]: { getOrdersByFarmer: async () => [
-      { id: 'order-A', status: 'confirmed', deliveryStatus: 'out_for_delivery', deliveryMethod: 'farmer_delivery' },
-    ] },
+    [url('services/orderService.js')]: {
+      getOrdersByFarmer: async () => {
+        if (ordersError) throw ordersError;
+        return [
+          { id: 'order-A', status: 'confirmed', deliveryStatus: 'out_for_delivery', deliveryMethod: 'farmer_delivery' },
+        ];
+      },
+      updateOrderLocation: async (id, location) => { fallbacks.push({ id, ...location }); },
+    },
     [url('services/liveTrackingStore.js')]: { publishLiveOrderPosition: (id, position) => local.push({ id, ...position }), clearLiveOrderPositions() {} },
   });
   module.useFarmerActiveDeliverySharing('farmer', locationPermission);
   const cleanups = effects.map((effect) => effect());
   await flush();
-  return { gps: (...args) => gps(...args), gpsError: (...args) => gpsError(...args), sends, local, errors, intervals, socket,
+  return { gps: (...args) => gps(...args), gpsError: (...args) => gpsError(...args), sends, local, fallbacks, errors, intervals, socket,
     reconnect: () => socketListeners.get('connect')(),
     holdAck: () => { holdAck = true; },
     releaseAck: () => { holdAck = false; const callback = pendingAck; pendingAck = null; callback?.(null, { ok: true }); },
     permissionGranted: () => effects.at(-1)(),
     watches: () => watches, cleared: () => cleared, cleanup: () => cleanups.forEach((cleanup) => cleanup?.()) };
 }
+
+test('active delivery lookup failures are surfaced so farmers can diagnose unavailable live tracking', async () => {
+  const h = await harness(undefined, new Error('Orders service unavailable.'));
+  assert.ok(h.errors.some((error) => error?.message === 'Orders service unavailable.' || error === 'Orders service unavailable.'));
+  h.cleanup();
+});
 
 test('existing single high-accuracy watcher publishes GPS locally before emitting identical coordinates without compass/speed', async () => {
   const h = await harness();
@@ -159,6 +172,17 @@ test('offline GPS updates stay local; reconnect sends newest sample with origina
   assert.equal(h.sends.length, 1);
   assert.equal(h.sends[0].lat, 10.32);
   assert.equal(h.sends[0].timestamp, timestamp);
+  h.cleanup();
+});
+
+test('GPS location stays visible through the authenticated endpoint while tracking socket is offline', async () => {
+  const h = await harness();
+  h.socket.connected = false;
+  const timestamp = Date.now();
+  h.gps({ coords: { latitude: 10.31, longitude: 123.91, accuracy: 8, heading: null, speed: null }, timestamp });
+  await flush();
+  assert.equal(h.sends.length, 0);
+  assert.deepEqual(h.fallbacks, [{ id: 'order-A', lat: 10.31, lng: 123.91 }]);
   h.cleanup();
 });
 

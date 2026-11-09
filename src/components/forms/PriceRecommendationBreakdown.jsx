@@ -1,6 +1,5 @@
 import Button from '../common/Button';
 import { formatCurrency } from '../../utils/formatters';
-import WholesalePriceRecommendation from './WholesalePriceRecommendation';
 
 
 
@@ -8,48 +7,20 @@ import WholesalePriceRecommendation from './WholesalePriceRecommendation';
 
 
 export default function PriceRecommendationBreakdown({
-  unit, kgPerUnitValue, referencePrice, equivalentPsaPricePerUnit, recommendedPrice, costPrice, onUsePrice,
-  wholesaleEnabled, availableQuantity, onUseWholesalePrice,
-  sellingType = 'retail',
+  unit, referenceUnit, referencePrice, recommendedPrice, estimatedTotal, quantity, onUsePrice,
 }) {
-  const cost = Number(costPrice);
-  const hasCost = Number.isFinite(cost) && cost > 0;
-  const profit = hasCost && recommendedPrice ? recommendedPrice.price - cost : null;
-
   return (
     <div className="price-breakdown">
-      <Row label="PSA Farmgate Price" value={`${formatCurrency(referencePrice)}/kg`} />
-      <Row label="Selected Unit" value={unit} />
-      <Row label="Conversion" value={`${kgPerUnitValue} kg`} />
-      {equivalentPsaPricePerUnit != null ? (
-        <Row label="Equivalent PSA Price" value={`${formatCurrency(equivalentPsaPricePerUnit)}/${unit}`} />
-      ) : null}
+      <Row label="Reference price" value={`${formatCurrency(referencePrice)}/${referenceUnit}`} />
       {recommendedPrice ? (
         <>
-          <Row label="Markup" value={`${recommendedPrice.marginPercent}%`} />
-          <Row label={`AI Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
-          {
-
-                                        }
-          <Row
-            label="Estimated Profit"
-            value={profit != null ? formatCurrency(profit) : 'Enter your Cost per Unit to calculate your estimated profit.'}
-            emphasize={profit != null}
-          />
+          <Row label="Recommended selling price" value={`${formatCurrency(recommendedPrice.price)}/${unit}`} emphasize />
+          <Row label={Number(quantity) > 0 ? `Estimated total (${quantity} ${unit})` : 'Estimated total'} value={Number(quantity) > 0 && estimatedTotal != null ? formatCurrency(estimatedTotal) : 'Enter a quantity to estimate total'} />
           <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(recommendedPrice.price)}>
-            Use {sellingType} price
+            Use recommended price
           </Button>
-          {wholesaleEnabled ? (
-            <WholesalePriceRecommendation
-              retailPrice={recommendedPrice.price}
-              costPrice={cost}
-              availableQuantity={availableQuantity}
-              unit={unit}
-              onUseRecommendation={onUseWholesalePrice}
-            />
-          ) : null}
         </>
-      ) : null}
+      ) : <Row label="Recommended selling price" value="Unavailable for this unit" emphasize />}
     </div>
   );
 }
