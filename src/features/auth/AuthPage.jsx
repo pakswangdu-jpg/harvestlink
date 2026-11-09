@@ -167,8 +167,8 @@ function getLoginErrorPresentation(error) {
       return { title: 'Security verification unavailable', message: 'Security verification is temporarily unavailable. Please try again later.' };
     case 'INVALID_CREDENTIALS':
       return {
-        title: "Account doesn't exist or password is incorrect",
-        message: "Check your email and password, or register a new account if you don't have one.",
+        title: 'Invalid email or password',
+        message: 'The email or password you entered is incorrect. Please try again.',
       };
     case 'RATE_LIMITED':
       return { title: 'Too many sign-in attempts', message: 'For your security, sign-in has been temporarily limited. Please wait a few minutes before trying again.' };

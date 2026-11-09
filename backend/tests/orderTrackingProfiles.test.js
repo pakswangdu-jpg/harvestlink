@@ -69,19 +69,20 @@ async function getProfiles(profile) {
   return { response, headers };
 }
 
-test('order participants receive saved delivery coordinates without private address fields', async () => {
+test('order participants receive full saved addresses and delivery coordinates', async () => {
   const { response, headers } = await getProfiles({ id: 'buyer-1', role: 'buyer' });
   assert.deepEqual(response.farmer, {
     id: 'farmer-1',
     role: 'farmer',
     name: 'Farmer',
     farm_name: 'Green Farm',
+    address: 'private address',
     municipality: 'Cebu City',
     latitude: 10.3157,
     longitude: 123.8854,
   });
   assert.equal(response.buyer.latitude, 10.3236);
-  assert.equal('address' in response.buyer, false);
+  assert.equal(response.buyer.address, 'private address');
   assert.equal(headers['Cache-Control'], 'no-store');
 });
 

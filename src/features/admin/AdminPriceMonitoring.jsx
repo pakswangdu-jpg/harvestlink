@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle, Check, Database, Info, Package, RotateCcw, Search, ShieldCheck, X,
+  AlertTriangle, Check, Database, Info, Package, Plus, RotateCcw, Search, ShieldCheck, X,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
@@ -17,13 +17,13 @@ import Pagination from '../../components/admin/Pagination';
 import { usePagination } from '../../components/admin/usePagination';
 import { productStatusTone } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
+import { useCatalog } from '../../contexts/CatalogContext';
 import {
   getDeclinedPriceReviews, reactivatePriceReview,
 } from '../../services/productService';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
 import { useCommodityMonitoring } from './priceMonitoring/useCommodityMonitoring';
-import { COMMODITY_CATEGORIES } from './priceMonitoring/commodityCategories';
 import { STATUS_META } from './priceMonitoring/statusMeta';
 import { SORT_PRESETS, sortCommodities } from './priceMonitoring/sortCommodities';
 import CommodityTable from './priceMonitoring/CommodityTable';
@@ -33,6 +33,8 @@ import { matchCommodity } from '../../services/marketPriceService';
 import { listingComparison } from './priceMonitoring/pricePresentation';
 import './AdminPriceMonitoring.css';
 import PendingReviews from './priceMonitoring/PendingPriceReviews';
+import AddCommodityModal from './priceMonitoring/AddCommodityModal';
+import AddReferencePriceModal from './priceMonitoring/AddReferencePriceModal';
 
 
 
@@ -79,7 +81,11 @@ const STATUS_FILTER_OPTIONS = ['all', ...Object.keys(STATUS_META)];
 export default function AdminPriceMonitoring() {
   const { currentUser } = useAuth();
   const {
+    categories, units, loading: catalogLoading, error: catalogError, refresh: refreshCatalog,
+  } = useCatalog();
+  const {
     rows, products, reviews, loadError, isInitialLoading, pricesProgress, saveOverride, resetOverride, reloadListings,
+    reloadCommodityCatalog,
   } = useCommodityMonitoring();
 
   const [declined, setDeclined] = useState(null);
@@ -107,6 +113,8 @@ export default function AdminPriceMonitoring() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedId, setExpandedId] = useState(null);
   const [modalCommodity, setModalCommodity] = useState(null);
+  const [addCommodityOpen, setAddCommodityOpen] = useState(false);
+  const [addReferenceOpen, setAddReferenceOpen] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const actionLock = useRef(false);
@@ -116,6 +124,10 @@ export default function AdminPriceMonitoring() {
 
   const [dismissedAlerts, setDismissedAlerts] = useState(new Set());
 
+  const availableCategories = useMemo(
+    () => [...new Set(rows.map((row) => row.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
   const availableYears = useMemo(
     () => [...new Set(rows.map((row) => row.referenceYear).filter(Boolean))].sort((a, b) => b - a),
     [rows]
@@ -148,7 +160,7 @@ export default function AdminPriceMonitoring() {
 
   const alerts = [
     noPsaCount > 0 && {
-      key: 'no-psa', tone: 'warning', icon: AlertTriangle, message: `${noPsaCount} commodit${noPsaCount === 1 ? 'y has' : 'ies have'} no PSA data.`,
+      key: 'no-psa', tone: 'warning', icon: AlertTriangle, message: `${noPsaCount} commodit${noPsaCount === 1 ? 'y has' : 'ies have'} no reference price available.`,
     },
     flaggedListingsCount > 0 && {
       key: 'overpriced', tone: 'danger', icon: AlertTriangle, message: `${flaggedListingsCount} listing${flaggedListingsCount === 1 ? '' : 's'} exceed${flaggedListingsCount === 1 ? 's' : ''} the recommended price.`,
@@ -180,11 +192,8 @@ export default function AdminPriceMonitoring() {
 
   const modalInitialPrice = modalCommodity?.referencePrice ?? null;
 
-  const handleConfirmOverride = async (price, reason) => {
-    await saveOverride(modalCommodity.id, price, reason, {
-      referenceYear: modalCommodity.referenceYear ?? new Date().getFullYear(),
-      baselinePrice: modalCommodity.referencePrice ?? null,
-    });
+  const handleConfirmOverride = async (price, details) => {
+    await saveOverride(modalCommodity.id, price, details);
   };
 
   const handleResetOverride = (row) => setConfirmation({ type: 'reset', row });
@@ -199,7 +208,7 @@ export default function AdminPriceMonitoring() {
         reloadListings();
         reloadDeclined();
       }
-      setReviewNotice(confirmation.type === 'reset' ? `${confirmation.row.label}'s override was reset.` : `${confirmation.row.name}'s listing was reactivated.`);
+      setReviewNotice(confirmation.type === 'reset' ? `${confirmation.row.label}'s admin reference price was deactivated.` : `${confirmation.row.name}'s listing was reactivated.`);
       setReviewError('');
       setConfirmation(null);
     } catch (error) { setReviewError(error.message); }
@@ -209,7 +218,27 @@ export default function AdminPriceMonitoring() {
   const selectedRows = rows.filter((row) => selectedIds.has(row.id));
 
   const handleConfirmBulk = async (row, price, reason) => {
-    await saveOverride(row.id, price, reason, { referenceYear: row.referenceYear, baselinePrice: row.referencePrice });
+    await saveOverride(row.id, price, {
+      commodityLabel: row.label,
+      unit: row.unit || 'kg',
+      source: row.override?.source || 'admin_entered',
+      effectiveDate: new Date().toISOString().slice(0, 10),
+      referenceYear: row.referenceYear || new Date().getFullYear(),
+      baselinePrice: row.psaPrice,
+      reason,
+    });
+  };
+
+  const handleAddCommodity = async () => {
+    await refreshCatalog();
+    await reloadCommodityCatalog();
+    setAddCommodityOpen(false);
+  };
+
+  const handleAddReferencePrice = async (row, price, details) => {
+    await saveOverride(row.id, price, details);
+    await refreshCatalog();
+    reloadListings();
   };
 
   return (
@@ -273,7 +302,15 @@ export default function AdminPriceMonitoring() {
 
                                                                                 }
       <Card className="pm-workspace mb-4">
-        <CardHeader title="Commodity price monitoring" />
+        <CardHeader
+          title="Commodity price monitoring"
+          action={(
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => setAddCommodityOpen(true)}><Plus size={14} /> Add Commodity</Button>
+              <Button variant="primary" onClick={() => setAddReferenceOpen(true)}><Plus size={14} /> Add Reference Price</Button>
+            </div>
+          )}
+        />
 
         {
 
@@ -287,7 +324,7 @@ export default function AdminPriceMonitoring() {
             <div className="w-[170px]">
               <label>Category</label><Select aria-label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                 <option value="all">All categories</option>
-                {COMMODITY_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                {availableCategories.map((category) => <option key={category} value={category}>{category}</option>)}
               </Select>
             </div>
             <div className="w-[120px]">
@@ -407,19 +444,39 @@ export default function AdminPriceMonitoring() {
       </Card>
 
       <MarketplaceListings products={products} commodities={rows} />
-      <Modal open={Boolean(confirmation)} onClose={() => { if (!actionLock.current) setConfirmation(null); }} title={confirmation?.type === 'reset' ? 'Reset to PSA?' : 'Reactivate this listing?'} className="pm-modal" dialogLabel="Confirm price monitoring action">
+      <Modal open={Boolean(confirmation)} onClose={() => { if (!actionLock.current) setConfirmation(null); }} title={confirmation?.type === 'reset' ? 'Deactivate admin price?' : 'Reactivate this listing?'} className="pm-modal" dialogLabel="Confirm price monitoring action">
         {confirmation && <div className="space-y-4">
-          <p>{confirmation.type === 'reset' ? confirmation.row.psaPrice == null ? `Remove the Admin override for ${confirmation.row.label}? No PSA reference is currently available.` : `Reset ${confirmation.row.label} to the PSA reference price of ${formatCurrency(confirmation.row.psaPrice)}/kg (PSA ${confirmation.row.psaYear})?` : `${confirmation.row.name} - ${confirmation.row.farmerName}`}</p>
+          <p>{confirmation.type === 'reset'
+            ? `Deactivate the admin reference price for ${confirmation.row.label}? ${confirmation.row.psaPrice == null ? 'No PSA reference is currently available.' : `The Farmer Portal will use the PSA reference of ${formatCurrency(confirmation.row.psaPrice)}/kg instead.`}`
+            : `${confirmation.row.name} - ${confirmation.row.farmerName}`}</p>
           {reviewError && <Alert tone="danger">{reviewError}</Alert>}
-          <div className="flex justify-end gap-2"><Button variant="secondary" disabled={confirming} onClick={() => setConfirmation(null)}>Cancel</Button><Button variant="primary" disabled={confirming} onClick={handleConfirmation}>{confirming ? 'Saving...' : confirmation.type === 'reset' ? 'Reset' : 'Reactivate'}</Button></div>
+          <div className="flex justify-end gap-2"><Button variant="secondary" disabled={confirming} onClick={() => setConfirmation(null)}>Cancel</Button><Button variant="primary" disabled={confirming} onClick={handleConfirmation}>{confirming ? 'Saving...' : confirmation.type === 'reset' ? 'Deactivate price' : 'Reactivate'}</Button></div>
         </div>}
       </Modal>
 
       <OverrideModal
         commodity={modalCommodity}
         initialPrice={modalInitialPrice}
+        units={units}
         onClose={() => setModalCommodity(null)}
         onConfirm={handleConfirmOverride}
+      />
+      <AddCommodityModal
+        open={addCommodityOpen}
+        categories={categories}
+        units={units}
+        onClose={() => setAddCommodityOpen(false)}
+        onCreated={handleAddCommodity}
+      />
+      <AddReferencePriceModal
+        open={addReferenceOpen}
+        rows={rows}
+        categories={categories}
+        units={units}
+        unitsLoading={catalogLoading}
+        catalogError={catalogError}
+        onClose={() => setAddReferenceOpen(false)}
+        onConfirm={handleAddReferencePrice}
       />
       <BulkUpdateModal
         open={bulkOpen}
@@ -454,7 +511,7 @@ function MarketplaceListings({ products, commodities }) {
             { key: 'sellingType', label: 'Sales type', render: (row) => (row.sellingType === 'wholesale' ? `Wholesale (MOQ ${row.moq || 0} ${row.unit})` : 'Retail') },
             { key: 'price', label: 'Price', render: (row) => `${formatCurrency(row.price)} / ${row.unit}` },
             { key: 'comparison', label: 'Reference comparison', render: (product) => {
-              const commodity = commodities.find((row) => row.id === matchCommodity(product.name)?.id);
+              const commodity = commodities.find((row) => row.id === matchCommodity(product.name, commodities)?.id);
               const comparison = listingComparison(product, commodity);
               return comparison ? <>{comparison.label}<small>vs {commodity.isOverride ? 'Admin' : 'PSA'} reference / kg</small></> : <span className="pm-secondary">Not comparable</span>;
             } },

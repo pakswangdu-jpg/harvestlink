@@ -22,6 +22,16 @@ Before deploying donation changes, run
 This is required for existing projects and fresh projects provisioned with
 `supabase/schema.sql`. See `supabase/migrations/README.md` for rollout details.
 
+## Commodity Reference Pricing
+
+Before deploying the Admin commodity catalog and Farmer reference-price changes,
+apply `supabase/migrations/20261110_commodity_reference_pricing.sql` after the
+base schema. The migration adds the custom commodity catalog, source/effective-date
+metadata and history for Admin references, and atomic service-role-only write
+functions. Admin-entered custom units are added to the shared unit catalog for
+Farmer use. Deploy the frontend and backend together after the migration; farmer
+listing prices remain unchanged by reference-price updates.
+
 ## Final Transaction Receipts
 
 Before deploying receipt emails, apply

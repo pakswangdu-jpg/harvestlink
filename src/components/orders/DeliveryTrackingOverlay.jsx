@@ -33,7 +33,9 @@ export default function DeliveryTrackingOverlay({ open, title, subtitle, summary
     <div
       className={`tracking-overlay${open ? ' is-open' : ''}`}
       aria-hidden={open ? undefined : 'true'}
-      onClick={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div
         className="tracking-overlay-panel"

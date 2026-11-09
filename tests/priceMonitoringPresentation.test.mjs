@@ -56,9 +56,18 @@ test('PSA display stays distinct from the effective Admin reference and existing
     useCallback: (callback) => callback,
     useMemo: (callback) => callback(),
     useEffect: (callback) => { if (!mounted) effects.push(callback); },
-    fetchAnnualPriceTrend: async () => [{ year: 2025, price: 40, isOverride: true }],
+    getCatalog: async () => ({ commodities: [] }),
+    supabase: {
+      channel() { return this; },
+      on() { return this; },
+      subscribe() { return this; },
+      removeChannel() {},
+    },
+    fetchAnnualPriceTrend: async () => [{ year: 2025, price: 40 }],
     fetchRawAnnualPriceTrend: async () => [{ year: 2025, price: 37.59 }],
-    getPriceOverride: async () => ({ referencePrice: 40, referenceYear: 2025 }),
+    getPriceOverride: async () => ({ referencePrice: 38, referenceYear: 2024, isActive: true, source: 'admin_entered' }),
+    isPriceOverrideEffective: (override) => Boolean(override?.isActive),
+    invalidatePriceOverridesCache() {},
     getProducts: async () => [product], getPendingPriceReviews: async () => [],
     getFixedKgPerUnit: () => 1, matchCommodity: () => ({ id: '28' }), getCommodityCategory: () => 'Vegetables',
     resolveCommodityStatus: ({ hasOverride }) => hasOverride ? 'overridden' : 'normal', setTimeout: (callback) => callback(),
@@ -68,7 +77,8 @@ test('PSA display stays distinct from the effective Admin reference and existing
   await new Promise((resolve) => setImmediate(resolve));
   index = 0;
   const row = hook().rows[0];
-  assert.equal(row.referencePrice, 40);
+  assert.equal(row.referencePrice, 38);
+  assert.equal(row.referenceYear, 2024);
   assert.equal(row.psaPrice, 37.59);
   assert.equal(row.psaYear, 2025);
   assert.equal(row.avgFarmerPrice, 50);

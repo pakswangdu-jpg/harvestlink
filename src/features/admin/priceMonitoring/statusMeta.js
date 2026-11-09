@@ -12,7 +12,7 @@ export const STATUS_META = {
   'under-review': { label: 'Under Review', tone: 'orange' },
   overpriced: { label: 'Overpriced', tone: 'danger' },
   underpriced: { label: 'Underpriced', tone: 'teal' },
-  'no-psa': { label: 'No PSA Data', tone: 'neutral' },
+  'no-psa': { label: 'Reference Unavailable', tone: 'neutral' },
   overridden: { label: 'Overridden', tone: 'info' },
 };
 

@@ -15,6 +15,14 @@ export function createLiveMapCamera({ map, mapsApi, container, getPosition, getH
     following = false;
     onFollowChange(false);
   };
+  const resize = () => {
+    if (!visible()) return false;
+    const center = map.getCenter?.();
+    mapsApi.event?.trigger(map, 'resize');
+    if (following) update();
+    else if (center) map.setCenter(center);
+    return true;
+  };
   const update = () => {
     if (!following || !visible()) return false;
     const position = getPosition();
@@ -40,16 +48,13 @@ export function createLiveMapCamera({ map, mapsApi, container, getPosition, getH
     map.addListener('idle', () => { fitting = false; }),
   ];
   const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
-    if (!visible()) return;
-    const center = map.getCenter?.();
-    mapsApi.event?.trigger(map, 'resize');
-    if (following) update();
-    else if (center) map.setCenter(center);
+    resize();
   }) : null;
   observer?.observe(container);
 
   return {
     update,
+    resize,
     resume() {
       if (destroyed) return false;
       following = true;

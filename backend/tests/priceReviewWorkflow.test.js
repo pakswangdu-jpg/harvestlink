@@ -27,6 +27,7 @@ mock.module('../src/lib/supabaseClient.js', { namedExports: { supabaseAdmin: { f
 } } } });
 mock.module('../src/lib/catalogRepo.js', { namedExports: { getCatalog: async () => ({ categories: [{ name: 'Vegetables' }], units: [{ value: 'kg' }, { value: 'box' }] }) } });
 mock.module('../src/lib/historicalPriceService.js', { namedExports: { getHistoricalPriceAnalysis: async () => null } });
+mock.module('../src/lib/effectiveMarketPrice.js', { namedExports: { getServerPriceReviewReference: async () => null } });
 const { approvePriceReview, declinePriceReview, updateProduct, setProductStatus, getProduct, applyDiscount } = await import('../src/controllers/products.controller.js');
 const { resubmitPriceReview } = await import('../src/lib/priceReview.js');
 

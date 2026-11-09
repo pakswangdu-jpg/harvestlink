@@ -127,7 +127,7 @@ export async function getOrderTrackingProfiles(req, res) {
   if (orderError || !order) throw new ApiError('Order was not found.', 404);
   assertParty(req, order);
 
-  const profileFields = 'id, role, name, farm_name, municipality, latitude, longitude';
+  const profileFields = 'id, role, name, farm_name, address, municipality, latitude, longitude';
   const [{ data: farmer, error: farmerError }, { data: buyer, error: buyerError }] = await Promise.all([
     supabaseAdmin.from('profiles').select(profileFields).eq('id', order.farmer_id).single(),
     supabaseAdmin.from('profiles').select(profileFields).eq('id', order.buyer_id).single(),

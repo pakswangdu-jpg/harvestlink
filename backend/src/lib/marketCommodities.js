@@ -51,7 +51,6 @@ export const MARKET_COMMODITIES = [
   { id: '7', label: 'Rubber', keywords: ['rubber'] },
   { id: '9', label: 'Tobacco (Native)', keywords: ['tobacco native', 'native tobacco'] },
   { id: '10', label: 'Tobacco (Virginia)', keywords: ['tobacco virginia', 'virginia tobacco'] },
-  { id: '11', label: 'Tobacco (Others)', keywords: ['tobacco'] },
 ];
 
 export function matchCommodity(productName) {

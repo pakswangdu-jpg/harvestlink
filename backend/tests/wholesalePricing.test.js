@@ -67,6 +67,7 @@ mock.module('../src/lib/supabaseClient.js', {
 mock.module('../src/lib/catalogRepo.js', {
   namedExports: { getCatalog: async () => ({ categories: [{ name: 'Vegetables' }], units: [{ value: 'kg' }] }) },
 });
+mock.module('../src/lib/effectiveMarketPrice.js', { namedExports: { getServerPriceReviewReference: async () => null } });
 mock.module('../src/lib/historicalPriceService.js', { namedExports: { getHistoricalPriceAnalysis: async () => null } });
 mock.module('../src/lib/notify.js', { namedExports: { createNotification: async () => {} } });
 mock.module('../src/lib/deliveryFee.js', {
