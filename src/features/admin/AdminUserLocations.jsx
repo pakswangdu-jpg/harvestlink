@@ -9,6 +9,15 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { getAdminUserLocations, sendAdminLocationReminder } from '../../services/authService';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
+import { buildFarmerMapMarkerIcon } from '../../components/map/farmerMapMarkerIcon';
+import { buildBuyerMapMarkerIcon } from '../../components/map/buyerMapMarkerIcon';
+import { buildStakeholderMapMarkerIcon } from '../../components/map/stakeholderMapMarkerIcon';
+import {
+  applyMarkerStackLayout,
+  getOverlappingMarkerEntries,
+  getRoleMarkerKey,
+  uniqueProfilesById,
+} from '../../components/map/mapMarkerUtils';
 import { matchesAdminUserLocationSearch } from '../../utils/adminUserLocationSearch';
 import { adminNavItems } from './adminNav';
 import './AdminUserLocations.css';
@@ -23,7 +32,6 @@ const ROLE_LABELS = {
   buyer: 'Buyer',
   stakeholder: 'Stakeholder',
 };
-const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 const ADDRESS_FIELDS = ['address', 'barangay', 'municipality'];
 
@@ -164,20 +172,44 @@ function clusterInfoContent(users, onViewProfile) {
   return root;
 }
 
+function appendOverlapChoices(root, peers, onSelectMarker) {
+  if (!peers.length) return;
+  const choices = document.createElement('div');
+  choices.className = 'map-popup-overlap';
+  choices.setAttribute('role', 'group');
+  choices.setAttribute('aria-label', 'Other accounts at this location');
+  const description = document.createElement('small');
+  description.textContent = `${peers.length} other ${peers.length === 1 ? 'account is' : 'accounts are'} nearby`;
+  choices.append(description);
+
+  peers.forEach((peer) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('aria-label', `Open ${ROLE_LABELS[peer.role]}: ${peer.title}`);
+    const role = document.createElement('span');
+    role.textContent = ROLE_LABELS[peer.role];
+    const name = document.createElement('strong');
+    name.textContent = peer.title || 'Registered user';
+    button.append(role, name);
+    button.addEventListener('click', () => onSelectMarker(peer.marker));
+    choices.append(button);
+  });
+  root.append(choices);
+}
+
 function createRoleMarker(mapsApi, user) {
-  const color = ROLE_COLORS[user.role];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 24 32"><path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="1.25"/><circle cx="12" cy="12" r="4.25" fill="#ffffff"/></svg>`;
+  const icon = user.role === 'farmer'
+    ? buildFarmerMapMarkerIcon(mapsApi)
+    : user.role === 'stakeholder'
+      ? buildStakeholderMapMarkerIcon(mapsApi)
+      : buildBuyerMapMarkerIcon(mapsApi);
   const marker = new mapsApi.Marker({
     position: validCoordinates(user),
     title: `${user.name || 'Registered user'} — ${ROLE_LABELS[user.role]}`,
-    icon: {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-      scaledSize: new mapsApi.Size(32, 42),
-      anchor: new mapsApi.Point(16, 42),
-    },
+    icon,
     zIndex: 2,
   });
-  return marker;
+  return { marker, icon };
 }
 
 function SummaryItem({ label, value, tone = 'default' }) {
@@ -198,6 +230,7 @@ export default function AdminUserLocations() {
   const mapsApiRef = useRef(null);
   const clustererRef = useRef(null);
   const markerUsersRef = useRef(new WeakMap());
+  const markerEntriesRef = useRef(new Map());
   const infoWindowRef = useRef(null);
   const [users, setUsers] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -331,7 +364,7 @@ export default function AdminUserLocations() {
   }, [mapReady]);
 
   const locatedUsers = useMemo(
-    () => users.filter((user) => validCoordinates(user)),
+    () => uniqueProfilesById(users).filter((user) => validCoordinates(user)),
     [users],
   );
   const filteredUsers = useMemo(() => {
@@ -339,7 +372,7 @@ export default function AdminUserLocations() {
     return locatedUsers.filter((user) => matchesFilters(user, filters));
   }, [locatedUsers, roleFilter, search, statusFilter]);
   const missingUsers = useMemo(
-    () => users.filter((user) => !validCoordinates(user)),
+    () => uniqueProfilesById(users).filter((user) => !validCoordinates(user)),
     [users],
   );
   const filteredMissingUsers = useMemo(() => {
@@ -357,21 +390,42 @@ export default function AdminUserLocations() {
     const clusterer = clustererRef.current;
     const mapsApi = mapsApiRef.current;
     const map = mapRef.current;
+    const markerEntries = markerEntriesRef.current;
     if (!mapReady || !clusterer || !mapsApi || !map) return;
 
     infoWindowRef.current?.close();
+    markerEntries.clear();
     const markers = filteredUsers.map((user) => {
-      const marker = createRoleMarker(mapsApi, user);
+      const { marker, icon } = createRoleMarker(mapsApi, user);
       markerUsersRef.current.set(marker, user);
+      const key = getRoleMarkerKey(user.role, user.id);
+      const position = validCoordinates(user);
+      const entry = {
+        key,
+        role: user.role,
+        userId: String(user.id),
+        title: user.name || 'Registered user',
+        position,
+        marker,
+        icon,
+      };
+      markerEntries.set(key, entry);
       const infoWindow = new mapsApi.InfoWindow({
-        content: markerInfoContent(user, (id) => {
-          infoWindow.close();
-          navigate(`/admin-users?user=${encodeURIComponent(id)}`);
-        }),
         maxWidth: 340,
       });
       marker.addListener('click', () => {
         infoWindowRef.current?.close();
+        const content = markerInfoContent(user, (id) => {
+          infoWindow.close();
+          navigate(`/admin-users?user=${encodeURIComponent(id)}`);
+        });
+        const peers = getOverlappingMarkerEntries(
+          [...markerEntries.values()],
+          key,
+          map.getZoom() || 0,
+        );
+        appendOverlapChoices(content, peers, (peerMarker) => mapsApi.event.trigger(peerMarker, 'click'));
+        infoWindow.setContent(content);
         infoWindow.open({ map, anchor: marker });
         infoWindowRef.current = infoWindow;
       });
@@ -379,9 +433,18 @@ export default function AdminUserLocations() {
     });
     clusterer.clearMarkers();
     clusterer.addMarkers(markers);
+    const syncMarkerStacks = () => applyMarkerStackLayout(
+      [...markerEntries.values()],
+      map.getZoom() || 0,
+      mapsApi,
+    );
+    syncMarkerStacks();
+    const zoomListener = map.addListener('zoom_changed', syncMarkerStacks);
     return () => {
+      zoomListener.remove();
       markers.forEach((marker) => mapsApi.event.clearInstanceListeners(marker));
       infoWindowRef.current?.close();
+      markerEntries.clear();
     };
   }, [filteredUsers, mapReady, navigate]);
 

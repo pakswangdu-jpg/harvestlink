@@ -33,14 +33,19 @@ function writeCache(key, value) {
 let geocoderPromise = null;
 function getGeocoder() {
   if (!geocoderPromise) {
-    geocoderPromise = loadGoogleGeocoding().then(({ Geocoder }) => new Geocoder());
+    geocoderPromise = loadGoogleGeocoding()
+      .then(({ Geocoder }) => new Geocoder())
+      .catch((error) => {
+        geocoderPromise = null;
+        throw error;
+      });
   }
   return geocoderPromise;
 }
 
 async function queryAddress(street, municipality) {
-  const geocoder = await getGeocoder();
   try {
+    const geocoder = await getGeocoder();
     const { results } = await geocoder.geocode({
       address: `${street}, ${municipality}, Cebu, Philippines`,
       region: 'ph',
@@ -54,8 +59,8 @@ async function queryAddress(street, municipality) {
 }
 
 async function queryMunicipality(municipality) {
-  const geocoder = await getGeocoder();
   try {
+    const geocoder = await getGeocoder();
     const { results } = await geocoder.geocode({
       address: `${municipality}, Cebu, Philippines`,
       region: 'ph',

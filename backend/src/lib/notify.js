@@ -10,5 +10,7 @@ export async function createNotification({ userId, type, title, message, link })
     .insert({ user_id: userId, type, title, message, link });
   if (error) {
     console.error('Failed to create notification:', error.message);
+    return false;
   }
+  return true;
 }

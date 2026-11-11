@@ -1,5 +1,5 @@
 export const VEHICLE_HEADING_MIN_MOVEMENT_KM = 0.008;
-export const VEHICLE_MARKER_ANIMATION_DURATION_MS = 700;
+export const VEHICLE_MARKER_ANIMATION_DURATION_MS = 350;
 export const VEHICLE_MARKER_WIDTH_PX = 56;
 export const VEHICLE_MARKER_HEIGHT_PX = 56;
 
@@ -83,7 +83,7 @@ export function resolveVehicleHeading({
     || haversineKm(previousPosition, currentPosition) >= VEHICLE_HEADING_MIN_MOVEMENT_KM;
   const shouldUpdateReference = movedEnough;
 
-  const moving = Number.isFinite(currentPosition?.speed) && currentPosition.speed >= 1;
+  const moving = Number.isFinite(currentPosition?.speed) && currentPosition.speed >= 0.3;
   if ((movedEnough || moving) && normalizeVehicleHeading(gpsHeading) != null) {
     return { heading: normalizeVehicleHeading(gpsHeading), shouldUpdateReference };
   }

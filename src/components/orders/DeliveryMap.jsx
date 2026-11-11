@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize, Minimize } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { getMunicipalityCoords } from '../../utils/constants';
@@ -10,7 +10,18 @@ import { MAP_COLORS } from '../../lib/mapMarkerColors';
 import { buildMapPopup, buildPresenceMarkup } from '../map/mapPopupMarkup';
 
 import { buildViewerIcon, buildViewerPopup } from '../map/userLocationMarker';
-import { DONATION_MARKER_COLOR, donationAnimation, isDonationAlert } from '../map/donationMarker';
+import { donationAnimation, isDonationAlert } from '../map/donationMarker';
+import { buildFarmerMapMarkerIcon } from '../map/farmerMapMarkerIcon';
+import { buildBuyerMapMarkerIcon } from '../map/buyerMapMarkerIcon';
+import { buildStakeholderMapMarkerIcon } from '../map/stakeholderMapMarkerIcon';
+import {
+  applyMarkerStackLayout,
+  createProfileMarkerEntry,
+  getRoleMarkerKey,
+  removeProfileMarkerEntry,
+  showProfileMarkerInfo,
+  uniqueProfilesById,
+} from '../map/mapMarkerUtils';
 
 const CEBU_CENTER = { lat: 10.3157, lng: 123.8854 };
 
@@ -29,6 +40,12 @@ const PRECISION_LABELS = {
   fallback: 'Approximate — municipality area',
 };
 
+function refreshOpenProfileInfoWindow(map, mapsApi, entriesRef, openInfoWindowRef) {
+  const entry = [...entriesRef.current.values()]
+    .find((markerEntry) => markerEntry.infoWindow === openInfoWindowRef.current);
+  if (entry) showProfileMarkerInfo(map, mapsApi, entry, entriesRef, openInfoWindowRef);
+}
+
 
 const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
 
@@ -37,25 +54,25 @@ function buildPinIcon(mapsApi, color, { alert = false } = {}) {
     ? `<circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.45"/>`
     : '';
   const svg =
-    `<svg width="28" height="38" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
+    `<svg width="36" height="48" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg">` +
     `${alertRing}<path d="${PIN_PATH}" fill="${color}"/><circle cx="12" cy="12" r="5.5" fill="white"/>` +
     `</svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(28, 38),
-    anchor: new mapsApi.Point(14, 38),
+    scaledSize: new mapsApi.Size(36, 48),
+    anchor: new mapsApi.Point(18, 48),
   };
 }
 
 function buildTruckIcon(mapsApi) {
   const svg =
-    `<svg width="26" height="26" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">` +
-    `<text x="13" y="21" font-size="22" text-anchor="middle">🚚</text>` +
+    `<svg width="30" height="30" viewBox="0 0 26 26" xmlns="http://www.w3.org/2000/svg">` +
+    `<text x="13" y="21" font-size="24" text-anchor="middle">🚚</text>` +
     `</svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(26, 26),
-    anchor: new mapsApi.Point(13, 13),
+    scaledSize: new mapsApi.Size(30, 30),
+    anchor: new mapsApi.Point(15, 15),
   };
 }
 
@@ -120,6 +137,8 @@ export default function DeliveryMap({
   const farmerMarkersRef = useRef([]);
   const buyerMarkersRef = useRef([]);
   const stakeholderMarkersRef = useRef([]);
+  const profileMarkerEntriesRef = useRef(new Map());
+  const openProfileInfoWindowRef = useRef(null);
   const viewerMarkerRef = useRef(null);
   const markerSignaturesRef = useRef({ farmers: null, buyers: null, stakeholders: null });
   const fittedSignatureRef = useRef(null);
@@ -138,6 +157,9 @@ export default function DeliveryMap({
   const { effectiveTheme } = useTheme();
   const [roadGeometries, setRoadGeometries] = useState({});
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
+  const uniqueFarmers = useMemo(() => uniqueProfilesById(farmers), [farmers]);
+  const uniqueBuyers = useMemo(() => uniqueProfilesById(buyers), [buyers]);
+  const uniqueStakeholders = useMemo(() => uniqueProfilesById(stakeholders), [stakeholders]);
   const farmerCoordsById = useMapCoordinates(farmers, { municipalityOnly: nearbyView });
   const buyerCoordsById = useMapCoordinates(buyers, { municipalityOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(stakeholders, { municipalityOnly: nearbyView });
@@ -148,11 +170,16 @@ export default function DeliveryMap({
 
 
   useEffect(() => {
+    const profileMarkerEntries = profileMarkerEntriesRef.current;
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(truckMarkersRef.current).forEach((entry) => {
         if (entry.animationFrameId != null) cancelAnimationFrame(entry.animationFrameId);
       });
+      [...profileMarkerEntries.values()].forEach((entry) => {
+        removeProfileMarkerEntry(entry, { current: profileMarkerEntries });
+      });
+      viewerMarkerRef.current = null;
     };
   }, []);
 
@@ -190,7 +217,7 @@ export default function DeliveryMap({
       mapRef.current = map;
       mapsApiRef.current = mapsApi;
       setMapReady(true);
-    });
+    }).catch(() => {});
 
     return () => {
       cancelled = true;
@@ -240,36 +267,29 @@ export default function DeliveryMap({
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
 
-    const signature = farmers.map((farmer) => {
+    const signature = JSON.stringify(uniqueFarmers.map((farmer) => {
       const coords = farmerCoordsById[farmer.id];
-      return `${farmer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}:${farmer.hasAvailableDonations === true}`;
-    }).join('|') + `:${alertStyle}:${showDonationAlerts}`;
+      return [getRoleMarkerKey('farmer', farmer.id), farmer, coords];
+    })) + `:${alertStyle}:${showDonationAlerts}`;
     if (signature === markerSignaturesRef.current.farmers) return;
     markerSignaturesRef.current.farmers = signature;
 
-    farmerMarkersRef.current.forEach((marker) => marker.setMap(null));
-    farmerMarkersRef.current = [];
-    farmers.forEach((farmer) => {
+    const remainingEntries = new Map(farmerMarkersRef.current.map((entry) => [entry.userId, entry]));
+    const nextEntries = [];
+    uniqueFarmers.forEach((farmer) => {
       const coords = farmerCoordsById[farmer.id];
       if (!coords) return;
       const displayName = farmer.farmName || farmer.name;
       const donationAlert = showDonationAlerts && isDonationAlert(farmer, coords);
-      const marker = new mapsApi.Marker({
-        position: coords,
-        map,
-        icon: buildPinIcon(mapsApi, donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer, { alert: alertStyle }),
-        title: donationAlert ? `${displayName}: surplus donation available` : displayName,
-        animation: donationAnimation(mapsApi, donationAlert),
-        zIndex: donationAlert ? 750 : undefined,
-      });
-      const infoWindow = new mapsApi.InfoWindow({
-        content: buildMapPopup({
+      const title = donationAlert ? `${displayName}: surplus donation available` : displayName;
+      const popupHtml = buildMapPopup({
           name: displayName,
           person: farmer.name,
           municipality: farmer.municipality,
           address: farmer.address,
           barangay: farmer.barangay,
           coords,
+          contactNumber: farmer.contactNumber,
           presence: buildPresenceMarkup(farmer),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
           products: donationAlert ? '<strong>Surplus donation available</strong>' : '',
@@ -277,12 +297,48 @@ export default function DeliveryMap({
             { href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(displayName)}`, label: 'View products' },
             { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' },
           ],
-        }),
-      });
-      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
-      farmerMarkersRef.current.push(marker);
+        });
+      const existing = remainingEntries.get(String(farmer.id));
+      if (existing) {
+        existing.marker.setPosition(coords);
+        existing.marker.setMap(map);
+        existing.marker.setIcon(buildFarmerMapMarkerIcon(mapsApi));
+        existing.marker.setTitle(title);
+        existing.marker.setAnimation(donationAnimation(mapsApi, donationAlert));
+        existing.marker.setZIndex(donationAlert ? 750 : null);
+        existing.icon = buildFarmerMapMarkerIcon(mapsApi);
+        existing.infoWindow.setContent(popupHtml);
+        existing.position = coords;
+        existing.title = title;
+        existing.popupHtml = popupHtml;
+        nextEntries.push(existing);
+        remainingEntries.delete(String(farmer.id));
+      } else {
+        const marker = new mapsApi.Marker({
+          position: coords,
+          map,
+          icon: buildFarmerMapMarkerIcon(mapsApi),
+          title,
+          animation: donationAnimation(mapsApi, donationAlert),
+          zIndex: donationAlert ? 750 : undefined,
+        });
+        const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
+        nextEntries.push(createProfileMarkerEntry({
+          role: 'farmer',
+          userId: farmer.id,
+          title,
+          marker,
+          infoWindow,
+          popupHtml,
+          position: coords,
+          icon: buildFarmerMapMarkerIcon(mapsApi),
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+      }
     });
-  }, [mapReady, farmers, farmerCoordsById, alertStyle, showDonationAlerts]);
+    remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
+    farmerMarkersRef.current = nextEntries;
+    refreshOpenProfileInfoWindow(map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef);
+  }, [mapReady, uniqueFarmers, farmerCoordsById, alertStyle, showDonationAlerts]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -295,8 +351,8 @@ export default function DeliveryMap({
 
     if (!hasViewerPoint) {
       if (viewerMarkerRef.current) {
-        viewerMarkerRef.current.marker.setMap(null);
-        viewerMarkerRef.current.infoWindow.close();
+        removeProfileMarkerEntry(viewerMarkerRef.current, profileMarkerEntriesRef);
+        viewerMarkerRef.current = null;
       }
       return;
     }
@@ -313,14 +369,25 @@ export default function DeliveryMap({
       const infoWindow = new mapsApi.InfoWindow({
         content: buildViewerPopup(viewerAddress),
       });
-      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
-      viewerMarkerRef.current = { marker, infoWindow };
+      viewerMarkerRef.current = createProfileMarkerEntry({
+        role: 'viewer',
+        userId: 'current',
+        title: 'Your location',
+        marker,
+        infoWindow,
+        popupHtml: buildViewerPopup(viewerAddress),
+        position,
+        icon: buildViewerIcon(mapsApi),
+      }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef);
       return;
     }
 
-    viewerMarkerRef.current.infoWindow.setContent(buildViewerPopup(viewerAddress));
+    const popupHtml = buildViewerPopup(viewerAddress);
+    viewerMarkerRef.current.infoWindow.setContent(popupHtml);
     viewerMarkerRef.current.marker.setMap(map);
     viewerMarkerRef.current.marker.setPosition(position);
+    viewerMarkerRef.current.position = position;
+    viewerMarkerRef.current.popupHtml = popupHtml;
   }, [mapReady, viewerCoords?.lat, viewerCoords?.lng, viewerAddress]);
 
   useEffect(() => {
@@ -328,29 +395,22 @@ export default function DeliveryMap({
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
 
-    const signature = buyers.map((buyer) => {
+    const signature = JSON.stringify(uniqueBuyers.map((buyer) => {
       const coords = buyerCoordsById[buyer.id];
-      return `${buyer.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
-    }).join('|');
+      return [getRoleMarkerKey('buyer', buyer.id), buyer, coords];
+    }));
     if (signature === markerSignaturesRef.current.buyers) return;
     markerSignaturesRef.current.buyers = signature;
 
-    buyerMarkersRef.current.forEach((marker) => marker.setMap(null));
-    buyerMarkersRef.current = [];
-    buyers.forEach((buyer) => {
+    const remainingEntries = new Map(buyerMarkersRef.current.map((entry) => [entry.userId, entry]));
+    const nextEntries = [];
+    uniqueBuyers.forEach((buyer) => {
       const coords = buyerCoordsById[buyer.id];
       if (!coords) return;
 
 
 
-      const marker = new mapsApi.Marker({
-        position: coords,
-        map,
-        icon: buildPinIcon(mapsApi, MAP_COLORS.buyer, { alert: alertStyle }),
-        title: buyer.name,
-      });
-      const infoWindow = new mapsApi.InfoWindow({
-        content: buildMapPopup({
+      const popupHtml = buildMapPopup({
           name: buyer.name,
           municipality: buyer.municipality,
           address: buyer.address,
@@ -360,39 +420,64 @@ export default function DeliveryMap({
           presence: buildPresenceMarkup(buyer),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
           links: [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer' }],
-        }),
-      });
-      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
-      buyerMarkersRef.current.push(marker);
+        });
+      const existing = remainingEntries.get(String(buyer.id));
+      if (existing) {
+        existing.marker.setPosition(coords);
+        existing.marker.setMap(map);
+        existing.marker.setIcon(buildBuyerMapMarkerIcon(mapsApi));
+        existing.marker.setTitle(buyer.name || '');
+        existing.icon = buildBuyerMapMarkerIcon(mapsApi);
+        existing.infoWindow.setContent(popupHtml);
+        existing.position = coords;
+        existing.title = buyer.name;
+        existing.popupHtml = popupHtml;
+        nextEntries.push(existing);
+        remainingEntries.delete(String(buyer.id));
+      } else {
+        const marker = new mapsApi.Marker({
+          position: coords,
+          map,
+          icon: buildBuyerMapMarkerIcon(mapsApi),
+          title: buyer.name,
+        });
+        const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
+        nextEntries.push(createProfileMarkerEntry({
+          role: 'buyer',
+          userId: buyer.id,
+          title: buyer.name,
+          marker,
+          infoWindow,
+          popupHtml,
+          position: coords,
+          icon: buildBuyerMapMarkerIcon(mapsApi),
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+      }
     });
-  }, [mapReady, buyers, buyerCoordsById, alertStyle]);
+    remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
+    buyerMarkersRef.current = nextEntries;
+    refreshOpenProfileInfoWindow(map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef);
+  }, [mapReady, uniqueBuyers, buyerCoordsById, alertStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
     if (!mapReady || !map || !mapsApi) return;
 
-    const signature = stakeholders.map((stakeholder) => {
+    const signature = JSON.stringify(uniqueStakeholders.map((stakeholder) => {
       const coords = stakeholderCoordsById[stakeholder.id];
-      return `${stakeholder.id}:${coords?.lat || ''},${coords?.lng || ''}:${coords?.precision || ''}`;
-    }).join('|');
+      return [getRoleMarkerKey('stakeholder', stakeholder.id), stakeholder, coords];
+    }));
     if (signature === markerSignaturesRef.current.stakeholders) return;
     markerSignaturesRef.current.stakeholders = signature;
 
-    stakeholderMarkersRef.current.forEach((marker) => marker.setMap(null));
-    stakeholderMarkersRef.current = [];
-    stakeholders.forEach((stakeholder) => {
+    const remainingEntries = new Map(stakeholderMarkersRef.current.map((entry) => [entry.userId, entry]));
+    const nextEntries = [];
+    uniqueStakeholders.forEach((stakeholder) => {
       const coords = stakeholderCoordsById[stakeholder.id];
       if (!coords) return;
       const displayName = stakeholder.organizationName || stakeholder.name;
-      const marker = new mapsApi.Marker({
-        position: coords,
-        map,
-        icon: buildPinIcon(mapsApi, MAP_COLORS.stakeholder, { alert: alertStyle }),
-        title: displayName,
-      });
-      const infoWindow = new mapsApi.InfoWindow({
-        content: buildMapPopup({
+      const popupHtml = buildMapPopup({
           name: displayName,
           person: stakeholder.contactPerson,
           municipality: stakeholder.municipality,
@@ -403,12 +488,58 @@ export default function DeliveryMap({
           presence: buildPresenceMarkup(stakeholder),
           precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
           links: [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder' }],
-        }),
-      });
-      marker.addListener('click', () => infoWindow.open({ map, anchor: marker }));
-      stakeholderMarkersRef.current.push(marker);
+        });
+      const existing = remainingEntries.get(String(stakeholder.id));
+      if (existing) {
+        existing.marker.setPosition(coords);
+        existing.marker.setMap(map);
+        existing.marker.setIcon(buildStakeholderMapMarkerIcon(mapsApi));
+        existing.marker.setTitle(displayName);
+        existing.icon = buildStakeholderMapMarkerIcon(mapsApi);
+        existing.infoWindow.setContent(popupHtml);
+        existing.position = coords;
+        existing.title = displayName;
+        existing.popupHtml = popupHtml;
+        nextEntries.push(existing);
+        remainingEntries.delete(String(stakeholder.id));
+      } else {
+        const marker = new mapsApi.Marker({
+          position: coords,
+          map,
+          icon: buildStakeholderMapMarkerIcon(mapsApi),
+          title: displayName,
+        });
+        const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
+        nextEntries.push(createProfileMarkerEntry({
+          role: 'stakeholder',
+          userId: stakeholder.id,
+          title: displayName,
+          marker,
+          infoWindow,
+          popupHtml,
+          position: coords,
+          icon: buildStakeholderMapMarkerIcon(mapsApi),
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+      }
     });
-  }, [mapReady, stakeholders, stakeholderCoordsById, alertStyle]);
+    remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
+    stakeholderMarkersRef.current = nextEntries;
+    refreshOpenProfileInfoWindow(map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef);
+  }, [mapReady, uniqueStakeholders, stakeholderCoordsById, alertStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const mapsApi = mapsApiRef.current;
+    if (!mapReady || !map || !mapsApi) return undefined;
+    const syncMarkerStacks = () => applyMarkerStackLayout(
+      [...profileMarkerEntriesRef.current.values()],
+      map.getZoom() || 0,
+      mapsApi,
+    );
+    syncMarkerStacks();
+    const zoomListener = map.addListener('zoom_changed', syncMarkerStacks);
+    return () => zoomListener?.remove?.();
+  }, [mapReady, uniqueFarmers, uniqueBuyers, uniqueStakeholders, farmerCoordsById, buyerCoordsById, stakeholderCoordsById]);
 
 
 
@@ -582,7 +713,7 @@ export default function DeliveryMap({
     const viewerLng = Number(viewerCoords?.lng);
     const viewerPoint = validateCoordinates(viewerCoords?.lat, viewerCoords?.lng);
     if (nearbyView && viewerPoint) {
-      allPoints = nearbyMapPoints(viewerPoint, farmers.map((farmer) => farmerCoordsById[farmer.id]).filter(Boolean));
+      allPoints = nearbyMapPoints(viewerPoint, uniqueFarmers.map((farmer) => farmerCoordsById[farmer.id]).filter(Boolean));
     } else if (viewerPoint) {
       allPoints.push({ lat: viewerLat, lng: viewerLng });
     } else if (viewerMunicipality && !nearbyView) {
@@ -595,9 +726,9 @@ export default function DeliveryMap({
 
     const signature = [
       routes.map((route) => route.id).sort().join(','),
-      farmers.map((farmer) => farmer.id).sort().join(','),
-      buyers.map((buyer) => buyer.id).sort().join(','),
-      stakeholders.map((stakeholder) => stakeholder.id).sort().join(','),
+      uniqueFarmers.map((farmer) => getRoleMarkerKey('farmer', farmer.id)).sort().join(','),
+      uniqueBuyers.map((buyer) => getRoleMarkerKey('buyer', buyer.id)).sort().join(','),
+      uniqueStakeholders.map((stakeholder) => getRoleMarkerKey('stakeholder', stakeholder.id)).sort().join(','),
       Number.isFinite(viewerLat) && Number.isFinite(viewerLng) ? `${viewerLat.toFixed(5)},${viewerLng.toFixed(5)}` : '',
       viewerMunicipality || '',
       nearbyView ? allPoints.map((point) => `${point.lat},${point.lng}`).join(';') : '',
@@ -624,9 +755,9 @@ export default function DeliveryMap({
     routes,
     roadGeometries,
     liveRouteGeometries,
-    farmers,
-    buyers,
-    stakeholders,
+    uniqueFarmers,
+    uniqueBuyers,
+    uniqueStakeholders,
     farmerCoordsById,
     buyerCoordsById,
     stakeholderCoordsById,

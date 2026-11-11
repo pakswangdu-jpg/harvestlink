@@ -16,11 +16,15 @@ async function screen(file, mutation, reject = false) {
   const scope = {
     React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
     useState(initial) { const i = values.length; values.push(initial); return [initial, (value) => { values[i] = value; }]; },
+    useEffect: () => {},
+    useLocation: () => ({ search: '' }),
     useAuth: () => ({ currentUser: { id: 'stakeholder-1', verificationStatus: 'verified' } }),
     useDonationList: () => ({ donations: [donation], loading: false, loadError: '', reload: async () => { events.push('reload'); } }),
+    useStakeholderDonationPickupSharingContext: () => null,
+    resolveDonationPickupStatus: (record) => record?.pickupStatus || 'scheduled',
     [mutation]: async (...args) => { events.push(args); return pending; },
-    AppShell: 'shell', DonationCard: 'donation', Button: 'button', EmptyState: 'empty', StarRating: 'stars',
-    Gift: 'gift', Calendar: 'calendar', CheckCircle2: 'check', History: 'history', Hourglass: 'hourglass', stakeholderNavItems: [],
+    AppShell: 'shell', DonationCard: 'donation', Button: 'button', EmptyState: 'empty', StarRating: 'stars', Link: 'link',
+    Gift: 'gift', Calendar: 'calendar', CheckCircle2: 'check', History: 'history', Hourglass: 'hourglass', MessageCircle: 'msg', Navigation: 'nav', stakeholderNavItems: [],
   };
   const component = new Function('scope', `with(scope){${code};return ${file};}`)(scope);
   const tree = component();

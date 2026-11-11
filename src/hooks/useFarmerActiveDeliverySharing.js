@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getSocket } from '../lib/socketClient';
 import { getOrdersByFarmer, updateOrderLocation } from '../services/orderService';
@@ -13,7 +13,7 @@ import {
 
 const POLL_INTERVAL_MS = 6000;
 const LOCATION_FALLBACK_INTERVAL_MS = 4000;
-const MIN_RELIABLE_HEADING_SPEED_MPS = 0.8;
+const MIN_RELIABLE_HEADING_SPEED_MPS = 0.3;
 
 function isActiveDeliveryOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery';
@@ -95,11 +95,12 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
           await sendLocationFallback(orderId, position);
           return;
         }
+        const rawAgeMs = Math.max(0, Date.now() - position.timestamp);
         const shared = await new Promise((resolve) => {
           socket.timeout(10000).emit('farmer-location', {
             orderId, lat: position.lat, lng: position.lng, accuracy: position.accuracy,
             heading: position.heading, speed: position.speed, timestamp: position.timestamp,
-            sampleAgeMs: Math.max(0, Date.now() - position.timestamp),
+            sampleAgeMs: rawAgeMs < 5000 ? 0 : rawAgeMs,
           }, (err, response) => {
             if (!cancelled && !err && response?.ok) setError('');
             resolve(!err && Boolean(response?.ok));
@@ -166,7 +167,7 @@ export function useFarmerActiveDeliverySharing(farmerId, locationPermission) {
           setError(geoError.code === 3 ? 'Location signal is weak — retrying…' : 'Could not access your location. Check that GPS is turned on.');
         }
         refreshStatus();
-      }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
     };
     resumeLocationRef.current = () => {
       permissionDenied = false;

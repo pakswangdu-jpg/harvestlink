@@ -2,7 +2,7 @@ import { haversineKm, validateCoordinates } from '../utils/geo';
 import { distanceToPolylineKm } from './routingService';
 import { isFreshLivePosition, normalizeLivePosition } from '../utils/liveTrackingPosition';
 
-const MIN_REFRESH_MS = 30000;
+const MIN_REFRESH_MS = 10000;
 const TRAFFIC_REFRESH_MS = 120000;
 const RETRY_MS = 30000;
 
@@ -135,7 +135,7 @@ export function createTrafficNavigator({ fetchRoutes, onChange, now = Date.now }
     const elapsed = now() - lastRequestAt;
     const offRoute = inputs.active && state.selected
       && distanceToPolylineKm(position, state.selected.points) > Math.max(0.08, (inputs.position?.accuracy || 0) / 1000);
-    const moved = lastOrigin && haversineKm(lastOrigin, position) >= 0.15;
+    const moved = lastOrigin && haversineKm(lastOrigin, position) >= 0.03;
     if ((live && !usingLiveOrigin) || (!state.selected && elapsed >= RETRY_MS) || (lastFailure && elapsed >= RETRY_MS)
       || (inputs.active && elapsed >= MIN_REFRESH_MS && (offRoute || moved || elapsed >= TRAFFIC_REFRESH_MS || state.stale))) {
       void refresh();

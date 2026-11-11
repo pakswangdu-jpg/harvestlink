@@ -26,3 +26,23 @@ export const rejectDonationClaim = (id) => apiClient.post(`/donations/claims/${e
 export const cancelDonationClaim = (id) => apiClient.post(`/donations/claims/${encodeURIComponent(id)}/cancel`, {});
 export const receiveDonationClaim = (id) => apiClient.post(`/donations/claims/${encodeURIComponent(id)}/receive`, {});
 export const markDonationClaimRated = (id) => apiClient.post(`/donations/claims/${encodeURIComponent(id)}/rate`, {});
+
+export const getDonationTrackingProfiles = (id, claimId = null) =>
+  claimId
+    ? apiClient.get(`/donations/claims/${encodeURIComponent(claimId)}/tracking-profiles`)
+    : apiClient.get(`/donations/${encodeURIComponent(id)}/tracking-profiles`);
+
+export const updateDonationPickupLocation = (id, location, claimId = null) =>
+  claimId
+    ? apiClient.patch(`/donations/claims/${encodeURIComponent(claimId)}/location`, location)
+    : apiClient.patch(`/donations/${encodeURIComponent(id)}/location`, location);
+
+export const notifyFarmerOfDonationArrival = (id, claimId = null) =>
+  claimId
+    ? apiClient.post(`/donations/claims/${encodeURIComponent(claimId)}/notify-arrival`, {})
+    : apiClient.post(`/donations/${encodeURIComponent(id)}/notify-arrival`, {});
+
+export const confirmDonationHandover = (id, claimId = null) =>
+  claimId
+    ? apiClient.post(`/donations/claims/${encodeURIComponent(claimId)}/confirm-handover`, {})
+    : apiClient.post(`/donations/${encodeURIComponent(id)}/confirm-handover`, {});

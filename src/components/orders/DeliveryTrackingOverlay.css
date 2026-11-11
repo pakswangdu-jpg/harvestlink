@@ -2,6 +2,8 @@
   border-radius: 8px;
   color: var(--text);
 }
+.tracking-overlay.donation-pickup-tracking .tracking-overlay-panel { width: min(920px, calc(100vw - 32px)); }
+.tracking-overlay.donation-pickup-tracking .tracking-overlay-body { gap: 12px; }
 
 .tracking-overlay .tracking-overlay-header { padding: 12px 16px; }
 .tracking-overlay .tracking-overlay-header h2 { margin: 0; font-size: 20px; line-height: 27px; font-weight: 600; }

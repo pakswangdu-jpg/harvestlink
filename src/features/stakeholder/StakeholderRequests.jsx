@@ -6,15 +6,15 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import { useAuth } from '../auth/AuthContext';
-import { confirmReceipt, markDonationClaimRated, markDonationRated, receiveDonationClaim } from '../../services/donationService';
+import {
+  confirmReceipt,
+  markDonationClaimRated,
+  markDonationRated,
+  receiveDonationClaim,
+} from '../../services/donationService';
 import { createRating } from '../../services/ratingService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
-
-
-
-
-
 
 function DonationRatingPrompt({ donation, onRated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +60,23 @@ export default function StakeholderRequests() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
 
+  const openLiveTrackingPopup = (donation) => {
+    const targetId = donation?.myClaim?.id || donation?.id;
+    if (typeof window !== 'undefined' && targetId) {
+      window.dispatchEvent(
+        new CustomEvent('harvestlink:open-donation-tracking', {
+          detail: { targetId },
+        }),
+      );
+    }
+  };
+
   const handleConfirm = async (donation) => {
+    const activePickupStatus = donation?.myClaim?.pickupStatus || donation?.pickupStatus;
+    if (activePickupStatus && activePickupStatus !== 'none') {
+      openLiveTrackingPopup(donation);
+      return;
+    }
     if (confirming) return;
     setConfirming(true);
     try {
@@ -88,7 +104,7 @@ export default function StakeholderRequests() {
       user={currentUser}
       navItems={stakeholderNavItems}
       title="My donation requests"
-      subtitle="Track pickup schedules and confirm receipt once your organization collects the produce."
+      subtitle="Track live pickup routes to the farm and view farmer handover confirmation."
     >
       {notice ? <div className="form-alert success">{notice}</div> : null}
       {error ? <div className="form-alert error">{error}</div> : null}
@@ -121,17 +137,28 @@ export default function StakeholderRequests() {
           </div>
           {scheduled.length ? (
             <div className="product-grid compact">
-              {scheduled.map((donation) => (
-                <DonationCard
-                  key={donation.id}
-                  donation={donation}
-                  actions={(
-                    <Button size="sm" disabled={confirming} onClick={() => handleConfirm(donation)}>
-                      <CheckCircle2 size={15} /> Confirm receipt
-                    </Button>
-                  )}
-                />
-              ))}
+              {scheduled.map((donation) => {
+                const hasTrackedPickup = Boolean(donation?.myClaim?.pickupStatus || donation?.pickupStatus);
+                return (
+                  <DonationCard
+                    key={donation.id}
+                    donation={donation}
+                    actions={(
+                      <Button
+                        size="sm"
+                        className="stakeholder-pickup-action"
+                        disabled={confirming}
+                        onClick={() => handleConfirm(donation)}
+                      >
+                        <CheckCircle2 size={15} />{' '}
+                        {hasTrackedPickup
+                          ? 'Live Pickup Tracking'
+                          : 'Confirm receipt'}
+                      </Button>
+                    )}
+                  />
+                );
+              })}
             </div>
           ) : (
             <EmptyState className="empty-state-transparent-icon" icon={Calendar} title="Nothing scheduled" message="Accepted requests with a pickup date will appear here." />
@@ -158,12 +185,7 @@ export default function StakeholderRequests() {
             ))}
           </div>
         ) : (
-          <EmptyState
-            className="empty-state-transparent-icon"
-            icon={History}
-            title="No history yet"
-            message="Completed and cancelled donation requests will be listed here."
-          />
+          <EmptyState className="empty-state-transparent-icon" icon={History} title="No history yet" message="Completed and cancelled donation requests will be listed here." />
         )}
       </section>
     </AppShell>

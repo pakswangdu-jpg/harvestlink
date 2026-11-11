@@ -12,6 +12,7 @@ import {
 import { getActiveProducts } from '../../services/productService';
 import { getInitials, isRecentlyActive } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
+import { uniqueProfilesById } from '../../components/map/mapMarkerUtils';
 
 
 
@@ -22,9 +23,8 @@ function getMapProfilesForRole(profiles, directoryProfiles, role, query, visible
   const directoryById = new Map(directoryProfiles.map((profile) => [profile.id, profile]));
   const normalizedQuery = query.trim().toLowerCase();
 
-  return profiles
-    .filter((profile) => profile.role === role)
-    .map((profile) => ({ ...profile, ...directoryById.get(profile.id) }))
+  return uniqueProfilesById(profiles.filter((profile) => profile.role === role))
+    .map((profile) => ({ ...profile, ...directoryById.get(profile.id), role: profile.role }))
     .filter((profile) => !normalizedQuery || searchFields
       .map((field) => profile[field] || '')
       .join(' ')

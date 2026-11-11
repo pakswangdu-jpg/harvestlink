@@ -23,10 +23,9 @@ test('User Locations is an Admin-only sidebar and route module', async () => {
   assert.match(page, /stakeholder: MAP_COLORS\.stakeholder/);
   assert.match(page, /import \{ MAP_COLORS \} from '\.\.\/\.\.\/lib\/mapMarkerColors'/);
   assert.doesNotMatch(page, /admin: '#64748b'|Admins on Map|value="admin"/);
-  assert.match(page, /const PIN_PATH = 'M12 0C5\.373/);
-  assert.match(page, /fill="\$\{color\}"/);
-  assert.match(page, /scaledSize: new mapsApi\.Size\(32, 42\)/);
-  assert.match(page, /anchor: new mapsApi\.Point\(16, 42\)/);
+  assert.match(page, /user\.role === 'farmer'[\s\S]*?user\.role === 'stakeholder'[\s\S]*?buildStakeholderMapMarkerIcon\(mapsApi\)[\s\S]*?buildBuyerMapMarkerIcon\(mapsApi\)/);
+  assert.match(page, /import \{ buildStakeholderMapMarkerIcon \} from '\.\.\/\.\.\/components\/map\/stakeholderMapMarkerIcon'/);
+  assert.match(page, /import \{ buildFarmerMapMarkerIcon \} from '\.\.\/\.\.\/components\/map\/farmerMapMarkerIcon'/);
   assert.doesNotMatch(page.slice(page.indexOf('function createRoleMarker'), page.indexOf('function SummaryItem')), /SymbolPath\.CIRCLE/);
 });
 
@@ -111,4 +110,17 @@ test('Admin location service fetches every bounded page before returning map dat
   assert.deepEqual(requestedPages, [1, 2, 3]);
   assert.deepEqual(result.users.map((user) => user.id), ['page-1', 'page-2', 'page-3']);
   assert.equal(result.total, 1001);
+});
+
+test('Admin location paging deduplicates users repeated across API pages', async () => {
+  const { fetchAllAdminUserLocations } = await import('../src/utils/fetchAdminUserLocations.js');
+  const result = await fetchAllAdminUserLocations(async (page) => ({
+    users: page === 1
+      ? [{ id: 'same-user', name: 'Old name' }]
+      : [{ id: 'same-user', name: 'Updated name' }, { id: `page-${page}` }],
+    total: 3,
+    pageSize: 1,
+  }));
+  assert.equal(result.users.filter((user) => user.id === 'same-user').length, 1);
+  assert.equal(result.users.find((user) => user.id === 'same-user').name, 'Updated name');
 });

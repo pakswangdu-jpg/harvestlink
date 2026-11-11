@@ -28,7 +28,7 @@ HarvestLink is a React prototype for a Cebu farm-to-market marketplace, connecti
 
 This app now has two parts that both need to be running: the Express API (`backend/`) and this Vite frontend.
 
-1. **Set up Supabase once** — run `supabase/schema.sql` in your Supabase project's SQL editor, then apply required migrations including `supabase/migrations/20261110_commodity_reference_pricing.sql`. Create the two Storage buckets it defines and turn off "Confirm email" under Authentication settings. Full walkthrough: `backend/README.md`.
+1. **Set up Supabase once** — run `supabase/schema.sql` in your Supabase project's SQL editor, then apply required migrations including `supabase/migrations/20261110_commodity_reference_pricing.sql` and `supabase/migrations/20261112_donation_pickup_tracking.sql`. Create the two Storage buckets it defines and turn off "Confirm email" under Authentication settings. Full walkthrough: `backend/README.md`.
 2. **Start the backend**:
    ```bash
    cd backend

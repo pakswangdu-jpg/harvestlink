@@ -36,8 +36,9 @@ export function deliveryStatusTone(status) {
 }
 
 export function donationTone(status) {
-  if (status === 'completed') return 'success';
-  if (status === 'cancelled') return 'danger';
+  if (status === 'completed' || status === 'confirmed' || status === 'arrived') return 'success';
+  if (status === 'cancelled' || status === 'rejected') return 'danger';
+  if (status === 'on_the_way' || status === 'awaiting_confirmation' || status === 'awaiting_pickup' || status === 'accepted') return 'warning';
   return 'neutral';
 }
 

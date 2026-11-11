@@ -30,7 +30,10 @@ test('Approval returns to the existing stock and listing status without altering
 
 test('Status filter counts and matching include pending and rejected states', async () => {
   const source = await readFile(new URL('../src/features/farmer/FarmerProducts.jsx', import.meta.url), 'utf8');
-  const tabsCode = source.slice(source.indexOf('const STATUS_TABS'), source.indexOf('function buildDuplicatePayload'));
+  const tabsEnd = source.indexOf('function buildDuplicatePayload') !== -1
+    ? source.indexOf('function buildDuplicatePayload')
+    : source.indexOf('export default function FarmerProducts');
+  const tabsCode = source.slice(source.indexOf('const STATUS_TABS'), tabsEnd);
   const tabs = new Function(`${tabsCode};return STATUS_TABS;`)();
   assert.ok(tabs.some((tab) => tab.value === 'pending-approval' && tab.label === 'Pending approval'));
   assert.ok(tabs.some((tab) => tab.value === 'rejected'));

@@ -2287,9 +2287,35 @@ a.lp-contact-card:hover {
 
 .app-shell-fullbleed-sidebar-toggle {
   position: fixed;
-  top: 12px;
+  top: 15px;
   left: calc(var(--sidebar-width) + 12px);
   z-index: 21;
+}
+
+.app-shell-fullbleed-sidebar-toggle .sidebar-collapse-toggle {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.app-shell-fullbleed-sidebar-toggle .sidebar-collapse-toggle img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.app-shell-fullbleed-sidebar-toggle .sidebar-collapse-toggle:hover,
+.app-shell-fullbleed-sidebar-toggle .sidebar-collapse-toggle:active {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 
@@ -7999,6 +8025,47 @@ a.user-chip:hover {
   width: 16px !important;
   height: 16px !important;
   margin-left: auto;
+}
+
+.gm-style .map-popup-overlap {
+  display: grid;
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+}
+
+.gm-style .map-popup-overlap > small {
+  color: var(--muted);
+}
+
+.gm-style .map-popup-overlap button {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.gm-style .map-popup-overlap button:hover,
+.gm-style .map-popup-overlap button:focus-visible {
+  border-color: var(--green-700);
+  outline: none;
+}
+
+.gm-style .map-popup-overlap button span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.gm-style .map-popup-overlap button strong {
+  color: var(--text-strong);
+  font-size: 12px;
 }
 
 :root:not([data-theme="dark"]) .gm-style .gm-style-iw-c {
@@ -15698,15 +15765,16 @@ td {
 
 .nav-map-zoom-controls {
   position: absolute;
-  top: 12px;
+  top: 62px;
   right: 12px;
-  z-index: 10;
+  z-index: 20;
   display: grid;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 2px 8px rgb(15 23 42 / 20%);
+  pointer-events: auto;
 }
 
 .nav-map-zoom-controls button {
@@ -15915,8 +15983,8 @@ td {
 .nav-recenter-btn {
   position: absolute;
   bottom: 32px;
-  right: 14px;
-  z-index: 10;
+  right: 12px;
+  z-index: 20;
   display: grid;
   place-items: center;
   width: 48px;
@@ -15943,7 +16011,7 @@ td {
 
 .nav-recenter-btn:disabled {
   color: var(--muted);
-  cursor: not-allowed;
+  cursor: pointer;
 }
 
 .nav-recenter-btn.active {
@@ -15952,11 +16020,15 @@ td {
 }
 
 .nav-traffic-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  left: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 40px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -15966,6 +16038,7 @@ td {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .nav-traffic-toggle.active {
@@ -19564,6 +19637,12 @@ td {
   letter-spacing: -0.01em;
 }
 
+@media (min-width: 861px) {
+  .messages-page .messages-list-header h1 {
+    padding-left: 40px;
+  }
+}
+
 .messages-page .messages-list-header .relative {
   margin-top: 12px;
 }
@@ -21381,6 +21460,25 @@ td {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: 16px;
+}
+
+.farmer-donation-marker {
+  width: 64px;
+  height: 84px;
+  flex: none;
+  object-fit: contain;
+  animation: farmer-donation-marker-float 4s ease-in-out infinite;
+}
+
+@keyframes farmer-donation-marker-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmer-donation-marker {
+    animation: none;
+  }
 }
 
 .farmer-donation-pickup-field input {

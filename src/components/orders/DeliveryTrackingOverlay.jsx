@@ -19,7 +19,7 @@ import './DeliveryTrackingOverlay.css';
 
 
 
-export default function DeliveryTrackingOverlay({ open, title, subtitle, summary, onClose, children }) {
+export default function DeliveryTrackingOverlay({ open, title, subtitle, summary, onClose, className = '', children }) {
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -31,7 +31,7 @@ export default function DeliveryTrackingOverlay({ open, title, subtitle, summary
 
   return (
     <div
-      className={`tracking-overlay${open ? ' is-open' : ''}`}
+      className={`tracking-overlay${className ? ` ${className}` : ''}${open ? ' is-open' : ''}`}
       aria-hidden={open ? undefined : 'true'}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();

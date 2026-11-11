@@ -26,3 +26,18 @@ test('Farmer donation offers show remaining stock while claims are pending and r
   assert.match(page, /formatQuantity\(donation\.availableQuantity \?\? donation\.quantity\)/);
   assert.match(hook, /setInterval\(\(\) => \{ if \(!pending\.current\) reload\(\); \}, 4000\)/);
 });
+
+test('Completed donation history shows the exact handover date and time in Manila', async () => {
+  const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
+  assert.match(page, /formatDateTimeManila\(row\.confirmedAt \|\| row\.updatedAt\)/);
+  assert.match(page, /row\.status === 'completed' && \(row\.confirmedAt \|\| row\.updatedAt\)/);
+});
+
+test('Donation offer uses a transparent marker with subtle reduced-motion-aware animation', async () => {
+  const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+  assert.match(page, /import donateMapPin from '\.\.\/\.\.\/assets\/icons\/donate-map-pin\.png'/);
+  assert.match(page, /className="farmer-donation-marker"[\s\S]*?src=\{donateMapPin\}/);
+  assert.match(styles, /\.farmer-donation-marker \{[\s\S]*?width: 64px;[\s\S]*?animation: farmer-donation-marker-float 4s ease-in-out infinite/);
+  assert.match(styles, /prefers-reduced-motion: reduce\) \{\s*\.farmer-donation-marker \{\s*animation: none;/);
+});

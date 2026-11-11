@@ -37,7 +37,7 @@ export function normalizeLivePosition(payload, { receivedAt = Date.now(), server
 
 export function isFreshLivePosition(position, now = Date.now()) {
   const time = position?.observedAt ?? locationTimestamp(position?.locationUpdatedAt ?? position?.timestamp);
-  return time != null && now - time <= LIVE_LOCATION_FRESHNESS_MS && time <= now + 5000;
+  return time != null && now - time <= LIVE_LOCATION_FRESHNESS_MS && time <= now + 60000;
 }
 
 export function positionFromOrder(order) {
@@ -50,8 +50,9 @@ export function positionFromOrder(order) {
 
 // Hold a previously confirmed point only for stationary noise within GPS accuracy.
 export function stableTrackingPosition(previous, next) {
-  if (!previous || (previous.speed ?? 0) > 0.8 || (next.speed ?? 0) > 0.8) return next;
-  const toleranceM = Math.min(8, previous.accuracy ?? 0, next.accuracy ?? 0);
+  if (!previous || (previous.speed == null && next.speed == null)
+    || (previous.speed ?? 0) > 0.2 || (next.speed ?? 0) > 0.2) return next;
+  const toleranceM = Math.min(2.5, previous.accuracy ?? 0, next.accuracy ?? 0);
   if (toleranceM <= 0 || haversineKm(previous, next) * 1000 > toleranceM) return next;
   return { ...next, lat: previous.lat, lng: previous.lng, heading: previous.heading };
 }

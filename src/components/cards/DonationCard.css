@@ -125,6 +125,29 @@
   border-top: 1px solid var(--line);
 }
 
+.app-shell .donation-card .donation-card-footer > .stakeholder-pickup-action {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .donation-card .donation-card-footer > .stakeholder-pickup-action svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
 .donation-card-footer > .btn {
   flex: 1;
   min-height: 40px;

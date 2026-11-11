@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, LogOut, Settings } from 'lucide-react';
@@ -11,11 +11,13 @@ import MobileBottomNav from './MobileBottomNav';
 import ThemeToggle from '../common/ThemeToggle';
 import LogoutConfirmDialog from '../common/LogoutConfirmDialog';
 import LocationPermissionNotice from '../common/LocationPermissionNotice';
+import DonationPickupTrackingModal from '../orders/DonationPickupTrackingModal';
 import { useLocationPermission } from '../../hooks/useLocationPermission';
 import { ORDERING_ROLES, ROLE_DASHBOARDS } from '../../utils/constants';
 import { useLogout } from '../../hooks/useLogout';
 import { useFarmerActiveDeliverySharing } from '../../hooks/useFarmerActiveDeliverySharing';
 import { useBuyerActivePickupSharing } from '../../hooks/useBuyerActivePickupSharing';
+import { useStakeholderDonationPickupSharing } from '../../hooks/useStakeholderDonationPickupSharing';
 import { useNavItemsWithBadges } from '../../hooks/useNavItemsWithBadges';
 import logo from '../../assets/logo.png';
 import sidebarHamburger from '../../assets/icons/sidebar-hamburger.png';
@@ -75,6 +77,23 @@ export default function AppShell({
 
 
   const { error: pickupSharingError } = useBuyerActivePickupSharing(['buyer', 'stakeholder'].includes(user.role) ? user.id : null, locationAccess.permission);
+  const stakeholderPickup = useStakeholderDonationPickupSharing(
+    user.role === 'stakeholder' ? user.id : null,
+    locationAccess.rawPermission,
+  );
+  const { openTrackingPopup } = stakeholderPickup;
+
+  useEffect(() => {
+    if (user.role !== 'stakeholder' || typeof window === 'undefined') return undefined;
+    const handleOpenTracking = (event) => {
+      const targetId = event?.detail?.targetId;
+      if (targetId) {
+        openTrackingPopup(targetId);
+      }
+    };
+    window.addEventListener('harvestlink:open-donation-tracking', handleOpenTracking);
+    return () => window.removeEventListener('harvestlink:open-donation-tracking', handleOpenTracking);
+  }, [user.role, openTrackingPopup]);
 
 
   const navItemsWithBadges = useNavItemsWithBadges(user, navItems);
@@ -290,6 +309,20 @@ export default function AppShell({
         onCancel={cancelLogout}
         isAdmin={user.role === 'admin'}
       />
+      {user.role === 'stakeholder' && stakeholderPickup.activePopupSession ? (
+        <DonationPickupTrackingModal
+          donation={stakeholderPickup.activePopupSession.donation}
+          claim={stakeholderPickup.activePopupSession.claim}
+          viewerRole="stakeholder"
+          permissionState={stakeholderPickup.permissionState}
+          permissionError={stakeholderPickup.permissionError}
+          trackingLoadError={stakeholderPickup.trackingLoadError}
+          lastUpdatedAt={stakeholderPickup.lastUpdatedAt}
+          onRequestPermission={stakeholderPickup.requestGpsPermission}
+          onClose={stakeholderPickup.closeTrackingPopup}
+          onStatusUpdated={stakeholderPickup.reloadSessions}
+        />
+      ) : null}
     </div>
   );
 }
