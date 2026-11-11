@@ -7,15 +7,11 @@ function extensionFor(file) {
 }
 
 
-
-
-
 async function uploadToBucket(bucket, path, file, upsert = true) {
   const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert });
   if (error) throw new Error(error.message);
   return path;
 }
-
 
 
 export async function uploadProductImage(file, farmerId) {

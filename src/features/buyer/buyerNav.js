@@ -1,20 +1,10 @@
 import {
   LayoutGrid, TrendingUp, UserRound, MapPin, Store, Package,
 } from 'lucide-react';
-import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 import messagesNavIcon from '../../assets/icons/nav-messages.png';
-import marketplaceNavIcon from '../../assets/icons/nav-marketplace.png';
-import nearbyNavIcon from '../../assets/icons/nav-nearby-pin.png';
-import ordersNavIcon from '../../assets/icons/nav-orders.png';
+import { createMaskNavIcon } from '../../utils/createMaskNavIcon';
 
-const NearbyNavIcon = createMaskNavIcon(nearbyNavIcon);
-const MarketplaceNavIcon = createMaskNavIcon(marketplaceNavIcon);
-const OrdersNavIcon = createMaskNavIcon(ordersNavIcon);
 const MessagesNavIcon = createMaskNavIcon(messagesNavIcon);
-
-
-
-
 
 export const buyerNavItems = [
   { to: '/buyer-dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
