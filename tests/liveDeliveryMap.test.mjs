@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
 import { loadFrontend } from './helpers/loadFrontend.mjs';
 
-async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, initialMapVisible = true) {
+async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, initialMapVisible = true, mapOptions = {}) {
   const slots = [];
   let index = 0;
   let pending = [];
@@ -99,7 +99,7 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     do {
       assert.ok(++renders < 15, 'map must not create an effect/camera render loop');
       dirty = false; index = 0; pending = [];
-      tree = component({ order, navigationEnabled: mapVisible });
+      tree = component({ order, navigationEnabled: mapVisible, ...mapOptions });
       pending.forEach((effect) => effect());
     } while (dirty);
   };
@@ -257,5 +257,27 @@ test('vehicle marker falls back to saved travel origin without changing GPS navi
   assert.equal(cameraPosition.lng, stopped.lng);
   assert.equal(h.markers.filter(marker => marker.zIndex === 1000).length, 1);
   assert.equal(h.routes.length, 3, 'marker can update while Google route data is unavailable');
+  h.cleanup();
+});
+
+test('Stakeholder pickup uses a live-location pin and does not show saved profile coordinates as current GPS', async () => {
+  const h = await harness(false, true, null, true, {
+    moverMarkerType: 'pin',
+    requireLivePosition: true,
+    sharerLabelOverride: 'Stakeholder',
+  });
+  assert.equal(h.markers.some((marker) => marker.zIndex === 1000), false, 'no current-location marker is shown before a GPS fix');
+  assert.equal(h.routes.length, 0, 'Stakeholder map does not draw a vehicle route');
+  assert.equal(h.trafficButton(), undefined, 'Stakeholder map does not show traffic controls');
+  assert.match(h.recenterProps()['aria-label'], /Waiting for stakeholder location/);
+
+  h.update({ lat: 10.32, lng: 123.92, heading: 90, speed: 2 });
+  const stakeholderPin = h.markers.find((marker) => marker.zIndex === 1000);
+  assert.ok(stakeholderPin, 'a location marker appears after the live GPS fix arrives');
+  assert.equal(stakeholderPin.position.lat, 10.32);
+  assert.equal(stakeholderPin.position.lng, 123.92);
+  assert.match(decodeURIComponent(stakeholderPin.icon.url), /<circle cx="12" cy="11"/, 'Stakeholder is represented by a pin, not a vehicle');
+  assert.equal(stakeholderPin.title, 'Stakeholder live location');
+  assert.equal(h.routes.length, 0, 'the live pin is shown without a route line');
   h.cleanup();
 });

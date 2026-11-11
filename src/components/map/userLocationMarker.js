@@ -1,7 +1,7 @@
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
 
 export function buildViewerIcon(mapsApi) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="${MAP_COLORS.viewer}" stroke="white" stroke-width="3"/><circle cx="16" cy="16" r="5" fill="white"/></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="${MAP_COLORS.viewer}" fill-opacity=".14"/><circle cx="16" cy="16" r="8" fill="white"/><circle cx="16" cy="16" r="5.5" fill="${MAP_COLORS.viewer}"/></svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
     scaledSize: new mapsApi.Size(32, 32),

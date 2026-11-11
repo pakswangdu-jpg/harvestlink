@@ -23,7 +23,17 @@ async function buildDonationFarmers(donations) {
     const farmer = byId.get(id);
     if (!farmer) return [];
     const farmerDonations = donations.filter((donation) => donation.farmerId === id);
-    return [{ id: farmer.id, name: farmer.name, farmName: farmer.farmName, municipality: farmer.municipality, address: farmer.address, latitude: farmer.latitude, longitude: farmer.longitude, contactNumber: farmer.contactNumber, donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })) }];
+    return [{
+      id: farmer.id,
+      name: farmer.name,
+      farmName: farmer.farmName,
+      municipality: farmer.municipality,
+      address: farmer.address,
+      latitude: farmer.latitude,
+      longitude: farmer.longitude,
+      contactNumber: farmer.contactNumber,
+      donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })),
+    }];
   });
 }
 

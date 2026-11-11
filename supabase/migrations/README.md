@@ -241,6 +241,22 @@ Old browser-only donations are not imported: localStorage is untrusted and
 cannot prove ownership or stock availability. Farmers must relist those offers
 after the migration. No accounts are automatically verified by this migration.
 
+## Donation pickup tracking
+
+Before deploying the Stakeholder pickup map and arrival workflow, run
+`20261112_donation_pickup_tracking.sql` in the Supabase SQL Editor for the same
+project configured by the backend's `SUPABASE_URL`. It must be applied after the
+shared-donations migration. This adds the persisted GPS, pickup-state, and arrival
+columns and the service-role-only handover function. The API returns
+`DONATION_TRACKING_MIGRATION_REQUIRED` when these columns are missing. Deploy the
+backend and frontend after applying the complete migration.
+
+If `20261112_donation_pickup_tracking.sql` was applied before the Stakeholder poke
+confirmation gate was added, also run
+`20261112_donation_handover_requires_stakeholder_poke.sql`. It updates the
+service-role handover function so GPS arrival alone cannot authorize confirmation;
+the Stakeholder must first send the arrival poke.
+
 ## Registration fails because `public.farmers` does not exist
 
 Run `20261009_remove_legacy_profile_sync.sql` in the Supabase SQL Editor for

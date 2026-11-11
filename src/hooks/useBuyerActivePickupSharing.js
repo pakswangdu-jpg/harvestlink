@@ -2,12 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getSocket } from '../lib/socketClient';
 import { getOrdersByBuyer } from '../services/orderService';
-import { haversineKm } from '../utils/geo';
+import { publishLiveOrderPosition } from '../services/liveTrackingStore';
 
 const POLL_INTERVAL_MS = 6000;
-
-const MIN_SEND_INTERVAL_MS = 4000;
-const MIN_SEND_MOVE_KM = 0.01;
 
 function isActivePickupOrder(order) {
   return order.status === 'confirmed' && order.deliveryStatus === 'ready_for_pickup' && order.deliveryMethod === 'buyer_pickup';
@@ -36,8 +33,6 @@ export function useBuyerActivePickupSharing(buyerId, locationPermission) {
   const activeOrderIdsRef = useRef([]);
   const joinedOrderIdsRef = useRef(new Set());
   const watchIdRef = useRef(null);
-  const lastSentAtRef = useRef(0);
-  const lastSentPositionRef = useRef(null);
   const isOnlineRef = useRef(typeof navigator === 'undefined' || navigator.onLine !== false);
   const isSocketConnectedRef = useRef(false);
   const hasGpsErrorRef = useRef(false);
@@ -167,23 +162,16 @@ export function useBuyerActivePickupSharing(buyerId, locationPermission) {
           refreshConnectionStatus();
         }
 
-        const now = Date.now();
-        const dueByTime = now - lastSentAtRef.current >= MIN_SEND_INTERVAL_MS;
-        const dueByMovement = lastSentPositionRef.current
-          ? haversineKm(lastSentPositionRef.current, { lat, lng }) >= MIN_SEND_MOVE_KM
-          : true;
-        if (!dueByTime && !dueByMovement) return;
-        lastSentAtRef.current = now;
-        lastSentPositionRef.current = { lat, lng };
-
         const accuracy = position.coords.accuracy;
         const heading = position.coords.heading;
         const speed = position.coords.speed;
+        const timestamp = position.timestamp || Date.now();
         const socket = getSocket();
         activeOrderIdsRef.current.forEach(async (orderId) => {
+          publishLiveOrderPosition(orderId, { lat, lng, accuracy, heading, speed, timestamp }, { source: 'gps' });
           const joined = await joinOrder(orderId);
           if (!joined) return;
-          socket.emit('buyer-location', { orderId, lat, lng, accuracy, heading, speed }, (response) => {
+          socket.emit('buyer-location', { orderId, lat, lng, accuracy, heading, speed, timestamp }, (response) => {
             if (response && !response.ok) setError(response.error || 'Could not share your location.');
             else setError('');
           });
@@ -204,7 +192,7 @@ export function useBuyerActivePickupSharing(buyerId, locationPermission) {
           refreshConnectionStatus();
         }
       },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
     );
   };
 

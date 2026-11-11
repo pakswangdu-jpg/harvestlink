@@ -10,14 +10,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const authStorage = {
   getItem(key) {
     const remember = window.localStorage.getItem(REMEMBER_SESSION_KEY);
-    if (remember === 'false') return window.sessionStorage.getItem(key);
+    if (remember === 'false') {
+      return window.sessionStorage.getItem(key) || window.localStorage.getItem(key);
+    }
     return window.localStorage.getItem(key) || window.sessionStorage.getItem(key);
   },
   setItem(key, value) {
-    const storage = window.localStorage.getItem(REMEMBER_SESSION_KEY) === 'true'
-      ? window.localStorage
-      : window.sessionStorage;
-    storage.setItem(key, value);
+    window.localStorage.setItem(key, value);
+    window.sessionStorage.setItem(key, value);
   },
   removeItem(key) {
     window.localStorage.removeItem(key);

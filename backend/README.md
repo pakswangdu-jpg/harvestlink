@@ -22,6 +22,14 @@ Before deploying donation changes, run
 This is required for existing projects and fresh projects provisioned with
 `supabase/schema.sql`. See `supabase/migrations/README.md` for rollout details.
 
+Before deploying Stakeholder pickup tracking, also apply
+`supabase/migrations/20261112_donation_pickup_tracking.sql` to that same Supabase
+project, after the shared-donations migration. Without it, live GPS updates cannot
+be persisted and the API returns `DONATION_TRACKING_MIGRATION_REQUIRED`.
+For databases where that migration is already installed, also apply
+`supabase/migrations/20261112_donation_handover_requires_stakeholder_poke.sql`
+so Farmer confirmation is allowed only after the Stakeholder sends the arrival poke.
+
 ## Commodity Reference Pricing
 
 Before deploying the Admin commodity catalog and Farmer reference-price changes,

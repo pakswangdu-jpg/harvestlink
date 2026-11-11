@@ -67,24 +67,24 @@ const ARRIVED_KM_THRESHOLD = 0.03;
 
 
 function buildDotIcon(mapsApi, color) {
-  const svg = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">` +
-    `<circle cx="9" cy="9" r="6.5" fill="${color}" stroke="white" stroke-width="2.5"/></svg>`;
+  const svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">` +
+    `<circle cx="12" cy="12" r="9" fill="${color}" stroke="white" stroke-width="3"/></svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(18, 18),
-    anchor: new mapsApi.Point(9, 9),
+    scaledSize: new mapsApi.Size(24, 24),
+    anchor: new mapsApi.Point(12, 12),
   };
 }
 
-function buildDestinationPinIcon(mapsApi) {
-  const svg = '<svg width="24" height="42" viewBox="0 0 24 42" xmlns="http://www.w3.org/2000/svg">'
+function buildDestinationPinIcon(mapsApi, color = '#e33129') {
+  const svg = '<svg width="32" height="56" viewBox="0 0 24 42" xmlns="http://www.w3.org/2000/svg">'
     + '<path d="M12 20v20" stroke="#596584" stroke-width="3" stroke-linecap="round"/>'
-    + '<circle cx="12" cy="11" r="10" fill="#e33129"/>'
+    + `<circle cx="12" cy="11" r="10" fill="${color}"/>`
     + '<circle cx="8.5" cy="8" r="2.2" fill="#ff6668"/></svg>';
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-    scaledSize: new mapsApi.Size(24, 42),
-    anchor: new mapsApi.Point(12, 42),
+    scaledSize: new mapsApi.Size(32, 56),
+    anchor: new mapsApi.Point(16, 56),
   };
 }
 
@@ -192,12 +192,18 @@ export default function LiveDeliveryMap({
   deliveryStatusSummary,
   canChooseAlternative = false,
   navigationEnabled = true,
+  sharerLabelOverride,
+  moverMarkerType = 'vehicle',
+  requireLivePosition = false,
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const mapsApiRef = useRef(null);
   const trafficLayerRef = useRef(null);
   const layerRef = useRef([]);
+  const routeLineRef = useRef(null);
+  const casingLineRef = useRef(null);
+  const shadowLineRef = useRef(null);
   const carEntryRef = useRef(null);
   const cameraRef = useRef(null);
   const liveTargetRef = useRef(null);
@@ -249,7 +255,7 @@ export default function LiveDeliveryMap({
   const isCourier = order.deliveryMethod === 'courier';
   const travelOrigin = isPickup ? destination : origin;
   const travelDestination = isPickup ? origin : destination;
-  const sharerLabel = isPickup ? 'Buyer' : 'Driver';
+  const sharerLabel = sharerLabelOverride || (isPickup ? 'Buyer' : 'Driver');
   const { livePosition } = useOrderTrackingSocket(isCourier ? null : order.id, order);
   const lastLocationUpdatedAt = livePosition?.locationUpdatedAt || order.locationUpdatedAt;
   const connectionStatus = useOrderConnectionStatus(order.id, { active: !isCourier, lastUpdateAt: lastLocationUpdatedAt });
@@ -258,20 +264,22 @@ export default function LiveDeliveryMap({
   const isDelivered = order.status === 'completed';
   const currentPosition = transit.isInTransit && livePosition && isFreshLivePosition(livePosition) ? livePosition : null;
   const vehiclePosition = currentPosition;
-  // markerPosition: use last received GPS fix (even if slightly stale) for the car icon on the map.
-  // Keep the car visible at the last GPS fix, or the saved travel origin until the first fix.
-  // Navigation, ETA, and camera follow continue to use only fresh GPS via currentPosition.
+  // Keep the saved-origin fallback for normal delivery maps, but never present it as a live
+  // Stakeholder position before a GPS fix has been shared.
   const markerPosition = transit.isInTransit
-    ? validateCoordinates(livePosition?.lat, livePosition?.lng) || travelOrigin
+    ? validateCoordinates(livePosition?.lat, livePosition?.lng) || (requireLivePosition ? null : travelOrigin)
     : null;
-  const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
-  const canRecenter = mapReady && Boolean(validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng));
-  const recenterLabel = !mapReady ? 'Loading map'
-    : !canRecenter ? 'Waiting for driver location'
-      : autoFollow ? 'Following driver' : 'Re-center on driver';
-
   const deliveryState = isDelivered ? 'delivered' : (transit.isInTransit ? 'navigating' : 'preview');
-  const trafficEnabled = trafficOverride ?? (deliveryState === 'navigating');
+  const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
+  const recenterTarget = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng)
+    || validateCoordinates(livePosition?.lat, livePosition?.lng);
+  const canRecenter = mapReady && Boolean(recenterTarget);
+  const recenterSubject = sharerLabel.toLowerCase();
+  const recenterLabel = !mapReady ? 'Loading map'
+    : !canRecenter ? `Waiting for ${recenterSubject} location`
+      : autoFollow ? `Following ${recenterSubject}` : `Re-center on ${recenterSubject}`;
+
+  const trafficEnabled = moverMarkerType !== 'pin' && (trafficOverride ?? (deliveryState === 'navigating'));
   const navigation = useTrafficNavigation({
     orderId: order.id,
     origin: travelOrigin,
@@ -335,7 +343,7 @@ export default function LiveDeliveryMap({
         setTrafficAvailable(true);
       }
       setMapReady(true);
-    });
+    }).catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -344,8 +352,9 @@ export default function LiveDeliveryMap({
   }, [initialCenter?.lat, initialCenter?.lng, effectiveTheme, hasVectorMap]);
 
   useEffect(() => {
-    liveTargetRef.current = vehiclePosition;
-  }, [vehiclePosition]);
+    liveTargetRef.current = vehiclePosition
+      || validateCoordinates(livePosition?.lat, livePosition?.lng);
+  }, [vehiclePosition, livePosition?.lat, livePosition?.lng]);
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !mapsApiRef.current) return undefined;
@@ -411,6 +420,9 @@ export default function LiveDeliveryMap({
 
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
+    routeLineRef.current = null;
+    casingLineRef.current = null;
+    shadowLineRef.current = null;
 
     const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildDotIcon(mapsApi, MAP_COLORS.origin), title: order.farmerName });
     const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDestinationPinIcon(mapsApi), title: order.buyerName });
@@ -422,8 +434,17 @@ export default function LiveDeliveryMap({
       bounds.extend(origin);
       bounds.extend(destination);
       if (vehiclePosition) bounds.extend(vehiclePosition);
+      else if (markerPosition) bounds.extend(markerPosition);
       cameraRef.current?.fitOverview(bounds);
     };
+
+    if (moverMarkerType === 'pin') {
+      if (overviewStateRef.current !== deliveryState) {
+        overviewStateRef.current = deliveryState;
+        fitToBothPins();
+      }
+      return;
+    }
 
     if (deliveryState === 'preview') {
       const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 12, strokeOpacity: 0.16, geodesic: true, map, zIndex: 90 });
@@ -448,6 +469,7 @@ export default function LiveDeliveryMap({
 
 
       const shadow = new mapsApi.Polyline({ path: pathPoints, strokeColor: ROUTE_SHADOW_COLOR, strokeWeight: 13, strokeOpacity: 0.18, geodesic: true, map, zIndex: 90 });
+      shadowLineRef.current = shadow;
       layerRef.current.push(shadow);
 
       (navigation.alternatives || []).forEach(({ points: altPoints }) => {
@@ -456,6 +478,7 @@ export default function LiveDeliveryMap({
       });
 
       const casing = new mapsApi.Polyline({ path: pathPoints, strokeColor: '#ffffff', strokeWeight: 10, strokeOpacity: 0.95, geodesic: true, map, zIndex: 99 });
+      casingLineRef.current = casing;
       layerRef.current.push(casing);
 
 
@@ -469,6 +492,7 @@ export default function LiveDeliveryMap({
         map,
         zIndex: 100,
       });
+      routeLineRef.current = routeLine;
       layerRef.current.push(routeLine);
 
 
@@ -499,7 +523,7 @@ export default function LiveDeliveryMap({
     }
     // GPS updates move the marker independently; route changes do not reset the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, googleRoute, navigation.alternatives, origin?.lat, origin?.lng, destination?.lat, destination?.lng, deliveryState]);
+  }, [mapReady, googleRoute, navigation.alternatives, origin?.lat, origin?.lng, destination?.lat, destination?.lng, deliveryState, moverMarkerType]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -510,6 +534,33 @@ export default function LiveDeliveryMap({
       cameraRef.current?.pause();
       autoEnabledRef.current = false;
       return;
+    }
+    if (moverMarkerType === 'pin') {
+      if (carEntryRef.current && carEntryRef.current.kind !== 'pin') {
+        if (carEntryRef.current.animationFrameId != null) cancelAnimationFrame(carEntryRef.current.animationFrameId);
+        setVehicleMarkerMap(carEntryRef.current, null);
+        carEntryRef.current = null;
+      }
+      if (!carEntryRef.current) {
+        const marker = new mapsApi.Marker({
+          position: markerPosition,
+          map,
+          icon: buildDestinationPinIcon(mapsApi, '#16834b'),
+          title: `${sharerLabel} live location`,
+          zIndex: 1000,
+        });
+        carEntryRef.current = { kind: 'pin', marker, currentLatLng: markerPosition };
+      } else {
+        setVehicleMarkerMap(carEntryRef.current, map);
+        setVehicleMarkerPosition(carEntryRef.current, markerPosition);
+      }
+      cameraRef.current?.pause();
+      autoEnabledRef.current = false;
+      return;
+    }
+    if (carEntryRef.current?.kind === 'pin') {
+      setVehicleMarkerMap(carEntryRef.current, null);
+      carEntryRef.current = null;
     }
     const vehicleHeading = resolveVehicleHeading({
       previousPosition: lastVehicleHeadingPositionRef.current,
@@ -557,6 +608,13 @@ export default function LiveDeliveryMap({
       setVehicleMarkerHeading(carEntryRef.current, mapsApi, vehicleHeadingRef.current);
       animateMarkerTo(carEntryRef.current, markerPosition);
     }
+    if (vehiclePosition && googleRoute?.points?.length > 1) {
+      const travelIndex = nearestIndexOnPath(vehiclePosition, googleRoute.points);
+      const remainingPath = [vehiclePosition, ...googleRoute.points.slice(Math.max(1, travelIndex + 1))];
+      routeLineRef.current?.setPath?.(remainingPath);
+      casingLineRef.current?.setPath?.(remainingPath);
+      shadowLineRef.current?.setPath?.(remainingPath);
+    }
     if (!autoEnabledRef.current) {
       // Only auto-follow the camera when GPS is fresh (currentPosition), not on stale fixes.
       if (currentPosition) autoEnabledRef.current = cameraRef.current?.resume() || false;
@@ -564,7 +622,17 @@ export default function LiveDeliveryMap({
       cameraRef.current?.update();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, markerPosition?.lat, markerPosition?.lng, markerPosition?.heading, markerPosition?.deviceHeading, deliveryState]);
+  }, [
+    mapReady,
+    markerPosition?.lat,
+    markerPosition?.lng,
+    markerPosition?.heading,
+    markerPosition?.deviceHeading,
+    deliveryState,
+    moverMarkerType,
+    requireLivePosition,
+    sharerLabel,
+  ]);
 
   useEffect(() => () => {
     cameraRef.current?.destroy();
@@ -573,13 +641,18 @@ export default function LiveDeliveryMap({
     carEntryRef.current = null;
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
+    routeLineRef.current = null;
+    casingLineRef.current = null;
+    shadowLineRef.current = null;
     mapRef.current = null;
     mapsApiRef.current = null;
   }, []);
 
   return (
     <div className="live-delivery-map-wrap">
-      <TrafficRouteNotice navigation={navigation} allowChoice={canChooseAlternative && transit.isInTransit} />
+      {moverMarkerType !== 'pin' ? (
+        <TrafficRouteNotice navigation={navigation} allowChoice={canChooseAlternative && transit.isInTransit} />
+      ) : null}
       <div className="nav-map-container">
         <div ref={containerRef} className="live-delivery-map" />
         <div className="nav-map-zoom-controls" role="group" aria-label="Map zoom controls">
@@ -591,12 +664,15 @@ export default function LiveDeliveryMap({
           </button>
         </div>
 
-        {trafficAvailable ? (
+        {trafficAvailable && moverMarkerType !== 'pin' ? (
           <button
             type="button"
             className={`nav-traffic-toggle${trafficEnabled ? ' active' : ''}`}
             aria-pressed={trafficEnabled}
-            onClick={() => setTrafficOverride((previous) => !(previous ?? (deliveryState === 'navigating')))}
+            onClick={(event) => {
+              event?.stopPropagation?.();
+              setTrafficOverride((previous) => !(previous ?? (deliveryState === 'navigating')));
+            }}
             title={trafficEnabled ? 'Turn traffic off' : 'Turn traffic on'}
           >
             Traffic
@@ -608,7 +684,29 @@ export default function LiveDeliveryMap({
             type="button"
             className={`nav-recenter-btn ${autoFollow ? 'active' : ''}`}
             disabled={!canRecenter}
-            onClick={() => cameraRef.current?.resume()}
+            onClick={(event) => {
+              event?.stopPropagation?.();
+              const map = mapRef.current;
+              const target = recenterTarget || markerPosition || origin;
+              if (!cameraRef.current?.zoomTo?.(17) && target && map?.panTo) {
+                const currentZoom = map.getZoom?.();
+                if (Number.isFinite(currentZoom) && currentZoom < 17 && typeof map.setZoom === 'function') {
+                  map.setZoom(17);
+                }
+                map.panTo(target);
+              }
+            }}
+            onPointerDown={(event) => {
+              const target = recenterTarget || markerPosition || origin;
+              if (!canRecenter && target && mapRef.current?.panTo) {
+                event?.stopPropagation?.();
+                const currentZoom = mapRef.current.getZoom?.();
+                if (Number.isFinite(currentZoom) && currentZoom < 17 && typeof mapRef.current.setZoom === 'function') {
+                  mapRef.current.setZoom(17);
+                }
+                mapRef.current.panTo(target);
+              }
+            }}
             aria-pressed={autoFollow}
             aria-label={recenterLabel}
             title={recenterLabel}
@@ -617,11 +715,11 @@ export default function LiveDeliveryMap({
           </button>
         ) : null}
 
-        {deliveryState === 'navigating' && (connectionStatus === 'offline' || connectionStatus === 'reconnecting') ? (
+        {moverMarkerType !== 'pin' && deliveryState === 'navigating' && (connectionStatus === 'offline' || connectionStatus === 'reconnecting') ? (
           <div className="nav-map-overlay-banner">Waiting for driver connection…</div>
         ) : null}
       </div>
-      {deliveryState === 'navigating' && !currentPosition ? (
+      {moverMarkerType !== 'pin' && deliveryState === 'navigating' && !currentPosition ? (
         <p className="tracking-live-location-unavailable" role="status">Live location is not available yet.</p>
       ) : null}
 
@@ -637,12 +735,23 @@ export default function LiveDeliveryMap({
           deliveryStatus={deliveryStatusSummary}
           deliveryStatusBadge={deliveryStatusBadge}
         />
+      ) : deliveryState === 'navigating' && moverMarkerType === 'pin' ? (
+        <div className="nav-info-card donation-live-location-card">
+          <div className="nav-info-card-header">
+            <span className={`nav-status-dot status-${connectionStatus || 'reconnecting'}`} />
+            <strong>{sharerLabel}</strong>
+            <span className="nav-info-card-vehicle">
+              {currentPosition ? 'Live GPS location' : 'Waiting for GPS location'}
+            </span>
+          </div>
+          <DriverConnectionBadge status={connectionStatus} label={sharerLabel} lastUpdatedAt={lastLocationUpdatedAt} />
+        </div>
       ) : deliveryState === 'navigating' ? (
         <div className="nav-info-card">
           <div className="nav-info-card-header">
             <span className={`nav-status-dot status-${connectionStatus || 'reconnecting'}`} />
-            <strong>{isPickup ? order.buyerName : order.farmerName}</strong>
-            <span className="nav-info-card-vehicle">{isPickup ? 'On the way to pickup' : 'Delivery vehicle'}</span>
+            <strong>{moverMarkerType === 'pin' ? sharerLabel : isPickup ? order.buyerName : order.farmerName}</strong>
+            <span className="nav-info-card-vehicle">{moverMarkerType === 'pin' ? 'Live location' : isPickup ? 'On the way to pickup' : 'Delivery vehicle'}</span>
           </div>
           <div className="nav-info-card-grid">
             <div><p>ETA</p><strong className={connectionStatus === 'online' || connectionStatus == null ? '' : 'is-paused'}>{etaCardValue}</strong></div>

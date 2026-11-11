@@ -19,17 +19,28 @@ import { donationTone } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
 import {
   acceptDonationRequest,
+  confirmDonationHandover,
   rejectDonationClaim,
   scheduleDonationClaim,
   cancelDonation,
   declineDonationRequest,
   createDonation,
 } from '../../services/donationService';
+import DonationPickupTrackingModal, {
+  DonationHandoverConfirmModal,
+} from '../../components/orders/DonationPickupTrackingModal';
+import {
+  canFarmerConfirmDonationHandover,
+  getDonationWorkflowLabel,
+  isDonationArrivalVerified,
+  resolveDonationPickupStatus,
+} from '../../utils/donationWorkflow';
 import { useDonationList } from '../../hooks/useDonationList';
 import {
-  donationStatusLabel, formatDate, formatQuantity, formatRelativeTime,
+  donationStatusLabel, formatDate, formatDateTimeManila, formatQuantity, formatRelativeTime,
 } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
+import donateMapPin from '../../assets/icons/donate-map-pin.png';
 
 const HISTORY_STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -136,6 +147,8 @@ export default function FarmerDonations() {
   const [historyStatus, setHistoryStatus] = useState('all');
   const [donationProduct, setDonationProduct] = useState(() => location.state?.donationProduct || null);
   const [donationDraft, setDonationDraft] = useState(getDonationDraft);
+  const [trackingTarget, setTrackingTarget] = useState(null);
+  const [confirmHandoverTarget, setConfirmHandoverTarget] = useState(null);
 
   useEffect(() => {
     if (!location.state?.donationProduct) return;
@@ -215,10 +228,24 @@ export default function FarmerDonations() {
     ...donation,
     id: donation.id,
     claimId: claim.id,
+    claimObj: claim,
     status: claim.status,
+    pickupStatus: claim.pickupStatus,
     quantity: claim.quantity,
+    requestedById: claim.stakeholderId,
     requestedByName: claim.stakeholderName,
     pickupDate: claim.pickupDate,
+    currentLat: claim.currentLat,
+    currentLng: claim.currentLng,
+    currentAccuracy: claim.currentAccuracy,
+    currentHeading: claim.currentHeading,
+    currentSpeed: claim.currentSpeed,
+    locationUpdatedAt: claim.locationUpdatedAt,
+    transitStartedAt: claim.transitStartedAt,
+    consecutiveArrivalReadings: claim.consecutiveArrivalReadings,
+    arrivedAt: claim.arrivedAt,
+    arrivalNotifiedAt: claim.arrivalNotifiedAt,
+    confirmedAt: claim.confirmedAt,
     updatedAt: claim.updatedAt,
   }))), [donations]);
   const requested = [
@@ -348,18 +375,44 @@ export default function FarmerDonations() {
           <CardHeader eyebrow="Upcoming" title="Scheduled pickups" />
           {scheduled.length ? (
             <div className="grid gap-2.5">
-              {scheduled.map((donation) => (
-                <DonationRow
-                  key={donation.claimId || donation.id}
-                  donation={donation}
-                  meta={`${formatQuantity(donation.quantity)} ${donation.unit} · Pickup ${formatDate(donation.pickupDate)}`}
-                  actions={donation.claimId ? null : (
-                    <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
-                      Cancel
-                    </Button>
-                  )}
-                />
-              ))}
+              {scheduled.map((donation) => {
+                const workflowStatus = resolveDonationPickupStatus(donation);
+                const workflowLabel = getDonationWorkflowLabel(donation);
+                const arrivalVerified = isDonationArrivalVerified(donation) || Boolean(donation.arrivalNotifiedAt);
+                const canConfirm = canFarmerConfirmDonationHandover(donation);
+                return (
+                  <DonationRow
+                    key={donation.claimId || donation.id}
+                    donation={donation}
+                    badge={<Badge tone={donationTone(workflowStatus)}>{workflowLabel}</Badge>}
+                    meta={`${formatQuantity(donation.quantity)} ${donation.unit} · ${donation.requestedByName || 'Stakeholder'} · Pickup ${formatDate(donation.pickupDate)}${arrivalVerified ? ' · Stakeholder Has Arrived' : ''}`}
+                    actions={(
+                      <>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setTrackingTarget(donation)}
+                        >
+                          Track Pickup
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={saving || !canConfirm}
+                          title={canConfirm ? 'Confirm the donation handover' : 'Available after the Stakeholder arrival is verified'}
+                          onClick={() => setConfirmHandoverTarget(donation)}
+                        >
+                          Confirm Donation
+                        </Button>
+                        {donation.claimId ? null : (
+                          <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
+                            Cancel
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  />
+                );
+              })}
             </div>
           ) : (
             <EmptyState compact icon={Truck} title="No scheduled pickups" message="Accepted donation requests will show their pickup date here." />
@@ -408,7 +461,23 @@ export default function FarmerDonations() {
             { key: 'quantity', label: 'Quantity', render: (row) => `${formatQuantity(row.quantity)} ${row.unit}` },
             { key: 'requestedByName', label: 'Organization', render: (row) => row.requestedByName || '—' },
             { key: 'status', label: 'Status', render: (row) => <Badge tone={donationTone(row.status)}>{donationStatusLabel(row.status)}</Badge> },
-            { key: 'pickupDate', label: 'Pickup date', render: (row) => (row.pickupDate ? formatDate(row.pickupDate) : '—') },
+            {
+              key: 'pickupDate',
+              label: 'Pickup date',
+              render: (row) => (
+                <span className="flex flex-col gap-1">
+                  <span>{row.pickupDate ? formatDate(row.pickupDate) : '—'}</span>
+                  {row.status === 'completed' && (row.confirmedAt || row.updatedAt) ? (
+                    <time
+                      className="text-[12px] text-[var(--muted)]"
+                      dateTime={row.confirmedAt || row.updatedAt}
+                    >
+                      Completed {formatDateTimeManila(row.confirmedAt || row.updatedAt)}
+                    </time>
+                  ) : null}
+                </span>
+              ),
+            },
             { key: 'actions', label: 'Actions', render: () => '—' },
           ]}
           rows={pageRows}
@@ -427,11 +496,20 @@ export default function FarmerDonations() {
       >
         {donationProduct ? (
           <form className="flex flex-col gap-5" onSubmit={createDonationOffer}>
-            <div className="rounded-lg border border-[var(--line)] bg-[var(--soft)] px-4 py-3">
-              <p className="text-[15px] font-semibold text-[var(--text)]">{donationProduct.name}</p>
-              <p className="mt-1 text-[13px] text-[var(--muted)]">
-                {formatQuantity(donationProduct.quantity)} {donationProduct.unit} will be offered to verified partner organizations.
-              </p>
+            <div className="flex items-center gap-3 rounded-lg border border-[var(--line)] bg-[var(--soft)] px-4 py-3">
+              <img
+                className="farmer-donation-marker"
+                src={donateMapPin}
+                alt=""
+                aria-hidden="true"
+              />
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Your donation offer</p>
+                <p className="mt-1 text-[15px] font-semibold text-[var(--text)]">{donationProduct.name}</p>
+                <p className="mt-1 text-[13px] text-[var(--muted)]">
+                  {formatQuantity(donationProduct.quantity)} {donationProduct.unit} will be offered to verified partner organizations.
+                </p>
+              </div>
             </div>
             <div className="farmer-donation-expiration-grid">
               <label className="farmer-donation-pickup-field">
@@ -555,6 +633,36 @@ export default function FarmerDonations() {
           </div>
         ) : null}
       </Modal>
+
+      {trackingTarget ? (
+        <DonationPickupTrackingModal
+          donation={trackingTarget}
+          claim={trackingTarget.claimObj || null}
+          viewerRole="farmer"
+          onConfirmHandover={async (donId, clmId) => {
+            const updated = await confirmDonationHandover(donId, clmId);
+            setNotice('Donation Confirmed. Handover recorded.');
+            await reload();
+            return updated;
+          }}
+          onClose={() => setTrackingTarget(null)}
+          onStatusUpdated={() => reload()}
+        />
+      ) : null}
+
+      <DonationHandoverConfirmModal
+        open={Boolean(confirmHandoverTarget)}
+        busy={saving}
+        onCancel={() => { if (!saving) setConfirmHandoverTarget(null); }}
+        onConfirm={async () => {
+          if (!confirmHandoverTarget) return;
+          const ok = await run(
+            () => confirmDonationHandover(confirmHandoverTarget.id, confirmHandoverTarget.claimId || null),
+            'Donation Confirmed. Handover recorded.',
+          );
+          if (ok) setConfirmHandoverTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

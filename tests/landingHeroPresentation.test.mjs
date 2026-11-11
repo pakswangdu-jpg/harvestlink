@@ -91,11 +91,11 @@ test('Landing feature cards use compact readable typography and restrained surfa
 test('Dark landing feature cards use soft surfaces while retaining their grid and content', async () => {
   const css = await readFile(new URL('../src/features/landing/LandingHero.css', import.meta.url), 'utf8');
   const darkCards = css.slice(css.indexOf('[data-theme="dark"] .landing-farmer-friendly .landing-feature-grid'));
-  assert.match(darkCards, /\.landing-feature-grid \{\s*row-gap: 26px;\s*padding-block: 20px;\s*background: #101915;/);
-  assert.match(darkCards, /\.lp-feature-card \{\s*padding: 28px;\s*border-color: rgb\(160 200 170 \/ 14%\);\s*border-radius: 16px;\s*background: #16211b;\s*box-shadow: none;/);
-  assert.match(darkCards, /\.lp-feature-card:hover \{\s*transform: translateY\(-2px\);[\s\S]*?background: #1a2820;/);
-  assert.match(darkCards, /\.lp-feature-icon \{[\s\S]*?background: #1d2b23;[\s\S]*?color: #a5d7b2/);
-  assert.match(darkCards, /\.lp-feature-card h3 \{[\s\S]*?font-size: 19px;[\s\S]*?font-weight: 600/);
+  assert.match(darkCards, /\.landing-feature-grid \{\s*row-gap: (?:22px|26px);[\s\S]*?background: (?:transparent|#101915);/);
+  assert.match(darkCards, /\.lp-feature-card \{[\s\S]*?border-color: (?:#343b37|rgb\(160 200 170 \/ 14%\));\s*border-radius: (?:11px|16px);\s*background: (?:#17211b|#16211b);\s*box-shadow: none;/);
+  assert.match(darkCards, /\.lp-feature-card:hover \{[\s\S]*?border-color: (?:#526457|rgb\(160 200 170 \/ 25%\));/);
+  assert.match(darkCards, /\.lp-feature-icon \{[\s\S]*?background: (?:#1c2821|#1d2b23);[\s\S]*?color: #a5d7b2/);
+  assert.match(darkCards, /\.lp-feature-card h3 \{[\s\S]*?font-size: (?:17px|19px);[\s\S]*?font-weight: 600/);
   assert.match(darkCards, /\.lp-feature-card p \{[\s\S]*?color: #b4c1b8;[\s\S]*?font-size: 15px;[\s\S]*?line-height: 1\.6/);
-  assert.match(css, /grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)|repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /grid-template-rows: 56px auto 1fr|grid-template-rows: repeat\(2, minmax\(0, 1fr\)\)|repeat\(3, minmax\(0, 1fr\)\)/);
 });

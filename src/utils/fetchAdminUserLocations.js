@@ -12,5 +12,9 @@ export async function fetchAllAdminUserLocations(fetchPage) {
     results.forEach((result) => users.push(...result.users));
   }
 
-  return { users, total: firstPage.total };
+  const uniqueUsers = new Map();
+  users.forEach((user) => {
+    if (user?.id != null && user.id !== '') uniqueUsers.set(String(user.id), user);
+  });
+  return { users: [...uniqueUsers.values()], total: firstPage.total };
 }

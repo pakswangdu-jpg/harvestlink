@@ -170,6 +170,12 @@ const DELIVERY_METHOD_LABELS = {
 const DONATION_STATUS_LABELS = {
   available: 'Available',
   requested: 'Requested',
+  accepted: 'Accepted by Farmer',
+  awaiting_pickup: 'Awaiting Stakeholder Pickup',
+  on_the_way: 'Stakeholder on the Way',
+  arrived: 'Stakeholder Arrived',
+  awaiting_confirmation: 'Awaiting Farmer Confirmation',
+  confirmed: 'Donation Confirmed',
   scheduled: 'Pickup scheduled',
   completed: 'Donation completed',
   cancelled: 'Cancelled',
@@ -242,8 +248,8 @@ export function courierDeliveryStatusLabel(value) {
   return COURIER_DELIVERY_STATUS_LABELS[value] || value;
 }
 
-const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified', 'driver_assigned'];
-const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked', 'assigning_driver'];
+const STATUS_TONE_GOOD = ['active', 'confirmed', 'farmer', 'paid', 'completed', 'delivered', 'picked_up', 'scheduled', 'available', 'approved', 'verified', 'driver_assigned', 'accepted', 'arrived'];
+const STATUS_TONE_WARNING = ['pending', 'preparing', 'packed', 'out_for_delivery', 'ready_for_pickup', 'requested', 'waiting_for_pickup', 'booked', 'assigning_driver', 'awaiting_pickup', 'on_the_way', 'awaiting_confirmation'];
 const STATUS_TONE_CRITICAL = ['rejected', 'inactive', 'failed', 'cancelled', 'refunded', 'declined', 'suspended'];
 
 

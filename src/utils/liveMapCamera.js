@@ -62,6 +62,16 @@ export function createLiveMapCamera({ map, mapsApi, container, getPosition, getH
       onFollowChange(true);
       return true;
     },
+    zoomTo(zoom = 17) {
+      if (destroyed || !visible()) return false;
+      const currentZoom = map.getZoom?.();
+      if (Number.isFinite(currentZoom) && currentZoom < zoom && typeof map.setZoom === 'function') {
+        fitting = true;
+        map.setZoom(zoom);
+        fitting = false;
+      }
+      return this.resume();
+    },
     pause,
     fitOverview(bounds) {
       if (!visible() || following) return;
