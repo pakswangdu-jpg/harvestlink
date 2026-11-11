@@ -30,8 +30,11 @@ export default function ProductContextCard({
   useEffect(() => {
     if (!isReviewOpen || !context?.productId) return undefined;
     let cancelled = false;
-    setReviewLoadState('loading');
-    getProductById(context.productId)
+    Promise.resolve()
+      .then(() => {
+        if (!cancelled) setReviewLoadState('loading');
+        return getProductById(context.productId);
+      })
       .then((product) => {
         if (cancelled) return;
         if (!product || product.id !== context.productId || product.farmerId !== context.farmerId) {

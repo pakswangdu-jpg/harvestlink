@@ -38,17 +38,21 @@ export function ToastProvider({ children }) {
   }, [dismissToast]);
 
   useEffect(() => {
+    let timeoutId;
     try {
       if (sessionStorage.getItem(LOGOUT_NOTICE_KEY) !== '1') return;
       sessionStorage.removeItem(LOGOUT_NOTICE_KEY);
-      showToast({
-        type: 'success',
-        title: 'Signed out',
-        message: 'You have been safely signed out of HarvestLink.',
-      });
+      timeoutId = window.setTimeout(() => {
+        showToast({
+          type: 'success',
+          title: 'Signed out',
+          message: 'You have been safely signed out of HarvestLink.',
+        });
+      }, 0);
     } catch {
       // Storage can be unavailable in restricted browser sessions.
     }
+    return () => window.clearTimeout(timeoutId);
   }, [showToast]);
 
   return (
