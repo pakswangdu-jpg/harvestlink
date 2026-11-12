@@ -351,7 +351,7 @@ export default function FarmerDonations() {
                   donation={donation}
                   meta={`${formatQuantity(donation.availableQuantity ?? donation.quantity)} ${donation.unit} · ${donation.location}`}
                   actions={(
-                    <Button size="sm" disabled={saving || donation.claims?.some((claim) => ['pending', 'scheduled'].includes(claim.status))} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
+                    <Button size="sm" disabled={saving || donation.claims?.some((claim) => ['pending', 'scheduled'].includes(claim.status))} variant="secondary" onClick={() => run(() => cancelDonation(donation.id), 'Donation withdrawn.')}>
                       Withdraw
                     </Button>
                   )}
@@ -404,7 +404,7 @@ export default function FarmerDonations() {
                           Confirm Donation
                         </Button>
                         {donation.claimId ? null : (
-                          <Button size="sm" disabled={saving} variant="ghost" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
+                          <Button size="sm" disabled={saving} variant="secondary" onClick={() => run(() => cancelDonation(donation.id), 'Donation cancelled.')}>
                             Cancel
                           </Button>
                         )}
@@ -478,7 +478,6 @@ export default function FarmerDonations() {
                 </span>
               ),
             },
-            { key: 'actions', label: 'Actions', render: () => '—' },
           ]}
           rows={pageRows}
           emptyMessage={history.length ? 'No donations match your search.' : 'No donation history yet — completed and cancelled donations will be listed here.'}
@@ -490,8 +489,8 @@ export default function FarmerDonations() {
         open={Boolean(donationProduct)}
         onClose={closeDonationComposer}
         eyebrow="Donate remaining stock"
-        title="Create donation offer"
-        dialogLabel="Create donation offer for partner organizations"
+        title="Create or add to donation offer"
+        dialogLabel="Create or add stock to a donation offer for partner organizations"
         className="farmer-donation-create-overlay"
       >
         {donationProduct ? (
@@ -535,12 +534,12 @@ export default function FarmerDonations() {
               </label>
             </div>
             <p className="text-[13px] leading-5 text-[var(--muted)]">
-              Creating the offer moves the remaining stock out of your marketplace listing and notifies stakeholders that it is available.
+              Matching available offers from your account with the same product, unit, and exact expiration time receive this stock instead of creating a duplicate. Offers with pending or scheduled claims stay separate. Donated stock is removed from your marketplace listing.
             </p>
             <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
               <Button type="button" variant="secondary" onClick={closeDonationComposer} disabled={saving}>Cancel</Button>
               <Button type="submit" disabled={saving || !donationDraft.expirationDate || !donationDraft.expirationTime}>
-                {saving ? 'Creating offer...' : 'Create donation offer'}
+                {saving ? 'Adding donated stock...' : 'Create or add donated stock'}
               </Button>
             </div>
           </form>

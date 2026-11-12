@@ -66,11 +66,12 @@ export function useBuyerActivePickupSharing(buyerId, locationPermission) {
   const joinOrder = async (orderId) => {
     if (joinedOrderIdsRef.current.has(orderId)) return true;
     const socket = getSocket();
+    if (!socket.connected) return false;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return false;
     const joined = await new Promise((resolve) => {
-      socket.emit('join-order', { orderId, token: session.access_token }, (response) => {
-        resolve(Boolean(response?.ok));
+      socket.timeout(10000).emit('join-order', { orderId, token: session.access_token }, (error, response) => {
+        resolve(!error && Boolean(response?.ok));
       });
     });
     if (joined) joinedOrderIdsRef.current.add(orderId);
@@ -125,6 +126,7 @@ export function useBuyerActivePickupSharing(buyerId, locationPermission) {
       });
     };
     const handleDisconnect = () => {
+      joinedOrderIdsRef.current.clear();
       isSocketConnectedRef.current = false;
       refreshConnectionStatus();
     };

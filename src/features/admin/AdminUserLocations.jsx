@@ -13,7 +13,6 @@ import { buildFarmerMapMarkerIcon } from '../../components/map/farmerMapMarkerIc
 import { buildBuyerMapMarkerIcon } from '../../components/map/buyerMapMarkerIcon';
 import { buildStakeholderMapMarkerIcon } from '../../components/map/stakeholderMapMarkerIcon';
 import {
-  applyMarkerStackLayout,
   getOverlappingMarkerEntries,
   getRoleMarkerKey,
   uniqueProfilesById,
@@ -433,15 +432,7 @@ export default function AdminUserLocations() {
     });
     clusterer.clearMarkers();
     clusterer.addMarkers(markers);
-    const syncMarkerStacks = () => applyMarkerStackLayout(
-      [...markerEntries.values()],
-      map.getZoom() || 0,
-      mapsApi,
-    );
-    syncMarkerStacks();
-    const zoomListener = map.addListener('zoom_changed', syncMarkerStacks);
     return () => {
-      zoomListener.remove();
       markers.forEach((marker) => mapsApi.event.clearInstanceListeners(marker));
       infoWindowRef.current?.close();
       markerEntries.clear();

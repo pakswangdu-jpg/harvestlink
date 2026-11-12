@@ -10,6 +10,8 @@ const product = '30000000-0000-0000-0000-000000000001';
 const migration = await readFile(new URL('../../supabase/migrations/20261030_inventory_messaging_donations.sql', import.meta.url), 'utf8');
 const traceabilityMigration = await readFile(new URL('../../supabase/migrations/20261031_traceability_context.sql', import.meta.url), 'utf8');
 const unifiedMessagingMigration = await readFile(new URL('../../supabase/migrations/20261101_unified_listing_messaging.sql', import.meta.url), 'utf8');
+const compactDonationMessageQuantitiesMigration = await readFile(new URL('../../supabase/migrations/20261112_compact_donation_message_quantities.sql', import.meta.url), 'utf8');
+const addStockToExistingDonationMigration = await readFile(new URL('../../supabase/migrations/20261113_add_stock_to_existing_donation.sql', import.meta.url), 'utf8');
 const productInventoryRealtimeMigration = await readFile(new URL('../../supabase/migrations/20261103_product_inventory_realtime.sql', import.meta.url), 'utf8');
 const confirmedOrderCancellationMigration = await readFile(new URL('../../supabase/migrations/20261104_prevent_confirmed_order_cancellation.sql', import.meta.url), 'utf8');
 
@@ -83,12 +85,20 @@ test('inventory reservations, product context columns, and donation claims are a
   await db.exec(traceabilityMigration);
   await db.exec(unifiedMessagingMigration);
   await db.exec(unifiedMessagingMigration);
+  await db.exec(`insert into messages(recipient_id, sender_id, sender_name, sender_role, text, message_type, context_donation_id)
+    values('${farmer}', '${stakeholder}', 'HarvestLink', 'system', 'Donation: 1.00 sack and 1.50 kg', 'system', gen_random_uuid())`);
+  await db.exec(compactDonationMessageQuantitiesMigration);
+  await db.exec(compactDonationMessageQuantitiesMigration);
   await db.exec(confirmedOrderCancellationMigration);
   await db.exec(confirmedOrderCancellationMigration);
+  await db.exec(addStockToExistingDonationMigration);
+  await db.exec(addStockToExistingDonationMigration);
 
   const row = async (sql, params = []) => (await db.query(sql, params)).rows[0];
   const migratedThread = await row('select conversation_id from messages where text=$1', ['Existing direct thread']);
   assert.ok(migratedThread.conversation_id);
+  const compactedLegacyMessage = await row("select text from messages where text like 'Donation:%'");
+  assert.equal(compactedLegacyMessage.text, 'Donation: 1 sack and 1.5 kg');
   const orderPayload = (key, quantity = 4) => ({
     product_id: product, quantity, unit_price: 50, delivery_fee: 0, total_amount: quantity * 50,
     checkout_key: key, checkout_fingerprint: `fingerprint-${key}`, message: '',
@@ -267,7 +277,7 @@ test('inventory reservations, product context columns, and donation claims are a
     const claim = await row('select * from claim_surplus_donation($1,$2,$3)', [stakeholder, donation.id, 2]);
     assert.equal(Number(claim.quantity), 2);
     assert.equal(Number((await row('select available_quantity from donations where id=$1', [donation.id])).available_quantity), 4);
-    const claimEvent = await row('select conversation_id, sender_id, recipient_id, message_type, context_donation_id, context_donation_description from messages where context_donation_id=$1', [donation.id]);
+    const claimEvent = await row('select conversation_id, sender_id, recipient_id, message_type, context_donation_id, context_donation_description, text from messages where context_donation_id=$1', [donation.id]);
     assert.deepEqual(claimEvent, {
       conversation_id: claimEvent.conversation_id,
       sender_id: stakeholder,
@@ -275,6 +285,7 @@ test('inventory reservations, product context columns, and donation claims are a
       message_type: 'system',
       context_donation_id: donation.id,
       context_donation_description: 'Fresh cabbage for donation.',
+      text: 'Food Bank requested 2 kg of Cabbage. Awaiting farmer approval.',
     });
     assert.ok(claimEvent.conversation_id);
     await assert.rejects(row('select * from claim_surplus_donation($1,$2,$3)', [stakeholder, donation.id, 5]), { code: '23514' });
@@ -285,6 +296,12 @@ test('inventory reservations, product context columns, and donation claims are a
     await db.query('update donations set expiration_at = now() - interval \'1 minute\' where id = $1', [donation.id]);
     assert.equal(Number((await row('select expire_donations()')).expire_donations), 1);
     await assert.rejects(row('select * from claim_surplus_donation($1,$2,$3)', [stakeholder, donation.id, 1]), { code: '23514' });
+
+    await db.query('update products set quantity = 3, status = $2 where id = $1', [product, 'active']);
+    const fractionalDonation = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, product, new Date(Date.now() + 86400000).toISOString()]);
+    await row('select * from claim_surplus_donation($1,$2,$3)', [stakeholder, fractionalDonation.id, 1.5]);
+    const fractionalClaimEvent = await row('select text from messages where context_donation_id=$1 and message_type=$2 order by created_at limit 1', [fractionalDonation.id, 'system']);
+    assert.equal(fractionalClaimEvent.text, 'Food Bank requested 1.5 kg of Cabbage. Awaiting farmer approval.');
 
     await db.query('update products set quantity = 3, status = $2 where id = $1', [product, 'active']);
     const handoff = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, product, new Date(Date.now() + 86400000).toISOString()]);
@@ -299,6 +316,39 @@ test('inventory reservations, product context columns, and donation claims are a
     const withdrawn = await row('select * from withdraw_surplus_donation($1,$2)', [farmer, handoff.id]);
     assert.equal(withdrawn.status, 'cancelled');
     assert.equal(Number((await row('select quantity from products where id=$1', [product])).quantity), 1);
+  });
+
+  await t.test('matching new stock adds to the existing offer, but not to offers with active claims', async () => {
+    const secondProduct = '30000000-0000-0000-0000-000000000002';
+    const thirdProduct = '30000000-0000-0000-0000-000000000003';
+    const otherExpiryProduct = '30000000-0000-0000-0000-000000000004';
+    const expirationAt = new Date(Date.now() + 5 * 86400000).toISOString();
+    await db.query('update products set quantity = 6, status = $2 where id = $1', [product, 'active']);
+    await db.query(`insert into products(id, farmer_id, name, unit, quantity, location, status)
+      values($1, $2, 'CABBAGE', 'KG', 4, 'Cebu City', 'active')`, [secondProduct, farmer]);
+
+    const existing = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, product, expirationAt]);
+    const added = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, secondProduct, expirationAt]);
+    assert.equal(added.id, existing.id);
+    assert.equal(Number(added.quantity), 10);
+    assert.equal(Number(added.available_quantity), 10);
+    assert.equal(Number((await row('select quantity from products where id = $1', [secondProduct])).quantity), 0);
+
+    const claim = await row('select * from claim_surplus_donation($1,$2,$3)', [stakeholder, existing.id, 2]);
+    await db.query(`insert into products(id, farmer_id, name, unit, quantity, location, status)
+      values($1, $2, 'Cabbage', 'kg', 3, 'Cebu City', 'active')`, [thirdProduct, farmer]);
+    const separateForClaim = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, thirdProduct, expirationAt]);
+    assert.notEqual(separateForClaim.id, existing.id);
+    assert.equal(Number((await row('select quantity from donations where id = $1', [existing.id])).quantity), 10);
+    assert.equal((await row('select status from donation_claims where id = $1', [claim.id])).status, 'pending');
+
+    await db.query(`insert into products(id, farmer_id, name, unit, quantity, location, status)
+      values($1, $2, 'Cabbage', 'kg', 2, 'Cebu City', 'active')`, [otherExpiryProduct, farmer]);
+    const differentExpiry = await row('select * from create_surplus_donation($1,$2,$3)', [
+      farmer, otherExpiryProduct, new Date(new Date(expirationAt).getTime() + 1000).toISOString(),
+    ]);
+    assert.notEqual(differentExpiry.id, existing.id);
+    assert.notEqual(differentExpiry.id, separateForClaim.id);
   });
 
   await t.test('browser roles cannot execute privileged inventory or donation functions', async () => {

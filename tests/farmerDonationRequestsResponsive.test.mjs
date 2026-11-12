@@ -33,6 +33,12 @@ test('Completed donation history shows the exact handover date and time in Manil
   assert.match(page, /row\.status === 'completed' && \(row\.confirmedAt \|\| row\.updatedAt\)/);
 });
 
+test('Donation history omits the unused Actions column and keeps its Status column', async () => {
+  const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
+  assert.match(page, /key: 'status', label: 'Status'/);
+  assert.doesNotMatch(page, /key: 'actions', label: 'Actions'/);
+});
+
 test('Donation offer uses a transparent marker with subtle reduced-motion-aware animation', async () => {
   const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
   const styles = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');

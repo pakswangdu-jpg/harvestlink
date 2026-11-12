@@ -556,7 +556,10 @@ export default function DonationPickupTrackingModal({
         <section className="donation-tracking-map-section" aria-labelledby="donation-pickup-map-title">
           <div className="donation-tracking-section-heading">
             <div>
-              <h3 id="donation-pickup-map-title">Stakeholder location</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 id="donation-pickup-map-title">Stakeholder location</h3>
+                <span className="live-indicator"><span className="live-dot" /> Live</span>
+              </div>
               <p>Shown when the Stakeholder grants GPS permission and a live fix is available.</p>
             </div>
           </div>

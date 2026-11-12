@@ -45,6 +45,7 @@ export default function MessageBubble({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isSystem = message.messageType === 'system' || message.senderRole === 'system';
+  const donationContextIsMine = isMine && !isSystem;
   const canTranslate = !isMine && message.messageType === 'text' && message.text;
   const showTranslation = Boolean(translation?.visible);
   const productInquiryPreview = message.productContext ? (
@@ -107,23 +108,23 @@ export default function MessageBubble({
           ) : productInquiryPreview ? <div className="mb-1.5">{productInquiryPreview}</div> : null}
 
           {showProductContext && message.donationContext ? (
-            <div className={`mb-1.5 flex items-start gap-2 rounded-xl px-2 py-1.5 text-left ${isMine ? 'bg-emerald-800/40' : 'bg-[var(--panel)]'}`}>
+            <div className={`mb-1.5 flex items-start gap-2 rounded-xl px-2 py-1.5 text-left ${donationContextIsMine ? 'bg-emerald-800/40' : 'border border-[var(--line)] bg-[var(--panel)]'}`}>
               {message.donationContext.imageUrl ? (
                 <img src={message.donationContext.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
               ) : null}
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">Donation inquiry</p>
-                <p className="truncate text-[12px] font-medium">{message.donationContext.donationName}</p>
-                <p className="truncate text-[10px] opacity-75">
+                <p className={`text-[10px] font-semibold uppercase tracking-wide ${donationContextIsMine ? 'text-emerald-100' : 'text-[var(--green-700)]'}`}>Donation inquiry</p>
+                <p className={`truncate text-[12px] font-medium ${donationContextIsMine ? 'text-white' : 'text-[var(--text)]'}`}>{message.donationContext.donationName}</p>
+                <p className={`truncate text-[10px] ${donationContextIsMine ? 'text-emerald-100' : 'text-[var(--text-secondary)]'}`}>
                   {[message.donationContext.farmerName, message.donationContext.location].filter(Boolean).join(' · ')}
                 </p>
-                <p className="truncate text-[10px] opacity-75">
+                <p className={`truncate text-[10px] ${donationContextIsMine ? 'text-emerald-100' : 'text-[var(--text-secondary)]'}`}>
                   {message.donationContext.availableQuantity != null
                     ? `${message.donationContext.availableQuantity} ${message.donationContext.unit || 'units'} available at inquiry`
                     : 'Availability recorded'}
                 </p>
                 {message.donationContext.description ? (
-                  <p className="line-clamp-2 whitespace-pre-wrap text-[10px] opacity-75">{message.donationContext.description}</p>
+                  <p className={`line-clamp-2 whitespace-pre-wrap text-[10px] ${donationContextIsMine ? 'text-emerald-100' : 'text-[var(--text-secondary)]'}`}>{message.donationContext.description}</p>
                 ) : null}
               </div>
             </div>

@@ -64,6 +64,31 @@ test('switches Gemini models after 503 responses using increasing backoff', asyn
   assert.equal(console.warn.mock.callCount(), 0);
 });
 
+test('accepts Gemini JSON with trailing commas and requests the expected response schema', async (t) => {
+  const responseText = '{"summary":"Tomato prices may rise, }",\n"recommendation":"Monitor buyer orders.",\n}';
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const request = JSON.parse(options.body);
+    assert.equal(request.generationConfig.responseMimeType, 'application/json');
+    assert.deepEqual(request.generationConfig.responseSchema, {
+      type: 'OBJECT',
+      properties: {
+        summary: { type: 'STRING' },
+        recommendation: { type: 'STRING' },
+      },
+      required: ['summary', 'recommendation'],
+    });
+    assert.equal(request.generationConfig.maxOutputTokens, 512);
+    return Response.json({
+      candidates: [{ content: { parts: [{ text: responseText }] } }],
+    });
+  });
+
+  assert.deepEqual(await generateForecastInsights(forecast), {
+    summary: 'Tomato prices may rise, }',
+    recommendation: 'Monitor buyer orders.',
+  });
+});
+
 test('switches from a missing configured model to a working fallback', async (t) => {
   mockClock(t);
   process.env.GEMINI_MODEL = 'models/retired-model';

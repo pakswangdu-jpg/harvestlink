@@ -34,10 +34,16 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
 
   await t.test('requests and receipt confirmation ignore forged recipient identity', async () => {
     for (const action of ['request', 'receive']) {
-      await api.updateDonation(req(action, { actorId: id, requestedById: id }), res);
-      assert.deepEqual(calls.at(-1), ['rpc', 'transition_surplus_donation', {
-        actor_id: actor, donation_id: id, action_name: action, scheduled_date: null,
-      }]);
+      await api.updateDonation(req(action, {
+        actorId: id, requestedById: id, ...(action === 'request' ? { quantity: 2 } : {}),
+      }), res);
+      assert.deepEqual(calls.at(-1), action === 'request'
+        ? ['rpc', 'claim_surplus_donation', {
+          actor_id: actor, target_donation_id: id, requested_quantity: 2,
+        }]
+        : ['rpc', 'transition_surplus_donation', {
+          actor_id: actor, donation_id: id, action_name: action, scheduled_date: null,
+        }]);
     }
     assert.equal(response.quantity, 10.5);
     assert.equal(response.requestedById, actor);
@@ -107,10 +113,16 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
     assert.equal(calls.length, 0);
   });
 
+  await t.test('legacy request endpoint rejects missing or zero quantities', async () => {
+    await assert.rejects(api.updateDonation(req('request'), res), { status: 400 });
+    await assert.rejects(api.updateDonation(req('request', { quantity: 0 }), res), { status: 400 });
+    assert.equal(calls.length, 0);
+  });
+
   await t.test('permission, conflict and missing migration errors are not successful responses', async () => {
     for (const [code, expected] of [['42501', 403], ['23514', 409], ['P0002', 404], ['PGRST202', 503], ['PGRST205', 503]]) {
       result = { data: null, error: { code, message: 'Rejected' } };
-      await assert.rejects(api.updateDonation(req(), res), { status: expected });
+      await assert.rejects(api.updateDonation(req('request', { quantity: 1 }), res), { status: expected });
       assert.equal(response, undefined);
     }
   });

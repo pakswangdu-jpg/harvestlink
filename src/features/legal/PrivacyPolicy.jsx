@@ -1,6 +1,6 @@
 import LegalPageLayout from '../../components/legal/LegalPageLayout';
 
-const LAST_UPDATED = 'August 2, 2026';
+const LAST_UPDATED = 'November 12, 2026';
 
 const SECTIONS = [
   {
@@ -63,6 +63,7 @@ const SECTIONS = [
 
         <h3>4. Location information</h3>
         <ul>
+          <li>GPS coordinates captured when you register, used as your saved farm, delivery, or organization map location. New accounts for all roles must provide a GPS reading reporting accuracy of 100 meters or better. Your saved location is shown on in-app maps to other signed-in users and helps connect nearby accounts.</li>
           <li>Your registered municipality and address, used to estimate delivery distance and fees, and to show nearby farmers, buyers, and partner organizations on in-app maps.</li>
           <li>Live GPS coordinates, but only when you actively enable location sharing during an active delivery or pickup trip you are personally responsible for. See <a href="#location-services">Location Services</a> below.</li>
         </ul>
@@ -183,18 +184,20 @@ const SECTIONS = [
     content: (
       <>
         <p>
-          HarvestLink requests access to your device&apos;s precise location only when you take an action that
-          requires it — for example, enabling live location sharing during an active delivery or pickup, or
-          using a &quot;use my current location&quot; convenience feature when setting your address. Your browser
-          will always show its own native permission prompt before any location data is accessed; HarvestLink
-          cannot access your device&apos;s location without that explicit, browser-level permission.
+          During account registration, HarvestLink requests your device&apos;s GPS location to set the saved
+          map pin for your farm, delivery address, or organization site. Registration cannot be completed unless
+          the browser grants location access and reports an accuracy of 100 meters or better. The GPS reading is
+          saved as your profile location; it is not continuous tracking. Your browser will show its native
+          permission prompt before location data is accessed.
         </p>
         <p>
-          You may decline or revoke location permission at any time through your browser or device settings.
-          Declining location access does not prevent you from using HarvestLink generally, but it will disable
-          features that depend on it, such as live delivery tracking or automatic address detection.
+          A browser-reported accuracy value is an estimate and does not prove that a device is physically at a
+          particular farm or organization; GPS can be inaccurate or manipulated. You may revoke browser
+          permission at any time. Revoking permission does not remove a location already saved to your profile.
+          Live location sharing during a delivery or pickup remains a separate, temporary feature that requires
+          permission when used.
         </p>
-        <p>Live location is only ever shared with the other party to the specific order it relates to (the buyer or farmer on that order), never publicly, and never with unrelated third parties.</p>
+        <p>Saved profile locations appear on in-app maps for signed-in users. Live location is only ever shared with the other party to the specific order it relates to (the buyer or farmer on that order), never publicly, and never with unrelated third parties.</p>
       </>
     ),
   },

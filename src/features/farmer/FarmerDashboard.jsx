@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './FarmerDonationRequests.css';
 import './FarmerRecentListings.css';
 import { CalendarDays, CheckCircle2, ChevronRight, Clock3, Gift, Hourglass, MessageCircle, Package } from 'lucide-react';
@@ -17,19 +17,18 @@ import FarmerReviewsPanel from './FarmerReviewsPanel';
 import gcashLogo from '../../assets/icons/gcash-dashboard-logo.png';
 import codLogo from '../../assets/icons/cod-dashboard-transparent.png';
 import { useAuth } from '../auth/AuthContext';
-import { getBuyers, getNearbyMapProfiles, getStakeholders, getVerifiedFarmers } from '../../services/authService';
+import { getNearbyMapProfiles } from '../../services/authService';
 import { getProductsByFarmer } from '../../services/productService';
 import { getOrdersByFarmer } from '../../services/orderService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getMonthlyProfit, getMonthlyRevenue, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
-import { nearestByMunicipality } from '../../utils/geo';
+import { getRegisteredCoordinates } from '../../utils/geo';
 import { farmerNavItems } from './farmerNav';
 
 const EMPTY_STATE = {
-  products: [], orders: [], otherFarmers: [], registeredBuyers: [],
-  registeredStakeholders: [],
+  products: [], orders: [], mapProfiles: [],
 };
 
 function getMonthlyPaymentRevenue(orders, monthsBack = 6) {
@@ -67,34 +66,15 @@ export default function FarmerDashboard() {
     let cancelled = false;
 
     const reload = async () => {
-      const [products, orders, verifiedFarmers, registeredBuyers, registeredStakeholders, nearbyMapProfiles] = await Promise.all([
+      const [products, orders, mapProfiles] = await Promise.all([
         getProductsByFarmer(currentUser.id),
         getOrdersByFarmer(currentUser.id),
-        getVerifiedFarmers(),
-        getBuyers(),
-        getStakeholders(),
         getNearbyMapProfiles(),
       ]);
       if (cancelled) return;
       setLoadError('');
-      const donationsByFarmer = new Map(
-        nearbyMapProfiles.filter((profile) => profile.hasAvailableDonations).map((profile) => [profile.id, true]),
-      );
 
-
-
-
-      setState({
-        products,
-        orders,
-        otherFarmers: nearestByMunicipality(
-          currentUser.municipality,
-          verifiedFarmers.filter((farmer) => farmer.id !== currentUser.id)
-            .map((farmer) => ({ ...farmer, hasAvailableDonations: donationsByFarmer.has(farmer.id) })),
-        ),
-        registeredBuyers: nearestByMunicipality(currentUser.municipality, registeredBuyers),
-        registeredStakeholders: nearestByMunicipality(currentUser.municipality, registeredStakeholders),
-      });
+      setState({ products, orders, mapProfiles });
     };
 
     const refresh = () => reload().catch((error) => { if (!cancelled) setLoadError(error.message); });
@@ -104,9 +84,18 @@ export default function FarmerDashboard() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [currentUser.id, currentUser.municipality]);
+  }, [currentUser.id]);
 
-  const { products, orders, otherFarmers, registeredBuyers, registeredStakeholders } = state;
+  const { products, orders, mapProfiles } = state;
+  const activeMapFarmers = useMemo(() => mapProfiles.filter((profile) => profile.role === 'farmer'), [mapProfiles]);
+  const activeMapBuyers = useMemo(() => mapProfiles.filter((profile) => profile.role === 'buyer'), [mapProfiles]);
+  const activeMapStakeholders = useMemo(() => mapProfiles.filter((profile) => profile.role === 'stakeholder'), [mapProfiles]);
+  const currentUserCoords = typeof getRegisteredCoordinates === 'function'
+    ? getRegisteredCoordinates(currentUser)
+    : (Number.isFinite(Number(currentUser?.latitude)) && Number.isFinite(Number(currentUser?.longitude))
+        ? { lat: Number(currentUser.latitude), lng: Number(currentUser.longitude) }
+        : null);
+
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const confirmedOrders = orders.filter((order) => order.status === 'confirmed');
   const pendingDonationRequests = donations.filter((donation) => donation.status === 'requested');
@@ -279,20 +268,24 @@ export default function FarmerDashboard() {
               <p className="eyebrow">Map</p>
               <h2>Active Users</h2>
               <p className="map-legend">
+                <span className="legend-dot viewer" /> Your account
                 <span className="legend-dot farmer" /> Registered farmer
                 <span className="legend-dot buyer" /> Registered buyer
                 <span className="legend-dot stakeholder" /> Registered stakeholder
-                <span className="legend-dot donation" /> Surplus donation
               </p>
             </div>
             <span className="live-indicator"><span className="live-dot" /> Live</span>
           </div>
           <DeliveryMap
-            farmers={otherFarmers}
-            buyers={registeredBuyers}
-            stakeholders={registeredStakeholders}
-            alertStyle
-            showDonationAlerts
+            farmers={activeMapFarmers}
+            buyers={activeMapBuyers}
+            stakeholders={activeMapStakeholders}
+            currentUserId={currentUser.id}
+            currentUserGreen
+            farmerMarkersGreen
+            separateOverlappingPins
+            viewerCoords={currentUserCoords}
+            viewerAddress={currentUser.farmAddress || currentUser.address || currentUser.municipality || ''}
             viewerMunicipality={currentUser.municipality}
           />
         </div>

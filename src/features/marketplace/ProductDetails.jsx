@@ -19,6 +19,8 @@ import ProductReviewsFeed from '../../components/products/ProductReviewsFeed';
 import ProductImageGallery from '../../components/products/ProductImageGallery';
 import { useToast } from '../../contexts/ToastContext';
 
+const PRODUCT_NOT_LISTED_MESSAGE = "This product isn't listed by this farmer yet.";
+
 function getFarmerInquirySnapshot(context, id, currentUserId, currentUserRole) {
   if (currentUserRole !== 'farmer' || context?.productId !== id || context.farmerId !== currentUserId) return null;
   return {
@@ -76,7 +78,10 @@ export default function ProductDetails() {
           return;
         }
         setStoredProduct(null);
-        setLoadError(error instanceof Error ? error.message : 'Unable to load this product listing.');
+        const isMissingProduct = error?.status === 404 || error?.message === 'The product listing could not be found.';
+        setLoadError(isMissingProduct
+          ? PRODUCT_NOT_LISTED_MESSAGE
+          : error instanceof Error ? error.message : 'Unable to load this product listing.');
         setLoadedId(id);
         setLiveListingUnavailable(false);
       });
@@ -140,6 +145,7 @@ export default function ProductDetails() {
 
   const product = loadedId === id ? storedProduct : farmerInquirySnapshot;
   const navItems = getNavItemsForRole(currentUser.role);
+  const productNotListed = loadError === PRODUCT_NOT_LISTED_MESSAGE;
   if (loadedId !== id && !farmerInquirySnapshot) {
     return (
       <AppShell user={currentUser} navItems={navItems} title="Product listing" subtitle="Loading listing details…" pageClassName="checkout-page">
@@ -154,7 +160,7 @@ export default function ProductDetails() {
       <AppShell user={currentUser} navItems={navItems} title="Product listing" subtitle="We couldn’t open this listing." pageClassName="checkout-page">
         <div className="panel">
           <div className="empty-state compact">
-            <h2>Unable to view product</h2>
+            <h2>{productNotListed ? 'Product not listed yet' : 'Unable to view product'}</h2>
             <p role="alert">{loadError || 'This product may have been removed or is temporarily unavailable.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <Button variant="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>

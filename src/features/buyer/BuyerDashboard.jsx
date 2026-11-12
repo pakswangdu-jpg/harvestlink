@@ -344,6 +344,7 @@ export default function BuyerDashboard() {
             farmers={nearbyFarmers}
             buyers={nearbyBuyers}
             stakeholders={nearbyStakeholders}
+            currentUserId={currentUser.id}
             nearbyView
             showDonationAlerts={false}
             viewerAddress={currentUser.address || currentUser.municipality || ''}

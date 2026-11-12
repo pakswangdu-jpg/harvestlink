@@ -17,6 +17,10 @@ import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../
 import { getProfileLocationFromPlace } from '../../utils/profileLocation';
 import { reverseGeocode } from '../../services/geocodeService';
 import { getAccurateDeviceLocation } from '../../utils/deviceLocation';
+import {
+  isAcceptableRegistrationLocationAccuracy,
+  MAX_REGISTRATION_LOCATION_ACCURACY_METERS,
+} from '../../../backend/shared/location.js';
 import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
 import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
@@ -37,7 +41,7 @@ const REMEMBERED_EMAIL_KEY = 'harvestlink:rememberedEmail';
 const REGISTER_DRAFT_KEY = 'harvestlink:registerDraft';
 
 
-const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile'];
+const REGISTER_DRAFT_EXCLUDED_FIELDS = ['password', 'confirmPassword', 'govIdFile', 'accreditationFile', 'locationAccuracyMeters'];
 const PERSISTED_FILE_FIELDS = ['govIdFile', 'accreditationFile'];
 
 
@@ -456,13 +460,32 @@ function VerificationDocumentUpload({ id, file, error, onFileSelect, onValidatio
 
 
 
+function RegistrationLocationControl({
+  role, accuracy, error, isLocating, locationNotice, onCapture,
+}) {
+  const target = role === 'farmer' ? 'farm' : role === 'buyer' ? 'delivery address' : 'organization site';
+  return (
+    <div className="registration-location-control">
+      <p>Required: capture GPS while at your actual {target}. Registration needs accuracy within {MAX_REGISTRATION_LOCATION_ACCURACY_METERS} meters.</p>
+      <Button type="button" variant="secondary" size="sm" onClick={onCapture} disabled={isLocating}>
+        <LocateFixed size={15} /> {isLocating ? 'Locating…' : accuracy != null ? 'Refresh GPS location' : 'Capture GPS location'}
+      </Button>
+      {locationNotice ? <p className={accuracy != null ? 'muted' : 'field-error'} role={accuracy != null ? 'status' : 'alert'}>{locationNotice}</p> : null}
+      {error ? <p className="field-error" role="alert">{error}</p> : null}
+      {accuracy != null ? <p className="muted" role="status">GPS captured with about {Math.round(accuracy)} m accuracy.</p> : null}
+    </div>
+  );
+}
+
 function StakeholderRegisterFields({
   form,
   errors,
   updateField,
+  handleLocationFieldChange,
   handleBlur,
   isLocating,
   locationNotice,
+  locationAccuracyMeters,
   handleUseMyLocation,
   handlePlaceSelection,
   setFieldError,
@@ -623,15 +646,17 @@ function StakeholderRegisterFields({
           <span className="form-section-icon"><MapPin size={18} /></span>
           <div>
             <h3>Location</h3>
-            <p>Where your organization operates.</p>
+            <p>Capture your organization&apos;s registered location while you are on site.</p>
           </div>
         </div>
-        <div>
-          <Button type="button" variant="secondary" size="sm" onClick={handleUseMyLocation} disabled={isLocating}>
-            <LocateFixed size={15} /> {isLocating ? 'Locating…' : 'Use my current location'}
-          </Button>
-          {locationNotice ? <p className="muted">{locationNotice}</p> : null}
-        </div>
+        <RegistrationLocationControl
+          role="stakeholder"
+          accuracy={locationAccuracyMeters}
+          error={errors.location}
+          isLocating={isLocating}
+          locationNotice={locationNotice}
+          onCapture={handleUseMyLocation}
+        />
         <div className="form-grid">
           <FormField label="Province" name="province">
             <input id="province" value="Cebu" disabled />
@@ -640,7 +665,7 @@ function StakeholderRegisterFields({
             <select
               id="municipality"
               value={form.municipality}
-              onChange={(event) => updateField('municipality', event.target.value)}
+              onChange={(event) => handleLocationFieldChange('municipality', event.target.value)}
               onBlur={() => handleBlur('municipality')}
             >
               {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
@@ -651,7 +676,7 @@ function StakeholderRegisterFields({
           <input
             id="barangay"
             value={form.barangay}
-            onChange={(event) => updateField('barangay', event.target.value)}
+            onChange={(event) => handleLocationFieldChange('barangay', event.target.value)}
             onBlur={() => handleBlur('barangay')}
             placeholder="e.g. Poblacion"
           />
@@ -660,7 +685,7 @@ function StakeholderRegisterFields({
           <AddressAutocomplete
             id="address"
             value={form.address}
-            onChange={(next) => updateField('address', next)}
+            onChange={(next) => handleLocationFieldChange('address', next)}
             onSelect={handlePlaceSelection}
             onBlur={() => handleBlur('address')}
             error={errors.address}
@@ -741,6 +766,7 @@ function buildEmptyForm(preselectedRole) {
     address: '',
     latitude: null,
     longitude: null,
+    locationAccuracyMeters: null,
     zipCode: '',
     partnershipDescription: '',
     accreditationFile: '',
@@ -776,6 +802,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
       const draft = readRegisterDraft();
       if (draft?.form) {
         const restored = { ...base, ...draft.form };
+          restored.locationAccuracyMeters = null;
         PERSISTED_FILE_FIELDS.forEach((field) => {
           const entry = draft.files?.[field];
           if (!entry) return;
@@ -903,11 +930,13 @@ export default function AuthPage({ mode, adminPortal = false }) {
     setForm((previous) => ({
       ...previous,
       [field]: value,
-      ...(field === 'address' ? { latitude: null, longitude: null, zipCode: '' } : {}),
-      ...(field === 'municipality' || field === 'barangay' ? { latitude: null, longitude: null } : {}),
+      ...(field === 'address' ? { latitude: null, longitude: null, locationAccuracyMeters: null, zipCode: '' } : {}),
+      ...(field === 'municipality' || field === 'barangay' || field === 'role'
+        ? { latitude: null, longitude: null, locationAccuracyMeters: null }
+        : {}),
     }));
     setErrors((previous) => {
-      const next = { ...previous, [field]: undefined, form: undefined };
+      const next = { ...previous, [field]: undefined, location: undefined, form: undefined };
 
 
       if (field === 'password' || field === 'confirmPassword') next.confirmPassword = undefined;
@@ -916,12 +945,25 @@ export default function AuthPage({ mode, adminPortal = false }) {
     setMessage('');
   };
 
+  const handleLocationFieldChange = (field, value) => {
+    locationRequestRef.current?.abort();
+    locationRequestRef.current = null;
+    setIsLocating(false);
+    setLocationNotice('');
+    updateField(field, value);
+  };
+
   const handlePlaceSelection = (details) => {
+    locationRequestRef.current?.abort();
+    locationRequestRef.current = null;
+    setIsLocating(false);
+    setLocationNotice('');
     setForm((previous) => ({
       ...previous,
       ...getProfileLocationFromPlace(details, previous),
+      locationAccuracyMeters: null,
     }));
-    setErrors((previous) => ({ ...previous, address: undefined }));
+    setErrors((previous) => ({ ...previous, address: undefined, location: undefined }));
   };
 
 
@@ -974,27 +1016,42 @@ export default function AuthPage({ mode, adminPortal = false }) {
 
   const handleUseMyLocation = async () => {
     if (isLocating) return;
+    if (window.isSecureContext === false) {
+      setLocationNotice('Location requires a secure HTTPS connection. Open HarvestLink over HTTPS and try again.');
+      return;
+    }
     if (!navigator.geolocation) {
-      setLocationNotice('Location access is not supported on this device.');
+      setLocationNotice('This browser does not support GPS location. Use a supported browser to register.');
       return;
     }
     const request = new AbortController();
     locationRequestRef.current = request;
     setIsLocating(true);
     setLocationNotice('Finding your current location with the best available accuracy...');
+    setErrors((previous) => ({ ...previous, location: undefined }));
+    setForm((previous) => ({
+      ...previous,
+      latitude: null,
+      longitude: null,
+      locationAccuracyMeters: null,
+    }));
     let detectedPosition;
     try {
       detectedPosition = await getAccurateDeviceLocation(navigator.geolocation, { signal: request.signal });
       const { latitude, longitude, accuracy } = detectedPosition.coords;
+      if (!isAcceptableRegistrationLocationAccuracy(accuracy)) {
+        setLocationNotice(`GPS accuracy is about ${Math.round(accuracy)} m. Registration requires ${MAX_REGISTRATION_LOCATION_ACCURACY_METERS} m or better. Move outdoors and try again.`);
+        return;
+      }
       const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
       if (request.signal.aborted) return;
       const accuracyText = ` Location accuracy is about ${Math.round(accuracy)} m.`;
       if (!reverse) {
-        setLocationNotice(`No address was found for your location.${accuracyText} Please enter the address manually.`);
+        setLocationNotice(`No address was found for your GPS location.${accuracyText} Check your location settings and try again.`);
         return;
       }
       if (!reverse.municipality) {
-        setLocationNotice(`The detected city could not be matched to a supported Cebu municipality.${accuracyText} Your existing address has not been changed.`);
+        setLocationNotice(`The GPS location could not be matched to a supported Cebu municipality.${accuracyText} Capture the location again at your registered site.`);
         return;
       }
       setForm((previous) => ({
@@ -1005,11 +1062,12 @@ export default function AuthPage({ mode, adminPortal = false }) {
         zipCode: reverse.zipCode,
         latitude,
         longitude,
+        locationAccuracyMeters: accuracy,
       }));
       setErrors((previous) => ({
         ...previous, municipality: undefined, address: undefined,
         ...(isStakeholderRegister ? { barangay: undefined } : {}),
-        form: undefined,
+        location: undefined, form: undefined,
       }));
       setMessage('');
       const missing = [
@@ -1017,20 +1075,17 @@ export default function AuthPage({ mode, adminPortal = false }) {
         !reverse.street ? 'street' : null,
       ].filter(Boolean);
       const missingText = missing.length ? ` Please enter the ${missing.join(' and ')} manually; it was not returned by the map.` : '';
-      const lowAccuracyText = accuracy > 100
-        ? ' This reading is approximate. Please verify the address or retry where GPS reception is better.'
-        : ' Please double-check the detected address.';
-      setLocationNotice(`Location fields updated.${accuracyText}${missingText}${lowAccuracyText}`);
+      setLocationNotice(`Location fields updated.${accuracyText}${missingText} Please double-check the detected address.`);
     } catch (error) {
       if (request.signal.aborted) return;
       setLocationNotice(
         detectedPosition
-          ? 'Your location was detected, but the address lookup failed. Please retry or enter the address manually.'
+          ? 'Your location was detected, but the address lookup failed. Try capturing your location again.'
           : error.code === 1
-            ? 'Location permission denied. You can still fill this in manually.'
+            ? 'Location permission denied. Allow location access to complete registration.'
             : error.code === 3
-              ? 'Location timed out. Please try again or fill this in manually.'
-              : 'Location unavailable. Please try again or fill this in manually.',
+              ? 'Location timed out. Turn on device Location Services and try again.'
+              : 'Location unavailable. Check device Location Services and try again.',
       );
     } finally {
       if (!request.signal.aborted) setIsLocating(false);
@@ -1305,7 +1360,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
           ) : isRegister ? (
             <div className={`register-fields-scroll ${isStakeholderRegister ? 'stakeholder-mode' : ''}`}>
               <FormField label="Account type" name="role" error={errors.role}>
-                <select id="role" value={form.role} onChange={(event) => updateField('role', event.target.value)}>
+                <select id="role" value={form.role} onChange={(event) => handleLocationFieldChange('role', event.target.value)}>
                   <option value="farmer">Farmer</option>
                   <option value="buyer">Buyer</option>
                   <option value="stakeholder">Partner organization (donation recipient)</option>
@@ -1317,9 +1372,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
                   form={form}
                   errors={errors}
                   updateField={updateField}
+                  handleLocationFieldChange={handleLocationFieldChange}
                   handleBlur={handleBlur}
                   isLocating={isLocating}
                   locationNotice={locationNotice}
+                  locationAccuracyMeters={form.locationAccuracyMeters}
                   handleUseMyLocation={handleUseMyLocation}
                   handlePlaceSelection={handlePlaceSelection}
                   setFieldError={setFieldError}
@@ -1394,7 +1451,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                           <select
                             id="municipality"
                             value={form.municipality}
-                            onChange={(event) => updateField('municipality', event.target.value)}
+                            onChange={(event) => handleLocationFieldChange('municipality', event.target.value)}
                             onBlur={() => handleBlur('municipality')}
                           >
                             {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
@@ -1428,7 +1485,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                         <select
                           id="municipality"
                           value={form.municipality}
-                          onChange={(event) => updateField('municipality', event.target.value)}
+                          onChange={(event) => handleLocationFieldChange('municipality', event.target.value)}
                           onBlur={() => handleBlur('municipality')}
                         >
                           {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
@@ -1440,17 +1497,21 @@ export default function AuthPage({ mode, adminPortal = false }) {
                   {['farmer', 'buyer'].includes(form.role) ? (
                     <>
                       <div>
-                        <Button type="button" variant="secondary" size="sm" onClick={handleUseMyLocation} disabled={isLocating}>
-                          <LocateFixed size={15} /> {isLocating ? 'Locating…' : 'Use my current location'}
-                        </Button>
-                        {locationNotice ? <p className="muted">{locationNotice}</p> : null}
+                        <RegistrationLocationControl
+                          role={form.role}
+                          accuracy={form.locationAccuracyMeters}
+                          error={errors.location}
+                          isLocating={isLocating}
+                          locationNotice={locationNotice}
+                          onCapture={handleUseMyLocation}
+                        />
                       </div>
                       <div className="form-grid address-row">
                         <FormField label="Complete address" name="address" error={errors.address}>
                           <AddressAutocomplete
                             id="address"
                             value={form.address}
-                            onChange={(next) => updateField('address', next)}
+                            onChange={(next) => handleLocationFieldChange('address', next)}
                             onSelect={handlePlaceSelection}
                             onBlur={() => handleBlur('address')}
                             error={errors.address}

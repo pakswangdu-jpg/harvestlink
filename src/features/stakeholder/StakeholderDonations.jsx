@@ -64,11 +64,21 @@ export default function StakeholderDonations() {
   const { donations, loading, loadError, reload } = useDonationList({ availableOnly: true });
   const [requesting, setRequesting] = useState(false);
   const [notice, setNotice] = useState('');
-  const [error, setError] = useState('');
+  const [requestErrors, setRequestErrors] = useState({});
   const [claimQuantities, setClaimQuantities] = useState({});
 
   const canRequestDonations = currentUser.verificationStatus === 'verified';
   const requestedDonationId = new URLSearchParams(location.search).get('donationId');
+  const setRequestError = (donationId, message) => setRequestErrors((previous) => ({
+    ...previous,
+    [donationId]: message,
+  }));
+  const clearRequestError = (donationId) => setRequestErrors((previous) => {
+    if (!previous[donationId]) return previous;
+    const next = { ...previous };
+    delete next[donationId];
+    return next;
+  });
 
   useEffect(() => {
     if (!requestedDonationId || loading) return;
@@ -79,22 +89,33 @@ export default function StakeholderDonations() {
     if (requesting) return;
     const rawAvailable = donation.availableQuantity ?? donation.quantity;
     const available = Number(rawAvailable);
-    const hasAvailableQuantity = Number.isFinite(available);
-    const quantity = Number(claimQuantities[donation.id] || 1);
-    if (!Number.isFinite(quantity) || quantity <= 0 || (hasAvailableQuantity && quantity > available)) {
-      setError(`Choose a quantity between 1 and ${quantityLabel(rawAvailable)} ${donation.unit}.`);
+    const enteredQuantity = claimQuantities[donation.id];
+    if (enteredQuantity == null || String(enteredQuantity).trim() === '') {
+      setRequestError(donation.id, 'Enter the amount you need before requesting this donation.');
+      return;
+    }
+    const quantity = Number(enteredQuantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setRequestError(donation.id, 'Enter a quantity greater than 0.');
+      return;
+    }
+    if (!Number.isFinite(available) || available <= 0) {
+      setRequestError(donation.id, 'No stock is currently available. Refresh the page to check again.');
+      return;
+    }
+    if (quantity > available) {
+      setRequestError(donation.id, `Only ${quantityLabel(rawAvailable)} ${donation.unit} is available.`);
       return;
     }
     setRequesting(true);
     try {
-      if (hasAvailableQuantity) await requestDonation(donation.id, quantity);
-      else await requestDonation(donation.id);
-      setError('');
+      await requestDonation(donation.id, quantity);
+      clearRequestError(donation.id);
       setNotice(`Request sent to ${donation.farmerName} for ${quantityLabel(quantity)} ${donation.unit} of ${donation.productName}.`);
       await reload();
     } catch (requestError) {
       setNotice('');
-      setError(requestError.message);
+      setRequestError(donation.id, requestError.message);
     } finally {
       setRequesting(false);
     }
@@ -124,7 +145,6 @@ export default function StakeholderDonations() {
       ) : null}
 
       {notice ? <div className="form-alert success">{notice}</div> : null}
-      {error ? <div className="form-alert error">{error}</div> : null}
       {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
       {loading ? <p role="status">Loading donations...</p> : donations.length ? (
@@ -154,18 +174,28 @@ export default function StakeholderDonations() {
                         <input
                           id={`donation-quantity-${donation.id}`}
                           type="number"
-                          min="1"
+                          min="0.01"
                           max={donation.availableQuantity ?? donation.quantity}
-                          step="any"
-                          value={claimQuantities[donation.id] ?? 1}
-                          onChange={(event) => setClaimQuantities((previous) => ({ ...previous, [donation.id]: event.target.value }))}
-                          aria-describedby={`donation-quantity-help-${donation.id}`}
+                          step="0.01"
+                          required
+                          value={claimQuantities[donation.id] ?? ''}
+                          onChange={(event) => {
+                            setClaimQuantities((previous) => ({ ...previous, [donation.id]: event.target.value }));
+                            clearRequestError(donation.id);
+                          }}
+                          aria-invalid={Boolean(requestErrors[donation.id])}
+                          aria-describedby={`donation-quantity-help-${donation.id}${requestErrors[donation.id] ? ` donation-quantity-error-${donation.id}` : ''}`}
                         />
                         <span>{donation.unit}</span>
                       </div>
                       <small id={`donation-quantity-help-${donation.id}`}>
                         {quantityLabel(donation.availableQuantity ?? donation.quantity)} {donation.unit} available
                       </small>
+                      {requestErrors[donation.id] ? (
+                        <p id={`donation-quantity-error-${donation.id}`} className="mt-1 text-[12px] leading-4 text-[var(--red-700)]" role="alert">
+                          {requestErrors[donation.id]}
+                        </p>
+                      ) : null}
                     </div>
                     <Button
                       size="sm"

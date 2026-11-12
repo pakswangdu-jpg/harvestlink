@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activityTitle, partnerDashboardOverview, pickupDay, requestNextStep } from '../src/features/stakeholder/dashboardPresentation.js';
+import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, pickupDay, requestNextStep } from '../src/features/stakeholder/dashboardPresentation.js';
 
 const now = new Date('2026-10-10T17:00:00Z');
 test('Partner overview uses Cebu dates, valid saved schedules, and actual statuses', () => {
@@ -30,6 +30,32 @@ test('empty Partner records do not invent attention, pickups, or activity', () =
   assert.deepEqual(overview.latestActivity, []);
   assert.equal(pickupDay(null), null);
   assert.equal(pickupDay('2026-10-11T09:00:00Z'), null);
+});
+test('new donation alerts skip the initial load and identify newly available donations', () => {
+  const existing = [{ id: 'existing' }];
+  assert.deepEqual(findNewAvailableDonations(existing, null), []);
+  assert.deepEqual(
+    findNewAvailableDonations([...existing, { id: 'new' }], new Set(['existing'])),
+    [{ id: 'new' }],
+  );
+});
+test('donation map markers use registered profile coordinates and group each farmer’s offers', () => {
+  const donations = [
+    { id: 'one', farmerId: 'farmer-1', productName: 'Tomatoes', quantity: 3, unit: 'kg' },
+    { id: 'two', farmerId: 'farmer-1', productName: 'Eggplant', quantity: 2, unit: 'kg' },
+    { id: 'three', farmerId: 'missing-profile', productName: 'Corn', quantity: 1, unit: 'kg' },
+  ];
+  const profiles = [{
+    id: 'farmer-1', role: 'farmer', name: 'Ana', farmName: 'Ana Farm',
+    latitude: 10.3, longitude: 123.9, hasAvailableDonations: true,
+  }];
+  assert.deepEqual(buildDonationFarmers(donations, profiles), [{
+    ...profiles[0],
+    donations: [
+      { productName: 'Tomatoes', quantity: 3, unit: 'kg' },
+      { productName: 'Eggplant', quantity: 2, unit: 'kg' },
+    ],
+  }]);
 });
 test('recent lists use real timestamps, are bounded, and describe cancellation correctly', () => {
   const items = Array.from({ length: 7 }, (_, i) => ({ id: i, status: 'cancelled', createdAt: `2026-10-0${i + 1}T00:00:00Z`, updatedAt: `2026-10-0${7 - i}T00:00:00Z` }));

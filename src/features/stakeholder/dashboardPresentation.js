@@ -25,6 +25,31 @@ export function partnerDashboardOverview(requests, now = new Date()) {
   };
 }
 
+export function findNewAvailableDonations(donations, previousIds) {
+  if (!previousIds) return [];
+  return donations.filter(donation => !previousIds.has(String(donation.id)));
+}
+
+export function buildDonationFarmers(donations, profiles) {
+  const profilesById = new Map(profiles.map(profile => [String(profile.id), profile]));
+  const donationsByFarmer = new Map();
+  donations.forEach(donation => {
+    const farmerId = String(donation.farmerId);
+    const farmerDonations = donationsByFarmer.get(farmerId) || [];
+    farmerDonations.push(donation);
+    donationsByFarmer.set(farmerId, farmerDonations);
+  });
+
+  return [...donationsByFarmer].flatMap(([farmerId, farmerDonations]) => {
+    const farmer = profilesById.get(farmerId);
+    if (!farmer) return [];
+    return [{
+      ...farmer,
+      donations: farmerDonations.map(({ productName, quantity, unit }) => ({ productName, quantity, unit })),
+    }];
+  });
+}
+
 export function requestNextStep(status) {
   return { requested: 'Awaiting Farmer response', scheduled: 'Review pickup details', completed: 'Donation received', cancelled: 'Request closed', available: 'Available to request' }[status] || 'View request details';
 }

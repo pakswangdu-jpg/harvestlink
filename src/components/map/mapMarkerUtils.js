@@ -4,7 +4,6 @@ const ROLE_LABELS = {
   stakeholder: 'Stakeholder',
   viewer: 'Your location',
 };
-
 function escapeHtml(value) {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -40,10 +39,13 @@ export function getOverlappingMarkerEntries(entries, targetKey, zoom, radius = 4
   const target = entries.find((entry) => entry.key === targetKey);
   if (!target || !Number.isFinite(target.position?.lat) || !Number.isFinite(target.position?.lng)) return [];
 
-  const targetPoint = projectToWorldPixels(target.position, zoom);
   return entries.filter((entry) => {
     if (entry.key === targetKey || !Number.isFinite(entry.position?.lat) || !Number.isFinite(entry.position?.lng)) return false;
+    const dLat = Math.abs(entry.position.lat - target.position.lat);
+    const dLng = Math.abs(entry.position.lng - target.position.lng);
+    if (dLat > 0.001 || dLng > 0.001) return false;
     const point = projectToWorldPixels(entry.position, zoom);
+    const targetPoint = projectToWorldPixels(target.position, zoom);
     const rawDx = Math.abs(point.x - targetPoint.x);
     const dx = Math.min(rawDx, targetPoint.scale - rawDx);
     const dy = Math.abs(point.y - targetPoint.y);
@@ -51,66 +53,55 @@ export function getOverlappingMarkerEntries(entries, targetKey, zoom, radius = 4
   });
 }
 
-function getEntrySize(entry) {
-  return {
-    width: entry.icon?.scaledSize?.width || 40,
-    height: entry.icon?.scaledSize?.height || 48,
-  };
+function coordinatesOf(position) {
+  if (!position) return null;
+  const lat = typeof position.lat === 'function' ? position.lat() : Number(position.lat);
+  const lng = typeof position.lng === 'function' ? position.lng() : Number(position.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 }
 
-export function getMarkerStackLayouts(entries, zoom, gap = 4, radius = 48) {
-  const remaining = new Set(entries.filter((entry) => (
-    Number.isFinite(entry.position?.lat) && Number.isFinite(entry.position?.lng)
-  )));
-  const layouts = new Map();
-
-  while (remaining.size) {
-    const seed = remaining.values().next().value;
-    const group = [seed];
-    remaining.delete(seed);
-    for (let index = 0; index < group.length; index += 1) {
-      const current = group[index];
-      const peers = getOverlappingMarkerEntries(entries, current.key, zoom, radius);
-      peers.forEach((peer) => {
-        if (!remaining.has(peer)) return;
-        remaining.delete(peer);
-        group.push(peer);
-      });
-    }
-
-    if (group.length < 2) continue;
-    group.sort((left, right) => (
-      Number(right.role === 'stakeholder') - Number(left.role === 'stakeholder')
-      || left.key.localeCompare(right.key)
-    ));
-    const sizes = group.map(getEntrySize);
-    const maxHeight = Math.max(...sizes.map((size) => size.height));
-    const totalWidth = sizes.reduce((sum, size) => sum + size.width, 0) + gap * (group.length - 1);
-    let left = -totalWidth / 2;
-    group.forEach((entry, index) => {
-      const size = sizes[index];
-      layouts.set(entry.key, {
-        x: left + size.width / 2,
-        y: (maxHeight - size.height) / 2,
-      });
-      left += size.width + gap;
-    });
-  }
-  return layouts;
-}
-
-export function applyMarkerStackLayout(entries, zoom, mapsApi) {
-  if (!mapsApi?.Point) return;
-  const layouts = getMarkerStackLayouts(entries, zoom);
+export function syncMarkerPositions(entries) {
   entries.forEach((entry) => {
-    if (!entry?.icon || !entry?.marker?.setIcon) return;
-    const offset = layouts.get(entry.key) || { x: 0, y: 0 };
-    const originalAnchor = entry.icon.anchor || { x: (entry.icon.scaledSize?.width || 40) / 2, y: entry.icon.scaledSize?.height || 48 };
-    entry.marker.setIcon({
-      ...entry.icon,
-      anchor: new mapsApi.Point(originalAnchor.x - offset.x, originalAnchor.y - offset.y),
-    });
+    if (!entry?.position || !entry?.marker?.setPosition) return;
+    const currentPosition = coordinatesOf(entry.marker.getPosition?.() || entry.marker.position);
+    if (!currentPosition
+      || Math.abs(currentPosition.lat - entry.position.lat) > 1e-10
+      || Math.abs(currentPosition.lng - entry.position.lng) > 1e-10) {
+      entry.marker.setPosition(entry.position);
+    }
+    if (entry.layoutAnchor && entry.icon && entry.marker.setIcon) {
+      entry.marker.setIcon(entry.icon);
+      entry.layoutAnchor = null;
+    }
+    if (entry.connectorLine) {
+      entry.connectorLine.setMap?.(null);
+      entry.connectorLine = null;
+    }
+    entry.displayPosition = entry.position;
   });
+}
+
+export function focusSelectedProfileMarker(map, mapsApi, selectedPosition, currentAccountPosition, isCurrentUser) {
+  const samePosition = currentAccountPosition
+    && Math.abs(currentAccountPosition.lat - selectedPosition.lat) <= 1e-10
+    && Math.abs(currentAccountPosition.lng - selectedPosition.lng) <= 1e-10;
+  if (isCurrentUser || !currentAccountPosition || samePosition) {
+    map.panTo(selectedPosition);
+    map.setZoom(13);
+    return;
+  }
+
+  const bounds = new mapsApi.LatLngBounds();
+  bounds.extend(currentAccountPosition);
+  bounds.extend(selectedPosition);
+  map.fitBounds(bounds, 40);
+  mapsApi.event.addListenerOnce(map, 'idle', () => {
+    if (map.getZoom() > 13) map.setZoom(13);
+  });
+}
+
+export function applyMarkerStackLayout(entries) {
+  syncMarkerPositions(entries);
 }
 
 export function buildOverlappingPopupMarkup(popupHtml, entry, peers) {
@@ -120,7 +111,7 @@ export function buildOverlappingPopupMarkup(popupHtml, entry, peers) {
     const name = peer.title || 'Registered user';
     return `<button type="button" data-marker-key="${escapeHtml(peer.key)}" aria-label="Open ${escapeHtml(role)}: ${escapeHtml(name)}"><span>${escapeHtml(role)}</span><strong>${escapeHtml(name)}</strong></button>`;
   }).join('');
-  return `${popupHtml}<div class="map-popup-overlap" data-owner-key="${escapeHtml(entry.key)}" role="group" aria-label="Other accounts at this location"><small>${peers.length} other ${peers.length === 1 ? 'account is' : 'accounts are'} nearby</small>${accounts}</div>`;
+  return `${popupHtml}<div class="map-popup-overlap" data-owner-key="${escapeHtml(entry.key)}" role="group" aria-label="Other accounts at this location"><small>${peers.length} other ${peers.length === 1 ? 'account shares' : 'accounts share'} this location</small>${accounts}</div>`;
 }
 
 export function bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi) {
@@ -145,7 +136,7 @@ export function bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi) 
 }
 
 export function createProfileMarkerEntry({
-  role, userId, title, marker, infoWindow, popupHtml, position, icon,
+  role, userId, title, marker, infoWindow, popupHtml, position, icon, isCurrentUser = false,
 }, map, mapsApi, entriesRef, openInfoWindowRef) {
   const entry = {
     key: getRoleMarkerKey(role, userId),
@@ -157,6 +148,8 @@ export function createProfileMarkerEntry({
     popupHtml,
     position,
     icon,
+    isCurrentUser,
+    baseZIndex: marker.getZIndex?.() ?? null,
   };
   infoWindow.mapMarkerKey = entry.key;
   entry.clickListener = marker.addListener('click', () => {
@@ -171,6 +164,14 @@ export function showProfileMarkerInfo(map, mapsApi, entry, entriesRef, openInfoW
   const entries = entriesRef.current instanceof Map
     ? [...entriesRef.current.values()]
     : Object.values(entriesRef.current);
+  entries.forEach((candidate) => {
+    if (!Object.hasOwn(candidate, 'baseZIndex')) {
+      candidate.baseZIndex = candidate.zIndex ?? candidate.marker.getZIndex?.() ?? null;
+    }
+    candidate.isSelected = candidate === entry;
+    candidate.marker.setZIndex?.(candidate === entry ? 1100 : candidate.baseZIndex);
+  });
+  applyMarkerStackLayout(entries);
   const peers = getOverlappingMarkerEntries(entries, entry.key, map.getZoom() || 0);
   entry.infoWindow.setContent(buildOverlappingPopupMarkup(entry.popupHtml, entry, peers));
   if (openInfoWindowRef.current && openInfoWindowRef.current !== entry.infoWindow) {
@@ -184,6 +185,7 @@ export function removeProfileMarkerEntry(entry, entriesRef) {
   if (!entry) return;
   entry.clickListener?.remove?.();
   entry.overlapDomReadyListener?.remove?.();
+  entry.connectorLine?.setMap?.(null);
   entry.marker?.setMap?.(null);
   entry.infoWindow?.close?.();
   entriesRef?.current?.delete?.(entry.key);

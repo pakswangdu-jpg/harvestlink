@@ -1,4 +1,4 @@
-import { profileLocationFields } from '../lib/profileLocation.js';
+import { profileLocationFields, registrationLocationFields } from '../lib/profileLocation.js';
 import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { supabaseAdmin } from '../lib/supabaseClient.js';
@@ -43,6 +43,7 @@ function buildPendingRegistrationData(values) {
     name: values.name || getFullName(values),
     contactNumber: values.contactNumber || '',
     ...profileLocationFields(values),
+    locationAccuracyMeters: values.locationAccuracyMeters,
     address: values.address || '',
     zipCode: values.zipCode || '',
     municipality: values.municipality || null,
@@ -82,6 +83,7 @@ export async function register(req, res) {
   const { email: rawEmail, password, role, contactNumber: rawContactNumber } = req.body;
 
   if (!VALID_ROLES.includes(role)) throw new ApiError('Choose a valid account type.', 400);
+  registrationLocationFields(req.body);
   if (!password || String(password).length < 6) throw new ApiError('Enter a password with at least 6 characters.', 400);
   const email = String(rawEmail || '').trim().toLowerCase();
   if (!email) throw new ApiError('Enter your email address.', 400);
@@ -180,6 +182,8 @@ export async function verifyRegistrationCode(req, res) {
   if (!pending) {
     throw new ApiError('No pending registration was found for this email.', 404);
   }
+
+  registrationLocationFields(pending.data);
 
   const now = new Date();
   if (new Date(pending.expires_at) < now) {

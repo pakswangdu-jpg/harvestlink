@@ -24,6 +24,27 @@ function escapeAttribute(value) {
     .replaceAll('>', '&gt;');
 }
 
+function formatFullAddress(address, barangay, municipality) {
+  const parts = String(address || '').split(',').map((part) => part.trim()).filter(Boolean);
+  const normalize = (part) => part.toLocaleLowerCase();
+  const hasPart = (value) => parts.some((part) => normalize(part) === normalize(value));
+  const barangayPart = String(barangay || '').trim();
+  const municipalityPart = String(municipality || '').trim();
+  const cityIndex = municipalityPart
+    ? parts.findIndex((part) => normalize(part) === normalize(municipalityPart))
+    : -1;
+
+  if (barangayPart && !hasPart(barangayPart)) {
+    if (cityIndex >= 0) parts.splice(cityIndex, 0, barangayPart);
+    else parts.push(barangayPart);
+  }
+  if (municipalityPart && !hasPart(municipalityPart)) parts.push(municipalityPart);
+
+  return parts.filter((part, index) => (
+    parts.findIndex((candidate) => normalize(candidate) === normalize(part)) === index
+  )).join(', ') || 'Location unavailable';
+}
+
 function getDirectionsUrl({ coords, address, barangay, municipality }) {
   const lat = Number(coords?.lat);
   const lng = Number(coords?.lng);
@@ -49,14 +70,18 @@ function getDirectionsUrl({ coords, address, barangay, municipality }) {
 
 export function buildMapPopup({
   name, person, municipality, address, barangay, coords, contactNumber, presence, precision, products, links = [],
+  fullAddress = false,
 }) {
-  const locationLabel = [address, barangay, municipality]
-    .map((part) => String(part || '').trim())
-    .find(Boolean) || 'Location unavailable';
+  const locationLabel = fullAddress
+    ? formatFullAddress(address, barangay, municipality)
+    : [address, barangay, municipality]
+      .map((part) => String(part || '').trim())
+      .find(Boolean) || 'Location unavailable';
+  const escapedLocationLabel = escapeAttribute(locationLabel);
   const directionsUrl = getDirectionsUrl({ coords, address, barangay, municipality });
   const locationMarkup = directionsUrl
-    ? `<a class="map-popup-row map-popup-location map-popup-location-link" href="${escapeAttribute(directionsUrl)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps" aria-label="Open ${escapeAttribute(locationLabel)} in Google Maps">${popupIcon('location')}${locationLabel}</a>`
-    : `<span class="map-popup-row map-popup-location map-popup-location-disabled" aria-disabled="true">${popupIcon('location')}${locationLabel}</span>`;
+    ? `<a class="map-popup-row map-popup-location map-popup-location-link" href="${escapeAttribute(directionsUrl)}" target="_blank" rel="noopener noreferrer" title="Open in Google Maps" aria-label="Open ${escapedLocationLabel} in Google Maps">${popupIcon('location')}<span class="map-popup-location-text">${escapedLocationLabel}</span></a>`
+    : `<span class="map-popup-row map-popup-location map-popup-location-disabled" aria-disabled="true">${popupIcon('location')}<span class="map-popup-location-text">${escapedLocationLabel}</span></span>`;
 
   return (
     `<div class="map-popup">` +
