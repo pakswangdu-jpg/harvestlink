@@ -35,6 +35,46 @@ function retryAfterMs(response) {
   return Number.isNaN(date) ? 0 : Math.max(0, date - Date.now());
 }
 
+function removeTrailingJsonCommas(value) {
+  let normalized = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (inString) {
+      normalized += character;
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+      normalized += character;
+      continue;
+    }
+    if (character === ',') {
+      let nextIndex = index + 1;
+      while (/\s/.test(value[nextIndex] || '') && nextIndex < value.length) nextIndex += 1;
+      if (value[nextIndex] === '}' || value[nextIndex] === ']') continue;
+    }
+    normalized += character;
+  }
+
+  return normalized;
+}
+
+function parseInsights(text) {
+  const trimmed = text.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  const parsed = JSON.parse(removeTrailingJsonCommas(fenced ? fenced[1] : trimmed));
+  if (typeof parsed.summary !== 'string' || !parsed.summary.trim()
+    || typeof parsed.recommendation !== 'string' || !parsed.recommendation.trim()) return null;
+  return { summary: parsed.summary.trim(), recommendation: parsed.recommendation.trim() };
+}
+
 async function requestInsights(requestBody, apiKey, models) {
   const deadline = Date.now() + TOTAL_TIMEOUT_MS;
   let failure = 'temporary service failure';
@@ -142,10 +182,19 @@ Respond with strict JSON: {"summary": "2-3 sentence plain-language market summar
     const requestBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
 
-
-
-
-      generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 2048 },
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            summary: { type: 'STRING' },
+            recommendation: { type: 'STRING' },
+          },
+          required: ['summary', 'recommendation'],
+        },
+        temperature: 0.4,
+        maxOutputTokens: 512,
+      },
     });
 
     const data = await requestInsights(requestBody, apiKey, models);
@@ -154,10 +203,15 @@ Respond with strict JSON: {"summary": "2-3 sentence plain-language market summar
       .map((part) => part.text).join('');
     if (!text) return null;
 
-    const parsed = JSON.parse(text);
-    if (typeof parsed.summary !== 'string' || !parsed.summary.trim()
-      || typeof parsed.recommendation !== 'string' || !parsed.recommendation.trim()) return null;
-    return { summary: parsed.summary.trim(), recommendation: parsed.recommendation.trim() };
+    try {
+      const parsed = parseInsights(text);
+      if (parsed) return parsed;
+    } catch {
+      console.warn('Gemini returned invalid forecast insight JSON; using the standard forecast report.');
+      return null;
+    }
+    console.warn('Gemini returned incomplete forecast insights; using the standard forecast report.');
+    return null;
   } catch (error) {
     console.error('Gemini forecast insight generation failed:', error.message);
     return null;

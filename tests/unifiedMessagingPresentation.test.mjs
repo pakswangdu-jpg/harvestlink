@@ -45,6 +45,9 @@ test('product inquiry context remains reviewable and donation listings provide m
   assert.match(productDetails, /Showing the listing details saved when the buyer sent the inquiry/);
   assert.match(productDetails, /Loading product listing…/);
   assert.match(productDetails, /Unable to view product/);
+  assert.match(productDetails, /error\?\.status === 404/);
+  assert.match(productDetails, /This product isn't listed by this farmer yet\./);
+  assert.match(productDetails, /productNotListed \? 'Product not listed yet' : 'Unable to view product'/);
   assert.match(productDetails, /error instanceof Error \? error\.message/);
   assert.match(productDetails, /Try again/);
   assert.match(productDetails, /const canMessageFarmer = ORDERING_ROLES\.includes\(currentUser\.role\)\s*&& currentUser\.id !== product\.farmerId/);
@@ -259,6 +262,19 @@ test('product inquiry previews link to their exact listing', async () => {
   const messageBubble = await readFile(new URL('../src/components/messages/MessageBubble.jsx', import.meta.url), 'utf8');
   assert.match(messageBubble, /const productInquiryPreview = message\.productContext \?/);
   assert.match(messageBubble, /<Link[\s\S]*?to=\{`\/products\/\$\{message\.productContext\.productId\}`\}[\s\S]*?state=\{\{ productContext: message\.productContext \}\}[\s\S]*?productInquiryPreview/);
+});
+
+test('system donation inquiry cards use readable, high-contrast styling', async () => {
+  const messageBubble = await readFile(new URL('../src/components/messages/MessageBubble.jsx', import.meta.url), 'utf8');
+  const donationCard = messageBubble.slice(
+    messageBubble.indexOf('{showProductContext && message.donationContext ?'),
+    messageBubble.indexOf('{message.messageType === \'image\''),
+  );
+
+  assert.match(messageBubble, /const donationContextIsMine = isMine && !isSystem;/);
+  assert.match(donationCard, /donationContextIsMine \? 'bg-emerald-800\/40' : 'border border-\[var\(--line\)\] bg-\[var\(--panel\)\]'/);
+  assert.match(donationCard, /donationContextIsMine \? 'text-white' : 'text-\[var\(--text\)\]'/);
+  assert.doesNotMatch(donationCard, /opacity-(?:70|75)/);
 });
 
 test('message migration persists unique pair conversations and participant-only realtime reads', async () => {

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  buildOverlappingPopupMarkup,
   applyMarkerStackLayout,
+  buildOverlappingPopupMarkup,
   bindOverlappingMarkerSelection,
+  focusSelectedProfileMarker,
   getOverlappingMarkerEntries,
-  getMarkerStackLayouts,
   getRoleMarkerKey,
+  showProfileMarkerInfo,
+  syncMarkerPositions,
   uniqueProfilesById,
 } from '../src/components/map/mapMarkerUtils.js';
 
@@ -41,32 +43,151 @@ test('same-coordinate and screen-overlapping users remain separate map targets',
   );
 });
 
-test('duplicate Stakeholder pin leads the stack and shorter second pin is vertically centered', () => {
+test('co-located pins and their icons remain fixed through zoom syncs', () => {
+  const entries = ['farmer:f1', 'buyer:b1', 'stakeholder:s1'].map((key) => {
+    const position = { lat: 10, lng: 123 };
+    const icon = { anchor: { x: 14, y: 38 }, scaledSize: { width: 28, height: 38 } };
+    let restoredIcon;
+    let positionUpdates = 0;
+    let iconUpdates = 0;
+    const connectorLine = { setMap(map) { this.map = map; } };
+    const entry = {
+      key,
+      position,
+      icon,
+      layoutAnchor: { x: 42, y: 38 },
+      connectorLine,
+      originalConnectorLine: connectorLine,
+      marker: {
+        position: { lat: 10, lng: 123.00001 },
+        setPosition(nextPosition) { positionUpdates += 1; this.position = nextPosition; },
+        setIcon(nextIcon) { iconUpdates += 1; restoredIcon = nextIcon; },
+      },
+    };
+    entry.getRestoredIcon = () => restoredIcon;
+    entry.getUpdateCounts = () => ({ positionUpdates, iconUpdates });
+    return entry;
+  });
+
+  for (let index = 0; index < 4; index += 1) {
+    syncMarkerPositions(entries);
+    entries.forEach((entry) => {
+      assert.deepEqual(entry.marker.position, entry.position);
+      assert.equal(entry.getRestoredIcon(), entry.icon);
+      assert.equal(entry.layoutAnchor, null);
+      assert.equal(entry.originalConnectorLine.map, null);
+      assert.equal(entry.connectorLine, null);
+      assert.equal(entry.displayPosition, entry.position);
+      assert.deepEqual(entry.getUpdateCounts(), { positionUpdates: 1, iconUpdates: 1 });
+    });
+  }
+});
+
+test('role markers keep stored coordinates and original icon anchors through zoom syncs', () => {
   const entries = [
-    {
-      key: 'farmer:f1',
-      role: 'farmer',
-      position: { lat: 10, lng: 123 },
-      icon: { scaledSize: { width: 40, height: 51 }, anchor: { x: 20, y: 50 } },
-      marker: { setIcon(icon) { this.icon = icon; } },
-    },
-    {
-      key: 'stakeholder:s1',
-      role: 'stakeholder',
-      position: { lat: 10, lng: 123 },
-      icon: { scaledSize: { width: 48, height: 62 }, anchor: { x: 24, y: 61 } },
-      marker: { setIcon(icon) { this.icon = icon; } },
-    },
-  ];
+    { key: 'farmer:f1', role: 'farmer', position: { lat: 10, lng: 123 } },
+    { key: 'buyer:b1', role: 'buyer', position: { lat: 10, lng: 123 } },
+    { key: 'stakeholder:s1', role: 'stakeholder', position: { lat: 10.0001, lng: 123.0001 } },
+  ].map(({ key, role, position }) => {
+    const icon = { anchor: { x: 14, y: 38 }, scaledSize: { width: 28, height: 38 } };
+    const connectorLine = { setMap(map) { this.map = map; } };
+    return {
+      key,
+      role,
+      position,
+      icon,
+      layoutAnchor: { x: 42, y: 38 },
+      connectorLine,
+      marker: {
+        position: { lat: position.lat, lng: position.lng + 0.001 },
+        icon: { ...icon, anchor: { x: 42, y: 38 } },
+        getPosition() { return this.position; },
+        setPosition(nextPosition) { this.position = nextPosition; },
+        setIcon(nextIcon) { this.icon = nextIcon; },
+      },
+    };
+  });
 
-  const layouts = getMarkerStackLayouts(entries, 14);
-  assert.ok(layouts.get('stakeholder:s1').x < 0);
-  assert.ok(layouts.get('farmer:f1').x > 0);
-  assert.equal(layouts.get('farmer:f1').y, 5.5);
+  [9, 14, 20].forEach(() => {
+    applyMarkerStackLayout(entries);
+    entries.forEach((entry) => {
+      assert.deepEqual(entry.marker.position, entry.position);
+      assert.deepEqual(entry.marker.icon, entry.icon);
+      assert.equal(entry.layoutAnchor, null);
+      assert.equal(entry.connectorLine, null);
+      assert.equal(entry.displayPosition, entry.position);
+    });
+  });
+});
 
-  applyMarkerStackLayout(entries, 14, { Point: class { constructor(x, y) { this.x = x; this.y = y; } } });
-  assert.equal(entries[0].marker.icon.anchor.y, 44.5);
-  assert.equal(entries[1].marker.icon.anchor.y, 61);
+test('selecting another profile keeps the authenticated account and selection in view', () => {
+  const accountPosition = { lat: 10.3237, lng: 123.9224 };
+  const selectedPosition = { lat: 9.79, lng: 123.65 };
+  let idleCallback;
+  const mapCalls = [];
+  const map = {
+    panTo: (position) => mapCalls.push(['panTo', position]),
+    setZoom: (zoom) => mapCalls.push(['setZoom', zoom]),
+    fitBounds: (bounds, padding) => mapCalls.push(['fitBounds', bounds.points, padding]),
+    getZoom: () => 15,
+  };
+  const mapsApi = {
+    LatLngBounds: class {
+      constructor() { this.points = []; }
+      extend(position) { this.points.push(position); }
+    },
+    event: {
+      addListenerOnce: (_map, eventName, callback) => {
+        assert.equal(eventName, 'idle');
+        idleCallback = callback;
+      },
+    },
+  };
+
+  focusSelectedProfileMarker(map, mapsApi, selectedPosition, accountPosition, false);
+  assert.deepEqual(mapCalls, [['fitBounds', [accountPosition, selectedPosition], 40]]);
+  idleCallback();
+  assert.deepEqual(mapCalls[1], ['setZoom', 13]);
+
+  mapCalls.length = 0;
+  focusSelectedProfileMarker(map, mapsApi, accountPosition, accountPosition, true);
+  assert.deepEqual(mapCalls, [['panTo', accountPosition], ['setZoom', 13]]);
+});
+
+test('selecting an overlapping stakeholder brings its role-colored pin above the account pin', () => {
+  const makeEntry = (key, role, baseZIndex, isCurrentUser = false) => ({
+    key,
+    role,
+    title: key,
+    isCurrentUser,
+    baseZIndex,
+    position: { lat: 10, lng: 123 },
+    popupHtml: `<div>${key}</div>`,
+    marker: { setZIndex(value) { this.zIndex = value; } },
+    infoWindow: {
+      setContent(value) { this.content = value; },
+      open() { this.isOpen = true; },
+      close() { this.isOpen = false; },
+    },
+  });
+  const farmer = makeEntry('farmer:me', 'farmer', 1000, true);
+  const stakeholder = makeEntry('stakeholder:other', 'stakeholder', null);
+  const entriesRef = { current: new Map([[farmer.key, farmer], [stakeholder.key, stakeholder]]) };
+  const openInfoWindowRef = { current: null };
+  const map = { getZoom: () => 14 };
+
+  showProfileMarkerInfo(map, {}, stakeholder, entriesRef, openInfoWindowRef);
+  assert.equal(stakeholder.marker.zIndex, 1100);
+  assert.equal(farmer.marker.zIndex, 1000);
+  assert.equal(stakeholder.isSelected, true);
+  assert.equal(farmer.isSelected, false);
+  assert.match(stakeholder.infoWindow.content, /farmer:me/);
+
+  showProfileMarkerInfo(map, {}, farmer, entriesRef, openInfoWindowRef);
+  assert.equal(farmer.marker.zIndex, 1100);
+  assert.equal(stakeholder.marker.zIndex, null);
+  assert.equal(farmer.isSelected, true);
+  assert.equal(stakeholder.isSelected, false);
 });
 
 test('overlap choices are role-labeled, keyboard-accessible buttons with escaped names', () => {

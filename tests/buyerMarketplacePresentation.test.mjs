@@ -32,6 +32,7 @@ test('Marketplace keeps the Price Range filter sticky and separate from scrollin
   const css = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
   assert.match(source, /<section className="panel marketplace-price-toolbar">\s*<PriceRangeSlider/);
   assert.match(css, /\.marketplace-page \.marketplace-price-toolbar\s*\{[^}]*position: sticky;[^}]*top: 12px;/);
+  assert.match(css, /\.marketplace-page \.marketplace-price-toolbar\s*\{[^}]*align-self: start;/);
 });
 
 test('Product fallback recovers when the uploaded image URL changes without modifying photos', async () => {

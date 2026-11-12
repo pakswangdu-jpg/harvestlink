@@ -5074,8 +5074,13 @@ a.user-chip:hover {
 
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.65;
   transform: none;
+}
+
+[data-theme="dark"] .btn:disabled {
+  opacity: 0.7;
+  color: #c5cec8;
 }
 
 .btn-sm {
@@ -5245,21 +5250,48 @@ a.user-chip:hover {
 
 .app-shell .btn-secondary {
   color: var(--text);
-  border-color: var(--line);
+  border: 1px solid var(--line);
   background: var(--panel);
 }
 
-.app-shell .btn-secondary:hover {
+.app-shell .btn-secondary:hover:not(:disabled) {
   background: var(--soft);
+  color: var(--text-strong);
 }
 
 .app-shell .btn-ghost {
-  color: var(--muted);
+  color: var(--text);
+  border: 1px solid var(--line);
   background: var(--soft);
 }
 
-.app-shell .btn-ghost:hover {
+.app-shell .btn-ghost:hover:not(:disabled) {
   background: var(--line);
+  color: var(--text-strong);
+}
+
+[data-theme="dark"] .app-shell .btn-secondary {
+  color: #f1f5f2;
+  border-color: #3d4a42;
+  background: #15221b;
+}
+
+[data-theme="dark"] .app-shell .btn-secondary:hover:not(:disabled) {
+  border-color: #526359;
+  background: #1f3026;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .app-shell .btn-ghost {
+  color: #f1f5f2;
+  border-color: #3d4a42;
+  background: #1c2821;
+}
+
+[data-theme="dark"] .app-shell .btn-ghost:hover:not(:disabled) {
+  border-color: #526359;
+  background: #27382e;
+  color: #ffffff;
 }
 
 .app-shell .btn-danger:hover {
@@ -7671,17 +7703,19 @@ a.user-chip:hover {
 
 .gm-style .gm-style-iw-c {
   position: absolute !important;
-  max-width: 260px !important;
+  max-width: 280px !important;
   min-width: 210px !important;
+  max-height: 440px !important;
   padding: 6px !important;
   border-radius: 8px !important;
 }
 
 .gm-style .gm-style-iw-d {
   min-width: 186px;
-  max-width: 232px;
-  max-height: 190px !important;
-  overflow: auto !important;
+  max-width: 252px;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
   padding: 2px 4px 4px !important;
   color: var(--text);
   font-family: var(--font-ui);
@@ -7945,11 +7979,18 @@ a.user-chip:hover {
 
 .gm-style .map-popup-location-link {
   width: fit-content;
+  max-width: 100%;
+  align-items: flex-start;
   border-radius: 4px;
   color: inherit;
   text-decoration: none;
   cursor: pointer;
   transition: color 150ms ease, text-decoration-color 150ms ease;
+}
+
+.gm-style .map-popup-location-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .gm-style .map-popup-location-link:hover,
@@ -8029,43 +8070,69 @@ a.user-chip:hover {
 
 .gm-style .map-popup-overlap {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   margin-top: 6px;
-  padding-top: 7px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
 .gm-style .map-popup-overlap > small {
   color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .gm-style .map-popup-overlap button {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
   width: 100%;
-  padding: 5px 7px;
+  padding: 5px 8px;
   border: 1px solid var(--line);
-  border-radius: 5px;
-  background: transparent;
+  border-radius: 6px;
+  background: var(--soft, rgba(0, 0, 0, 0.02));
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
 }
 
 .gm-style .map-popup-overlap button:hover,
 .gm-style .map-popup-overlap button:focus-visible {
   border-color: var(--green-700);
+  background: var(--green-50, rgba(22, 131, 75, 0.08));
   outline: none;
 }
 
 .gm-style .map-popup-overlap button span {
+  display: inline-block;
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface, rgba(0, 0, 0, 0.06));
   color: var(--muted);
   font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .gm-style .map-popup-overlap button strong {
+  min-width: 0;
+  margin-bottom: 0;
   color: var(--text-strong);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.gm-style .gm-style-iw-d {
+  max-height: 400px !important;
 }
 
 :root:not([data-theme="dark"]) .gm-style .gm-style-iw-c {
@@ -8151,7 +8218,7 @@ a.user-chip:hover {
 [data-theme="dark"] .gm-style .gm-style-iw-d {
   background: #121a16 !important;
   color: #f1f5f2 !important;
-  max-height: 190px !important;
+  max-height: 400px !important;
   padding: 14px 38px 10px 12px !important;
 }
 
@@ -8243,7 +8310,7 @@ a.user-chip:hover {
 
 @media (max-width: 480px) {
   .gm-style .map-popup {
-    width: calc(100vw - 32px);
+    width: 100%;
     max-width: 244px;
   }
 
@@ -8251,6 +8318,15 @@ a.user-chip:hover {
     width: calc(100vw - 32px) !important;
     min-width: 0 !important;
     max-width: 260px !important;
+  }
+
+  .gm-style .map-popup-overlap button {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .gm-style .map-popup-overlap button strong {
+    width: 100%;
   }
 }
 
@@ -8543,6 +8619,30 @@ a.user-chip:hover {
     opacity: 0.6;
     box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
   }
+}
+
+.stakeholder-live-pickup-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.stakeholder-live-pickup-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stakeholder-live-pickup-alert-content p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .presence-dot {
@@ -16730,6 +16830,7 @@ td {
 
 .marketplace-page .marketplace-price-toolbar {
   position: sticky;
+  align-self: start;
   top: 12px;
   z-index: 15;
   padding: 0;

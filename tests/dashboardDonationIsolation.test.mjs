@@ -13,7 +13,10 @@ const orders = [
 const users = [{ id: 'farmer-1', name: 'John', role: 'farmer', verificationStatus: 'verified', createdAt: new Date().toISOString() }];
 const donationFailure = { donations: [], loading: false, loadError: 'Donations are not configured yet. Please contact support.' };
 
-async function harness(file, donationState = donationFailure) {
+async function harness(file, donationState = donationFailure, {
+  currentUser = { ...users[0], municipality: 'Mandaue City' },
+  mapProfiles = [],
+} = {}) {
   const original = await readFile(new URL(`../src/features/${file}.jsx`, import.meta.url), 'utf8');
   const source = original.replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace(/import\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
   const { code } = await transformWithOxc(source, `${file}.jsx`, { jsx: { runtime: 'classic' } });
@@ -39,17 +42,16 @@ async function harness(file, donationState = donationFailure) {
     useEffect: (effect) => { if (!mounted) effects.push(effect); },
     useMemo: (compute) => compute(),
     useNavigate: () => () => {},
-    useAuth: () => ({ currentUser: { ...users[0], municipality: 'Mandaue City' } }),
+    useAuth: () => ({ currentUser }),
     useDonationList: () => donationState,
     setInterval: (callback) => { poll = callback; return 1; }, clearInterval() {},
     getProductsByFarmer: async () => { if (failCore) throw new Error('Products unavailable'); return products; },
     getProducts: async () => products,
     getOrdersByFarmer: async () => orders, getOrders: async () => orders,
     getUsers: async () => users, getVerifiedFarmers: async () => users,
-    getBuyers: async () => [], getStakeholders: async () => [], getNearbyMapProfiles: async () => [],
+    getBuyers: async () => [], getStakeholders: async () => [], getNearbyMapProfiles: async () => mapProfiles,
     getPendingPriceReviews: async () => [], getAllPriceOverrides: async () => [],
     CalendarDays: 'CalendarDays',
-    nearestByMunicipality: (municipality, rows) => rows,
     matchCommodity: () => ({ id: '28' }), MARKET_COMMODITIES: [],
     formatCurrency: (number) => `PHP ${number.toFixed(2)}`,
     formatDate: () => 'Today', formatRelativeTime: () => 'Just now', getFirstName: (name) => name,
@@ -70,6 +72,40 @@ async function harness(file, donationState = donationFailure) {
     cleanup: () => cleanup.forEach((callback) => callback?.()),
   };
 }
+
+test('farmer dashboards show the same authorized registered map profiles across accounts', async () => {
+  const mapProfiles = [
+    { id: 'farmer-a', role: 'farmer', name: 'Farmer A', municipality: 'Mandaue City', latitude: 10.3237, longitude: 123.9224 },
+    { id: 'farmer-b', role: 'farmer', name: 'Farmer B', municipality: 'Bogo City', latitude: 11.051, longitude: 124.005 },
+    { id: 'buyer-a', role: 'buyer', name: 'Buyer A', municipality: 'Cebu City', latitude: 10.3157, longitude: 123.8854 },
+    { id: 'stakeholder-a', role: 'stakeholder', name: 'Stakeholder A', municipality: 'Carcar City', latitude: 10.106, longitude: 123.64 },
+  ];
+  const farmerAccounts = [
+    { ...mapProfiles[0], verificationStatus: 'verified' },
+    { ...mapProfiles[1], verificationStatus: 'verified' },
+  ];
+  const pages = await Promise.all(farmerAccounts.map((currentUser) => (
+    harness('farmer/FarmerDashboard', donationFailure, { currentUser, mapProfiles })
+  )));
+
+  const maps = pages.map((page) => nodes(page.render()).find((node) => node.type === 'DeliveryMap'));
+  const idsFor = (role) => mapProfiles.filter((profile) => profile.role === role).map((profile) => profile.id);
+  maps.forEach((map, index) => {
+    assert.deepEqual(map.props.farmers.map((profile) => profile.id), idsFor('farmer'));
+    assert.deepEqual(map.props.buyers.map((profile) => profile.id), idsFor('buyer'));
+    assert.deepEqual(map.props.stakeholders.map((profile) => profile.id), idsFor('stakeholder'));
+    assert.equal(map.props.currentUserId, farmerAccounts[index].id);
+    assert.deepEqual(map.props.viewerCoords, {
+      lat: farmerAccounts[index].latitude,
+      lng: farmerAccounts[index].longitude,
+    });
+  });
+  assert.deepEqual(
+    maps[0].props.farmers.map((profile) => profile.id),
+    maps[1].props.farmers.map((profile) => profile.id),
+  );
+  pages.forEach((page) => page.cleanup());
+});
 
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];

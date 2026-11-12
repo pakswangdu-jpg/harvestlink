@@ -4,6 +4,7 @@ import AppShell from '../../components/layout/AppShell';
 import RegisteredLocationNotice from '../../components/map/RegisteredLocationNotice';
 import { getRegisteredCoordinates, sortByRegisteredDistance, formatNearbyDistance } from '../../utils/geo';
 import FarmerMap from '../../components/map/FarmerMap';
+import { getMapProfilesForRole } from '../../components/map/mapDirectoryProfiles';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -12,27 +13,10 @@ import {
 import { getActiveProducts } from '../../services/productService';
 import { getInitials, isRecentlyActive } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
-import { uniqueProfilesById } from '../../components/map/mapMarkerUtils';
 
 
 
 const REFRESH_MS = 4000;
-
-function getMapProfilesForRole(profiles, directoryProfiles, role, query, visible, searchFields) {
-  if (!visible) return [];
-  const directoryById = new Map(directoryProfiles.map((profile) => [profile.id, profile]));
-  const normalizedQuery = query.trim().toLowerCase();
-
-  return uniqueProfilesById(profiles.filter((profile) => profile.role === role))
-    .map((profile) => ({ ...profile, ...directoryById.get(profile.id), role: profile.role }))
-    .filter((profile) => !normalizedQuery || searchFields
-      .map((field) => profile[field] || '')
-      .join(' ')
-      .toLowerCase()
-      .includes(normalizedQuery));
-}
-
-
 
 function DirectoryGroup({
   label, avatarClass, items, selectedId, onSelect, currentUserId, emptyMessage, itemRefs,
@@ -168,16 +152,16 @@ export default function FarmerMapPage() {
   }, [stakeholders, query, showStakeholders, viewerCoords]);
 
   const mapFarmers = useMemo(
-    () => getMapProfilesForRole(nearbyMapProfiles, farmers, 'farmer', query, showFarmers, ['name', 'farmName', 'municipality']),
-    [nearbyMapProfiles, farmers, query, showFarmers],
+    () => getMapProfilesForRole(nearbyMapProfiles, farmers, 'farmer', query, showFarmers, ['name', 'farmName', 'municipality'], currentUser),
+    [nearbyMapProfiles, farmers, query, showFarmers, currentUser],
   );
   const mapBuyers = useMemo(
-    () => getMapProfilesForRole(nearbyMapProfiles, buyers, 'buyer', query, showBuyers, ['name', 'municipality']),
-    [nearbyMapProfiles, buyers, query, showBuyers],
+    () => getMapProfilesForRole(nearbyMapProfiles, buyers, 'buyer', query, showBuyers, ['name', 'municipality'], currentUser),
+    [nearbyMapProfiles, buyers, query, showBuyers, currentUser],
   );
   const mapStakeholders = useMemo(
-    () => getMapProfilesForRole(nearbyMapProfiles, stakeholders, 'stakeholder', query, showStakeholders, ['organizationName', 'name', 'municipality']),
-    [nearbyMapProfiles, stakeholders, query, showStakeholders],
+    () => getMapProfilesForRole(nearbyMapProfiles, stakeholders, 'stakeholder', query, showStakeholders, ['organizationName', 'name', 'municipality'], currentUser),
+    [nearbyMapProfiles, stakeholders, query, showStakeholders, currentUser],
   );
 
   const hasAnyAccounts = farmers.length > 0

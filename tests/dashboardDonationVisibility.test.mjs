@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('dashboard maps show farmer donation alerts only to Farmers and Stakeholders', async () => {
+test('only stakeholder maps show donation alerts', async () => {
   const [farmer, buyer, stakeholder, map] = await Promise.all([
     read('../src/features/farmer/FarmerDashboard.jsx'),
     read('../src/features/buyer/BuyerDashboard.jsx'),
@@ -13,8 +13,8 @@ test('dashboard maps show farmer donation alerts only to Farmers and Stakeholder
   ]);
 
   assert.match(farmer, /getNearbyMapProfiles\(\)/);
-  assert.match(farmer, /hasAvailableDonations: donationsByFarmer\.has\(farmer\.id\)/);
-  assert.match(farmer, /showDonationAlerts/);
+  assert.match(farmer, /farmerMarkersGreen/);
+  assert.doesNotMatch(farmer, /showDonationAlerts|legend-dot donation/);
   assert.match(buyer, /showDonationAlerts=\{false\}/);
   assert.doesNotMatch(buyer, /legend-dot donation/);
   assert.match(stakeholder, /getAvailableDonations\(\)/);

@@ -317,6 +317,7 @@ export async function transitionDonationClaim(req, res) {
 }
 
 export async function updateDonation(req, res) {
+  if (req.params.action === 'request') return createDonationClaim(req, res);
   const pickupDate = req.body?.pickupDate || null;
   if (req.params.action === 'schedule' && (!/^\d{4}-\d{2}-\d{2}$/.test(pickupDate || '')
     || Number.isNaN(Date.parse(pickupDate)) || new Date(pickupDate).toISOString().slice(0, 10) !== pickupDate)) {

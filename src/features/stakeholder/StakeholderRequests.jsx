@@ -150,10 +150,16 @@ export default function StakeholderRequests() {
                         disabled={confirming}
                         onClick={() => handleConfirm(donation)}
                       >
-                        <CheckCircle2 size={15} />{' '}
-                        {hasTrackedPickup
-                          ? 'Live Pickup Tracking'
-                          : 'Confirm receipt'}
+                        {hasTrackedPickup ? (
+                          <>
+                            <span className="live-dot" aria-hidden="true" style={{ width: '8px', height: '8px', display: 'inline-block', marginRight: '6px' }} />
+                            Live Pickup Tracking
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 size={15} /> Confirm receipt
+                          </>
+                        )}
                       </Button>
                     )}
                   />

@@ -181,13 +181,14 @@ export function useStakeholderDonationPickupSharing(stakeholderId, initialPermis
     if (joinedTargetIdsRef.current.has(targetId)) return true;
     try {
       const socket = getSocket();
+      if (!socket.connected) return false;
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.access_token) return false;
       const joined = await new Promise((resolve) => {
-        socket.emit('join-order', { orderId: targetId, token: session.access_token }, (res) => {
-          resolve(Boolean(res?.ok));
+        socket.timeout(10000).emit('join-order', { orderId: targetId, token: session.access_token }, (err, res) => {
+          resolve(!err && Boolean(res?.ok));
         });
       });
       if (joined) joinedTargetIdsRef.current.add(targetId);
@@ -269,6 +270,36 @@ export function useStakeholderDonationPickupSharing(stakeholderId, initialPermis
     },
     [joinTargetRoom, reloadSessions],
   );
+
+  useEffect(() => {
+    let socket = null;
+    try {
+      socket = getSocket();
+    } catch {
+      return undefined;
+    }
+    const handleConnect = () => {
+      joinedTargetIdsRef.current.clear();
+      setConnectionStatus('online');
+      sessionsRef.current.forEach((item) => {
+        void joinTargetRoom(item.targetId);
+      });
+      if (latestPositionRef.current) {
+        const { coords, timestampMs } = latestPositionRef.current;
+        void broadcastSampleToSessions(coords, timestampMs);
+      }
+    };
+    const handleDisconnect = () => {
+      joinedTargetIdsRef.current.clear();
+      setConnectionStatus('reconnecting');
+    };
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+    };
+  }, [joinTargetRoom, broadcastSampleToSessions]);
 
   const sessionKey = sessions.map((session) => session.targetId).join('|');
   useEffect(() => {

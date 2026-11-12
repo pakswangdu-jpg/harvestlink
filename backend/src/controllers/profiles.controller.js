@@ -4,7 +4,7 @@ import { getAdminUserPage, manageAccount } from '../lib/adminUserQueries.js';
 import { ApiError } from '../lib/ApiError.js';
 import { invalidateAuthCacheForUser } from '../middleware/requireAuth.js';
 
-import { profileLocationFields } from '../lib/profileLocation.js';
+import { profileLocationFields, registrationLocationFields } from '../lib/profileLocation.js';
 
 export const VALID_ROLES = ['farmer', 'buyer', 'stakeholder'];
 const PROFILE_DIRECTORY_SELECT = [
@@ -153,6 +153,7 @@ export function buildRoleFields(role, values, { isCreate }) {
 export async function createProfile(req, res) {
   const { role } = req.body;
   if (!VALID_ROLES.includes(role)) throw new ApiError('Choose a valid account type.', 400);
+  registrationLocationFields(req.body);
 
   const row = {
     id: req.authUser.id,
@@ -336,9 +337,12 @@ export async function getProfileById(req, res) {
 }
 
 export async function getNearbyMapProfiles(req, res) {
+  const canViewDonationMarkers = ['farmer', 'stakeholder'].includes(req.profile.role);
+  const canViewDonorAddresses = req.profile.role === 'stakeholder';
+  const profileColumns = 'id, role, name, farm_name, municipality, latitude, longitude, avatar_url, organization_name, last_active_at';
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select('id, role, name, farm_name, municipality, latitude, longitude, avatar_url, organization_name, last_active_at')
+    .select(canViewDonorAddresses ? `${profileColumns}, address, barangay` : profileColumns)
     .in('role', VALID_ROLES)
     .neq('account_status', 'suspended')
     .not('latitude', 'is', null)
@@ -348,7 +352,6 @@ export async function getNearbyMapProfiles(req, res) {
 
   const farmerIds = data.filter(profile => profile.role === 'farmer').map(profile => profile.id);
   let donationFarmerIds = new Set();
-  const canViewDonationMarkers = ['farmer', 'stakeholder'].includes(req.profile.role);
   if (canViewDonationMarkers && farmerIds.length) {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
     const result = await supabaseAdmin.from('donations').select('farmer_id')
@@ -357,10 +360,16 @@ export async function getNearbyMapProfiles(req, res) {
     if (result.error) console.warn('Unable to refresh map donation indicators:', result.error.code || 'unknown');
     else donationFarmerIds = new Set((result.data || []).map(item => item.farmer_id));
   }
-  res.json(data.map(row => ({
-    ...serializeProfile(row),
-    ...(canViewDonationMarkers ? { hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) } : {}),
-  })).filter(profile => (
+  res.json(data.map(row => {
+    const { address, barangay, ...profile } = serializeProfile(row);
+    return {
+      ...profile,
+      ...(canViewDonorAddresses && row.role === 'farmer' && donationFarmerIds.has(row.id)
+        ? { address, barangay }
+        : {}),
+      ...(canViewDonationMarkers ? { hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) } : {}),
+    };
+  }).filter(profile => (
     profile.latitude !== null && profile.longitude !== null
   )));
 }

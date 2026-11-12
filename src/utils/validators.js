@@ -1,6 +1,10 @@
 import { getFixedKgPerUnit, hasFixedConversion } from './unitConversion';
 import { isValidPhilippineMobile } from './philippineMobile';
 import { getWholesalePricingErrors } from '../../backend/shared/pricing.js';
+import {
+  hasAcceptableRegistrationLocation,
+  MAX_REGISTRATION_LOCATION_ACCURACY_METERS,
+} from '../../backend/shared/location.js';
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
@@ -71,6 +75,9 @@ export function validateAuthForm(values, mode) {
   }
   if (mode === 'register' && !['farmer', 'buyer', 'stakeholder'].includes(values.role)) {
     errors.role = 'Choose an account type.';
+  }
+  if (mode === 'register' && !hasAcceptableRegistrationLocation(values)) {
+    errors.location = `Capture your actual location with GPS accuracy of ${MAX_REGISTRATION_LOCATION_ACCURACY_METERS} m or better to register.`;
   }
 
 

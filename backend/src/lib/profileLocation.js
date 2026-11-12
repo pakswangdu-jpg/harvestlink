@@ -1,4 +1,5 @@
 import { ApiError } from './ApiError.js';
+import { hasAcceptableRegistrationLocation } from '../../shared/location.js';
 
 export function profileLocationFields(values) {
   if (values.latitude === undefined && values.longitude === undefined) return {};
@@ -12,4 +13,12 @@ export function profileLocationFields(values) {
   }
 
   return { latitude: Number(values.latitude), longitude: Number(values.longitude) };
+}
+
+export function registrationLocationFields(values) {
+  if (!hasAcceptableRegistrationLocation(values)) {
+    throw new ApiError('Allow device location and capture the account location with GPS accuracy of 100 m or better.', 400);
+  }
+  const coordinates = profileLocationFields(values);
+  return coordinates;
 }
