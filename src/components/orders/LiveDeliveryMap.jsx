@@ -264,10 +264,19 @@ export default function LiveDeliveryMap({
   const isDelivered = order.status === 'completed';
   const currentPosition = transit.isInTransit && livePosition && isFreshLivePosition(livePosition) ? livePosition : null;
   const vehiclePosition = currentPosition;
+  const navigationOrigin = isPickup && transit.isInTransit ? currentPosition : travelOrigin;
+  const mapStart = isPickup ? travelOrigin : origin;
+  const mapEnd = isPickup ? travelDestination : destination;
+  const liveCoordinates = validateCoordinates(livePosition?.lat, livePosition?.lng);
   // Keep the saved-origin fallback for normal delivery maps, but never present it as a live
   // Stakeholder position before a GPS fix has been shared.
   const markerPosition = transit.isInTransit
-    ? validateCoordinates(livePosition?.lat, livePosition?.lng) || (requireLivePosition ? null : travelOrigin)
+    ? (liveCoordinates ? {
+      ...liveCoordinates,
+      heading: livePosition.heading,
+      deviceHeading: livePosition.deviceHeading,
+      speed: livePosition.speed,
+    } : (requireLivePosition ? null : travelOrigin))
     : null;
   const deliveryState = isDelivered ? 'delivered' : (transit.isInTransit ? 'navigating' : 'preview');
   const initialCenter = validateCoordinates(vehiclePosition?.lat, vehiclePosition?.lng) || origin || destination;
@@ -282,14 +291,22 @@ export default function LiveDeliveryMap({
   const trafficEnabled = moverMarkerType !== 'pin' && (trafficOverride ?? (deliveryState === 'navigating'));
   const navigation = useTrafficNavigation({
     orderId: order.id,
-    origin: travelOrigin,
+    origin: navigationOrigin,
     destination: travelDestination,
     position: currentPosition,
     locationUpdatedAt: lastLocationUpdatedAt,
     active: transit.isInTransit,
     enabled: navigationEnabled,
   });
-  const googleRoute = navigation.selected;
+  const pickupRouteMessage = isPickup && !travelDestination
+    ? 'Registered farm GPS coordinates are required to calculate the pickup route.'
+    : isPickup && transit.isInTransit && !currentPosition
+      ? 'Waiting for fresh pickup GPS to calculate the route.'
+      : '';
+  const googleRoute = pickupRouteMessage ? null : navigation.selected;
+  const routeNotice = pickupRouteMessage
+    ? { ...navigation, selected: null, suggestion: null, updating: false, stale: true, message: pickupRouteMessage }
+    : navigation;
   const remainingKm = currentPosition && !navigation.stale ? googleRoute?.distanceKm ?? null : null;
   const currentSpeedKmh = currentPosition && isFreshLivePosition(currentPosition) && Number.isFinite(currentPosition.speed)
     ? Math.max(0, currentPosition.speed * 3.6)
@@ -416,7 +433,16 @@ export default function LiveDeliveryMap({
   useEffect(() => {
     const map = mapRef.current;
     const mapsApi = mapsApiRef.current;
-    if (!mapReady || !map || !mapsApi || !origin || !destination) return;
+    if (!mapReady || !map || !mapsApi) return;
+    if (!mapEnd) {
+      layerRef.current.forEach((layer) => layer.setMap(null));
+      layerRef.current = [];
+      routeLineRef.current = null;
+      casingLineRef.current = null;
+      shadowLineRef.current = null;
+      overviewStateRef.current = null;
+      return;
+    }
 
     layerRef.current.forEach((layer) => layer.setMap(null));
     layerRef.current = [];
@@ -424,23 +450,57 @@ export default function LiveDeliveryMap({
     casingLineRef.current = null;
     shadowLineRef.current = null;
 
-    const originMarker = new mapsApi.Marker({ position: origin, map, icon: buildDotIcon(mapsApi, MAP_COLORS.origin), title: order.farmerName });
-    const destinationMarker = new mapsApi.Marker({ position: destination, map, icon: buildDestinationPinIcon(mapsApi), title: order.buyerName });
-    layerRef.current.push(originMarker, destinationMarker);
+    if (mapStart && !(isPickup && transit.isInTransit)) {
+      const originMarker = new mapsApi.Marker({
+        position: mapStart,
+        map,
+        icon: buildDotIcon(mapsApi, MAP_COLORS.origin),
+        title: isPickup ? order.buyerName : order.farmerName,
+      });
+      layerRef.current.push(originMarker);
+    }
+    const destinationMarker = new mapsApi.Marker({
+      position: mapEnd,
+      map,
+      icon: buildDestinationPinIcon(mapsApi),
+      title: isPickup ? order.farmerName : order.buyerName,
+    });
+    layerRef.current.push(destinationMarker);
 
     const pathPoints = googleRoute?.points || [];
+    const routeOverviewKey = `${order.id}:${deliveryState}:${pathPoints.length > 1 ? 'routed' : 'pending'}:${mapEnd.lat}:${mapEnd.lng}`;
     const fitToBothPins = () => {
       const bounds = new mapsApi.LatLngBounds();
-      bounds.extend(origin);
-      bounds.extend(destination);
+      if (mapStart && !(isPickup && transit.isInTransit)) bounds.extend(mapStart);
+      bounds.extend(mapEnd);
+      pathPoints.forEach((point) => bounds.extend(point));
       if (vehiclePosition) bounds.extend(vehiclePosition);
       else if (markerPosition) bounds.extend(markerPosition);
       cameraRef.current?.fitOverview(bounds);
     };
 
     if (moverMarkerType === 'pin') {
-      if (overviewStateRef.current !== deliveryState) {
-        overviewStateRef.current = deliveryState;
+      if (pathPoints.length > 1) {
+        const casing = new mapsApi.Polyline({
+          path: pathPoints,
+          strokeColor: '#ffffff',
+          strokeWeight: 8,
+          strokeOpacity: 0.9,
+          map,
+          zIndex: 99,
+        });
+        const routeLine = new mapsApi.Polyline({
+          path: pathPoints,
+          strokeColor: ROUTE_COLOR,
+          strokeWeight: 5,
+          strokeOpacity: 0.95,
+          map,
+          zIndex: 100,
+        });
+        layerRef.current.push(casing, routeLine);
+      }
+      if (overviewStateRef.current !== routeOverviewKey) {
+        overviewStateRef.current = routeOverviewKey;
         fitToBothPins();
       }
       return;
@@ -517,13 +577,13 @@ export default function LiveDeliveryMap({
       }
 
     }
-    if (overviewStateRef.current !== deliveryState) {
-      overviewStateRef.current = deliveryState;
+    if (overviewStateRef.current !== routeOverviewKey) {
+      overviewStateRef.current = routeOverviewKey;
       fitToBothPins();
     }
     // GPS updates move the marker independently; route changes do not reset the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapReady, googleRoute, navigation.alternatives, origin?.lat, origin?.lng, destination?.lat, destination?.lng, deliveryState, moverMarkerType]);
+  }, [mapReady, googleRoute, navigation.alternatives, mapStart?.lat, mapStart?.lng, mapEnd?.lat, mapEnd?.lng, deliveryState, isPickup, transit.isInTransit, order.id, moverMarkerType]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -650,8 +710,8 @@ export default function LiveDeliveryMap({
 
   return (
     <div className="live-delivery-map-wrap">
-      {moverMarkerType !== 'pin' ? (
-        <TrafficRouteNotice navigation={navigation} allowChoice={canChooseAlternative && transit.isInTransit} />
+      {moverMarkerType !== 'pin' || isPickup ? (
+        <TrafficRouteNotice navigation={routeNotice} allowChoice={canChooseAlternative && transit.isInTransit} />
       ) : null}
       <div className="nav-map-container">
         <div ref={containerRef} className="live-delivery-map" />

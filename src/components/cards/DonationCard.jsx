@@ -22,7 +22,7 @@ function donationExpiration(value) {
   }).format(new Date(value));
 }
 
-export default function DonationCard({ donation, actions, variant = 'default' }) {
+export default function DonationCard({ donation, actions, variant = 'default', statusValue = donation.status }) {
   const expiryStatus = getExpiryStatus(donation.expirationAt || donation.expirationDate);
   const discovery = variant === 'discovery';
 
@@ -34,7 +34,7 @@ export default function DonationCard({ donation, actions, variant = 'default' })
       <div className="donation-card-body">
         <div className="donation-card-statuses">
           <span className="donation-card-category">Surplus donation</span>
-          <StatusBadge value={donation.status} type="donation" />
+          <StatusBadge value={statusValue} type="donation" />
           {!discovery && expiryStatus === 'expiring_soon' ? <span className="badge badge-expiring-soon">Expiring soon</span> : null}
           {!discovery && expiryStatus === 'expired' ? <span className="badge badge-expired">Expired</span> : null}
         </div>

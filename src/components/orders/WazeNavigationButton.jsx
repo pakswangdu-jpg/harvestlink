@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Navigation } from 'lucide-react';
 import { getOrderTrackingProfiles } from '../../services/orderService';
+import { getDonationTrackingProfiles } from '../../services/donationService';
 import { getRegisteredCoordinates } from '../../utils/geo';
 import { buildWazeNavigationUrl } from '../../utils/wazeNavigation';
 
-export default function WazeNavigationButton({ orderId, destinationRole }) {
+export default function WazeNavigationButton({ orderId, donationId, claimId = null, destinationRole }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,7 +19,9 @@ export default function WazeNavigationButton({ orderId, destinationRole }) {
     setIsLoading(true);
     setError('');
     try {
-      const profiles = await getOrderTrackingProfiles(orderId, { fresh: true });
+      const profiles = donationId
+        ? await getDonationTrackingProfiles(donationId, claimId)
+        : await getOrderTrackingProfiles(orderId, { fresh: true });
       const destinationProfile = destinationRole === 'farmer' ? profiles.farmer : profiles.buyer;
       const url = buildWazeNavigationUrl(getRegisteredCoordinates(destinationProfile));
       if (!url) {

@@ -4,6 +4,16 @@ export function pickupDay(value) {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
 }
 
+export function stakeholderPickupDisplayStatus(item, now = new Date()) {
+  const isScheduled = item?.status === 'scheduled' || item?.myClaim?.status === 'scheduled';
+  const scheduledStatus = isScheduled ? 'scheduled' : item?.status;
+  const pickupDate = pickupDay(item?.pickupDate || item?.myClaim?.pickupDate);
+  if (!isScheduled || !pickupDate) return scheduledStatus;
+
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(now);
+  return pickupDate > today ? 'ongoing' : scheduledStatus;
+}
+
 export function partnerDashboardOverview(requests, now = new Date()) {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(now);
   const scheduled = requests.filter(item => item.status === 'scheduled');

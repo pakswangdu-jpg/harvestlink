@@ -244,6 +244,53 @@
   font-size: 12px;
 }
 
+.ot-pickup-route-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.ot-pickup-route-metrics > div:not(.ot-pickup-route-actions) {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ot-pickup-route-metrics > div > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ot-pickup-route-metrics > div > strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ot-pickup-route-metrics > div > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ot-pickup-route-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .ot-page .ot-progress-panel .tracker-step {
   margin-left: 9px;
   padding: 3px 0 20px 20px;
@@ -470,6 +517,10 @@
   .ot-page .ot-progress-panel,
   .ot-page .ot-details-panel {
     padding: 16px;
+  }
+
+  .ot-pickup-route-metrics {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .ot-page .ot-details-panel .ot-detail-row {

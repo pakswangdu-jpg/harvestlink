@@ -9,18 +9,19 @@ function locationText(profile, municipality) {
 }
 
 export default function TrackingRouteSummary({ order, farmerProfile, buyerProfile, receiverRole = 'buyer' }) {
+  const isPickup = order.deliveryMethod === 'buyer_pickup';
   const receiverLabel = receiverRole === 'stakeholder' ? 'Stakeholder' : 'Buyer';
   const farm = {
     name: farmerProfile?.farmName || order.farmerFarmName || order.farmerName || 'Farm',
     address: locationText(farmerProfile, order.originMunicipality),
-    helper: 'Farmer / source location',
+    helper: isPickup ? 'Farmer / pickup destination' : 'Farmer / source location',
   };
   const receiver = {
     name: order.buyerName || receiverLabel,
-    address: locationText(buyerProfile, order.deliveryMethod === 'buyer_pickup' ? null : order.deliveryMunicipality),
-    helper: `${receiverLabel} / receiving location`,
+    address: locationText(buyerProfile, isPickup ? null : order.deliveryMunicipality),
+    helper: isPickup ? `${receiverLabel} / pickup starting point` : `${receiverLabel} / receiving location`,
   };
-  const points = [farm, receiver];
+  const points = isPickup ? [receiver, farm] : [farm, receiver];
 
   return (
     <ol className="tracking-route-summary" aria-label="Order locations">

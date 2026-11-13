@@ -595,8 +595,8 @@ export default function OrderTracking() {
               </div>
               <div className="ot-progress-heading-actions">
                 {isTrackable && isCourier ? <a className="ot-view-tracking-btn" href="#courier-delivery"><Truck size={15} aria-hidden="true" /> Courier details</a> : null}
-                {isTrackable && order.status === 'confirmed' && ((isPickup && isBuyer) || (!isPickup && isFarmer)) ? (
-                  <WazeNavigationButton orderId={order.id} destinationRole={isPickup ? 'farmer' : 'buyer'} />
+                {isTrackable && order.status === 'confirmed' && !isPickup && isFarmer ? (
+                  <WazeNavigationButton orderId={order.id} destinationRole="buyer" />
                 ) : null}
                 {isTrackable && !isCourier ? (
                   <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
@@ -1000,6 +1000,32 @@ export default function OrderTracking() {
                 </span>
               )}
             />
+            {isPickup && isBuyer ? (
+              <div className="ot-pickup-route-metrics" aria-label="Pickup route information">
+                <div>
+                  <span>{receiverRole === 'stakeholder' ? 'Stakeholder Current Location' : 'Buyer Current Location'}</span>
+                  <strong>{liveRoute?.isInTransit ? 'Live GPS location' : 'Waiting for fresh GPS'}</strong>
+                </div>
+                <div>
+                  <span>Stakeholder Pickup Location</span>
+                  <strong>{farmerProfile?.farm_name || farmerProfile?.farmName || order.farmerFarmName || order.farmerName}</strong>
+                  <p>{farmerProfile?.address || farmerProfile?.municipality || order.originMunicipality || 'Saved location unavailable'}</p>
+                </div>
+                <div>
+                  <span>Route Distance</span>
+                  <strong>{Number.isFinite(liveRoute?.remainingKm) ? `${liveRoute.remainingKm.toFixed(1)} km` : '—'}</strong>
+                </div>
+                <div>
+                  <span>Estimated Travel Time</span>
+                  <strong>{Number.isFinite(liveRoute?.etaMinutes) ? formatDurationMinutes(liveRoute.etaMinutes) : '—'}</strong>
+                </div>
+                {order.status === 'confirmed' ? (
+                  <div className="ot-pickup-route-actions">
+                    <WazeNavigationButton orderId={order.id} destinationRole="farmer" />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         ) : null}
         </DeliveryTrackingOverlay> : null}

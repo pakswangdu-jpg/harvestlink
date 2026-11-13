@@ -9,7 +9,7 @@ const [geo, wazeNavigation] = await loadFrontend([
   new URL('../src/utils/wazeNavigation.js', import.meta.url).href,
 ]);
 
-async function createWazeButtonHarness({ profiles, destinationRole }) {
+async function createWazeButtonHarness({ profiles, destinationRole, donationId = null, claimId = null }) {
   const calls = [];
   const state = [];
   let hookIndex = 0;
@@ -36,6 +36,10 @@ async function createWazeButtonHarness({ profiles, destinationRole }) {
       calls.push(['profiles', id, options]);
       return profiles.current;
     },
+    getDonationTrackingProfiles: async (id, linkedClaimId) => {
+      calls.push(['donation-profiles', id, linkedClaimId]);
+      return profiles.current;
+    },
     getRegisteredCoordinates: geo.getRegisteredCoordinates,
     buildWazeNavigationUrl: wazeNavigation.buildWazeNavigationUrl,
     window: {
@@ -51,7 +55,7 @@ async function createWazeButtonHarness({ profiles, destinationRole }) {
   });
   const render = () => {
     hookIndex = 0;
-    return component({ orderId: 'order-1', destinationRole });
+    return component({ orderId: 'order-1', donationId, claimId, destinationRole });
   };
   return { calls, render };
 }
@@ -97,4 +101,27 @@ test('buyer pickup navigation targets the farmer coordinates', async () => {
 
   const [navigationCall] = harness.calls.filter(([type]) => type === 'navigate');
   assert.equal(new URL(navigationCall[1]).searchParams.get('ll'), '10,123');
+});
+
+test('stakeholder pickup Waze navigation loads the latest farmer destination for its claim', async () => {
+  const profiles = { current: { farmer: { latitude: 10, longitude: 123 }, stakeholder: { latitude: 11, longitude: 124 } } };
+  const harness = await createWazeButtonHarness({
+    profiles,
+    destinationRole: 'farmer',
+    donationId: 'donation-1',
+    claimId: 'claim-1',
+  });
+
+  await harness.render().props.children[0].props.onClick();
+  profiles.current.farmer = { latitude: 12, longitude: 125 };
+  await harness.render().props.children[0].props.onClick();
+
+  assert.deepEqual(harness.calls.filter(([type]) => type === 'donation-profiles'), [
+    ['donation-profiles', 'donation-1', 'claim-1'],
+    ['donation-profiles', 'donation-1', 'claim-1'],
+  ]);
+  assert.deepEqual(harness.calls.filter(([type]) => type === 'navigate').map(([, url]) => new URL(url).searchParams.get('ll')), [
+    '10,123',
+    '12,125',
+  ]);
 });

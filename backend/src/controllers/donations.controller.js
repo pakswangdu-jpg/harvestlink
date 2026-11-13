@@ -46,6 +46,13 @@ function checkError(error) {
   throw new ApiError(status === 500 ? 'Unable to load or update donations. Please try again.' : error.message, status);
 }
 
+function registeredProfileCoordinates(profile) {
+  if (profile?.latitude == null || profile.latitude === ''
+    || profile?.longitude == null || profile.longitude === '') return null;
+  const coordinates = { lat: Number(profile.latitude), lng: Number(profile.longitude) };
+  return validCoordinatePair(coordinates) ? coordinates : null;
+}
+
 function serializedArrivalNotifiedAt(row) {
   return row?.arrival_notified_at || null;
 }
@@ -443,21 +450,15 @@ async function fetchPartyProfiles(session) {
     address: session.donation.location,
     municipality: session.donation.location,
   };
-  const fallbackFarmCoords = getMunicipalityCoords(rawFarmer.municipality || session.donation.location);
-  const farmerLat = Number.isFinite(Number(rawFarmer.latitude))
-    ? Number(rawFarmer.latitude)
-    : fallbackFarmCoords.lat;
-  const farmerLng = Number.isFinite(Number(rawFarmer.longitude))
-    ? Number(rawFarmer.longitude)
-    : fallbackFarmCoords.lng;
+  const farmerCoords = registeredProfileCoordinates(rawFarmer);
 
   const farmer = {
     ...rawFarmer,
     farm_name: rawFarmer.farm_name || session.donation.farmer_name || rawFarmer.name,
     address: rawFarmer.address || session.donation.location || rawFarmer.municipality,
     municipality: rawFarmer.municipality || session.donation.location,
-    latitude: farmerLat,
-    longitude: farmerLng,
+    latitude: farmerCoords?.lat ?? null,
+    longitude: farmerCoords?.lng ?? null,
   };
 
   const rawStakeholder = stakeholderRes?.data || {
@@ -468,21 +469,13 @@ async function fetchPartyProfiles(session) {
     address: session.donation.location,
     municipality: session.donation.location,
   };
-  const fallbackStakeholderCoords = getMunicipalityCoords(
-    rawStakeholder.municipality || session.donation.location,
-  );
-  const stakeholderLat = Number.isFinite(Number(rawStakeholder.latitude))
-    ? Number(rawStakeholder.latitude)
-    : fallbackStakeholderCoords.lat;
-  const stakeholderLng = Number.isFinite(Number(rawStakeholder.longitude))
-    ? Number(rawStakeholder.longitude)
-    : fallbackStakeholderCoords.lng;
+  const stakeholderCoords = registeredProfileCoordinates(rawStakeholder);
 
   const stakeholder = {
     ...rawStakeholder,
     name: rawStakeholder.organization_name || rawStakeholder.name || session.stakeholderName || 'Stakeholder',
-    latitude: stakeholderLat,
-    longitude: stakeholderLng,
+    latitude: stakeholderCoords?.lat ?? null,
+    longitude: stakeholderCoords?.lng ?? null,
   };
 
   return { farmer, stakeholder };
@@ -538,7 +531,8 @@ export async function updateDonationPickupLocation(req, res) {
     req.body?.speed == null || req.body?.speed === '' ? null : Number(req.body.speed);
 
   const { farmer } = await fetchPartyProfiles(session);
-  const farmCoords = { lat: Number(farmer.latitude), lng: Number(farmer.longitude) };
+  const farmCoords = registeredProfileCoordinates(farmer)
+    || getMunicipalityCoords(farmer.municipality || session.donation.location);
   const locationUpdatedAt = new Date().toISOString();
 
   const arrival = evaluateDonationArrival({

@@ -24,13 +24,24 @@ test('delivery shows farm before receiver, with addresses from the loaded profil
   assert.doesNotMatch(html, /<input|<button/);
 });
 
-test('pickup order locations keep the farmer first without mutating fulfillment data', () => {
+test('buyer pickup route starts at the receiver and ends at the farm without mutating fulfillment data', () => {
   const pickupOrder = Object.freeze({ ...order, deliveryMethod: 'buyer_pickup' });
   const html = render({ order: pickupOrder });
-  assert.ok(html.indexOf('Doms Farm') < html.indexOf('Receiver Name'));
-  assert.match(html, /Buyer \/ receiving location/);
-  assert.match(html, /Farmer \/ source location/);
+  assert.ok(html.indexOf('Receiver Name') < html.indexOf('Doms Farm'));
+  assert.match(html, /Buyer \/ pickup starting point/);
+  assert.match(html, /Farmer \/ pickup destination/);
+  assert.ok(html.indexOf('Starting point') < html.indexOf('Destination'));
   assert.equal(pickupOrder.originMunicipality, 'Mandaue City');
+});
+
+test('stakeholder pickup route starts at the stakeholder and ends at the farm', () => {
+  const html = render({
+    order: { ...order, deliveryMethod: 'buyer_pickup' },
+    receiverRole: 'stakeholder',
+  });
+  assert.ok(html.indexOf('Receiver Name') < html.indexOf('Doms Farm'));
+  assert.match(html, /Stakeholder \/ pickup starting point/);
+  assert.doesNotMatch(html, /Buyer \/ receiving location/);
 });
 
 test('pickup never uses the farm pickup municipality as a missing receiver address', () => {

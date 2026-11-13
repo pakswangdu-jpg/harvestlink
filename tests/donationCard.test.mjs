@@ -38,6 +38,12 @@ test('donation data, expiry badge and the supplied action remain unchanged', () 
   assert.equal(tree.props.children.at(-1).props.children[0], action);
 });
 
+test('stakeholder status override changes only the displayed badge', () => {
+  const tree = DonationCard({ donation, statusValue: 'ongoing' });
+  assert.equal(nodes(tree).find((node) => node.type === 'status').props.value, 'ongoing');
+  assert.equal(donation.status, 'available');
+});
+
 test('missing photo and actions retain the existing placeholder without an empty footer', () => {
   const tree = DonationCard({ donation: { ...donation, image: '', expirationDate: null } });
   assert.equal(tree.props.children[0].props.children[0].type, 'package-icon');
