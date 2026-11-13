@@ -16,6 +16,8 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+      - key: PENDING_REGISTRATION_SECRET
+        sync: false
       - key: RECAPTCHA_SECRET_KEY
         sync: false
       - key: CORS_ALLOWED_ORIGIN
