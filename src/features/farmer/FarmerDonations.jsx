@@ -99,13 +99,17 @@ function DonationRow({ donation, meta, badge, actions }) {
         {donation.image ? <img src={donation.image} alt="" className="h-full w-full object-cover" /> : <Package size={18} strokeWidth={1.75} />}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 truncate text-[13px] font-medium text-[var(--text)]">
+        <p className="flex flex-wrap items-center gap-2 break-words text-[13px] font-medium text-[var(--text)]">
           {donation.productName}
           {badge}
         </p>
-        <p className="truncate text-[12px] text-[var(--muted)]">{meta}</p>
+        <p className="whitespace-normal break-words text-[12px] text-[var(--muted)]">{meta}</p>
       </div>
-      {actions ? <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">{actions}</div> : null}
+      {actions ? (
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }
