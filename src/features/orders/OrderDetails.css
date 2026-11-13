@@ -239,11 +239,6 @@
   outline-offset: 3px;
 }
 
-.ot-waze-navigation-error {
-  color: #b91c1c;
-  font-size: 12px;
-}
-
 .ot-pickup-route-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -281,14 +276,6 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.4;
-}
-
-.ot-pickup-route-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 
 .ot-page .ot-progress-panel .tracker-step {

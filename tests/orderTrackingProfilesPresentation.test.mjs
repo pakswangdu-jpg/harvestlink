@@ -18,5 +18,4 @@ test('order tracking loads participant coordinates through the order-authorized 
   assert.match(trackingPage, /Stakeholder Pickup Location/);
   assert.match(trackingPage, /Route Distance/);
   assert.match(trackingPage, /Estimated Travel Time/);
-  assert.match(trackingPage, /WazeNavigationButton orderId=\{order\.id\} destinationRole="farmer"/);
 });

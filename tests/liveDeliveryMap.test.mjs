@@ -360,8 +360,11 @@ test('Stakeholder pickup uses a live-location pin and does not show saved profil
   assert.ok(stakeholderPin, 'a location marker appears after the live GPS fix arrives');
   assert.equal(stakeholderPin.position.lat, 10.32);
   assert.equal(stakeholderPin.position.lng, 123.92);
-  assert.match(decodeURIComponent(stakeholderPin.icon.url), /<circle cx="12" cy="11"/, 'Stakeholder is represented by a pin, not a vehicle');
+  assert.match(decodeURIComponent(stakeholderPin.icon.url), /fill="#4285f4"/, 'Stakeholder uses the blue navigation marker from the reference');
+  assert.match(decodeURIComponent(stakeholderPin.icon.url), /rotate\(90 24 24\)/, 'the navigation arrow follows the live GPS heading');
   assert.equal(stakeholderPin.title, 'Stakeholder live location');
+  h.update({ lat: 10.321, lng: 123.921, heading: 180, speed: 2 });
+  assert.match(decodeURIComponent(stakeholderPin.icon.url), /rotate\(180 24 24\)/, 'the arrow rotates when the live GPS heading changes');
   assert.equal(h.routes.length, 0, 'the live pin is shown without a route line');
   h.cleanup();
 });

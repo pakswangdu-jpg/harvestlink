@@ -199,11 +199,10 @@
 .donation-tracking-map-section .donation-live-location-card .nav-info-card-vehicle { margin-left: auto; color: var(--muted); font-size: 12px; }
 .donation-tracking-map-section .donation-live-location-card .driver-connection-badge { margin-left: 0; }
 .donation-pickup-route-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.donation-pickup-route-metrics > div:not(.donation-pickup-route-actions) { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.donation-pickup-route-metrics > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
 .donation-pickup-route-metrics > div > span { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .donation-pickup-route-metrics > div > strong { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
 .donation-pickup-route-metrics > div > p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
-.donation-pickup-route-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .donation-poke-farmer { display: grid; justify-items: start; gap: 7px; padding-top: 12px; }
 .donation-poke-farmer .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
 .donation-poke-farmer p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
@@ -237,6 +236,10 @@
 .donation-handover-confirm-dialog {
   width: 100%;
   max-width: 440px;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 0.875rem;
@@ -262,6 +265,12 @@
   line-height: 1.5;
 }
 
+.donation-handover-confirm-dialog .donation-handover-confirm-error {
+  margin: 0 0 1rem;
+  color: var(--danger, #b42318);
+  overflow-wrap: anywhere;
+}
+
 .donation-handover-confirm-actions {
   display: flex;
   justify-content: flex-end;
@@ -275,6 +284,13 @@
   letter-spacing: 0;
   box-shadow: none;
   transform: none;
+}
+
+@media (max-width: 480px) {
+  .donation-handover-confirm-backdrop { padding: 0.75rem; }
+  .donation-handover-confirm-dialog { padding: 1rem; }
+  .donation-handover-confirm-actions { flex-direction: column-reverse; }
+  .donation-handover-confirm-actions .btn { width: 100%; min-height: 44px; }
 }
 
 .donation-handover-confirm-actions .btn:hover {

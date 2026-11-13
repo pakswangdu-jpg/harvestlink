@@ -12,7 +12,6 @@ import StatusBadge from '../common/StatusBadge';
 import DeliveryTrackingOverlay from './DeliveryTrackingOverlay';
 import TrackingRouteSummary from './TrackingRouteSummary';
 import LiveDeliveryMap from './LiveDeliveryMap';
-import WazeNavigationButton from './WazeNavigationButton';
 import {
   confirmDonationHandover,
   getDonationById,
@@ -67,7 +66,13 @@ export function DonationWorkflowStepper({ record }) {
   );
 }
 
-export function DonationHandoverConfirmModal({ open, busy = false, onCancel, onConfirm }) {
+export function DonationHandoverConfirmModal({
+  open,
+  busy = false,
+  error = '',
+  onCancel,
+  onConfirm,
+}) {
   if (!open) return null;
   return (
     <div
@@ -81,12 +86,13 @@ export function DonationHandoverConfirmModal({ open, busy = false, onCancel, onC
         <p>
           Please confirm that you have successfully handed over the donated products to the Stakeholder.
         </p>
+        {error ? <p className="donation-handover-confirm-error" role="alert">{error}</p> : null}
         <div className="donation-handover-confirm-actions">
           <Button variant="ghost" size="sm" disabled={busy} onClick={onCancel}>
             Cancel
           </Button>
-          <Button size="sm" disabled={busy} onClick={onConfirm}>
-            Confirm Donation
+          <Button size="sm" disabled={busy} aria-busy={busy} onClick={onConfirm}>
+            {busy ? 'Confirming…' : 'Confirm Donation'}
           </Button>
         </div>
       </div>
@@ -578,11 +584,6 @@ export default function DonationPickupTrackingModal({
               <span>Estimated Travel Time</span>
               <strong>{routeDurationLabel}</strong>
             </div>
-            {viewerRole === 'stakeholder' && !isConfirmed ? (
-              <div className="donation-pickup-route-actions">
-                <WazeNavigationButton donationId={donationId} claimId={claimId} destinationRole="farmer" />
-              </div>
-            ) : null}
           </div>
           {viewerRole === 'stakeholder' && !isConfirmed ? (
             <div className="donation-poke-farmer">
