@@ -28,6 +28,11 @@ test('Admin sign-in progress remains fully visible while the submit button is di
   assert.match(css, /\.auth-page-admin\.auth-page-login \.auth-submit\[aria-busy='true'\] \{ opacity: 1; cursor: wait; \}/);
 });
 
+test('Disabled Admin sign-in remains readable while CAPTCHA is incomplete', async () => {
+  const css = await readFile(new URL('../src/features/auth/AdminPortal.css', import.meta.url), 'utf8');
+  assert.match(css, /\.auth-page-admin\.auth-page-login \.auth-submit:disabled:not\(\[aria-busy='true'\]\) \{[\s\S]*?background: #d7ecdf;[\s\S]*?color: #225d38;[\s\S]*?opacity: 1;/);
+});
+
 test('Admin login portal uses a fixed light appearance', async () => {
   const css = await readFile(new URL('../src/features/auth/AdminPortal.css', import.meta.url), 'utf8');
   for (const match of css.matchAll(/([^{}]+)\{/g)) {
