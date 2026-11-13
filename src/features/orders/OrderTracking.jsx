@@ -12,6 +12,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
+import WazeNavigationButton from '../../components/orders/WazeNavigationButton';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
@@ -594,6 +595,9 @@ export default function OrderTracking() {
               </div>
               <div className="ot-progress-heading-actions">
                 {isTrackable && isCourier ? <a className="ot-view-tracking-btn" href="#courier-delivery"><Truck size={15} aria-hidden="true" /> Courier details</a> : null}
+                {isTrackable && order.status === 'confirmed' && ((isPickup && isBuyer) || (!isPickup && isFarmer)) ? (
+                  <WazeNavigationButton orderId={order.id} destinationRole={isPickup ? 'farmer' : 'buyer'} />
+                ) : null}
                 {isTrackable && !isCourier ? (
                   <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
                     <Map size={15} aria-hidden="true" /> View live tracking

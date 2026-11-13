@@ -239,6 +239,11 @@
   outline-offset: 3px;
 }
 
+.ot-waze-navigation-error {
+  color: #b91c1c;
+  font-size: 12px;
+}
+
 .ot-page .ot-progress-panel .tracker-step {
   margin-left: 9px;
   padding: 3px 0 20px 20px;
