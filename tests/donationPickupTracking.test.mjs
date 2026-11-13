@@ -199,3 +199,23 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.doesNotMatch(stakeholderRequestsSource, /Poke Farmer to Confirm|I’ve Arrived/);
   assert.match(stakeholderRequestsSource, /Live Pickup Tracking/);
 });
+
+test('Stakeholder live pickup and request notices use a compact responsive presentation', async () => {
+  const shell = await readFile(
+    new URL('../src/components/layout/AppShell.jsx', import.meta.url),
+    'utf8',
+  );
+  const donations = await readFile(
+    new URL('../src/features/stakeholder/StakeholderDonations.jsx', import.meta.url),
+    'utf8',
+  );
+  const styles = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+
+  assert.match(shell, /className="stakeholder-live-pickup-alert" role="status"/);
+  assert.doesNotMatch(shell, /stakeholder-live-pickup-alert form-alert info/);
+  assert.match(shell, /Pickup from \{stakeholderPickup\.sessions\[0\]\.record\?\.farmerName/);
+  assert.match(shell, />\s*View tracking\s*</);
+  assert.match(donations, /className="stakeholder-request-notice" role="status"/);
+  assert.match(styles, /\.stakeholder-live-pickup-alert \{[\s\S]*?border-left: 3px solid var\(--green-600\)/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.stakeholder-live-pickup-alert \{[\s\S]*?flex-direction: column/);
+});
