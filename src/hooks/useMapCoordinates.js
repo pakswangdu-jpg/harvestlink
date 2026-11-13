@@ -12,16 +12,6 @@ function hashString(value) {
   return Math.abs(hash);
 }
 
-
-
-
-
-
-
-
-
-
-
 function jitter(id, salt) {
   const hash = hashString(`${id}-${salt}`);
   return ((hash % 1000) / 1000) * 0.0024 - 0.0012;
