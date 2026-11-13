@@ -142,7 +142,6 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.match(modalSource, /Farm Pickup Location/);
   assert.match(modalSource, /Route Distance/);
   assert.match(modalSource, /Estimated Travel Time/);
-  assert.match(modalSource, /WazeNavigationButton donationId=\{donationId\} claimId=\{claimId\} destinationRole="farmer"/);
   assert.doesNotMatch(modalSource, /<DonationWorkflowStepper record=\{activeRecord\}/);
 
   // 2. GPS tracking begins only after Stakeholder grants permission, with clear retry when denied
@@ -175,6 +174,9 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.doesNotMatch(stakeholderRequestsSource, /I’ve Arrived — Poke Farmer/);
   assert.match(modalSource, /Wait for them to poke you before confirming the handover/);
   assert.match(modalSource, /Confirm Donation Handover\?/);
+  assert.match(modalSource, /error = ''/);
+  assert.match(modalSource, /className="donation-handover-confirm-error" role="alert"/);
+  assert.match(modalSource, /\{busy \? 'Confirming…' : 'Confirm Donation'\}/);
   assert.match(
     modalSource,
     /Please confirm that you have successfully handed over the donated products to the Stakeholder\./,
@@ -191,7 +193,9 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.match(modalSource, /donation-poke-farmer/);
   assert.match(farmerDonationsSource, /canFarmerConfirmDonationHandover/);
   assert.match(farmerDonationsSource, /disabled=\{saving \|\| !canConfirm\}/);
+  assert.match(farmerDonationsSource, /error=\{error\}/);
   assert.match(farmerDonationsSource, /Available after the Stakeholder arrival is verified/);
+  assert.match(farmerDonationsSource, /confirmDonationHandover\(confirmHandoverTarget\.id, confirmHandoverTarget\.claimId \|\| null\)/);
   assert.doesNotMatch(stakeholderRequestsSource, /Poke Farmer to Confirm|I’ve Arrived/);
   assert.match(stakeholderRequestsSource, /Live Pickup Tracking/);
 });

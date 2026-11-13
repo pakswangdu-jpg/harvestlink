@@ -399,7 +399,10 @@ export default function FarmerDonations() {
                           size="sm"
                           disabled={saving || !canConfirm}
                           title={canConfirm ? 'Confirm the donation handover' : 'Available after the Stakeholder arrival is verified'}
-                          onClick={() => setConfirmHandoverTarget(donation)}
+                          onClick={() => {
+                            setError('');
+                            setConfirmHandoverTarget(donation);
+                          }}
                         >
                           Confirm Donation
                         </Button>
@@ -652,6 +655,7 @@ export default function FarmerDonations() {
       <DonationHandoverConfirmModal
         open={Boolean(confirmHandoverTarget)}
         busy={saving}
+        error={error}
         onCancel={() => { if (!saving) setConfirmHandoverTarget(null); }}
         onConfirm={async () => {
           if (!confirmHandoverTarget) return;

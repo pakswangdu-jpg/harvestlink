@@ -88,8 +88,19 @@ function buildDestinationPinIcon(mapsApi, color = '#e33129') {
   };
 }
 
-
-
+function buildNavigationArrowIcon(mapsApi, headingDeg) {
+  const svg = `<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">`
+    + '<circle cx="24" cy="24" r="22" fill="#4285f4" fill-opacity=".2"/>'
+    + '<circle cx="24" cy="24" r="16" fill="#4285f4" stroke="#fff" stroke-width="3"/>'
+    + `<g transform="rotate(${headingDeg} 24 24)">`
+    + '<path d="M24 12 34 35 24 30 14 35Z" fill="#fff" stroke="#1a56db" stroke-width="1.5" stroke-linejoin="round"/>'
+    + '</g></svg>';
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new mapsApi.Size(48, 48),
+    anchor: new mapsApi.Point(24, 24),
+  };
+}
 
 
 
@@ -601,18 +612,33 @@ export default function LiveDeliveryMap({
         setVehicleMarkerMap(carEntryRef.current, null);
         carEntryRef.current = null;
       }
+      const previousHeading = vehicleHeadingRef.current;
+      const resolvedHeading = resolveVehicleHeading({
+        previousPosition: lastVehicleHeadingPositionRef.current,
+        currentPosition: markerPosition,
+        lastHeading: previousHeading,
+        deviceHeading: markerPosition.deviceHeading,
+        gpsHeading: markerPosition.heading,
+      });
+      vehicleHeadingRef.current = resolvedHeading.heading;
+      if (resolvedHeading.shouldUpdateReference) lastVehicleHeadingPositionRef.current = markerPosition;
+      const renderedHeading = getContinuousVehicleHeading(previousHeading, resolvedHeading.heading);
       if (!carEntryRef.current) {
         const marker = new mapsApi.Marker({
           position: markerPosition,
           map,
-          icon: buildDestinationPinIcon(mapsApi, '#16834b'),
+          icon: buildNavigationArrowIcon(mapsApi, renderedHeading),
           title: `${sharerLabel} live location`,
           zIndex: 1000,
         });
-        carEntryRef.current = { kind: 'pin', marker, currentLatLng: markerPosition };
+        carEntryRef.current = { kind: 'pin', marker, currentLatLng: markerPosition, renderedHeading };
       } else {
         setVehicleMarkerMap(carEntryRef.current, map);
         setVehicleMarkerPosition(carEntryRef.current, markerPosition);
+        const previousRenderedHeading = carEntryRef.current.renderedHeading ?? renderedHeading;
+        const nextHeading = getContinuousVehicleHeading(previousRenderedHeading, resolvedHeading.heading);
+        carEntryRef.current.renderedHeading = nextHeading;
+        carEntryRef.current.marker.setIcon(buildNavigationArrowIcon(mapsApi, nextHeading));
       }
       cameraRef.current?.pause();
       autoEnabledRef.current = false;
