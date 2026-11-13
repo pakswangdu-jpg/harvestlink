@@ -1656,6 +1656,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
               type="submit"
               className="full-width auth-submit"
               aria-busy={isBusy}
+              aria-live="polite"
               disabled={
                 authStage === 'otp'
                   ? otpValue.length !== OTP_LENGTH || isVerifyingOtp

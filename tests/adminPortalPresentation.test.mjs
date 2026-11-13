@@ -16,8 +16,16 @@ test('Admin form uses the dedicated sign-in action and never starts marketplace 
   const source = await readFile(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
   assert.match(source, /adminPortal \? await loginAdmin\(form\.email, form\.password, captchaToken\)\s*: await login\(form\.email, form\.password, captchaToken\)/);
   assert.match(source, /!isRegister && !adminPortal && error\.code === 'email_not_confirmed'/);
+  assert.match(source, /aria-busy=\{isBusy\}\s+aria-live="polite"/);
+  assert.match(source, /isBusy \? <span className="btn-spinner" aria-hidden="true" \/> : null/);
+  assert.match(source, /isSubmitting\s*\?\s*\(isStakeholderRegister \? 'Submitting…' : isRegister \? 'Creating account…' : 'Signing in…'\)/);
   const auth = await readFile(new URL('../src/features/auth/AuthContext.jsx', import.meta.url), 'utf8');
   assert.match(auth, /async loginAdmin\(email, password, captchaToken\)\s*\{\s*const user = await loginAdminUser\(email, password, captchaToken\);\s*setCurrentUserState\(user\);/);
+});
+
+test('Admin sign-in progress remains fully visible while the submit button is disabled', async () => {
+  const css = await readFile(new URL('../src/features/auth/AdminPortal.css', import.meta.url), 'utf8');
+  assert.match(css, /\.auth-page-admin\.auth-page-login \.auth-submit\[aria-busy='true'\] \{ opacity: 1; cursor: wait; \}/);
 });
 
 test('Admin login portal uses a fixed light appearance', async () => {
