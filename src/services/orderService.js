@@ -214,8 +214,8 @@ export async function getOrderById(id) {
   return apiClient.get(`/orders/${id}`);
 }
 
-export async function getOrderTrackingProfiles(id) {
-  return apiClient.get(`/orders/${id}/tracking-profiles`);
+export async function getOrderTrackingProfiles(id, options) {
+  return apiClient.get(`/orders/${id}/tracking-profiles`, options);
 }
 
 export function getOrderReceipt(id) {
