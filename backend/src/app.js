@@ -54,7 +54,10 @@ app.get('/', (req, res) => res.json({
   service: 'HarvestLink API',
   message: 'API is running. Use /health for health checks.',
 }));
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  service: 'harvestlink-backend',
+}));
 app.use('/api', apiRateLimit);
 app.use('/api', apiRoutes);
 
