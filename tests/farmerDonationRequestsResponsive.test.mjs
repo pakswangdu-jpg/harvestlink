@@ -27,6 +27,13 @@ test('Farmer donation offers show remaining stock while claims are pending and r
   assert.match(hook, /setInterval\(\(\) => \{ if \(!pending\.current\) reload\(\); \}, 4000\)/);
 });
 
+test('Donation pickup rows keep details readable and reflow actions on mobile', async () => {
+  const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
+  assert.match(page, /flex flex-wrap items-center gap-2 break-words text-\[13px\]/);
+  assert.match(page, /whitespace-normal break-words text-\[12px\]/);
+  assert.match(page, /grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto/);
+});
+
 test('Completed donation history shows the exact handover date and time in Manila', async () => {
   const page = await readFile(new URL('../src/features/farmer/FarmerDonations.jsx', import.meta.url), 'utf8');
   assert.match(page, /formatDateTimeManila\(row\.confirmedAt \|\| row\.updatedAt\)/);
