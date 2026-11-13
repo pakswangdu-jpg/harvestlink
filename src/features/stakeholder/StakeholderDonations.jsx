@@ -144,7 +144,7 @@ export default function StakeholderDonations() {
         </div>
       ) : null}
 
-      {notice ? <div className="form-alert success">{notice}</div> : null}
+      {notice ? <div className="stakeholder-request-notice" role="status">{notice}</div> : null}
       {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
 
       {loading ? <p role="status">Loading donations...</p> : donations.length ? (

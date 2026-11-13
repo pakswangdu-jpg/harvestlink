@@ -8627,23 +8627,80 @@ a.user-chip:hover {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--green-600) 24%, var(--line));
+  border-left: 3px solid var(--green-600);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--green-600) 6%, var(--panel));
+  color: var(--text);
 }
 
 .stakeholder-live-pickup-alert-content {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .stakeholder-live-pickup-alert-content p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.4;
+}
+
+.stakeholder-live-pickup-alert-content p strong {
+  color: var(--text);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.stakeholder-live-pickup-alert-content p span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.stakeholder-live-pickup-alert > .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.stakeholder-request-notice {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-left: 2px solid var(--green-600);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: color-mix(in srgb, var(--green-600) 5%, var(--panel));
+  color: var(--green-800);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .stakeholder-live-pickup-alert {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .stakeholder-live-pickup-alert-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  .stakeholder-live-pickup-alert > .btn {
+    width: 100%;
+    min-height: 42px;
+  }
 }
 
 .presence-dot {

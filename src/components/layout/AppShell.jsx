@@ -299,12 +299,12 @@ export default function AppShell({
         {locationSharingError ? <div className="form-alert error">{locationSharingError}</div> : null}
         {pickupSharingError ? <div className="form-alert error">{pickupSharingError}</div> : null}
         {user.role === 'stakeholder' && stakeholderPickup.sessions.length > 0 && !stakeholderPickup.activePopupSession ? (
-          <div className="stakeholder-live-pickup-alert form-alert info" role="status" aria-label="Active donation pickup alert">
+          <div className="stakeholder-live-pickup-alert" role="status" aria-label="Active donation pickup">
             <div className="stakeholder-live-pickup-alert-content">
-              <span className="live-indicator"><span className="live-dot" /> Live pickup active</span>
+              <span className="live-indicator"><span className="live-dot" />Live pickup</span>
               <p>
-                <strong>{stakeholderPickup.sessions[0].record?.productName || 'Donation pickup'}</strong> from{' '}
-                {stakeholderPickup.sessions[0].record?.farmerName || 'the farm'}. Track live route and verify arrival.
+                <strong>{stakeholderPickup.sessions[0].record?.productName || 'Donation pickup'}</strong>
+                <span>Pickup from {stakeholderPickup.sessions[0].record?.farmerName || 'the farm'}</span>
               </p>
             </div>
             <button
@@ -312,7 +312,7 @@ export default function AppShell({
               className="btn btn-secondary btn-sm"
               onClick={() => stakeholderPickup.openTrackingPopup(stakeholderPickup.sessions[0].targetId)}
             >
-              Open live tracking
+              View tracking
             </button>
           </div>
         ) : null}
