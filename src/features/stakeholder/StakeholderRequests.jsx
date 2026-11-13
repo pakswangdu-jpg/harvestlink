@@ -15,6 +15,7 @@ import {
 import { createRating } from '../../services/ratingService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
+import { stakeholderPickupDisplayStatus } from './dashboardPresentation';
 
 function DonationRatingPrompt({ donation, onRated }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,6 +144,7 @@ export default function StakeholderRequests() {
                   <DonationCard
                     key={donation.id}
                     donation={donation}
+                    statusValue={stakeholderPickupDisplayStatus(donation)}
                     actions={(
                       <Button
                         size="sm"

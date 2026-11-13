@@ -12,6 +12,7 @@ import StatusBadge from '../common/StatusBadge';
 import DeliveryTrackingOverlay from './DeliveryTrackingOverlay';
 import TrackingRouteSummary from './TrackingRouteSummary';
 import LiveDeliveryMap from './LiveDeliveryMap';
+import WazeNavigationButton from './WazeNavigationButton';
 import {
   confirmDonationHandover,
   getDonationById,
@@ -28,8 +29,8 @@ import {
   isDonationArrivalVerified,
   resolveDonationPickupStatus,
 } from '../../utils/donationWorkflow';
-import { formatDate, formatQuantity } from '../../utils/formatters';
-import { getMunicipalityCoords } from '../../utils/constants';
+import { formatDate, formatDurationMinutes, formatQuantity } from '../../utils/formatters';
+import { getRegisteredCoordinates } from '../../utils/geo';
 import './DonationPickupTrackingModal.css';
 
 const ARRIVAL_POKE_COOLDOWN_MS = 60_000;
@@ -232,14 +233,6 @@ export default function DonationPickupTrackingModal({
   const isConfirmed = resolvedStatus === 'confirmed' || activeRecord.status === 'completed';
   const hasRecentGps = Boolean(lastUpdatedAt);
 
-  const fallbackFarmCoords = getMunicipalityCoords(
-    trackingProfiles?.farmer?.municipality || liveDonation?.location,
-  );
-  const fallbackStakeholderCoords = getMunicipalityCoords(
-    trackingProfiles?.stakeholder?.municipality ||
-      trackingProfiles?.buyer?.municipality ||
-      liveDonation?.location,
-  );
   const rawFarmerProfile = trackingProfiles?.farmer || {
     id: liveDonation?.farmerId,
     name: liveDonation?.farmerName,
@@ -247,16 +240,11 @@ export default function DonationPickupTrackingModal({
     address: liveDonation?.location,
     municipality: liveDonation?.location,
   };
+  const farmerCoordinates = getRegisteredCoordinates(rawFarmerProfile);
   const farmerProfile = {
     ...rawFarmerProfile,
-    latitude:
-      Number.isFinite(Number(rawFarmerProfile.latitude)) && rawFarmerProfile.latitude != null
-        ? Number(rawFarmerProfile.latitude)
-        : fallbackFarmCoords.lat,
-    longitude:
-      Number.isFinite(Number(rawFarmerProfile.longitude)) && rawFarmerProfile.longitude != null
-        ? Number(rawFarmerProfile.longitude)
-        : fallbackFarmCoords.lng,
+    latitude: farmerCoordinates?.lat ?? null,
+    longitude: farmerCoordinates?.lng ?? null,
   };
   const rawStakeholderProfile = trackingProfiles?.stakeholder || trackingProfiles?.buyer || {
     id: liveClaim?.stakeholderId || liveDonation?.requestedById || 'stakeholder',
@@ -264,18 +252,11 @@ export default function DonationPickupTrackingModal({
     address: liveDonation?.location,
     municipality: liveDonation?.location,
   };
+  const stakeholderCoordinates = getRegisteredCoordinates(rawStakeholderProfile);
   const stakeholderProfile = {
     ...rawStakeholderProfile,
-    latitude:
-      Number.isFinite(Number(rawStakeholderProfile.latitude)) &&
-      rawStakeholderProfile.latitude != null
-        ? Number(rawStakeholderProfile.latitude)
-        : fallbackStakeholderCoords.lat,
-    longitude:
-      Number.isFinite(Number(rawStakeholderProfile.longitude)) &&
-      rawStakeholderProfile.longitude != null
-        ? Number(rawStakeholderProfile.longitude)
-        : fallbackStakeholderCoords.lng,
+    latitude: stakeholderCoordinates?.lat ?? null,
+    longitude: stakeholderCoordinates?.lng ?? null,
   };
 
   const virtualOrder = {
@@ -317,6 +298,12 @@ export default function DonationPickupTrackingModal({
       .filter(Boolean)
       .filter((v, idx, arr) => arr.indexOf(v) === idx)
       .join(', ') || liveDonation?.location || 'Registered farm location';
+  const routeDistanceLabel = Number.isFinite(routeSnapshot?.remainingKm)
+    ? `${routeSnapshot.remainingKm.toFixed(1)} km`
+    : '—';
+  const routeDurationLabel = Number.isFinite(routeSnapshot?.etaMinutes)
+    ? formatDurationMinutes(routeSnapshot.etaMinutes)
+    : '—';
   const farmerHasBeenNotified = Boolean(activeRecord.arrivalNotifiedAt);
   const pokeCooldownSeconds = farmerHasBeenNotified
     ? Math.max(
@@ -573,6 +560,30 @@ export default function DonationPickupTrackingModal({
             moverMarkerType="pin"
             requireLivePosition
           />
+          <div className="donation-pickup-route-metrics" aria-label="Pickup route information">
+            <div>
+              <span>Stakeholder Current Location</span>
+              <strong>{routeSnapshot?.isInTransit ? 'Live GPS location' : 'Waiting for fresh GPS'}</strong>
+            </div>
+            <div>
+              <span>Farm Pickup Location</span>
+              <strong>{farmDestinationName}</strong>
+              <p>{farmDestinationAddress}</p>
+            </div>
+            <div>
+              <span>Route Distance</span>
+              <strong>{routeDistanceLabel}</strong>
+            </div>
+            <div>
+              <span>Estimated Travel Time</span>
+              <strong>{routeDurationLabel}</strong>
+            </div>
+            {viewerRole === 'stakeholder' && !isConfirmed ? (
+              <div className="donation-pickup-route-actions">
+                <WazeNavigationButton donationId={donationId} claimId={claimId} destinationRole="farmer" />
+              </div>
+            ) : null}
+          </div>
           {viewerRole === 'stakeholder' && !isConfirmed ? (
             <div className="donation-poke-farmer">
               <Button

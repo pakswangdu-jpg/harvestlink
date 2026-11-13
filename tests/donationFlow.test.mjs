@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
+import { stakeholderPickupDisplayStatus } from '../src/features/stakeholder/dashboardPresentation.js';
 
 const donation = {
   id: 'donation-1', farmerName: 'Cebu Farm', productName: 'Cabbage',
@@ -30,6 +31,7 @@ async function screen(file, mutation, reject = false, claimQuantity = '1', donat
     useDonationList: () => ({ donations, loading: false, loadError: '', reload: async () => { events.push('reload'); } }),
     useStakeholderDonationPickupSharingContext: () => null,
     resolveDonationPickupStatus: (record) => record?.pickupStatus || 'scheduled',
+    stakeholderPickupDisplayStatus,
     [mutation]: async (...args) => { events.push(args); return pending; },
     AppShell: 'shell', DonationCard: 'donation', Button: 'button', EmptyState: 'empty', StarRating: 'stars', Link: 'link',
     Gift: 'gift', Calendar: 'calendar', CheckCircle2: 'check', History: 'history', Hourglass: 'hourglass', MessageCircle: 'msg', Navigation: 'nav', stakeholderNavItems: [],

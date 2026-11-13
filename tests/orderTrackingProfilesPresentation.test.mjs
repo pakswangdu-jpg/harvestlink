@@ -13,4 +13,10 @@ test('order tracking loads participant coordinates through the order-authorized 
   assert.match(trackingModal, /getOrderTrackingProfiles\(order\.id\)/);
   assert.match(orderService, /\/orders\/\$\{id\}\/tracking-profiles/);
   assert.match(routes, /router\.get\('\/:id\/tracking-profiles', requireAuth, getOrderTrackingProfiles\)/);
+  assert.match(trackingPage, /isPickup && isBuyer/);
+  assert.match(trackingPage, /Buyer Current Location/);
+  assert.match(trackingPage, /Stakeholder Pickup Location/);
+  assert.match(trackingPage, /Route Distance/);
+  assert.match(trackingPage, /Estimated Travel Time/);
+  assert.match(trackingPage, /WazeNavigationButton orderId=\{order\.id\} destinationRole="farmer"/);
 });

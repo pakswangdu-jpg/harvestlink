@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, pickupDay, requestNextStep } from '../src/features/stakeholder/dashboardPresentation.js';
+import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, pickupDay, requestNextStep, stakeholderPickupDisplayStatus } from '../src/features/stakeholder/dashboardPresentation.js';
 
 const now = new Date('2026-10-10T17:00:00Z');
 test('Partner overview uses Cebu dates, valid saved schedules, and actual statuses', () => {
@@ -30,6 +30,16 @@ test('empty Partner records do not invent attention, pickups, or activity', () =
   assert.deepEqual(overview.latestActivity, []);
   assert.equal(pickupDay(null), null);
   assert.equal(pickupDay('2026-10-11T09:00:00Z'), null);
+});
+test('future stakeholder pickup dates display ongoing without changing stored status', () => {
+  const future = { status: 'scheduled', pickupDate: '2026-10-15' };
+  assert.equal(stakeholderPickupDisplayStatus(future, now), 'ongoing');
+  assert.equal(future.status, 'scheduled');
+  assert.equal(stakeholderPickupDisplayStatus({ status: 'scheduled', pickupDate: '2026-10-11' }, now), 'scheduled');
+  assert.equal(stakeholderPickupDisplayStatus({ status: 'scheduled', pickupDate: '2026-10-10' }, now), 'scheduled');
+  assert.equal(stakeholderPickupDisplayStatus({ status: 'scheduled', pickupDate: '2026-02-30' }, now), 'scheduled');
+  assert.equal(stakeholderPickupDisplayStatus({ status: 'requested', pickupDate: '2026-10-15' }, now), 'requested');
+  assert.equal(stakeholderPickupDisplayStatus({ status: 'available', myClaim: { status: 'scheduled', pickupDate: '2026-10-15' } }, now), 'ongoing');
 });
 test('new donation alerts skip the initial load and identify newly available donations', () => {
   const existing = [{ id: 'existing' }];

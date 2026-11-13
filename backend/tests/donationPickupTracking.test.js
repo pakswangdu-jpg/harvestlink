@@ -254,6 +254,20 @@ test('Complete backend donation pickup tracking & farmer handover confirmation w
   assert.equal(stakeholderProfiles.body.farmer.latitude, FARM_COORDS.lat);
   assert.equal(stakeholderProfiles.body.farmer.longitude, FARM_COORDS.lng);
   assert.equal(stakeholderProfiles.body.farmer.farm_name, 'Green Valley Farm');
+  const savedFarmerProfile = profilesById[FARMER_ID];
+  const savedStakeholderProfile = profilesById[STAKEHOLDER_ID];
+  profilesById[FARMER_ID] = { ...savedFarmerProfile, latitude: null, longitude: null };
+  profilesById[STAKEHOLDER_ID] = { ...savedStakeholderProfile, latitude: null, longitude: null };
+  const missingCoordinates = await callEndpoint(
+    controller.getDonationTrackingProfiles,
+    { id: STAKEHOLDER_ID, role: 'stakeholder' },
+  );
+  assert.equal(missingCoordinates.body.farmer.latitude, null);
+  assert.equal(missingCoordinates.body.farmer.longitude, null);
+  assert.equal(missingCoordinates.body.stakeholder.latitude, null);
+  assert.equal(missingCoordinates.body.stakeholder.longitude, null);
+  profilesById[FARMER_ID] = savedFarmerProfile;
+  profilesById[STAKEHOLDER_ID] = savedStakeholderProfile;
 
   // Step 3: Security & Privacy - Buyer, other Stakeholder, and other Farmer are rejected (403)
   await assert.rejects(

@@ -137,6 +137,12 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.match(modalSource, /<DeliveryTrackingOverlay\s+open\b/);
   assert.match(modalSource, /Pickup route/);
   assert.match(modalSource, /Stakeholder location/);
+  assert.match(modalSource, /donation-pickup-route-metrics/);
+  assert.match(modalSource, /Stakeholder Current Location/);
+  assert.match(modalSource, /Farm Pickup Location/);
+  assert.match(modalSource, /Route Distance/);
+  assert.match(modalSource, /Estimated Travel Time/);
+  assert.match(modalSource, /WazeNavigationButton donationId=\{donationId\} claimId=\{claimId\} destinationRole="farmer"/);
   assert.doesNotMatch(modalSource, /<DonationWorkflowStepper record=\{activeRecord\}/);
 
   // 2. GPS tracking begins only after Stakeholder grants permission, with clear retry when denied
@@ -151,6 +157,9 @@ test('DonationPickupTrackingModal and FarmerDonations implement GPS permission g
   assert.match(hookSource, /Retry Location Sharing/);
   assert.match(appShellSource, /lastUpdatedAt=\{stakeholderPickup\.lastUpdatedAt\}/);
   assert.match(modalSource, /!hasRecentGps \|\| permissionError/);
+  assert.match(modalSource, /getRegisteredCoordinates\(rawFarmerProfile\)/);
+  assert.match(modalSource, /getRegisteredCoordinates\(rawStakeholderProfile\)/);
+  assert.doesNotMatch(modalSource, /getMunicipalityCoords/);
   assert.match(modalSource, /Start Live GPS Tracking/);
   assert.match(modalSource, /Retry Location Sharing/);
 

@@ -177,6 +177,7 @@ const DONATION_STATUS_LABELS = {
   awaiting_confirmation: 'Awaiting Farmer Confirmation',
   confirmed: 'Donation Confirmed',
   scheduled: 'Pickup scheduled',
+  ongoing: 'Ongoing',
   completed: 'Donation completed',
   cancelled: 'Cancelled',
   expired: 'Expired',

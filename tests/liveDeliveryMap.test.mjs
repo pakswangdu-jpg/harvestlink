@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { transformWithOxc } from 'vite';
 import { loadFrontend } from './helpers/loadFrontend.mjs';
 
-async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, initialMapVisible = true, mapOptions = {}) {
+async function harness(vector = false, profiles = true, initialPosition = { lat: 10.31, lng: 123.91, heading: 358, speed: 2 }, initialMapVisible = true, mapOptions = {}, orderOverrides = {}, selectedRoute = null) {
   const slots = [];
   let index = 0;
   let pending = [];
@@ -20,8 +20,10 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
   const routes = [];
   const trafficLayers = [];
   const calls = [];
+  const vehicleBodies = [];
+  const boundsPoints = [];
   const container = { getBoundingClientRect: () => ({ width: mapVisible ? 600 : 0, height: mapVisible ? 400 : 0 }) };
-  const navigation = { selected: null, alternatives: [], stale: true };
+  const navigation = { selected: selectedRoute, alternatives: [], stale: !selectedRoute };
   const react = {
     createElement(type, props, ...children) {
       if (props?.ref) props.ref.current = container;
@@ -67,12 +69,16 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     constructor() { trafficLayers.push(this); }
     setMap(map) { this.map = map; calls.push(['traffic', map]); }
   }
+  class Polyline {
+    constructor(options) { Object.assign(this, options); routes.push(this); }
+    setMap(map) { this.map = map; }
+  }
   const mapsApi = { Map: MockMap, Marker, AdvancedMarkerElement: Marker,
     TrafficLayer, ControlPosition: { RIGHT_TOP: 1, LEFT_TOP: 2 },
     RenderingType: { VECTOR: 'VECTOR' }, Size: class {}, Point: class {},
     event: { trigger: (_map, event) => calls.push([event]) },
-    LatLngBounds: class { extend() {} },
-    Polyline: class { constructor() { routes.push(this); } setMap() {} }, Circle: class { setMap() {} },
+    LatLngBounds: class { extend(point) { boundsPoints.push(point); } },
+    Polyline, Circle: class { setMap() {} },
   };
   const [geo, vehicle, camera, trip] = await loadFrontend([
     '../src/utils/geo.js', '../src/utils/vehicleMarker.js', '../src/utils/liveMapCamera.js', '../src/utils/tripTelemetry.js',
@@ -85,7 +91,11 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     useTrafficNavigation: (inputs) => { navigationInputs = inputs; return navigation; }, getLiveTransitProgress: () => ({ isInTransit: true }),
     isFreshLivePosition: () => true, nearestIndexOnPath: () => 0,
     MAP_COLORS: { origin: 'green', destination: 'blue' }, deliveryVanIcon: 'van',
-    document: { createElement: () => ({ className: '', querySelector: () => ({ style: {}, removeAttribute() {} }) }) },
+    document: { createElement: () => {
+      const vehicleBody = { style: {}, removeAttribute() {} };
+      vehicleBodies.push(vehicleBody);
+      return { className: '', querySelector: () => vehicleBody };
+    } },
     performance: { now: () => 0 }, requestAnimationFrame: (callback) => { callback(1000); return null; }, cancelAnimationFrame() {},
   };
   for (const name of ['CheckCircle2', 'Clock3', 'Crosshair', 'Gauge', 'MapPin', 'Minus', 'Plus', 'Truck', 'TrafficRouteNotice', 'DriverConnectionBadge', 'LiveDeliverySummary']) scope[name] = name;
@@ -93,7 +103,7 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     .replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
   const result = await transformWithOxc(source, 'LiveDeliveryMap.jsx', { jsx: { runtime: 'classic' } });
   const component = new Function('scope', `with(scope){${result.code};return LiveDeliveryMap;}`)(scope);
-  const order = { id: 'canonical-order', farmerId: 'farmer', buyerId: 'buyer', deliveryMethod: 'farmer_delivery', status: 'confirmed' };
+  const order = { id: 'canonical-order', farmerId: 'farmer', buyerId: 'buyer', deliveryMethod: 'farmer_delivery', status: 'confirmed', ...orderOverrides };
   const render = () => {
     let renders = 0;
     do {
@@ -117,10 +127,12 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
   render();
   await new Promise(setImmediate);
   render();
-  return { maps, markers, routes, calls, render, recenter: () => { find(tree).props.onClick(); render(); },
+  return { maps, markers, routes, boundsPoints, calls, render, recenter: () => { find(tree).props.onClick(); render(); },
     recenterProps: () => find(tree).props,
     zoomControls: () => findAll(tree, (node) => ['Zoom in', 'Zoom out'].includes(node.props?.['aria-label'])),
     trafficButton: () => findAll(tree, (node) => node.props?.className?.startsWith('nav-traffic-toggle'))[0],
+    routeNotice: () => findAll(tree, (node) => node.type === 'TrafficRouteNotice')[0],
+    vehicleBodies,
     trafficLayers,
     navigationInputs: () => navigationInputs,
     showMap() { mapVisible = true; render(); },
@@ -128,6 +140,78 @@ async function harness(vector = false, profiles = true, initialPosition = { lat:
     update(next) { position = next; render(); },
     cleanup() { slots.forEach((slot) => slot?.cleanup?.()); },
   };
+}
+
+test('buyer pickup navigation starts at fresh buyer GPS and routes to the farmer', async () => {
+  const livePosition = { lat: 10.315, lng: 123.91, heading: 90, speed: 2 };
+  const h = await harness(false, true, livePosition, true, {}, { deliveryMethod: 'buyer_pickup' });
+
+  assert.deepEqual(h.navigationInputs().origin, livePosition);
+  assert.deepEqual(h.navigationInputs().position, livePosition);
+  assert.deepEqual(h.navigationInputs().destination, { lat: 10.3, lng: 123.9 });
+  h.update(null);
+  assert.equal(h.navigationInputs().origin, null, 'an active pickup does not route from the saved buyer address when GPS is unavailable');
+  h.cleanup();
+});
+
+test('stakeholder pickup waits for live GPS rather than routing from a profile fallback', async () => {
+  const h = await harness(false, true, null, true, {
+    moverMarkerType: 'pin',
+    requireLivePosition: true,
+    sharerLabelOverride: 'Stakeholder',
+  }, { deliveryMethod: 'buyer_pickup' });
+
+  assert.equal(h.navigationInputs().origin, null);
+  assert.equal(h.navigationInputs().position, null);
+  assert.deepEqual(h.navigationInputs().destination, { lat: 10.3, lng: 123.9 });
+  assert.equal(h.routeNotice().props.navigation.message, 'Waiting for fresh pickup GPS to calculate the route.');
+  h.update({ lat: 10.315, lng: 123.91, heading: 90, speed: 2 });
+  assert.deepEqual(h.navigationInputs().origin, { lat: 10.315, lng: 123.91, heading: 90, speed: 2 });
+  h.cleanup();
+});
+
+test('stakeholder pickup draws the Google road route and fits the full route bounds', async () => {
+  const path = [{ lat: 10.315, lng: 123.91 }, { lat: 10.31, lng: 123.9 }, { lat: 10.3, lng: 123.9 }];
+  const h = await harness(false, true, { lat: 10.315, lng: 123.91 }, true, {
+    moverMarkerType: 'pin',
+    requireLivePosition: true,
+    sharerLabelOverride: 'Stakeholder',
+  }, {
+    deliveryMethod: 'buyer_pickup',
+    farmerName: 'Farm',
+    buyerName: 'Stakeholder',
+  }, { points: path, distanceKm: 2, durationMinutes: 8 });
+
+  assert.ok(h.routes.some((route) => route.strokeColor === '#1a73e8' && route.path === path));
+  assert.ok(path.every((point) => h.boundsPoints.includes(point)), 'the map fit includes the full road route');
+  assert.equal(h.markers.find((marker) => marker.title === 'Farm').position.lat, 10.3);
+  h.cleanup();
+});
+
+test('pickup does not draw a route when the farm has no registered GPS coordinates', async () => {
+  const h = await harness(false, false, null, true, {
+    moverMarkerType: 'pin',
+    requireLivePosition: true,
+  }, { deliveryMethod: 'buyer_pickup' });
+
+  assert.equal(h.navigationInputs().destination, undefined);
+  assert.equal(h.routeNotice().props.navigation.message, 'Registered farm GPS coordinates are required to calculate the pickup route.');
+  h.cleanup();
+});
+
+for (const vector of [false, true]) {
+  test(`vehicle icon follows live GPS heading on ${vector ? 'vector' : 'raster'} maps`, async () => {
+    const h = await harness(vector, true, { lat: 10.31, lng: 123.91, heading: 270, speed: 2 });
+    const vehicle = () => h.markers.find((marker) => marker.zIndex === 1000);
+    const heading = () => (vector
+      ? h.vehicleBodies[0].style.transform
+      : decodeURIComponent(vehicle().icon.url).match(/(?:transform="rotate\(|to=")(-?\d+)/)?.[1]);
+
+    assert.equal(heading(), vector ? 'rotate(270deg)' : '270', 'the first GPS heading is applied immediately');
+    h.update({ lat: 10.31001, lng: 123.91, heading: 90, speed: 2 });
+    assert.equal(heading(), vector ? 'rotate(90deg)' : '90', 'heading updates while moving before the 8 m fallback threshold');
+    h.cleanup();
+  });
 }
 
 test('map resizes when tracking opens and exposes working zoom controls', async () => {

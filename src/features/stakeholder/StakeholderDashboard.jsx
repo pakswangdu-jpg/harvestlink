@@ -12,7 +12,7 @@ import { getAvailableDonations, getDonationsForStakeholder } from '../../service
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
 import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
 import { getMunicipalityCoords } from '../../utils/constants';
-import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, requestNextStep } from './dashboardPresentation';
+import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, requestNextStep, stakeholderPickupDisplayStatus } from './dashboardPresentation';
 import { stakeholderNavItems } from './stakeholderNav';
 import { DONATION_MARKER_COLOR } from '../../components/map/donationMarker';
 import './StakeholderDashboard.css';
@@ -214,7 +214,7 @@ function DonationRow({ donation, farmer }) {
 function RequestList({ requests }) {
   return <div className="stakeholder-request-list">{requests.map(request => <article className="stakeholder-request-row" key={request.id}>
     <div><strong>{request.productName} &middot; {request.quantity} {request.unit}</strong><small>{request.farmerName}</small>{request.createdAt ? <small>Requested {formatDate(request.createdAt)}</small> : null}</div>
-    <div><StatusBadge value={request.status} type="donation" /><small>{requestNextStep(request.status)}</small>{request.pickupDate ? <small>{formatDate(request.pickupDate)}</small> : null}</div>
+    <div><StatusBadge value={stakeholderPickupDisplayStatus(request)} type="donation" /><small>{requestNextStep(request.status)}</small>{request.pickupDate ? <small>{formatDate(request.pickupDate)}</small> : null}</div>
     <Link to="/stakeholder-requests" aria-label={`View request for ${request.productName}`}>View request <ArrowRight size={14} aria-hidden="true" /></Link>
   </article>)}</div>;
 }
