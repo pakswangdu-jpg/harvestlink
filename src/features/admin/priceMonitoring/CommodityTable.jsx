@@ -22,7 +22,10 @@ export default function CommodityTable({ rows, sortState, onSort, selectedIds, o
   const reference = (row) => row.loading ? 'Loading...' : row.psaPrice == null ? 'No PSA data' : <>{formatCurrency(row.psaPrice)}/kg<small>PSA {row.psaYear}</small></>;
   const difference = (row) => row.loading || row.unit !== 'kg' ? null : priceDifference(row.avgFarmerPrice, row.referencePrice);
   const status = (row) => row.loading ? <span className="pm-secondary">Loading</span> : <Badge tone={STATUS_META[row.status].tone}>{STATUS_META[row.status].label}</Badge>;
-  const selection = (row) => <input type="checkbox" aria-label={`Select ${row.label}`} checked={selectedIds.has(row.id)} onChange={() => onToggleSelect(row.id)} disabled={row.loading} />;
+  const selectableRows = rows.filter((row) => row.isCustom);
+  const selection = (row) => row.isCustom
+    ? <input type="checkbox" aria-label={`Select ${row.label}`} checked={selectedIds.has(row.id)} onChange={() => onToggleSelect(row.id)} disabled={row.loading} />
+    : <span aria-label="Reference updates are limited to admin-added commodities">—</span>;
   const adminReference = (row) => row.isOverride
     ? <>{formatCurrency(row.override?.referencePrice ?? row.referencePrice)}/{row.override?.unit || row.unit}<small>{row.override?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered'}</small></>
     : <span className="pm-secondary">Not set</span>;
@@ -35,7 +38,7 @@ export default function CommodityTable({ rows, sortState, onSort, selectedIds, o
     <div className="pm-desktop-table">
       <table className="pm-table">
         <thead><tr>
-          <th><input type="checkbox" aria-label="Select loaded commodities on this page" checked={rows.some((row) => !row.loading) && rows.filter((row) => !row.loading).every((row) => selectedIds.has(row.id))} onChange={(event) => onToggleSelectAll(rows.filter((row) => !row.loading).map((row) => row.id), event.target.checked)} /></th>
+          <th><input type="checkbox" aria-label="Select loaded admin-added commodities on this page" checked={selectableRows.some((row) => !row.loading) && selectableRows.filter((row) => !row.loading).every((row) => selectedIds.has(row.id))} onChange={(event) => onToggleSelectAll(selectableRows.filter((row) => !row.loading).map((row) => row.id), event.target.checked)} disabled={!selectableRows.some((row) => !row.loading)} /></th>
           <th>{header('Commodity', 'label')}</th><th>Category</th><th>PSA reference</th><th>Admin reference</th><th>Effective reference</th><th>{header('Farmer avg.', 'avgFarmerPrice')}</th><th>Difference vs ref.</th><th>{header('Listings', 'listingsCount')}</th><th>Status</th><th>Action</th>
         </tr></thead>
         <tbody>{rows.map((row) => <Fragment key={row.id}>
@@ -44,7 +47,7 @@ export default function CommodityTable({ rows, sortState, onSort, selectedIds, o
             <td><button className="pm-expand" type="button" aria-expanded={expandedId === row.id} onClick={() => onToggleExpand(row.id)}>{expandedId === row.id ? <ChevronDown size={15} /> : <ChevronRight size={15} />}{row.label}</button></td>
             <td className="pm-secondary">{row.category}</td><td>{reference(row)}</td><td>{adminReference(row)}</td><td>{effectiveReference(row)}</td><td>{row.avgFarmerPrice == null ? '-' : `${formatCurrency(row.avgFarmerPrice)}/kg`}</td>
             <td>{difference(row)?.label || '-'}</td><td>{row.listingsCount}</td><td>{status(row)}</td>
-            <td><button type="button" className="pm-link" disabled={row.loading} onClick={() => onOpenOverrideModal(row)}>{row.isOverride ? 'Edit override' : 'Set price'}</button></td>
+            <td>{row.isCustom ? <button type="button" className="pm-link" disabled={row.loading} onClick={() => onOpenOverrideModal(row)}>{row.isOverride ? 'Edit override' : 'Set price'}</button> : '—'}</td>
           </tr>
           {!mobile && expandedId === row.id && <tr><td colSpan={11} className="pm-detail-cell">{details(row)}</td></tr>}
         </Fragment>)}</tbody>

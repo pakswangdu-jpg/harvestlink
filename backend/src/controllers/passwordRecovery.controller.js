@@ -20,8 +20,9 @@ function recoveryRedirect(value) {
   if (!allowed || !['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
     throw new ApiError('The password reset address is not allowed.', 400);
   }
-  const isLocal = ['localhost', '127.0.0.1'].includes(url.hostname);
-  return new URL('/reset-password', isLocal ? url.origin : getAppUrl()).toString();
+  // Recovery emails must never point to the requesting developer machine.
+  // Always use the canonical deployed app so Gmail links remain reachable.
+  return new URL('/reset-password', getAppUrl()).toString();
 }
 
 export async function requestPasswordReset(req, res) {

@@ -53,10 +53,10 @@ test('password reset sends only for a verified existing account', async (t) => {
     await requestPasswordReset(request({ email: '  BUYER@EXAMPLE.COM  ' }), res);
     assert.deepEqual(calls.find(([name]) => name === 'lookup'), ['lookup', 'email', email]);
     assert.deepEqual(calls.find(([name]) => name === 'generate')[1], {
-      type: 'recovery', email, options: { redirectTo: 'http://localhost:5173/reset-password' },
+      type: 'recovery', email, options: { redirectTo: 'https://harvestlink.dev/reset-password' },
     });
     assert.equal(calls.filter(([name]) => name === 'send').length, 1);
-    assert.equal(calls.find(([name]) => name === 'send')[2], 'http://localhost:5173/reset-password?token_hash=recovery-token-hash&type=recovery');
+    assert.equal(calls.find(([name]) => name === 'send')[2], 'https://harvestlink.dev/reset-password?token_hash=recovery-token-hash&type=recovery');
     assert.deepEqual(response, { sent: true });
   });
 
@@ -98,6 +98,19 @@ test('password reset sends only for a verified existing account', async (t) => {
       await assert.rejects(requestPasswordReset(request(body), res), { status: 400 });
       assert.equal(calls.length, 0);
     }
+  });
+
+  await t.test('localhost reset requests generate a reachable deployed reset link', async () => {
+    reset();
+    await requestPasswordReset(request({ redirectTo: 'http://localhost:5173/reset-password' }), res);
+    assert.equal(
+      calls.find(([name]) => name === 'generate')[1].options.redirectTo,
+      'https://harvestlink.dev/reset-password',
+    );
+    assert.equal(
+      calls.find(([name]) => name === 'send')[2].startsWith('https://harvestlink.dev/reset-password?'),
+      true,
+    );
   });
 
   await t.test('approved preview origins send users to the canonical domain without supplied query or fragment', async () => {

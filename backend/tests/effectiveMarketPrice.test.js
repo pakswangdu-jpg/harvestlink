@@ -2,15 +2,25 @@ import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 
 let overrideRows = [];
+let customCommodityRows = [];
 let psaPoints = [];
 let psaFetchCount = 0;
 const supabaseAdmin = {
-  from() {
+  from(table) {
+    const filters = [];
+    const sourceRows = () => (table === 'commodity_catalog' ? customCommodityRows : overrideRows);
     const query = {
       select() { return this; },
-      eq() { return this; },
+      eq(column, value) { filters.push([column, value]); return this; },
+      async maybeSingle() {
+        return {
+          data: sourceRows().find((row) => filters.every(([key, value]) => row[key] === value)) || null,
+          error: null,
+        };
+      },
       then(resolve, reject) {
-        return Promise.resolve({ data: overrideRows, error: null }).then(resolve, reject);
+        const data = sourceRows().filter((row) => filters.every(([key, value]) => row[key] === value));
+        return Promise.resolve({ data, error: null }).then(resolve, reject);
       },
     };
     return query;
@@ -76,4 +86,24 @@ test('fixed reference units convert to a per-kilogram review value', async () =>
   assert.equal(result.referencePrice, 200);
   assert.equal(result.referenceSource, 'verified_local_market');
   assert.equal(result.unit, 'g');
+});
+
+test('custom commodity matching ignores capitalization and prefers the exact admin entry', async () => {
+  customCommodityRows = [{
+    id: 'admin-mango-piko',
+    name: 'Mango',
+    variety: 'Piko',
+    unit: 'kg',
+    is_active: true,
+  }];
+  overrideRows = [override({
+    commodity_id: 'admin-mango-piko',
+    commodity_label: 'Mango Piko',
+    reference_price: 90,
+  })];
+
+  const result = await getServerPriceReviewReference('ｍＡＮＧＯ PIKO', 'kg', 1);
+  assert.equal(result.commodityId, 'admin-mango-piko');
+  assert.equal(result.commodityLabel, 'Mango Piko');
+  assert.equal(result.referencePrice, 90);
 });

@@ -181,8 +181,8 @@ export async function setUserVerification(id, status, reason, expectedStatus) {
 
 
 
-export async function setAccountStatus(id, status, expectedStatus) {
-  return apiClient.patch(`/profiles/${id}/account-status`, { status, expectedStatus });
+export async function setAccountStatus(id, status, expectedStatus, reason) {
+  return apiClient.patch(`/profiles/${id}/account-status`, { status, expectedStatus, reason });
 }
 
 

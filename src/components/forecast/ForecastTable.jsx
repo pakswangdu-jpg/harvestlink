@@ -121,11 +121,14 @@ function CropDetailsButton({ entry, selected, onSelectCrop }) {
   );
 }
 
-function CropCard({ entry, selected, onSelectCrop }) {
+function CropCard({ entry, selected, onSelectCrop, onShowForecast }) {
   return (
     <article className={`rounded-lg border p-4 ${
       selected ? 'border-[var(--green-600)] bg-[var(--green-50)]/50' : 'border-[var(--line)] bg-[var(--panel)]'
     }`}
+      onPointerDown={(event) => {
+        if (event.pointerType !== 'mouse') onShowForecast?.(entry, event.clientX, event.clientY);
+      }}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -165,6 +168,7 @@ export default function ForecastTable({
 }) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('change_desc');
+  const [hoveredForecast, setHoveredForecast] = useState(null);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -225,7 +229,25 @@ export default function ForecastTable({
                 {rows.map((entry) => {
                 const selected = entry.forecastKey === selectedCrop;
                   return (
-                  <tr key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`} className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}>
+                  <tr
+                    key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`}
+                    className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}
+                    onMouseMove={(event) => setHoveredForecast({
+                      entry,
+                      x: event.clientX,
+                      y: event.clientY,
+                    })}
+                    onMouseLeave={() => setHoveredForecast(null)}
+                    onFocusCapture={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setHoveredForecast({
+                        entry,
+                        x: rect.left,
+                        y: rect.top,
+                      });
+                    }}
+                    onBlurCapture={() => setHoveredForecast(null)}
+                  >
                       <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-2 text-[15px] text-[var(--text)]">
                         <CropDetailsButton entry={entry} selected={selected} onSelectCrop={onSelectCrop} />
                       </td>
@@ -250,11 +272,37 @@ export default function ForecastTable({
                 entry={entry}
                 selected={entry.forecastKey === selectedCrop}
                 onSelectCrop={onSelectCrop}
+                onShowForecast={(entry, x, y) => {
+                  setHoveredForecast({ entry, x, y });
+                  window.setTimeout(() => setHoveredForecast(null), 2400);
+                }}
               />
             ))}
           </div>
         </>
       )}
+      {hoveredForecast ? (
+        <div
+          className="forecast-crop-hover-card"
+          role="tooltip"
+          style={{
+            left: `${Math.min(Math.max(12, hoveredForecast.x + 12), Math.max(12, (typeof window !== 'undefined' ? window.innerWidth : 320) - 280))}px`,
+            top: `${hoveredForecast.y > 220 ? hoveredForecast.y - 176 : hoveredForecast.y + 16}px`,
+          }}
+        >
+          <p className="forecast-crop-hover-title">
+            {hoveredForecast.entry.crop}
+            {hoveredForecast.entry.unit ? ` / ${hoveredForecast.entry.unit}` : ''}
+          </p>
+          <dl className="forecast-crop-hover-grid">
+            <div><dt>Current</dt><dd><PriceReference entry={hoveredForecast.entry} /></dd></div>
+            <div><dt>Forecast</dt><dd>{hoveredForecast.entry.forecastPrice != null ? `${formatCurrency(hoveredForecast.entry.forecastPrice)}${hoveredForecast.entry.unit ? `/${hoveredForecast.entry.unit}` : ''}` : 'Not available'}</dd></div>
+            <div><dt>Change</dt><dd>{priceChangeCell(hoveredForecast.entry.expectedChangePercent)}</dd></div>
+            <div><dt>Demand</dt><dd>{hoveredForecast.entry.currentDemand || DEMAND_LABEL[hoveredForecast.entry.signal] || 'Not available'}</dd></div>
+          </dl>
+          <p className="forecast-crop-hover-action"><Recommendation entry={hoveredForecast.entry} /></p>
+        </div>
+      ) : null}
     </section>
   );
 }

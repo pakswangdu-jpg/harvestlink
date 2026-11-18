@@ -5,7 +5,7 @@ import { MARKET_COMMODITIES, matchCommodity } from './marketCommodities.js';
 import { getFixedKgPerUnit } from './unitConversion.js';
 
 function normalize(value) {
-  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return String(value || '').normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 export async function findCommodityById(commodityId) {
@@ -73,6 +73,7 @@ export async function resolveEffectiveReference(commodityId) {
       effectiveDate: `${latest.year}-01-01`,
       year: latest.year,
       supportingReference: 'PSA Central Visayas annual farmgate series',
+      trendPoints: points,
     } : null,
   };
 }
@@ -80,8 +81,6 @@ export async function resolveEffectiveReference(commodityId) {
 async function findProductCommodity(name) {
   const productName = normalize(name);
   if (!productName) return null;
-  const builtIn = matchCommodity(name);
-  if (builtIn) return builtIn.id;
 
   const { data, error } = await supabaseAdmin
     .from('commodity_catalog')
@@ -93,6 +92,8 @@ async function findProductCommodity(name) {
     return productName === fullName || (!commodity.variety && productName === normalize(commodity.name));
   });
   if (custom) return custom.id;
+  const builtIn = matchCommodity(name);
+  if (builtIn) return builtIn.id;
   return null;
 }
 

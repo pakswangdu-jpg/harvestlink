@@ -128,13 +128,13 @@ export default function AllFarmersPage() {
 
           <div className="flex shrink-0 items-center gap-3">
             <Link to="/login" className="text-[13.5px] font-semibold text-[var(--text)] transition-colors hover:text-[var(--green-800)]">
-              Login
+              Sign in
             </Link>
             <Link
               to="/register"
               className="flex h-9 items-center rounded-lg bg-[var(--green-800)] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[var(--green-700)]"
             >
-              Register
+              Sign up
             </Link>
           </div>
         </div>

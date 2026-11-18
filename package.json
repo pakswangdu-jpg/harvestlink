@@ -11,6 +11,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "test:frontend": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "test:run": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "test:vitest": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:backend": "npm --prefix backend test",
+    "test:all": "node scripts/test-all.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -39,11 +45,13 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/coverage-v8": "^5.1.1",
     "eslint": "^10.5.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.6.0",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "vitest": "^5.1.1"
   }
 }

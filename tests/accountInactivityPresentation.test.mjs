@@ -7,8 +7,8 @@ test('Admin distinguishes automatic suspension from manual deactivation and reta
   assert.match(source, /user\.inactivitySuspendedAt \? 'Suspended' : 'Deactivated'/);
   assert.match(source, /\['Suspension reason', 'Six months of inactivity'\]/);
   assert.match(source, /USER_AUTO_SUSPENDED: 'Automatically suspended for inactivity'/);
-  assert.match(source, /entry\.action === 'USER_AUTO_SUSPENDED' \? 'System'/);
+  assert.match(source, /\['USER_AUTO_SUSPENDED', 'USER_AUTO_DEACTIVATED'\].includes\(entry\.action\) \? 'System'/);
   assert.match(source, /Admin accounts are exempt/);
   assert.match(source, /'Reactivate account'/);
-  assert.match(source, /await setAccountStatus\(user\.id, action, user\.accountStatus\)/);
+  assert.match(source, /await setAccountStatus\(user\.id, action, user\.accountStatus, action === 'suspended' \? deactivationReason\.trim\(\) : undefined\)/);
 });

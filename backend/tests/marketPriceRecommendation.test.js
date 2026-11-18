@@ -74,7 +74,17 @@ test('farmer recommendation uses the active admin price and calculates quantity 
   assert.equal(response.body.recommendedUnitPrice, 70);
   assert.equal(response.body.estimatedTotal, 1050);
   assert.equal(response.body.source, 'admin_entered');
+  assert.deepEqual(response.body.priceRange, { minimumPrice: 66.5, maximumPrice: 73.5, percent: 5 });
   assert.equal(response.headers['Cache-Control'], 'no-store');
+});
+
+test('PSA references do not receive the admin-reference price band', async () => {
+  references = new Map([['potato', {
+    commodity: { id: 'potato', label: 'Potato' },
+    reference: { price: 70, unit: 'kg', source: 'psa', year: 2026 },
+  }]]);
+  const response = await invoke('potato', { unit: 'kg', quantity: '1' });
+  assert.deepEqual(response.body.priceRange, { minimumPrice: 66.5, maximumPrice: 73.5, percent: 5 });
 });
 
 test('recommendation uses the exact registered unit or returns unavailable without converting guesses', async () => {
@@ -92,6 +102,7 @@ test('recommendation uses the exact registered unit or returns unavailable witho
   assert.equal(exact.body.recommendedUnitPrice, 125.5);
   assert.equal(exact.body.estimatedTotal, 251);
   assert.equal(exact.body.source, 'verified_local_market');
+  assert.deepEqual(exact.body.priceRange, { minimumPrice: 119.23, maximumPrice: 131.78, percent: 5 });
 
   const mismatch = await invoke('custom-1', { unit: 'kg', quantity: '2' });
   assert.equal(mismatch.body.available, false);

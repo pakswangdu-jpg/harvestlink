@@ -6,6 +6,7 @@ import Table from '../../components/admin/Table';
 import Pagination from '../../components/admin/Pagination';
 import Modal from '../../components/admin/Modal';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
+import ZoomableImage from '../../components/common/ZoomableImage';
 import { useAuth } from '../auth/AuthContext';
 import { getAdminOrderPage, getOrderById } from '../../services/orderService';
 import { getDelivery } from '../../services/deliveryService';
@@ -67,7 +68,14 @@ function OrderDetails({ id, onClose }) {
           ['Farmer', order.farmerName], ['Farm name', order.farmerFarmName], ['Farmer verification', order.farmerVerificationStatus],
         ]} /></section>
         <section><h3>Item and totals</h3>
-          {order.productImageUrl ? <img className="admin-order-product-image" src={order.productImageUrl} alt={order.productName} /> : null}
+          {order.productImageUrl ? (
+            <ZoomableImage
+              className="admin-order-product-image"
+              src={order.productImageUrl}
+              alt={`${order.productName} product photo`}
+              fallbackMessage="Product image unavailable."
+            />
+          ) : null}
           <DetailFields fields={[
             ['Product', order.productName], ['Quantity', `${order.quantity} ${order.unit}`],
             ['Saved unit price', formatCurrency(order.unitPrice)], ['Subtotal', formatCurrency(order.quantity * order.unitPrice)],

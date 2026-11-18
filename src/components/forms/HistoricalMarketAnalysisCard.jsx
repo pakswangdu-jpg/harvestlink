@@ -29,16 +29,24 @@ export default function HistoricalMarketAnalysisCard({
 }) {
   const {
     averagePrice, lowestPrice, highestPrice, trend, confidence, recommendedPrice, orderCount,
+    aiSummary, aiRecommendation, estimatedProfit, estimatedMargin, estimatedTotal,
+    recommendationMethod,
   } = analysis;
   const trendMeta = TREND_META[trend] || TREND_META.stable;
   const TrendIcon = trendMeta.icon;
 
   return (
     <div className="price-analysis-card tone-ai">
-      <p className="price-analysis-card-title">Historical Market Analysis</p>
+      <p className="price-analysis-card-title">AI-recommended price for this product</p>
+      <p className="price-analysis-card-desc">
+        Method: {recommendationMethod || 'Rule-based, evidence-validated'}
+      </p>
       <p className="price-analysis-card-desc">
         PSA has no reference for this product — this is instead based on {orderCount} verified HarvestLink sale{orderCount === 1 ? '' : 's'} of it over the past year.
       </p>
+      {aiSummary ? (
+        <p className="price-analysis-card-desc"><strong>Market insight:</strong> {aiSummary}</p>
+      ) : null}
 
       <div className="price-breakdown">
         <Row label="Average Selling Price" value={`${formatCurrency(averagePrice)}/${unit}`} />
@@ -53,9 +61,16 @@ export default function HistoricalMarketAnalysisCard({
           )}
         />
         <Row label="Confidence Score" value={`${confidence}%`} />
-        <Row label={`Recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice)}/${unit}`} emphasize />
+        <Row label={`AI-recommended ${sellingType} price`} value={`${formatCurrency(recommendedPrice)}/${unit}`} emphasize />
+        {estimatedProfit != null ? (
+          <>
+            <Row label="Estimated profit per unit" value={`${formatCurrency(estimatedProfit)}/${unit}`} />
+            <Row label="Estimated selling margin" value={`${estimatedMargin.toFixed(1)}%`} />
+            {estimatedTotal != null ? <Row label="Estimated stock total" value={formatCurrency(estimatedTotal)} /> : null}
+          </>
+        ) : null}
         <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(recommendedPrice)}>
-          Use {sellingType} price
+          Use AI-recommended price
         </Button>
         {wholesaleEnabled ? (
           <WholesalePriceRecommendation
@@ -67,6 +82,9 @@ export default function HistoricalMarketAnalysisCard({
           />
         ) : null}
       </div>
+      {aiRecommendation ? (
+        <p className="price-analysis-disclaimer"><strong>AI advice:</strong> {aiRecommendation}</p>
+      ) : null}
     </div>
   );
 }

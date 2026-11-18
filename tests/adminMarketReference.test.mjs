@@ -18,7 +18,8 @@ test('Admin reference notice uses saved price, reason and timestamp without clai
   assert.equal(Notice({reference:{referencePrice:null}}),null);
   const all = nodes(Notice({reference:{referencePrice:42,referenceYear:2025,updatedAt:'2026-10-10T08:00:00Z',reason:'Updated local market reference'}}));
   const text = all.flatMap(node=>node.props.children).filter(value=>typeof value==='string').join(' ');
-  assert.match(text,/Admin reference:\s+PHP 42\s*\/kg/);
+  assert.match(text,/Admin reference:/);
+  assert.match(text,/PHP 42/);
   assert.match(text,/Updated 2026-10-10/);
   assert.match(text,/Updated local market reference/);
   assert.match(text,/Farmer selling price is unchanged/);

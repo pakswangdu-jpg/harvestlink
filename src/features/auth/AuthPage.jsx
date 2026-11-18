@@ -179,7 +179,7 @@ function getLoginErrorPresentation(error) {
     case 'ACCOUNT_SUSPENDED':
       return { title: 'Account temporarily suspended', message: 'Contact the HarvestLink administrator for account review.' };
     case 'ACCOUNT_DEACTIVATED':
-      return { title: 'Account deactivated', message: 'Contact the HarvestLink administrator for assistance.' };
+      return { title: 'Account deactivated', message: error.message || 'Contact the HarvestLink administrator for assistance.' };
     case 'ACCOUNT_UNAVAILABLE':
       return { title: 'Account unavailable', message: 'Your login is valid, but the HarvestLink account profile is unavailable. Please contact support.' };
     case 'AUTH_SERVICE_UNAVAILABLE':
@@ -1262,7 +1262,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
           <h1>
             {isStakeholderRegister
               ? 'Partner Organization Registration'
-              : isRegister ? 'Create your trading account.' : 'Welcome back to HarvestLink.'}
+              : isRegister ? 'Sign up for HarvestLink.' : 'Welcome back to HarvestLink.'}
           </h1>
           <p>
             {isStakeholderRegister
@@ -1295,9 +1295,9 @@ export default function AuthPage({ mode, adminPortal = false }) {
           <h2>
             {adminPortal && authStage === 'form' ? 'HarvestLink Admin Portal' : authStage === 'submitted'
               ? 'Partnership Application Submitted'
-              : authStage === 'otp'
+              :               authStage === 'otp'
                 ? 'Verify your email'
-                : isStakeholderRegister ? 'Partner Organization Registration' : isRegister ? 'Register' : 'Welcome back'}
+                    : isStakeholderRegister ? 'Partner Organization Sign Up' : isRegister ? 'Sign up' : 'Welcome back'}
           </h2>
           <p className={adminPortal && authStage === 'form' ? 'admin-portal-restriction' : undefined}>
             {adminPortal && authStage === 'form'
@@ -1326,7 +1326,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
           {errors.form ? (
             <FormAlert
               type="error"
-              title={errors.formTitle || (isRegister ? 'Registration failed' : 'Sign-in failed')}
+              title={errors.formTitle || (isRegister ? 'Sign-up failed' : 'Sign-in failed')}
               message={errors.formCode === 'RATE_LIMITED'
                 ? `${getLoginErrorPresentation({ code: 'RATE_LIMITED' }).message}${rateLimitSeconds > 0 ? ` Try again in ${Math.ceil(rateLimitSeconds / 60)} minute${Math.ceil(rateLimitSeconds / 60) === 1 ? '' : 's'}.` : ''}`
                 : formatAlertMessage(errors.form)}
@@ -1668,8 +1668,8 @@ export default function AuthPage({ mode, adminPortal = false }) {
               {authStage === 'otp'
                 ? (isVerifyingOtp ? 'Verifying…' : 'Verify email')
                 : isSubmitting
-                  ? (isStakeholderRegister ? 'Submitting…' : isRegister ? 'Creating account…' : 'Signing in…')
-                  : (isStakeholderRegister ? 'Submit Partnership Application' : isRegister ? 'Create account' : 'Sign in')}
+                  ? (isStakeholderRegister ? 'Submitting…' : isRegister ? 'Signing up…' : 'Signing in…')
+                  : (isStakeholderRegister ? 'Submit Partnership Application' : isRegister ? 'Sign up' : 'Sign in')}
             </Button>
           )}
         </form>
@@ -1678,7 +1678,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
           <p className="auth-switch">
             {isRegister ? 'Already have an account?' : 'New to HarvestLink?'}{' '}
             <Link to={authSwitchDestination} state={location.state}>
-              {isRegister ? (isStakeholderRegister ? 'Sign In' : 'Login') : 'Register'}
+              {isRegister ? 'Sign in' : 'Sign up'}
             </Link>
           </p>
         ) : null}

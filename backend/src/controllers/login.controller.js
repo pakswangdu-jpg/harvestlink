@@ -62,6 +62,28 @@ export async function login(req, res) {
       profileError ? 'AUTH_SERVICE_UNAVAILABLE' : 'ACCOUNT_UNAVAILABLE');
   }
 
+  if (profile.account_status === 'suspended' && !profile.inactivity_suspended_at) {
+    const { data: deactivation, error: deactivationError } = await supabaseAdmin
+      .from('account_admin_events')
+      .select('action,reason')
+      .eq('user_id', profile.id)
+      .in('action', ['USER_DEACTIVATED', 'USER_AUTO_DEACTIVATED'])
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (deactivationError) {
+      throw loginError('Unable to retrieve account deactivation details. Please try again later.', 503, 'AUTH_SERVICE_UNAVAILABLE');
+    }
+    const reason = deactivation?.reason?.trim();
+    const automatic = deactivation?.action === 'USER_AUTO_DEACTIVATED';
+    const message = automatic
+      ? `Your account was automatically deactivated because a product listing contained marijuana/cannabis-related terms prohibited by HarvestLink policy.${reason ? ` Reason: ${reason}.` : ''} Contact HarvestLink support if you think this is a mistake.`
+      : reason
+        ? `Your account was deactivated by an administrator. Reason: ${reason}. Contact HarvestLink support if you think this is a mistake.`
+        : 'Your account was deactivated by an administrator. No reason was recorded. Contact the HarvestLink administrator for help.';
+    throw loginError(message, 403, 'ACCOUNT_DEACTIVATED');
+  }
+
   await assertAccountActive(profile);
   if (req.adminLogin && profile.role !== 'admin') {
     throw loginError('Admin sign-in is restricted to active administrator accounts.', 403, 'ADMIN_ONLY');

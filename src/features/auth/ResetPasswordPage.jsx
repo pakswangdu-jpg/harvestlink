@@ -18,7 +18,12 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [recoveryToken] = useState(() => new URLSearchParams(window.location.search).get('token_hash'));
+  const [linkSecondsRemaining, setLinkSecondsRemaining] = useState(0);
+  const [recoveryToken] = useState(() => {
+    const queryToken = new URLSearchParams(window.location.search).get('token_hash');
+    if (queryToken) return queryToken;
+    return new URLSearchParams(window.location.hash.replace(/^#/, '')).get('token_hash');
+  });
   const recoveryRequestRef = useRef(null);
 
   useEffect(() => {
@@ -27,6 +32,7 @@ export default function ResetPasswordPage() {
       const cleanUrl = new URL(window.location.href);
       cleanUrl.searchParams.delete('token_hash');
       cleanUrl.searchParams.delete('type');
+      cleanUrl.hash = '';
       window.history.replaceState(window.history.state, '', cleanUrl.toString());
       // Reuse the request when StrictMode replays this effect; recovery tokens are single-use.
       if (!recoveryRequestRef.current) {
@@ -39,6 +45,7 @@ export default function ResetPasswordPage() {
           setSessionState('invalid');
           return;
         }
+        setLinkSecondsRemaining(10 * 60);
         setSessionState('ready');
       }).catch(() => {
         if (cancelled) return;
@@ -69,6 +76,23 @@ export default function ResetPasswordPage() {
     };
   }, [recoveryToken]);
 
+  useEffect(() => {
+    if (sessionState !== 'ready') return undefined;
+    const timer = window.setInterval(() => {
+      setLinkSecondsRemaining((seconds) => {
+        if (seconds <= 1) {
+          window.clearInterval(timer);
+          supabase.auth.signOut({ scope: 'local' });
+          setError('This reset link has expired. Request a new one to continue.');
+          setSessionState('invalid');
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [sessionState]);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (password.length < 6) {
@@ -96,6 +120,7 @@ export default function ResetPasswordPage() {
       } catch (refreshError) {
         console.warn('Password changed, but the local profile could not refresh:', refreshError);
       }
+      await supabase.auth.signOut({ scope: 'local' });
       navigate('/login', { replace: true });
     } catch (updateError) {
       setIsSubmitting(false);
@@ -104,7 +129,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <main className="auth-page">
+    <main className="auth-page auth-page-reset">
       <section className="auth-hero">
         <Link to="/" className="brand auth-brand">
           <span className="brand-mark">
@@ -116,15 +141,19 @@ export default function ResetPasswordPage() {
           </span>
         </Link>
         <div>
-          <h1>Set a new password.</h1>
-          <p>Choose a new password for your account.</p>
+          <h1>Set a new password</h1>
+          <p>Enter and confirm your new password.</p>
         </div>
       </section>
 
       <section className="auth-card">
         <div className="auth-card-header">
           <h2>Reset password</h2>
-          <p>This link can only be used once.</p>
+          <p>
+            {sessionState === 'ready' && linkSecondsRemaining > 0
+              ? `This link expires in ${Math.ceil(linkSecondsRemaining / 60)} minute${Math.ceil(linkSecondsRemaining / 60) === 1 ? '' : 's'} and can only be used once.`
+              : 'This link expires 10 minutes after it is sent and can only be used once.'}
+          </p>
         </div>
 
         {sessionState === 'checking' ? (
@@ -165,7 +194,7 @@ export default function ResetPasswordPage() {
         )}
 
         <p className="auth-switch">
-          <Link to="/login">Back to login</Link>
+          <Link to="/login">Back to sign in</Link>
         </p>
       </section>
     </main>

@@ -416,6 +416,13 @@ export default function ProductForm({
         unit: requestUnit,
         kgPerUnit: values.kgPerUnit,
         quantity: values.quantity || '0',
+        costPrice: values.costPrice || null,
+        productName: values.name.trim(),
+        historicalAverage: historicalResult.data?.matched ? historicalResult.data.averagePrice : null,
+        historicalLowest: historicalResult.data?.matched ? historicalResult.data.lowestPrice : null,
+        historicalHighest: historicalResult.data?.matched ? historicalResult.data.highestPrice : null,
+        historicalTrend: historicalResult.data?.matched ? historicalResult.data.trend : null,
+        orderCount: historicalResult.data?.matched ? historicalResult.data.orderCount : 0,
       }).then((result) => {
         if (cancelled) return;
         const reference = result.referencePrice == null ? null : {
@@ -436,6 +443,21 @@ export default function ProductForm({
             price: result.recommendedUnitPrice,
             estimatedTotal: result.estimatedTotal,
             unit: result.requestedUnit,
+            priceRange: result.priceRange,
+            marketTrend: result.marketTrend,
+            marketTrendPercent: result.marketTrendPercent,
+            adjustmentPercent: result.adjustmentPercent,
+            costPrice: result.costPrice,
+            estimatedProfit: result.estimatedProfit,
+            profitMargin: result.profitMargin,
+            belowMarketFloor: result.belowMarketFloor,
+            aboveMarketCeiling: result.aboveMarketCeiling,
+            whyThisPrice: result.whyThisPrice,
+            dataSource: result.dataSource,
+            dataUpdatedAt: result.dataUpdatedAt,
+            aiSummary: result.aiSummary,
+            aiRecommendation: result.aiRecommendation,
+            recommendationMethod: result.recommendationMethod,
           } : null,
           unavailableReason: result.reason || '',
           loading: false,
@@ -481,6 +503,9 @@ export default function ProductForm({
     values.unit,
     values.kgPerUnit,
     values.quantity,
+    values.costPrice,
+    values.name,
+    historicalResult,
   ]);
 
 
@@ -527,15 +552,19 @@ export default function ProductForm({
 
 
 
-  const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit)
-    && !matchedCommodity && !isLoadingReference && !marketReference;
-  const historicalKey = wantsHistoricalLookup ? `${values.name.trim().toLowerCase()}::${values.unit}` : null;
+  const wantsHistoricalLookup = !values.isDonation && hasTypedName && Boolean(values.unit);
+  const historicalKey = wantsHistoricalLookup
+    ? `${values.name.trim().toLowerCase()}::${values.unit}::${values.costPrice || ''}::${values.quantity || ''}`
+    : null;
 
   useEffect(() => {
     if (!historicalKey || historicalResult.key === historicalKey) return undefined;
 
     let cancelled = false;
-    getHistoricalPriceAnalysis(values.name.trim(), values.unit)
+    getHistoricalPriceAnalysis(values.name.trim(), values.unit, {
+      costPrice: values.costPrice,
+      quantity: values.quantity,
+    })
       .then((data) => { if (!cancelled) setHistoricalResult({ key: historicalKey, data }); })
       .catch(() => { if (!cancelled) setHistoricalResult({ key: historicalKey, data: null }); });
 
@@ -937,7 +966,19 @@ export default function ProductForm({
                   referencePrice={marketReference.referencePrice}
                   recommendedPrice={recommendedPrice}
                   estimatedTotal={recommendedPrice.estimatedTotal}
+                  priceRange={recommendedPrice.priceRange}
                   quantity={values.quantity}
+                  marketTrend={recommendedPrice.marketTrend}
+                  adjustmentPercent={recommendedPrice.adjustmentPercent}
+                  costPrice={recommendedPrice.costPrice}
+                  estimatedProfit={recommendedPrice.estimatedProfit}
+                  profitMargin={recommendedPrice.profitMargin}
+                  whyThisPrice={recommendedPrice.whyThisPrice}
+                  dataSource={recommendedPrice.dataSource}
+                  dataUpdatedAt={recommendedPrice.dataUpdatedAt}
+                  aiSummary={recommendedPrice.aiSummary}
+                  aiRecommendation={recommendedPrice.aiRecommendation}
+                  recommendationMethod={recommendedPrice.recommendationMethod}
                   onUsePrice={(price) => updateField('price', String(price))}
                 />
               ) : (

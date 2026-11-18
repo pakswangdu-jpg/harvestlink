@@ -13,7 +13,8 @@ import { ApiError } from '../lib/ApiError.js';
 
 
 export async function getLalamoveQuote(req, res) {
-  const { productId, deliveryMunicipality } = req.body;
+  const { productId } = req.body;
+  const deliveryMunicipality = req.profile.municipality || req.body.deliveryMunicipality;
   if (!productId) throw new ApiError('productId is required.', 400);
   if (!CEBU_MUNICIPALITIES.includes(deliveryMunicipality)) throw new ApiError('A valid deliveryMunicipality is required.', 400);
 

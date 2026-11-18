@@ -64,8 +64,8 @@ export default function PublicFarmerProfile() {
         <div className="landing-actions">
           {!authLoading && !currentUser ? (
             <>
-              <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-              <Link className="btn btn-primary btn-md" to="/register">Register</Link>
+              <Link className="btn btn-secondary btn-md" to="/login">Sign in</Link>
+              <Link className="btn btn-primary btn-md" to="/register">Sign up</Link>
             </>
           ) : null}
           {!authLoading && currentUser && dashboardPath ? (
@@ -151,7 +151,7 @@ export default function PublicFarmerProfile() {
               )}
               {!authLoading && !currentUser ? (
                 <p className="public-farmer-signin-note">
-                  <Link to="/register">Create a free account</Link> or <Link to="/login">sign in</Link> to place an order.
+                  <Link to="/register">Sign up</Link> or <Link to="/login">sign in</Link> to place an order.
                 </p>
               ) : null}
             </section>

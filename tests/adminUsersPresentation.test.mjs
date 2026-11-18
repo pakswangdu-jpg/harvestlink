@@ -33,6 +33,17 @@ test('action notices describe the outcome instead of repeating the command label
   assert.equal(actionNotice('active', 'Partner'), 'Account reactivated for Partner.');
 });
 
+test('admin deactivation requires and sends a reason that users can see at sign-in', async () => {
+  const page = await readFile(new URL('../src/features/admin/AdminUsers.jsx', import.meta.url), 'utf8');
+  const service = await readFile(new URL('../src/services/authService.js', import.meta.url), 'utf8');
+  assert.match(page, /Deactivation reason/);
+  assert.match(page, /required\s+maxLength=\{500\}/);
+  assert.match(page, /This will be shown to the user on the sign-in page\./);
+  assert.match(page, /action === 'suspended' && !deactivationReason\.trim\(\)/);
+  assert.match(page, /setAccountStatus\(user\.id, action, user\.accountStatus, action === 'suspended' \? deactivationReason\.trim\(\) : undefined\)/);
+  assert.match(service, /setAccountStatus\(id, status, expectedStatus, reason\)/);
+});
+
 test('success notice is announced and dismissing it leaves filters, data and refresh unchanged', async () => {
   const slots = [{ page: 1, search: 'Kent' }, { users: [], total: 0 }, false, '', null, 'Verification rejected for Kent Asigua.', 2];
   const before = structuredClone(slots);

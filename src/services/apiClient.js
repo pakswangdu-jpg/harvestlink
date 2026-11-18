@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
+import { getConnectionErrorMessage } from '../utils/networkError';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -128,6 +129,9 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
 }
 
 
+
+
+export { getConnectionErrorMessage };
 
 
 export const apiClient = {

@@ -43,6 +43,9 @@ test('marketplace and Admin login use rate-limited server endpoints with CAPTCHA
   assert.match(adminService, /apiClient\.post\('\/auth\/admin-login'/);
   assert.match(controller, /await verifyRecaptchaToken\(req\.body\?\.captchaToken\)/);
   assert.match(controller, /auth\.signInWithPassword\(\{ email, password \}\)/);
+  assert.match(controller, /ACCOUNT_DEACTIVATED/);
+  assert.match(controller, /Reason: \$\{reason\}/);
+  assert.match(controller, /account_admin_events/);
   assert.match(controller, /await assertAccountActive\(profile\)/);
 });
 
@@ -56,11 +59,13 @@ test('sign-in errors map to scoped CAPTCHA, credentials, rate-limit, and service
     'INVALID_CREDENTIALS',
     'RATE_LIMITED',
     'ACCOUNT_SUSPENDED',
+    'ACCOUNT_DEACTIVATED',
     'AUTH_SERVICE_UNAVAILABLE',
   ]) {
     assert.match(form, new RegExp(`case '${code}'`));
   }
   assert.match(form, /title: 'Invalid email or password'/);
   assert.match(form, /The email or password you entered is incorrect\. Please try again\./);
+  assert.match(form, /case 'ACCOUNT_DEACTIVATED':\s*return \{ title: 'Account deactivated', message: error\.message/);
   assert.match(form, /setCaptchaResetKey\(\(value\) => value \+ 1\)/);
 });

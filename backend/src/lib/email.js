@@ -16,7 +16,7 @@ const LOGO_BASE64 = readFileSync(fileURLToPath(new URL('../assets/email-logo.png
 
 
 
-const { RESEND_API_KEY, RESEND_FROM_EMAIL } = process.env;
+const { RESEND_API_KEY } = process.env;
 
 const isConfigured = Boolean(RESEND_API_KEY);
 const resend = isConfigured ? new Resend(RESEND_API_KEY) : null;
@@ -28,12 +28,12 @@ const resend = isConfigured ? new Resend(RESEND_API_KEY) : null;
 
 
 
-const FROM_ADDRESS = `HarvestLink <${RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`;
+const FROM_ADDRESS = 'HarvestLink <noreply@harvestlink.dev>';
 
 
 
-const BRAND_HARVEST = '#3d7237';
-const BRAND_LINK = '#184a76';
+const BRAND_HARVEST = '#166534';
+const BRAND_LINK = '#8e6b15';
 const TEXT_DARK = '#111827';
 const TEXT_BODY = '#374151';
 const TEXT_MUTED = '#6b7280';
@@ -209,8 +209,9 @@ export async function sendPasswordResetEmail(email, resetLink) {
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: [email],
+    replyTo: 'admin.harvestlink@gmail.com',
     subject: 'Reset your HarvestLink password',
-    text: `HarvestLink\n\nReset your password\n\nWe received a request to reset the password for your HarvestLink account.\n\nClick the button below to choose a new password.\n\nReset password: ${resetLink}\n\nIf you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.\n\nFor your security, never share this password reset link with anyone.\n\nThank you,\nThe HarvestLink team\n\nHarvestLink - Connecting farmers directly with buyers.`,
+    text: `HarvestLink\n\nReset your password\n\nWe received a request to reset the password for your HarvestLink account.\n\nClick the button below to choose a new password.\n\nThis password reset link expires 10 minutes after it is sent and can only be used once.\n\nReset password: ${resetLink}\n\nIf you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.\n\nFor your security, never share this password reset link with anyone.\n\nThank you,\nThe HarvestLink team\n\nHarvestLink - Connecting farmers directly with buyers.`,
     html: `<!doctype html>
 <html lang="en">
   <head>
@@ -241,13 +242,12 @@ export async function sendPasswordResetEmail(email, resetLink) {
             </tr>
             <tr>
               <td style="padding:30px 28px; background-color:#ffffff; border:1px solid ${LINE}; border-radius:7px;">
-                <h1 style="margin:0 0 18px; font-family:${FONT_STACK}; font-size:29px; line-height:1.25; font-weight:600; color:${TEXT_DARK};">Reset your password</h1>
-                <p style="margin:0 0 14px; font-family:${FONT_STACK}; font-size:16px; line-height:1.6; color:${TEXT_BODY};">We received a request to reset the password for your HarvestLink account.</p>
-                <p style="margin:0 0 24px; font-family:${FONT_STACK}; font-size:16px; line-height:1.6; color:${TEXT_BODY};">Click the button below to choose a new password.</p>
-                <p style="margin:0 0 25px;"><a href="${safeLink}" style="display:inline-block; padding:12px 20px; min-height:20px; font-family:${FONT_STACK}; font-size:15px; line-height:20px; font-weight:600; color:#ffffff; background-color:${BRAND_HARVEST}; border-radius:6px; text-decoration:none;">Reset password</a></p>
-                <p style="margin:0 0 18px; font-family:${FONT_STACK}; font-size:14px; line-height:1.6; color:${TEXT_MUTED};">If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-                <p style="margin:0; padding-top:18px; border-top:1px solid ${LINE}; font-family:${FONT_STACK}; font-size:14px; line-height:1.6; color:${TEXT_MUTED};">For your security, never share this password reset link with anyone.</p>
-                <p style="margin:24px 0 0; font-family:${FONT_STACK}; font-size:15px; line-height:1.6; color:${TEXT_BODY};">Thank you,<br />The HarvestLink team</p>
+                <h1 style="margin:0 0 14px; font-family:${FONT_STACK}; font-size:22px; line-height:1.3; font-weight:600; color:${TEXT_DARK};">Reset your password</h1>
+                <p style="margin:0 0 18px; font-family:${FONT_STACK}; font-size:14px; line-height:1.55; color:${TEXT_BODY};">Use the button below to choose a new password for your HarvestLink account.</p>
+                <p style="margin:0 0 20px;"><a href="${safeLink}" style="display:inline-block; padding:11px 18px; font-family:${FONT_STACK}; font-size:14px; line-height:20px; font-weight:600; color:#ffffff; background-color:${BRAND_HARVEST}; border-radius:5px; text-decoration:none;">Reset password</a></p>
+                <p style="margin:0 0 14px; font-family:${FONT_STACK}; font-size:13px; line-height:1.5; color:${TEXT_MUTED};">This link expires after 10 minutes and can only be used once.</p>
+                <p style="margin:0 0 14px; font-family:${FONT_STACK}; font-size:13px; line-height:1.5; color:${TEXT_MUTED};">If you did not request this, you can ignore this email. Your password will not change.</p>
+                <p style="margin:0; padding-top:14px; border-top:1px solid ${LINE}; font-family:${FONT_STACK}; font-size:13px; line-height:1.5; color:${TEXT_MUTED};">HarvestLink team</p>
               </td>
             </tr>
             <tr>
@@ -283,7 +283,7 @@ export async function sendFinalReceiptEmail(message, idempotencyKey) {
 }
 
 export async function sendContactMessageEmail({ name, email, message }) {
-  const recipient = 'johndominiczanoria@gmail.com';
+  const recipient = 'admin.harvestlink@gmail.com';
   const subject = `HarvestLink contact message from ${name}`;
   const text = [
     `Name: ${name}`,
@@ -292,24 +292,21 @@ export async function sendContactMessageEmail({ name, email, message }) {
     message,
   ].join('\n');
 
-  if (!resend) {
-    if (isProduction) {
-      throw new Error('Email delivery is not configured (RESEND_API_KEY is missing).');
-    }
-    console.info(`[dev-email-trace] Contact message addressed to ${recipient} from ${email}`);
-    return { devFallback: true };
-  }
+  if (!resend) throw new Error('Email delivery is not configured (RESEND_API_KEY is missing).');
 
   const { data, error } = await resend.emails.send({
     from: FROM_ADDRESS,
     to: [recipient],
-    replyTo: 'harvestlink@gmail.com',
+    replyTo: email,
     subject,
     text,
   });
 
   if (error) {
     throw new Error(`Resend API error: ${error.message || 'Unable to send contact message.'}`, { cause: error });
+  }
+  if (!data?.id) {
+    throw new Error('Resend did not accept the contact email.');
   }
 
   return data;

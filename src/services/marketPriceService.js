@@ -69,18 +69,24 @@ export const MARKET_COMMODITIES = [
   { id: '10', label: 'Tobacco (Virginia)', keywords: ['tobacco virginia', 'virginia tobacco'] },
 ];
 
+function normalizeCommodityName(value) {
+  return String(value || '').normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 export function matchCommodity(productName, catalogCommodities = []) {
-  const normalized = String(productName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const normalized = normalizeCommodityName(productName);
   const custom = catalogCommodities.find((commodity) => {
     if (commodity.isActive === false) return false;
-    return normalized === String(commodity.label || commodity.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    return normalized === normalizeCommodityName(commodity.label || commodity.name);
   });
   if (custom) return { ...custom, label: custom.label || custom.name, isCustom: true, defaultUnit: custom.unit };
   return MARKET_COMMODITIES.find((commodity) => commodity.keywords.some((keyword) => normalized.includes(keyword))) || null;
 }
 
-export function getCommodityById(id) {
-  return MARKET_COMMODITIES.find((commodity) => commodity.id === id) || MARKET_COMMODITIES[0];
+export function getCommodityById(id, catalogCommodities = []) {
+  const custom = catalogCommodities.find((commodity) => commodity.isActive !== false && String(commodity.id) === String(id));
+  if (custom) return { ...custom, label: custom.label || custom.name, isCustom: true, defaultUnit: custom.unit };
+  return MARKET_COMMODITIES.find((commodity) => commodity.id === String(id)) || MARKET_COMMODITIES[0];
 }
 
 
@@ -297,6 +303,17 @@ export async function fetchRawAnnualPriceTrend(commodityId, yearsBack = 5) {
 }
 
 export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
+  if (!MARKET_COMMODITIES.some((commodity) => commodity.id === String(commodityId))) {
+    const override = await getPriceOverride(commodityId);
+    if (!isPriceOverrideEffective(override)) return [];
+    return [{
+      year: override.referenceYear,
+      price: Number(override.referencePrice),
+      isOverride: true,
+      unit: override.unit || 'kg',
+      effectiveDate: override.effectiveDate,
+    }];
+  }
   const points = await fetchRawAnnualPriceTrend(commodityId, yearsBack);
   return applyOverride(commodityId, points);
 }

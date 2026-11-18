@@ -28,14 +28,17 @@ test('listing comparison requires an explicit comparable unit and a loaded refer
   assert.equal(compare({ price: 50, unit: 'kg' }, { referencePrice: 40, loading: true }), null);
 });
 
-test('commodity rows do not render edit fields or permanent reset controls', async () => {
+test('reference updates are available only for admin-added commodity rows', async () => {
   const scope = { React: { createElement: element }, Fragment: 'fragment', useSyncExternalStore: () => false, ChevronDown: 'icon', ChevronRight: 'icon', Badge: 'badge', CommodityDetailPanel: 'details', formatCurrency: String, priceDifference: () => null, STATUS_META: { normal: { tone: 'success', label: 'Normal' } } };
   const Table = await compile('CommodityTable.jsx', 'CommodityTable', scope);
   const row = { id: '28', label: 'Cabbage', category: 'Vegetables', psaPrice: 40, psaYear: 2025, avgFarmerPrice: 50, referencePrice: 40, listingsCount: 1, status: 'normal', loading: false };
   const all = nodes(Table({ rows: [row], selectedIds: new Set(), onToggleSelect() {}, expandedId: null }));
   assert.ok(all.filter((node) => node.type === 'input').every((node) => node.props.type === 'checkbox'));
   assert.ok(!all.some((node) => node.type === 'details'));
-  const actions = all.filter((node) => node.props.className === 'pm-link');
+  assert.ok(!all.some((node) => node.props.className === 'pm-link' && node.props.children?.includes('Set price')));
+
+  const custom = nodes(Table({ rows: [{ ...row, id: 'custom-1', isCustom: true }], selectedIds: new Set(), onToggleSelect() {}, expandedId: null }));
+  const actions = custom.filter((node) => node.props.className === 'pm-link');
   assert.ok(actions.some((node) => node.props.children.includes('Set price')));
 });
 

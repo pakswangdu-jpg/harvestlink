@@ -18,9 +18,21 @@ async function loadClient(t, fetch, getSession = async () => ({ data: { session:
       meta.env = { VITE_API_URL: 'https://harvestlink.example/api' };
     },
   });
-  await client.link(() => new vm.SyntheticModule(['supabase'], function () {
-    this.setExport('supabase', { auth: { getSession } });
-  }, { context }));
+  await client.link((specifier) => {
+    if (specifier === '../lib/supabaseClient') {
+      return new vm.SyntheticModule(['supabase'], function () {
+        this.setExport('supabase', { auth: { getSession } });
+      }, { context });
+    }
+    if (specifier === '../utils/networkError') {
+      return new vm.SyntheticModule(['getConnectionErrorMessage'], function () {
+        this.setExport('getConnectionErrorMessage', (error) => error?.code === 'API_UNREACHABLE'
+          ? 'Please check your connection and try again.'
+          : error?.message || 'Please check your connection and try again.');
+      }, { context });
+    }
+    throw new Error(`Unexpected import: ${specifier}`);
+  });
   await client.evaluate();
   return client.namespace.apiClient;
 }

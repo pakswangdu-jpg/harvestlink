@@ -22,6 +22,7 @@ import { getProductsByFarmer } from '../../services/productService';
 import { getOrdersByFarmer } from '../../services/orderService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { matchCommodity } from '../../services/marketPriceService';
+import { useCatalog } from '../../contexts/CatalogContext';
 import { getMonthlyProfit, getMonthlyRevenue, getTotalProfit, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName } from '../../utils/formatters';
 import { getRegisteredCoordinates } from '../../utils/geo';
@@ -56,6 +57,7 @@ function getMonthlyPaymentRevenue(orders, monthsBack = 6) {
 
 export default function FarmerDashboard() {
   const { currentUser, acknowledgeVerification } = useAuth();
+  const { commodities } = useCatalog();
   const navigate = useNavigate();
   const [state, setState] = useState(EMPTY_STATE);
   const [loadError, setLoadError] = useState('');
@@ -121,7 +123,7 @@ export default function FarmerDashboard() {
     chartPoints: getMonthlyPaymentRevenue(group.orders),
   }));
 
-  const matchedCommodity = products.map((product) => matchCommodity(product.name)).find(Boolean);
+  const matchedCommodity = products.map((product) => matchCommodity(product.name, commodities)).find(Boolean);
   const marketCommodityId = matchedCommodity?.id || '28';
 
   return (
@@ -290,7 +292,7 @@ export default function FarmerDashboard() {
           />
         </div>
 
-        <MarketPricePanel commodityId={marketCommodityId} perspective="farmer" />
+        <MarketPricePanel commodityId={marketCommodityId} commodity={matchedCommodity} perspective="farmer" />
       </section>
 
       <section className="content-grid two">

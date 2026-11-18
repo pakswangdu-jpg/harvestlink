@@ -18,7 +18,7 @@ test('Admin form uses the dedicated sign-in action and never starts marketplace 
   assert.match(source, /!isRegister && !adminPortal && error\.code === 'email_not_confirmed'/);
   assert.match(source, /aria-busy=\{isBusy\}\s+aria-live="polite"/);
   assert.match(source, /isBusy \? <span className="btn-spinner" aria-hidden="true" \/> : null/);
-  assert.match(source, /isSubmitting\s*\?\s*\(isStakeholderRegister \? 'Submitting…' : isRegister \? 'Creating account…' : 'Signing in…'\)/);
+  assert.match(source, /isSubmitting\s*\?\s*\(isStakeholderRegister \? 'Submitting…' : isRegister \? 'Signing up…' : 'Signing in…'\)/);
   const auth = await readFile(new URL('../src/features/auth/AuthContext.jsx', import.meta.url), 'utf8');
   assert.match(auth, /async loginAdmin\(email, password, captchaToken\)\s*\{\s*const user = await loginAdminUser\(email, password, captchaToken\);\s*setCurrentUserState\(user\);/);
 });

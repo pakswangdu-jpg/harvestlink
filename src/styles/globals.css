@@ -14509,6 +14509,30 @@ td {
   margin-top: 6px;
 }
 
+.price-analysis-explanation {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.price-analysis-explanation strong {
+  color: var(--text);
+}
+
+.price-analysis-explanation p {
+  margin: 6px 0 0;
+}
+
+.price-analysis-explanation .price-analysis-source {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .price-review-note {
   width: 100%;
   padding: 10px 12px;
@@ -14778,12 +14802,34 @@ td {
 .price-chart {
   position: relative;
   width: 100%;
+  min-height: 260px;
 }
 
 .price-chart svg {
   width: 100%;
   height: auto;
+  max-height: 340px;
+  min-height: 220px;
   display: block;
+}
+
+.price-chart-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.price-chart-summary span {
+  white-space: nowrap;
+}
+
+.price-chart-summary strong {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .chart-gridline {
@@ -14897,6 +14943,39 @@ td {
   .market-stat {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .crop-select-list {
+    scroll-snap-type: x proximity;
+  }
+
+  .crop-select-option {
+    scroll-snap-align: start;
+  }
+
+  .price-chart {
+    min-height: 240px;
+  }
+
+  .price-chart svg {
+    min-height: 210px;
+  }
+
+  .chart-axis-label {
+    font-size: 9.5px;
+  }
+
+  .price-chart-summary {
+    justify-content: flex-start;
+  }
+
+  .chart-tooltip {
+    max-width: calc(100% - 16px);
+    white-space: normal;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
