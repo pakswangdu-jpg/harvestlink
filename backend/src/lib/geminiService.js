@@ -141,6 +141,76 @@ export async function generateForecastInsights(forecast) {
   }
 }
 
+export async function generateProductPriceInsight(product) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const models = insightModels();
+  const key = JSON.stringify({ models, product });
+  if (pendingInsights.has(key)) return pendingInsights.get(key);
+  const pending = generateProductInsight(product, apiKey, models);
+  pendingInsights.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    pendingInsights.delete(key);
+  }
+}
+
+async function generateProductInsight(product, apiKey, models) {
+  const {
+    productName, unit, orderCount, averagePrice, lowestPrice, highestPrice,
+    trend, costPrice, recommendedPrice, estimatedProfit, estimatedMargin,
+  } = product;
+  const prompt = `You are an agricultural pricing assistant for a Filipino farmer.
+Use ONLY these exact product-specific numbers. Do not invent another product, price, or percentage.
+
+Product: ${productName}
+Unit: ${unit}
+Verified paid order count: ${orderCount}
+Exact-name average sold price: PHP ${averagePrice.toFixed(2)} per ${unit}
+Exact-name lowest sold price: PHP ${lowestPrice.toFixed(2)} per ${unit}
+Exact-name highest sold price: PHP ${highestPrice.toFixed(2)} per ${unit}
+Recent price trend: ${trend}
+Entered production cost: ${costPrice != null ? `PHP ${costPrice.toFixed(2)} per ${unit}` : 'not provided'}
+Calculated recommended selling price: PHP ${recommendedPrice.toFixed(2)} per ${unit}
+Calculated profit per unit: ${estimatedProfit != null ? `PHP ${estimatedProfit.toFixed(2)}` : 'not provided'}
+Calculated selling margin: ${estimatedMargin != null ? `${estimatedMargin.toFixed(1)}%` : 'not provided'}
+
+Respond with strict JSON:
+{"summary":"2 short sentences explaining the exact product price range and trend","recommendation":"1 short actionable sentence for the farmer, based only on the calculated values"}
+Keep it concise and practical for a Filipino farmer. Do not call this guaranteed profit or guarantee sales.`;
+
+  const requestBody = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          summary: { type: 'STRING' },
+          recommendation: { type: 'STRING' },
+        },
+        required: ['summary', 'recommendation'],
+      },
+      temperature: 0.3,
+      maxOutputTokens: 300,
+    },
+  });
+
+  try {
+    const data = await requestInsights(requestBody, apiKey, models);
+    const text = data?.candidates?.[0]?.content?.parts
+      ?.filter((part) => !part.thought && typeof part.text === 'string')
+      .map((part) => part.text).join('');
+    if (!text) return null;
+    return parseInsights(text);
+  } catch (error) {
+    console.error('Gemini product price insight generation failed:', error.message);
+    return null;
+  }
+}
+
 async function generateInsights(forecast, apiKey, models) {
 
 

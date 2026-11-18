@@ -142,7 +142,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: UserPlus, title: 'Register & verify', text: 'Create your account and complete verification to start selling or buying.' },
+  { icon: UserPlus, title: 'Sign up & verify', text: 'Create your account and complete verification to start selling or buying.' },
   { icon: Search, title: 'List or browse produce', text: 'Farmers add their available harvest, while buyers can search for fresh produce.' },
   { icon: CreditCard, title: 'Order & pay', text: 'Buyers place an order, choose delivery or pickup, and pay through GCash or Cash on Delivery.' },
   { icon: ClipboardCheck, title: 'Prepare & deliver', text: 'Farmers confirm the order, prepare the produce, and arrange delivery or buyer pickup.' },
@@ -217,8 +217,8 @@ export default function LandingPage() {
           {NAV_LINKS.map((link) => <a key={link.id} href={`#${link.id}`} className={activeSection === link.id ? 'active' : ''}>{link.label}</a>)}
         </div>
         <div className="landing-actions">
-          <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-          <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
+          <Link className="btn btn-secondary btn-md" to="/login">Sign in</Link>
+          <Link className="btn btn-primary btn-md" to="/register">Sign up</Link>
           <ThemeToggle compact />
         </div>
         <div className="landing-mobile-menu" ref={mobileMenuRef}>
@@ -236,8 +236,8 @@ export default function LandingPage() {
             <div className="landing-mobile-menu-panel" id="harvestlink-public-menu">
               {NAV_LINKS.map((link) => <a key={link.id} href={`#${link.id}`} onClick={() => setIsMobileMenuOpen(false)}>{link.label}</a>)}
               <div className="landing-mobile-menu-actions">
-                <Link className="btn btn-secondary btn-md" to="/login">Login</Link>
-                <Link className="btn btn-primary btn-md" to="/register">Create account</Link>
+                <Link className="btn btn-secondary btn-md" to="/login">Sign in</Link>
+                <Link className="btn btn-primary btn-md" to="/register">Sign up</Link>
               </div>
               <div className="landing-mobile-theme-row">
                 <span>Appearance</span>
@@ -356,7 +356,7 @@ export default function LandingPage() {
         <span className="lp-donation-icon"><HeartHandshake size={30} /></span>
         <div className="lp-donation-copy">
           <h2>Are you an orphanage, elder-care home, feeding program, or NGO?</h2>
-          <p>Register as a partner organization to request surplus produce donations from Cebu farmers.</p>
+          <p>Sign up as a partner organization to request surplus produce donations from Cebu farmers.</p>
         </div>
         <div className="lp-donation-actions">
           <Link className="btn btn-primary btn-lg" to="/register?role=stakeholder">Become a Partner</Link>
@@ -414,11 +414,11 @@ export default function LandingPage() {
 
         <div className="lp-contact-grid">
           <div className="lp-contact-cards">
-            <a className="lp-contact-card" href="mailto:harvestlink@gmail.com">
+            <a className="lp-contact-card" href="mailto:admin.harvestlink@gmail.com">
               <Mail size={18} />
               <div>
                 <strong>Email</strong>
-                <span>harvestlink@gmail.com</span>
+                <span>admin.harvestlink@gmail.com</span>
               </div>
             </a>
             <a className="lp-contact-card" href="tel:+639455993970">
@@ -471,8 +471,8 @@ export default function LandingPage() {
           <div className="lp-footer-col">
             <h4>Support</h4>
             <a href="#contact">Contact us</a>
-            <Link to="/login">Login</Link>
-            <Link to="/register">Register</Link>
+            <Link to="/login">Sign in</Link>
+            <Link to="/register">Sign up</Link>
           </div>
 
           <div className="lp-footer-col">

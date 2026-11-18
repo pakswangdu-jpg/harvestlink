@@ -81,7 +81,7 @@ const STATUS_FILTER_OPTIONS = ['all', ...Object.keys(STATUS_META)];
 export default function AdminPriceMonitoring() {
   const { currentUser } = useAuth();
   const {
-    categories, units, loading: catalogLoading, error: catalogError, refresh: refreshCatalog,
+    categories, units, refresh: refreshCatalog,
   } = useCatalog();
   const {
     rows, products, reviews, loadError, isInitialLoading, pricesProgress, saveOverride, resetOverride, reloadListings,
@@ -171,6 +171,7 @@ export default function AdminPriceMonitoring() {
   ].filter(Boolean).filter((alert) => !dismissedAlerts.has(alert.key));
 
   const handleToggleSelect = (id) => {
+    if (!rows.some((row) => row.id === id && row.isCustom)) return;
     setSelectedIds((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -215,7 +216,8 @@ export default function AdminPriceMonitoring() {
     finally { actionLock.current = false; setConfirming(false); }
   };
 
-  const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+  const referenceRows = rows.filter((row) => row.isCustom);
+  const selectedRows = referenceRows.filter((row) => selectedIds.has(row.id));
 
   const handleConfirmBulk = async (row, price, reason) => {
     await saveOverride(row.id, price, {
@@ -307,7 +309,7 @@ export default function AdminPriceMonitoring() {
           action={(
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="secondary" onClick={() => setAddCommodityOpen(true)}><Plus size={14} /> Add Commodity</Button>
-              <Button variant="primary" onClick={() => setAddReferenceOpen(true)}><Plus size={14} /> Add Reference Price</Button>
+              <Button variant="primary" disabled={!referenceRows.length} onClick={() => setAddReferenceOpen(true)}><Plus size={14} /> Add Reference Price</Button>
             </div>
           )}
         />
@@ -470,11 +472,7 @@ export default function AdminPriceMonitoring() {
       />
       <AddReferencePriceModal
         open={addReferenceOpen}
-        rows={rows}
-        categories={categories}
-        units={units}
-        unitsLoading={catalogLoading}
-        catalogError={catalogError}
+        rows={referenceRows}
         onClose={() => setAddReferenceOpen(false)}
         onConfirm={handleAddReferencePrice}
       />

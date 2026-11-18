@@ -39,8 +39,8 @@ test('Public header retains the existing labels, routes and mobile menu handler'
   assert.match(nav, /<ThemeToggle compact \/>/);
   assert.match(nav, /<ThemeToggle compact showLabel \/>/);
   assert.match(nav, /Cebu farm-to-market/);
-  assert.match(nav, /to="\/login">Login/);
-  assert.match(nav, /to="\/register">Create account/);
+  assert.match(nav, /to="\/login">Sign in/);
+  assert.match(nav, /to="\/register">Sign up/);
   assert.match(nav, /href=\{`#\$\{link.id\}`\}/);
   assert.match(nav, /setIsMobileMenuOpen\(\(previous\) => !previous\)/);
   assert.match(nav, /aria-expanded=\{isMobileMenuOpen\}/);

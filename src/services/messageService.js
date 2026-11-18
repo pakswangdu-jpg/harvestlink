@@ -1,18 +1,11 @@
 import { apiClient } from './apiClient';
 
-
-
-
-
-
-
 export async function getDirectMessages(otherUserId, { before, limit } = {}) {
   const params = new URLSearchParams({ otherUserId });
   if (before) params.set('before', before);
   if (limit) params.set('limit', String(limit));
   return apiClient.get(`/messages?${params.toString()}`);
 }
-
 
 export async function sendDirectMessage(recipientId, text, extra = {}) {
   const trimmed = text.trim();
@@ -33,8 +26,6 @@ export async function deleteMessage(messageId) {
 export async function markDirectThreadRead(otherUserId) {
   return apiClient.patch(`/messages/direct/${otherUserId}/read`, {});
 }
-
-
 
 export async function getDirectThreads() {
   return apiClient.get('/messages/direct-threads');

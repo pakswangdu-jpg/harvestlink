@@ -7,6 +7,30 @@ import { getCatalog } from '../lib/catalogRepo.js';
 import { getWholesalePricingErrors } from '../../shared/pricing.js';
 import { notifyAdminsOfPriceReview, notifyFarmerOfPriceDecision } from '../lib/priceReviewNotifications.js';
 import { getServerPriceReviewReference } from '../lib/effectiveMarketPrice.js';
+import { containsProhibitedListingText } from '../lib/prohibitedListingText.js';
+import { invalidateAuthCacheForUser } from '../middleware/requireAuth.js';
+
+async function deactivateForProhibitedListing(req, productId, listingName) {
+  const { data: deactivated, error } = await supabaseAdmin.rpc('deactivate_for_prohibited_listing', {
+    p_user_id: req.profile.id,
+    p_product_id: productId,
+    p_listing_name: listingName,
+  });
+  if (error) {
+    console.error('Failed to deactivate account for prohibited product listing:', error.message);
+    throw new ApiError('Unable to apply the listing policy. Please try again or contact HarvestLink support.', 503);
+  }
+
+  invalidateAuthCacheForUser(req.profile.id);
+  if (!deactivated) {
+    throw new ApiError('Your account is already inactive. Contact HarvestLink support if you need help.', 403, 'ACCOUNT_DEACTIVATED');
+  }
+  throw new ApiError(
+    'Your account has been deactivated because a product listing contains marijuana/cannabis-related terms prohibited by HarvestLink policy. Contact support if you believe this is a mistake.',
+    403,
+    'ACCOUNT_DEACTIVATED',
+  );
+}
 
 function resolveWholesalePricing(values, { price, quantity, unit, sellingType, kgPerUnit }, existing = null) {
   const enabled = !values.isDonation && sellingType === 'retail'
@@ -234,7 +258,10 @@ export async function getProduct(req, res) {
 
 
 export async function getHistoricalPriceAnalysis(req, res) {
-  const analysis = await computeHistoricalPriceAnalysis(req.query.name, req.query.unit);
+  const analysis = await computeHistoricalPriceAnalysis(req.query.name, req.query.unit, {
+    costPrice: req.query.costPrice,
+    quantity: req.query.quantity,
+  });
   res.json(analysis);
 }
 
@@ -260,6 +287,10 @@ async function findMergeTarget(farmerId, row) {
 
 export async function createProduct(req, res) {
   const values = req.body;
+  const listingName = typeof values.name === 'string' ? values.name : '';
+  if (containsProhibitedListingText(listingName, values.description)) {
+    await deactivateForProhibitedListing(req, null, listingName);
+  }
   await assertValidCategoryAndUnit(values);
 
   const kgPerUnit = resolveKgPerUnit(values.unit, values.kgPerUnit);
@@ -398,6 +429,11 @@ export async function updateProduct(req, res) {
   assertOwnership(req, existing);
 
   const values = req.body;
+  const listingName = values.name ?? existing.name;
+  const listingDescription = values.description ?? existing.description;
+  if (containsProhibitedListingText(listingName, listingDescription)) {
+    await deactivateForProhibitedListing(req, existing.id, listingName);
+  }
   const unit = values.unit ?? existing.unit;
   const category = values.category ?? existing.category;
   await assertValidCategoryAndUnit({ category, unit }, existing);
@@ -477,6 +513,9 @@ export async function setProductStatus(req, res) {
   const { status } = req.body;
 
   if (status === 'active') {
+    if (containsProhibitedListingText(existing.name, existing.description)) {
+      await deactivateForProhibitedListing(req, existing.id, existing.name);
+    }
     if (Number(existing.quantity) <= 0) throw new ApiError('This product has no remaining stock — add stock before activating it.', 400);
     if (['declined', 'needs_adjustment'].includes(existing.price_review?.status)) {
       throw new ApiError('DTI declined this price — edit the product with a new price before activating it.', 400);

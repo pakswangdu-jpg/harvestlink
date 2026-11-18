@@ -27,7 +27,10 @@ export async function getCheckoutQuote(req, res) {
   const { data: product, error } = await supabaseAdmin.from('products').select('*').eq('id', req.body.productId).single();
   if (error || !product) throw new ApiError('Product was not found.', 404);
   if (req.profile.role === 'admin' || product.farmer_id === req.profile.id) throw new ApiError('You cannot order this product.', 403);
-  res.json(await buildCheckoutQuote(product, req.body));
+  res.json(await buildCheckoutQuote(product, {
+    ...req.body,
+    deliveryMunicipality: req.profile.municipality || req.body.deliveryMunicipality,
+  }));
 }
 
 async function hydrateFarmerProfiles(orders) {
@@ -155,7 +158,10 @@ export async function getOrderReceipt(req, res) {
 export async function createOrder(req, res) {
   if (req.profile.role === 'admin') throw new ApiError('Admin accounts cannot place orders.', 403);
 
-  const values = req.body;
+  const values = {
+    ...req.body,
+    deliveryMunicipality: req.profile.municipality || req.body.deliveryMunicipality,
+  };
   const checkoutKey = values.checkoutKey;
   if (checkoutKey && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(checkoutKey)) {
     throw new ApiError('Invalid checkout request key.', 400);

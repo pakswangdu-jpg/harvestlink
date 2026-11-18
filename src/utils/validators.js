@@ -213,9 +213,6 @@ export function validateCheckoutForm(values, product, currentUser) {
 
   if (!required(values.paymentMethod)) errors.paymentMethod = 'Choose a payment method.';
   if (!required(values.deliveryMethod)) errors.deliveryMethod = 'Choose a delivery method.';
-  if (values.deliveryMethod !== 'buyer_pickup' && !required(values.deliveryMunicipality)) {
-    errors.deliveryMunicipality = 'Choose where this order should be delivered.';
-  }
   if (product && currentUser && product.farmerId === currentUser.id) {
     errors.form = 'You cannot request your own product.';
   }

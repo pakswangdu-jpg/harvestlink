@@ -70,9 +70,14 @@ export async function getAdminUserDetails(req, res) {
 export async function manageAccount(req, kind) {
   if (req.profile.role !== 'admin') throw new ApiError('Admin access required.', 403);
   if (req.body.reason != null && typeof req.body.reason !== 'string') throw new ApiError('Invalid reason.', 400);
+  const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : null;
+  if (reason?.length > 500) throw new ApiError('Reason must be 500 characters or fewer.', 400);
+  if (kind === 'account' && req.body.status === 'suspended' && !reason) {
+    throw new ApiError('Provide a reason before deactivating this account.', 400);
+  }
   const { data, error } = await supabaseAdmin.rpc('manage_admin_account', {
     p_actor: req.profile.id, p_user: req.params.id, p_kind: kind, p_status: req.body.status,
-    p_reason: req.body.reason || null, p_expected: req.body.expectedStatus || null,
+    p_reason: reason || null, p_expected: req.body.expectedStatus || null,
   });
   checkAccountError(error);
   return data;

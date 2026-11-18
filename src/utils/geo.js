@@ -58,6 +58,10 @@ export function estimateDeliveryFee(originMunicipality, deliveryMunicipality, de
 }
 
 export function haversineKm(a, b) {
+  if (!a || !b || !Number.isFinite(Number(a.lat)) || !Number.isFinite(Number(a.lng))
+      || !Number.isFinite(Number(b.lat)) || !Number.isFinite(Number(b.lng))) {
+    return null;
+  }
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

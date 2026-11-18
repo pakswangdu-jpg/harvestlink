@@ -28,48 +28,20 @@ export function loadGoogleGeocoding() {
   return importLibrary('geocoding');
 }
 
-
-
-
-
-
 export function loadGooglePlaces() {
   return importLibrary('places');
 }
-
-
-
 
 
 export function loadGoogleRoutes() {
   return importLibrary('routes');
 }
 
-
-
-
-
 export function loadGoogleGeometry() {
   return importLibrary('geometry');
 }
 
-
-
-
-
-
-
-
 export const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || null;
-
-
-
-
-
-
-
-
-
 
 export const DARK_MAP_STYLE = [
   { elementType: 'geometry', stylers: [{ color: '#1b2735' }] },

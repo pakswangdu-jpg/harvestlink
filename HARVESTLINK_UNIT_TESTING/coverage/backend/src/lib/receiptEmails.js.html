@@ -1,0 +1,273 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for backend/src/lib/receiptEmails.js</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="../../../theme.js"></script>
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        
+        <label class="theme-select quiet">
+            Theme
+            <select id="themeSelect" autocomplete="off">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="legacy">Legacy</option>
+            </select>
+        </label>
+
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">backend/src/lib</a> receiptEmails.js</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/47</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/35</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/6</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/36</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { supabaseAdmin } from './supabaseClient.js';
+import { createFinalReceiptMessage, sendFinalReceiptEmail } from './email.js';
+import { loadOrderReceipt } from './orderReceipt.js';
+import { isFinalReceiptReady } from '../../shared/receipt.js';
+import { serializeOrder } from './serialize.js';
+&nbsp;
+export async function <span class="fstat-no" title="function not covered" >processReceiptEmails(</span>{ db = <span class="branch-0 cbranch-no" title="branch not covered" >supabaseAdmin,</span> send = <span class="branch-0 cbranch-no" title="branch not covered" >sendFinalReceiptEmail,</span> load = <span class="branch-0 cbranch-no" title="branch not covered" >loadOrderReceipt,</span> logger = <span class="branch-0 cbranch-no" title="branch not covered" >console </span>} = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+  const { data: jobs, error } = <span class="cstat-no" title="statement not covered" >await db.rpc('claim_final_receipt_emails', { p_limit: 10 });</span>
+<span class="cstat-no" title="statement not covered" >  if (error) <span class="cstat-no" title="statement not covered" >throw new Error('Receipt email queue unavailable. Apply the final-transaction-receipts migration.');</span></span>
+<span class="cstat-no" title="statement not covered" >  for (const job of jobs || []) {</span>
+    const save = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >async </span>patch =&gt; {</span>
+      const result = <span class="cstat-no" title="statement not covered" >await db.from('order_receipt_emails').update(patch)</span>
+        .eq('order_id', job.order_id).eq('claim_token', job.claim_token).eq('status', 'sending').select('order_id').maybeSingle();
+<span class="cstat-no" title="statement not covered" >      if (result.error || !result.data) <span class="cstat-no" title="statement not covered" >throw new Error('Receipt email claim could not be saved.');</span></span>
+    };
+<span class="cstat-no" title="statement not covered" >    try {</span>
+      const { data: order, error: orderError } = <span class="cstat-no" title="statement not covered" >await db.from('orders').select('*').eq('id', job.order_id).single();</span>
+<span class="cstat-no" title="statement not covered" >      if (orderError || !order) <span class="cstat-no" title="statement not covered" >throw new Error('Receipt order unavailable.');</span></span>
+<span class="cstat-no" title="statement not covered" >      if (!isFinalReceiptReady(serializeOrder(order))) {</span>
+<span class="cstat-no" title="statement not covered" >        await save({ status: 'skipped', last_error: 'transaction_not_final', locked_until: null });</span>
+<span class="cstat-no" title="statement not covered" >        continue;</span>
+      }
+      let payload = <span class="cstat-no" title="statement not covered" >job.payload;</span>
+<span class="cstat-no" title="statement not covered" >      if (!payload) {</span>
+        const receipt = <span class="cstat-no" title="statement not covered" >await load(order, { includeBuyerEmail: true });</span>
+<span class="cstat-no" title="statement not covered" >        payload = createFinalReceiptMessage(receipt, receipt.buyer.email);</span>
+        // Freeze recipient, contents and sender before the first provider request.
+<span class="cstat-no" title="statement not covered" >        await save({ payload });</span>
+      }
+<span class="cstat-no" title="statement not covered" >      if (job.first_attempt_at &amp;&amp; Date.now() - new Date(job.first_attempt_at).getTime() &gt;= 23 * 3600000) {</span>
+<span class="cstat-no" title="statement not covered" >        throw new Error('The receipt retry window has expired.');</span>
+      }
+<span class="cstat-no" title="statement not covered" >      await save({ locked_until: new Date(Date.now() + 300000).toISOString() });</span>
+      const sent = <span class="cstat-no" title="statement not covered" >await send(payload, `final-receipt/${job.order_id}`);</span>
+<span class="cstat-no" title="statement not covered" >      if (!sent?.id) <span class="cstat-no" title="statement not covered" >throw new Error('The email provider did not acknowledge this receipt.');</span></span>
+<span class="cstat-no" title="statement not covered" >      await save({ status: 'sent', sent_at: new Date().toISOString(), provider_message_id: sent.id, last_error: null, locked_until: null });</span>
+    } catch {
+<span class="cstat-no" title="statement not covered" >      try {</span>
+<span class="cstat-no" title="statement not covered" >        await save({ status: 'failed', last_error: 'email_send_failed', locked_until: null,</span>
+          next_attempt_at: new Date(Date.now() + Math.min(3600000, 60000 * (2 ** Math.min(job.attempts, 6)))).toISOString() });
+      } catch { /* The durable lease makes a lost acknowledgement retryable. */ }
+<span class="cstat-no" title="statement not covered" >      logger.error('Final receipt email pending retry.');</span>
+    }
+  }
+}
+&nbsp;
+export function <span class="fstat-no" title="function not covered" >startReceiptEmailJob(</span>{ run = <span class="branch-0 cbranch-no" title="branch not covered" >processReceiptEmails,</span> intervalMs = <span class="branch-0 cbranch-no" title="branch not covered" >15000,</span> logger = <span class="branch-0 cbranch-no" title="branch not covered" >console </span>} = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+  let running = <span class="cstat-no" title="statement not covered" >false;</span>
+  let stopped = <span class="cstat-no" title="statement not covered" >false;</span>
+  const tick = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >async </span>() =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >    if (running || stopped) <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >    running = true;</span>
+<span class="cstat-no" title="statement not covered" >    try { <span class="cstat-no" title="statement not covered" >await run(); </span>} catch (error) { <span class="cstat-no" title="statement not covered" >logger.error(error.message); </span>} finally { <span class="cstat-no" title="statement not covered" >running = false; </span>}</span>
+  };
+  const timer = <span class="cstat-no" title="statement not covered" >setInterval(<span class="fstat-no" title="function not covered" >()</span> =&gt; { <span class="cstat-no" title="statement not covered" >void tick(); </span>}, intervalMs);</span>
+<span class="cstat-no" title="statement not covered" >  timer.unref?.();</span>
+<span class="cstat-no" title="statement not covered" >  void tick();</span>
+<span class="cstat-no" title="statement not covered" >  return <span class="fstat-no" title="function not covered" >()</span> =&gt; { <span class="cstat-no" title="statement not covered" >stopped = true; <span class="cstat-no" title="statement not covered" ></span>clearInterval(timer); </span>};</span>
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-11-18T20:48:40.313Z
+            </div>
+        <script src="../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
+    </body>
+</html>
+    

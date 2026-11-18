@@ -31,3 +31,13 @@ test('manual GCash verification does not imply a different payment method or pai
   assert.equal(paymentState({ paymentMethod: 'cod', paymentStatus: 'paid' }), 'Paid');
   assert.equal(verificationState({ paymentMethod: 'cod', paymentStatus: 'pending' }), null);
 });
+
+test('admin order details open the saved product photo in the shared accessible image viewer', async () => {
+  const adminOrders = await readFile(new URL('../src/features/admin/AdminOrders.jsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../src/features/admin/AdminOrders.css', import.meta.url), 'utf8');
+
+  assert.match(adminOrders, /import ZoomableImage from '\.\.\/\.\.\/components\/common\/ZoomableImage'/);
+  assert.match(adminOrders, /<ZoomableImage[\s\S]*?src=\{order\.productImageUrl\}[\s\S]*?alt=\{`\$\{order\.productName\} product photo`\}/);
+  assert.match(adminOrders, /fallbackMessage="Product image unavailable\."/);
+  assert.match(styles, /\.admin-order-product-image img \{[^}]*object-fit: cover/);
+});

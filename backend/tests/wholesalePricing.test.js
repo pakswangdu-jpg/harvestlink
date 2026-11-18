@@ -4,6 +4,8 @@ import { beforeEach, mock, test } from 'node:test';
 let product;
 let writes;
 let placedOrders;
+let rpcCalls;
+let invalidatedUsers;
 const farmer = { id: 'farmer-1', name: 'Farmer', role: 'farmer' };
 const defaults = {
   id: 'product-1', farmer_id: farmer.id, name: 'Cabbage', category: 'Vegetables',
@@ -16,7 +18,12 @@ const defaults = {
 mock.module('../src/lib/supabaseClient.js', {
   namedExports: {
     supabaseAdmin: {
-      async rpc(name, { p_actor, p_order } = {}) {
+      async rpc(name, arguments_ = {}) {
+        if (name === 'deactivate_for_prohibited_listing') {
+          rpcCalls.push({ name, arguments: arguments_ });
+          return { data: true, error: null };
+        }
+        const { p_actor, p_order } = arguments_;
         if (name !== 'create_marketplace_order') return { data: null, error: { code: 'PGRST202' } };
         const existing = p_order.checkout_key
           ? placedOrders.find((order) => order.buyer_id === p_actor && order.checkout_key === p_order.checkout_key)
@@ -64,6 +71,9 @@ mock.module('../src/lib/supabaseClient.js', {
     },
   },
 });
+mock.module('../src/middleware/requireAuth.js', {
+  namedExports: { invalidateAuthCacheForUser: (userId) => invalidatedUsers.push(userId) },
+});
 mock.module('../src/lib/catalogRepo.js', {
   namedExports: { getCatalog: async () => ({ categories: [{ name: 'Vegetables' }], units: [{ value: 'kg' }] }) },
 });
@@ -80,7 +90,7 @@ mock.module('../src/controllers/lalamove.controller.js', {
 const { createProduct, updateProduct, applyDiscount, reactivatePriceReview } = await import('../src/controllers/products.controller.js');
 const { createOrder } = await import('../src/controllers/orders.controller.js');
 
-beforeEach(() => { product = { ...defaults }; writes = []; placedOrders = []; });
+beforeEach(() => { product = { ...defaults }; writes = []; placedOrders = []; rpcCalls = []; invalidatedUsers = []; });
 
 test('reactivating a declined listing preserves its recorded decision and reason', async () => {
   product.status = 'inactive';
@@ -147,6 +157,26 @@ test('creating and merging listings persist and serialize the farmer-approved ti
   assert.equal(merged.body.merged, true);
   assert.equal(merged.body.quantity, 200);
   assert.equal(merged.body.wholesalePrice, 45);
+});
+
+test('prohibited terms in new or edited listing text deactivate the farmer before writing', async () => {
+  await assert.rejects(invoke(createProduct, listing({ name: 'Cannabis plants' })), {
+    status: 403,
+    code: 'ACCOUNT_DEACTIVATED',
+  });
+  assert.equal(writes.length, 0);
+  assert.equal(rpcCalls.length, 1);
+  assert.deepEqual(invalidatedUsers, [farmer.id]);
+
+  rpcCalls = [];
+  invalidatedUsers = [];
+  await assert.rejects(invoke(updateProduct, { description: 'Contains marihuana extract' }), {
+    status: 403,
+    code: 'ACCOUNT_DEACTIVATED',
+  });
+  assert.equal(writes.length, 0);
+  assert.equal(rpcCalls.length, 1);
+  assert.deepEqual(invalidatedUsers, [farmer.id]);
 });
 
 test('donation-only stock is never briefly published as a free marketplace listing', async () => {

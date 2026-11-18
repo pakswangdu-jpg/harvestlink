@@ -18,6 +18,10 @@ export async function sendContactMessage(req, res) {
     throw new ApiError('Contact message is too long.', 400);
   }
 
-  await sendContactMessageEmail({ name, email, message });
+  try {
+    await sendContactMessageEmail({ name, email, message });
+  } catch (error) {
+    throw new ApiError(error.message || 'Unable to send your message right now. Please try again.', 502);
+  }
   res.status(202).json({ message: 'Your message has been sent.' });
 }

@@ -43,6 +43,7 @@ async function harness(file, donationState = donationFailure, {
     useMemo: (compute) => compute(),
     useNavigate: () => () => {},
     useAuth: () => ({ currentUser }),
+    useCatalog: () => ({ commodities: [] }),
     useDonationList: () => donationState,
     setInterval: (callback) => { poll = callback; return 1; }, clearInterval() {},
     getProductsByFarmer: async () => { if (failCore) throw new Error('Products unavailable'); return products; },

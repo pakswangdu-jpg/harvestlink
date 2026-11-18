@@ -23,10 +23,10 @@ const stamp = (value) => value ? `${formatDate(value)}, ${formatTime(value)}` : 
 const ACTIONS = {
   verified: ['Verify this account?', 'This user will receive verified marketplace privileges for their role.', 'Verify account'],
   rejected: ['Reject verification?', 'The account and transaction history will remain available.', 'Reject verification'],
-  suspended: ['Deactivate this account?', 'This user will no longer be able to use normal HarvestLink marketplace features. Existing orders and account history will remain available.', 'Deactivate account'],
+  suspended: ['Deactivate this account?', 'Provide a reason. The user will see it when they try to sign in. Existing orders and account history will remain available.', 'Deactivate account'],
   active: ['Reactivate this account?', 'The original account will be restored to Active. Existing verification and transaction history will remain unchanged.', 'Reactivate account'],
 };
-const eventLabel = (value) => ({ USER_VERIFIED: 'Account verified', USER_VERIFICATION_REJECTED: 'Verification rejected', USER_DEACTIVATED: 'Account deactivated', USER_REACTIVATED: 'Account reactivated', USER_AUTO_SUSPENDED: 'Automatically suspended for inactivity' })[value] || value;
+const eventLabel = (value) => ({ USER_VERIFIED: 'Account verified', USER_VERIFICATION_REJECTED: 'Verification rejected', USER_DEACTIVATED: 'Account deactivated', USER_REACTIVATED: 'Account reactivated', USER_AUTO_SUSPENDED: 'Automatically suspended for inactivity', USER_AUTO_DEACTIVATED: 'Automatically deactivated for prohibited listing' })[value] || value;
 function Fields({ values }) { return <dl className="admin-user-fields">{values.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? 'Not recorded'}</dd></div>)}</dl>; }
 
 function UserDetails({ id, adminId, onClose, onChanged }) {
@@ -37,6 +37,7 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
   const [action, setAction] = useState(null);
   const [reason, setReason] = useState('Incomplete information');
   const [other, setOther] = useState('');
+  const [deactivationReason, setDeactivationReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const dialog = useRef(null);
@@ -52,7 +53,7 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
   }, [action]);
   const user = data?.user;
   const accountManagementAvailable = data?.accountManagementAvailable !== false;
-  const chooseAction = (value) => { if (!accountManagementAvailable) return; setActionError(''); setReason('Incomplete information'); setOther(''); setAction(value); };
+  const chooseAction = (value) => { if (!accountManagementAvailable) return; setActionError(''); setReason('Incomplete information'); setOther(''); setDeactivationReason(''); setAction(value); };
   const submit = async (event) => {
     event.preventDefault();
     if (submitting.current || !accountManagementAvailable) return;
@@ -60,7 +61,7 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
     try {
       const updated = ['verified','rejected'].includes(action)
         ? await setUserVerification(user.id, action, action === 'rejected' ? reason === 'Other' ? `Other: ${other.trim()}` : reason : undefined, user.verificationStatus)
-        : await setAccountStatus(user.id, action, user.accountStatus);
+        : await setAccountStatus(user.id, action, user.accountStatus, action === 'suspended' ? deactivationReason.trim() : undefined);
       setData((old) => ({ ...old, user: updated })); setAction(null); setHistoryPage(1); setRefresh((value) => value + 1);
       onChanged(actionNotice(action, user.name));
     } catch (failure) { setActionError(failure.message || 'Unable to update this account. Try again.'); }
@@ -85,13 +86,28 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
         {['farmer','stakeholder'].includes(user.role) ? <section><h3>Verification document</h3><DocumentCard label={user.role === 'farmer' ? 'Proof of certification / government ID' : 'Proof of accreditation'} file={user.role === 'farmer' ? user.govIdFile : user.accreditationFile} resolveUrl={async () => { const urls = await getVerificationDocuments(user.id); return user.role === 'farmer' ? urls.govIdFile : urls.accreditationFile; }} /></section> : null}
         {['farmer','stakeholder'].includes(user.role) && ['pending','rejected'].includes(user.verificationStatus) ? <section><h3>Verification review</h3><div className="admin-user-actions"><Button disabled={!accountManagementAvailable} onClick={() => chooseAction('verified')}><Check size={14} /> Verify account</Button>{user.verificationStatus === 'pending' ? <Button variant="danger" disabled={!accountManagementAvailable} onClick={() => chooseAction('rejected')}><X size={14} /> Reject</Button> : null}</div></section> : null}
         <section><h3>Account actions</h3>{!accountManagementAvailable ? <p className="admin-user-secondary">Account changes are unavailable until account history is configured.</p> : null}{user.id === adminId ? <p className="admin-user-secondary">Your current admin account cannot be deactivated here.</p> : <Button disabled={!accountManagementAvailable} variant={user.accountStatus === 'suspended' ? 'primary' : 'danger'} onClick={() => chooseAction(user.accountStatus === 'suspended' ? 'active' : 'suspended')}>{user.accountStatus === 'suspended' ? <RotateCcw size={14} /> : <Ban size={14} />}{user.accountStatus === 'suspended' ? 'Reactivate account' : 'Deactivate account'}</Button>}</section>
-        <section><h3>Account history</h3><ol className="admin-user-history"><li><strong>Registered</strong><time>{stamp(user.createdAt)}</time></li>{data.history.map((entry) => <li key={entry.id}><strong>{eventLabel(entry.action)}</strong><time>{stamp(entry.occurred_at)}</time><span>{entry.action === 'USER_AUTO_SUSPENDED' ? 'System' : `Admin ID: ${entry.admin_id}`}</span>{entry.reason ? <p>{entry.reason}</p> : null}</li>)}</ol>{data.historyAvailable === false ? <p className="form-alert warning" role="status">Account history is not configured. Apply the admin account history migration to enable audited account changes.</p> : !data.history.length ? <p className="admin-user-secondary">No recorded account actions. Earlier account changes were not historically logged.</p> : null}{data.historyAvailable !== false ? <Pagination page={historyPage} pageSize={10} total={data.historyTotal} onPageChange={setHistoryPage} /> : null}</section>
+        <section><h3>Account history</h3><ol className="admin-user-history"><li><strong>Registered</strong><time>{stamp(user.createdAt)}</time></li>{data.history.map((entry) => <li key={entry.id}><strong>{eventLabel(entry.action)}</strong><time>{stamp(entry.occurred_at)}</time><span>{['USER_AUTO_SUSPENDED', 'USER_AUTO_DEACTIVATED'].includes(entry.action) ? 'System' : `Admin ID: ${entry.admin_id}`}</span>{entry.reason ? <p>{entry.reason}</p> : null}</li>)}</ol>{data.historyAvailable === false ? <p className="form-alert warning" role="status">Account history is not configured. Apply the admin account history migration to enable audited account changes.</p> : !data.history.length ? <p className="admin-user-secondary">No recorded account actions. Earlier account changes were not historically logged.</p> : null}{data.historyAvailable !== false ? <Pagination page={historyPage} pageSize={10} total={data.historyTotal} onPageChange={setHistoryPage} /> : null}</section>
       </>}
       <dialog ref={dialog} className="admin-user-confirm" aria-labelledby="admin-user-confirm-title" onCancel={(event) => { event.preventDefault(); if (!submitting.current) setAction(null); }}>
         <form onSubmit={submit}><h3 id="admin-user-confirm-title">{action ? ACTIONS[action][0] : ''}</h3><p>{action ? ACTIONS[action][1] : ''}</p>
           {action === 'rejected' ? <><label>Reason<select value={reason} disabled={busy} onChange={(event) => setReason(event.target.value)}>{['Incomplete information','Invalid information','Unable to verify','Other'].map((value) => <option key={value}>{value}</option>)}</select></label>{reason === 'Other' ? <label>Details<textarea value={other} required maxLength={480} disabled={busy} onChange={(event) => setOther(event.target.value)} /></label> : null}</> : null}
+          {action === 'suspended' ? (
+            <label htmlFor="admin-user-deactivation-reason">
+              Deactivation reason
+              <textarea
+                id="admin-user-deactivation-reason"
+                value={deactivationReason}
+                required
+                maxLength={500}
+                disabled={busy}
+                aria-describedby="admin-user-deactivation-reason-hint"
+                onChange={(event) => setDeactivationReason(event.target.value)}
+              />
+              <small id="admin-user-deactivation-reason-hint">This will be shown to the user on the sign-in page.</small>
+            </label>
+          ) : null}
           {actionError ? <p className="form-alert error" role="alert">{actionError}</p> : null}
-          <div className="admin-user-actions"><Button type="button" variant="secondary" disabled={busy} onClick={() => setAction(null)}>Cancel</Button><Button type="submit" variant={['rejected','suspended'].includes(action) ? 'danger' : 'primary'} disabled={busy || action === 'rejected' && reason === 'Other' && !other.trim()}>{busy ? 'Updating...' : action ? ACTIONS[action][2] : 'Confirm'}</Button></div>
+          <div className="admin-user-actions"><Button type="button" variant="secondary" disabled={busy} onClick={() => setAction(null)}>Cancel</Button><Button type="submit" variant={['rejected','suspended'].includes(action) ? 'danger' : 'primary'} disabled={busy || action === 'rejected' && reason === 'Other' && !other.trim() || action === 'suspended' && !deactivationReason.trim()}>{busy ? 'Updating...' : action ? ACTIONS[action][2] : 'Confirm'}</Button></div>
         </form>
       </dialog>
     </div>

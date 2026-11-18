@@ -15,9 +15,8 @@ import { ApiError } from '../lib/ApiError.js';
 
 
 export async function getDeliveryFeeEstimate(req, res) {
-  const {
-    originMunicipality, deliveryMunicipality, deliveryMethod, buyerLat, buyerLng,
-  } = req.query;
+  const { originMunicipality, deliveryMethod, buyerLat, buyerLng } = req.query;
+  const deliveryMunicipality = req.profile.municipality || req.query.deliveryMunicipality;
 
   if (!CEBU_MUNICIPALITIES.includes(originMunicipality)) throw new ApiError('originMunicipality is required.', 400);
   if (!DELIVERY_METHODS.includes(deliveryMethod)) throw new ApiError('A valid deliveryMethod is required.', 400);

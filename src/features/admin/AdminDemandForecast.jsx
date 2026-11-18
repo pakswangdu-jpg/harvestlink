@@ -8,6 +8,7 @@ import LoadingState from '../../components/admin/LoadingState';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { getDemandForecast, getCropForecastDetail } from '../../services/demandForecastService';
+import { getConnectionErrorMessage } from '../../utils/networkError';
 import { getProducts } from '../../services/productService';
 import { CEBU_MUNICIPALITIES } from '../../utils/constants';
 import { formatCurrency, formatDate } from '../../utils/formatters';
@@ -154,7 +155,7 @@ export default function AdminDemandForecast() {
         if (!cancelled) setListState({ key: listKey, data, error: '' });
       })
       .catch((error) => {
-        if (!cancelled) setListState({ key: listKey, data: null, error: error.message });
+        if (!cancelled) setListState({ key: listKey, data: null, error: getConnectionErrorMessage(error) });
       });
     return () => { cancelled = true; };
   }, [category, municipality, period, customDate, listKey, awaitingCustomDate]);
@@ -163,7 +164,7 @@ export default function AdminDemandForecast() {
     let cancelled = false;
     getProducts()
       .then((products) => { if (!cancelled) setProductsState({ products, loading: false, error: '' }); })
-      .catch((error) => { if (!cancelled) setProductsState({ products: [], loading: false, error: error.message }); });
+      .catch((error) => { if (!cancelled) setProductsState({ products: [], loading: false, error: getConnectionErrorMessage(error) }); });
     return () => { cancelled = true; };
   }, []);
 
@@ -182,7 +183,7 @@ export default function AdminDemandForecast() {
     let cancelled = false;
     getCropForecastDetail(cropName, { period, municipality, customDate, unit: cropUnit })
       .then((data) => { if (!cancelled) setDetailState({ key: detailKey, data, error: '' }); })
-      .catch((error) => { if (!cancelled) setDetailState({ key: detailKey, data: null, error: error.message }); });
+      .catch((error) => { if (!cancelled) setDetailState({ key: detailKey, data: null, error: getConnectionErrorMessage(error) }); });
     return () => { cancelled = true; };
   }, [cropName, cropUnit, municipality, period, customDate, detailKey, awaitingCustomDate]);
 

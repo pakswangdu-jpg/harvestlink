@@ -1,11 +1,7 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Activity, Award, Bot, Check, ClipboardList, Gauge, Lightbulb, Minus, Sprout, TrendingDown, TrendingUp, Waves, Wallet,
+  Activity, Bot, Check, ClipboardList, Gauge, Lightbulb, Minus, Sprout, TrendingDown, TrendingUp, Waves,
 } from 'lucide-react';
-import ForecastChart from './ForecastChart';
-import DemandChart from './DemandChart';
-import ForecastLegend from './ForecastLegend';
 import './MarketAnalysisReport.css';
 import {
   cropActionRecommendation, formatCurrency, formatDate, formatRelativeTime, harvestActionLabel, sellWindowLabel,
@@ -139,12 +135,6 @@ const DEMAND_NOTE = {
 const SUPPLY_NOTE = { High: 'Ample active listings', Moderate: 'Adequate harvest availability', Low: 'Limited harvest availability' };
 const RISK_NOTE = { Low: 'Stable conditions', Medium: 'Moderate price swings expected', High: 'Significant price swings possible' };
 const RISK_TONE = { Low: 'text-[var(--green-700)]', Medium: 'text-[var(--amber-700)]', High: 'text-[var(--red-700)]' };
-const PRICE_BASIS_NOTE = {
-  listing: 'Current average listing price',
-  historical: 'Historical order average',
-  'farmer-listed': 'Last farmer-listed price',
-};
-
 function MetricTile({
   icon: Icon, label, value, tone = 'text-[var(--text)]', supporting,
 }) {
@@ -174,11 +164,10 @@ function InfoRow({ label, value }) {
 
 
 export default function MarketAnalysisReport({ detail, municipality, periodLabel }) {
-  const [chartTab, setChartTab] = useState('price');
   if (!detail) return null;
 
   const {
-    crop, unit, referencePrice, priceHigh, priceLow, expectedChangePercent, marketTrend,
+    crop, unit, expectedChangePercent, marketTrend,
     forecastDemand, supplyLevel, riskLevel, priceVolatilityPercent, confidence, orderCount,
     weatherImpact, seasonalImpact, historicalAveragePrice, lastUpdated, aiSummary, aiRecommendation,
   } = detail;
@@ -189,10 +178,6 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
   const chips = buildRecommendationChips(detail);
   const recDetails = buildRecommendationDetails(detail);
   const recommendationFactors = buildRecommendationFactors(detail);
-
-  const isHistoricalOnly = chartTab === 'price'
-    ? (detail.forecastCurve?.length || 0) < 2
-    : (detail.demandForecastCurve?.length || 0) < 2;
 
   return (
     <div className="forecast-report flex flex-col gap-5 sm:gap-6">
@@ -237,62 +222,6 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
         </div>
       </motion.section>
 
-      {                    }
-      <motion.section {...fadeIn} className={SECTION_CLASS}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className={SECTION_TITLE_CLASS}>Price forecast</h2>
-          {
-
-
-
-                                                                                      }
-          <div className="flex gap-1 rounded-lg p-0.5">
-            {[{ value: 'price', label: 'Price' }, { value: 'demand', label: 'Demand' }].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setChartTab(option.value)}
-                aria-pressed={chartTab === option.value}
-                className={`min-h-11 rounded-md border px-4 text-[14px] font-medium forced-color-adjust-none transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-700)] ${
-                  chartTab === option.value
-                    ? 'border-[var(--green-700)] bg-[var(--green-50)] text-[var(--green-900)] shadow-sm'
-                    : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--soft)]'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricTile
-            icon={Wallet}
-            label="Reference Price"
-            value={referencePrice != null ? `${formatCurrency(referencePrice)}${unit ? `/${unit}` : ''}` : '—'}
-            supporting={PRICE_BASIS_NOTE[detail.priceBasis]}
-          />
-          <MetricTile icon={Award} label="Expected Peak" value={priceHigh != null ? `${formatCurrency(priceHigh)}${unit ? `/${unit}` : ''}` : '—'} />
-          <MetricTile icon={TrendingDown} label="Expected Lowest" value={priceLow != null ? `${formatCurrency(priceLow)}${unit ? `/${unit}` : ''}` : '—'} />
-          <MetricTile
-            icon={TrendingUp}
-            label="Predicted Change"
-            value={changeLabel}
-            tone={expectedChangePercent > 0 ? 'text-[var(--green-700)]' : expectedChangePercent < 0 ? 'text-[var(--red-700)]' : 'text-[var(--text)]'}
-          />
-        </div>
-
-        <div className="mt-6">
-          {chartTab === 'price' ? (
-            <ForecastChart historicalChart={detail.historicalChart} forecastCurve={detail.forecastCurve} unit={unit} />
-          ) : (
-            <DemandChart historicalChart={detail.demandHistoricalChart} forecastCurve={detail.demandForecastCurve} unit={unit || 'unit'} />
-          )}
-        </div>
-        <div className="mt-3">
-          <ForecastLegend showForecast={!isHistoricalOnly} />
-        </div>
-      </motion.section>
 
       {                       }
       <motion.section {...fadeIn} className={SECTION_CLASS}>

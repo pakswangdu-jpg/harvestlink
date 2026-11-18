@@ -1,8 +1,3 @@
-
-
-
-
-
 const TRANSLATE_URL = 'https://translate.googleapis.com/translate_a/single';
 const CACHE_PREFIX = 'harvestlink_translate_v1_';
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -33,11 +28,6 @@ function writeCache(key, value) {
 
   }
 }
-
-
-
-
-
 
 export async function translateText(text, targetLang) {
   const trimmed = String(text || '').trim();

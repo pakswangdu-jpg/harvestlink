@@ -1,6 +1,6 @@
 import LegalPageLayout from '../../components/legal/LegalPageLayout';
 
-const LAST_UPDATED = 'August 2, 2026';
+const LAST_UPDATED = 'November 19, 2026';
 
 const SECTIONS = [
   {
@@ -94,6 +94,7 @@ const SECTIONS = [
         <p>You must not, and must not attempt to:</p>
         <ul>
           <li>List, sell, or request products that are illegal, unsafe, counterfeit, or misrepresented (for example, describing a product&apos;s grade, quantity, or origin falsely).</li>
+          <li>List products whose name or description explicitly includes marijuana, marihuana, or cannabis terminology. These matches are blocked automatically and result in immediate account deactivation and removal of the account&apos;s product listings.</li>
           <li>Circumvent HarvestLink&apos;s order, payment, or verification processes — for example, submitting falsified payment proof, fabricating a delivery booking, or arranging payment or delivery outside the Service to avoid platform safeguards.</li>
           <li>Harass, threaten, defraud, or impersonate another user, or post defamatory, obscene, or abusive content in messages or reviews.</li>
           <li>Submit fake ratings or reviews, or manipulate ratings through coordinated or automated activity.</li>
@@ -101,6 +102,12 @@ const SECTIONS = [
           <li>Use another person&apos;s account, government ID, or accreditation document without authorization.</li>
           <li>Use the Service for any purpose that violates applicable law, including anti-money-laundering, consumer protection, or data privacy law.</li>
         </ul>
+        <p>
+          This text screening only identifies those explicit terms in listing names and descriptions. It is not
+          a complete legal classifier, does not review product photos, and may not identify other prohibited
+          products or indirect wording. You remain responsible for ensuring every listing complies with
+          applicable law and these Terms.
+        </p>
         <p>Violation of this section may result in content removal, order cancellation, and account suspension or termination as described in <a href="#suspension-termination">Account Suspension and Termination</a>.</p>
       </>
     ),
@@ -120,6 +127,12 @@ const SECTIONS = [
         <p>
           Farmer accounts may be subject to DTI-related fair-pricing review for certain listings. A listing under
           review is not shown in the public marketplace until the review is resolved.
+        </p>
+        <p>
+          Listings containing explicit marijuana, marihuana, or cannabis terms in their name or description are
+          automatically blocked. The farmer account is immediately deactivated, and its product listings are
+          removed from the marketplace. The screening is text-based and limited to those explicit terms; it does
+          not analyze photos or reliably identify every unlawful product.
         </p>
       </>
     ),

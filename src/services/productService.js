@@ -41,8 +41,11 @@ export async function createProduct(values) {
 
 
 
-export async function getHistoricalPriceAnalysis(name, unit) {
-  return apiClient.get(`/products/historical-price?name=${encodeURIComponent(name)}&unit=${encodeURIComponent(unit)}`);
+export async function getHistoricalPriceAnalysis(name, unit, options = {}) {
+  const params = new URLSearchParams({ name, unit });
+  if (options.costPrice !== undefined && options.costPrice !== '') params.set('costPrice', String(options.costPrice));
+  if (options.quantity !== undefined && options.quantity !== '') params.set('quantity', String(options.quantity));
+  return apiClient.get(`/products/historical-price?${params.toString()}`);
 }
 
 export async function updateProduct(id, values) {

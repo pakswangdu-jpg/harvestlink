@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Banknote, Check, MapPin, Truck,
+  Banknote, Check, Truck,
 } from 'lucide-react';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
 import lalamoveLogo from '../../assets/icons/lalamove-logo.png';
@@ -10,7 +10,7 @@ import CheckoutProductCard from '../checkout/CheckoutProductCard';
 import QuantityStepper from '../checkout/QuantityStepper';
 import OrderSummaryPanel from '../checkout/OrderSummaryPanel';
 import CheckoutTrustRow from '../checkout/CheckoutTrustRow';
-import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
+import { DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
 import { haversineKm } from '../../utils/geo';
 import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
 import { getCheckoutQuote } from '../../services/orderService';
@@ -90,7 +90,7 @@ export default function CheckoutForm({
     message: '',
     paymentMethod: product.farmerGcashEnabled ? 'gcash' : 'cod',
     deliveryMethod: 'farmer_delivery',
-    deliveryMunicipality: currentUser.municipality || CEBU_MUNICIPALITIES[0],
+    deliveryMunicipality: currentUser.municipality || matchMunicipality(currentUser.address) || '',
   }));
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -408,21 +408,6 @@ export default function CheckoutForm({
                 })}
               </div>
             </FormField>
-
-            {!isPickup ? (
-              <FormField label="Deliver to (municipality)" name="deliveryMunicipality" error={errors.deliveryMunicipality}>
-                <div className="select-with-icon">
-                  <MapPin size={16} className="select-with-icon-icon" aria-hidden="true" />
-                  <select
-                    id="deliveryMunicipality"
-                    value={values.deliveryMunicipality}
-                    onChange={(event) => updateField('deliveryMunicipality', event.target.value)}
-                  >
-                    {CEBU_MUNICIPALITIES.map((municipality) => <option key={municipality}>{municipality}</option>)}
-                  </select>
-                </div>
-              </FormField>
-            ) : null}
 
             <FormField label="Payment method" name="paymentMethod" error={errors.paymentMethod}>
               <div className={`method-card-group ${availablePaymentMethods.length === 1 ? 'one' : 'two'}`} role="radiogroup" aria-label="Payment method">

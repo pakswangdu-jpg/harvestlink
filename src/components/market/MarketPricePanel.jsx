@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PriceSparkline from './PriceSparkline';
-import { fetchAnnualPriceTrend, getCommodityById, MARKET_REGION_LABEL } from '../../services/marketPriceService';
+import {
+  fetchAnnualPriceTrend, getCommodityById, isPriceOverrideEffective, MARKET_REGION_LABEL,
+} from '../../services/marketPriceService';
 import { formatCurrency } from '../../utils/formatters';
+import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
 
-export default function MarketPricePanel({ commodityId, perspective }) {
+export default function MarketPricePanel({ commodityId, commodity: selectedCommodity, perspective }) {
   const [result, setResult] = useState({ commodityId: null, points: null, error: '' });
-  const commodity = getCommodityById(commodityId);
+  const commodity = selectedCommodity || getCommodityById(commodityId);
+  const { references } = useAdminMarketReferences();
+  const adminReference = references.find((reference) => String(reference.commodityId) === String(commodityId)
+    && isPriceOverrideEffective(reference));
+  const commodityUnit = commodity.isCustom ? commodity.unit : 'kg';
   const isLoading = result.commodityId !== commodityId;
   const points = isLoading ? null : result.points;
   const error = isLoading ? '' : result.error;
@@ -27,7 +34,7 @@ export default function MarketPricePanel({ commodityId, perspective }) {
     return () => {
       cancelled = true;
     };
-  }, [commodityId]);
+  }, [commodityId, commodity.isCustom, adminReference?.updatedAt]);
 
   const valid = points ? points.filter((point) => point.price != null) : [];
   const latest = valid[valid.length - 1];
@@ -56,10 +63,12 @@ export default function MarketPricePanel({ commodityId, perspective }) {
           <div className="market-stat">
             <div>
               <strong className="market-stat-value">
-                {formatCurrency(latest.price)}<small>/kg</small>
+                {formatCurrency(latest.price)}<small>/{latest.unit || commodityUnit}</small>
               </strong>
               {latest.isOverride ? <span className="badge badge-verified price-hint-badge">Set by admin</span> : null}
-              <p className="muted">{isBuyer ? `${latest.year} annual average` : `${MARKET_REGION_LABEL} / ${latest.year} annual average`}</p>
+              <p className="muted">{commodity.isCustom
+                ? `Admin reference${latest.effectiveDate ? ` · Effective ${latest.effectiveDate}` : ''}`
+                : isBuyer ? `${latest.year} annual average` : `${MARKET_REGION_LABEL} / ${latest.year} annual average`}</p>
               {change != null ? (
                 <span className={`market-delta ${isFavorable ? 'good' : 'bad'}`}>
                   {change >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
@@ -70,12 +79,12 @@ export default function MarketPricePanel({ commodityId, perspective }) {
             <PriceSparkline points={points} />
           </div>
         ) : (
-          <p className="muted">No PSA data available for this crop yet.</p>
+          <p className="muted">{commodity.isCustom ? 'No admin reference is available for this commodity yet.' : 'No PSA data available for this crop yet.'}</p>
         )
       ) : null}
 
       {isBuyer ? <p className="market-reference-note">Reference data may differ from individual farmer selling prices.</p> : null}
-      <p className="market-source">Source: Philippine Statistics Authority (PSA) OpenStat.</p>
+      <p className="market-source">{commodity.isCustom ? 'Source: HarvestLink admin-set reference.' : 'Source: Philippine Statistics Authority (PSA) OpenStat.'}</p>
     </section>
   );
 }

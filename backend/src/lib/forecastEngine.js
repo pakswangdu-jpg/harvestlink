@@ -1,24 +1,4 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const HARVEST_SEASON_PRICE_ADJUSTMENT = { Active: -0.1, Transitional: 0, 'Off Season': 0.15 };
-
-
-
-
 
 const ACTIVE_LISTINGS_ACTIVE_SEASON_MIN = 4;
 const ACTIVE_LISTINGS_TRANSITIONAL_MIN = 1;
@@ -28,13 +8,6 @@ export function inferHarvestSeason(activeListings) {
   if (activeListings >= ACTIVE_LISTINGS_TRANSITIONAL_MIN) return 'Transitional';
   return 'Off Season';
 }
-
-
-
-
-
-
-
 
 export function computeConfidence({ orderCount, activeListings, hasWeather, hasTrendData, daysAhead = 1 }) {
   let confidence = 45;
@@ -48,15 +21,11 @@ export function computeConfidence({ orderCount, activeListings, hasWeather, hasT
 
 
 
-
 export function computeSupplyLevel(activeListings) {
   if (activeListings >= ACTIVE_LISTINGS_ACTIVE_SEASON_MIN) return 'High';
   if (activeListings >= ACTIVE_LISTINGS_TRANSITIONAL_MIN) return 'Moderate';
   return 'Low';
 }
-
-
-
 
 export function computeSeasonalImpact(harvestSeason) {
   const percent = Math.round(Math.abs(HARVEST_SEASON_PRICE_ADJUSTMENT[harvestSeason] || 0) * 100);
@@ -64,9 +33,6 @@ export function computeSeasonalImpact(harvestSeason) {
   if (harvestSeason === 'Off Season') return `Off-season supply squeeze may push prices up by as much as ${percent}%.`;
   return 'Transitional season — limited seasonal effect on price.';
 }
-
-
-
 
 export function bestTimeToHarvestLabel(harvestSeason) {
   if (harvestSeason === 'Active') return 'Now — harvest season is active';
@@ -97,11 +63,6 @@ export function computeStatus(signal, weather) {
   if (signal === 'steady') return 'Stable Market';
   return 'Low Demand';
 }
-
-
-
-
-
 
 const RISK_VOLATILITY_HIGH_PERCENT = 7;
 const RISK_VOLATILITY_MEDIUM_PERCENT = 4;

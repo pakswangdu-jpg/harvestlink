@@ -11,6 +11,7 @@ import ForecastSkeleton from '../../components/forecast/ForecastSkeleton';
 import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import { getCropForecastDetail, getDemandForecast } from '../../services/demandForecastService';
+import { getConnectionErrorMessage } from '../../utils/networkError';
 import { farmerNavItems } from './farmerNav';
 import './FarmerDemandForecast.css';
 
@@ -81,7 +82,7 @@ export default function FarmerDemandForecast() {
         if (!cancelled) setListResult({ key: listRequestKey, data: result, error: '' });
       })
       .catch((error) => {
-        if (!cancelled) setListResult((previous) => ({ key: listRequestKey, data: previous.data, error: error.message }));
+        if (!cancelled) setListResult((previous) => ({ key: listRequestKey, data: previous.data, error: getConnectionErrorMessage(error) }));
       });
     return () => {
       cancelled = true;
@@ -168,7 +169,7 @@ export default function FarmerDemandForecast() {
         if (!cancelled) setDetailResult({ key: detailRequestKey, detail: result, error: '' });
       })
       .catch((error) => {
-        if (!cancelled) setDetailResult({ key: detailRequestKey, detail: null, error: error.message });
+        if (!cancelled) setDetailResult({ key: detailRequestKey, detail: null, error: getConnectionErrorMessage(error) });
       });
     return () => {
       cancelled = true;

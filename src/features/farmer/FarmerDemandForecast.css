@@ -6,8 +6,89 @@
   min-width: 0;
 }
 
+.price-analysis-explanation {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.price-analysis-explanation strong {
+  color: var(--text);
+}
+
+.price-analysis-explanation p {
+  margin: 6px 0 0;
+}
+
+.price-analysis-explanation .price-analysis-source {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 @media (max-width: 639px) {
   .demand-forecast-content > .grid {
     min-width: 0;
+  }
+}
+
+.forecast-crop-hover-card {
+  position: fixed;
+  z-index: 80;
+  width: min(268px, calc(100vw - 24px));
+  pointer-events: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-elevated, var(--panel));
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+  padding: 12px;
+}
+
+.forecast-crop-hover-title {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.forecast-crop-hover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.forecast-crop-hover-grid div {
+  min-width: 0;
+}
+
+.forecast-crop-hover-grid dt {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.forecast-crop-hover-grid dd {
+  margin-top: 2px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.forecast-crop-hover-action {
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 767px) {
+  .forecast-crop-hover-card {
+    pointer-events: none;
   }
 }

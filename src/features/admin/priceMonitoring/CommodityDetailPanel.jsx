@@ -145,8 +145,12 @@ export default function CommodityDetailPanel({ row, onOpenOverride, onResetOverr
         ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
       <div className="pm-detail-actions">
-        <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row)}>{row.isOverride ? 'Edit override' : 'Set manual reference'}</Button>
-        {row.isOverride && <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row)}>Deactivate admin price</Button>}
+        {row.isCustom ? (
+          <>
+            <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row)}>{row.isOverride ? 'Edit override' : 'Set manual reference'}</Button>
+            {row.isOverride && <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row)}>Deactivate admin price</Button>}
+          </>
+        ) : <span className="pm-secondary">Admin references are available for commodities added to the catalog.</span>}
         <a href={`#override-history-${row.id}`} className="pm-link">View history</a>
       </div>
       <h3>Related Farmer listings</h3>

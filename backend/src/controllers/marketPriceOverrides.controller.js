@@ -3,6 +3,7 @@ import { ApiError } from '../lib/ApiError.js';
 import { getCatalog, invalidateCatalogCache } from '../lib/catalogRepo.js';
 import { getFixedKgPerUnit } from '../lib/unitConversion.js';
 import { findCommodityById, resolveEffectiveReference } from '../lib/effectiveMarketPrice.js';
+import { generateProductPriceInsight } from '../lib/geminiService.js';
 
 const ADMIN_PRICE_SOURCES = new Set(['admin_entered', 'verified_local_market']);
 const MAX_PRICE = 999999;
@@ -90,6 +91,173 @@ function quantityInMilliUnits(value) {
 
 function formatCents(cents) {
   return Number(cents) / 100;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+}
+
+function formatPhp(value) {
+  return `₱${roundMoney(value).toFixed(2)}`;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function normalizeEvidenceText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function trendPercentFromPoints(points) {
+  const valid = (points || [])
+    .map((point) => ({ year: Number(point.year), price: Number(point.price) }))
+    .filter((point) => Number.isFinite(point.year) && Number.isFinite(point.price) && point.price > 0)
+    .sort((a, b) => a.year - b.year);
+  if (valid.length < 2) return null;
+  const latest = valid.at(-1).price;
+  const previous = valid.at(-2).price;
+  return roundMoney(((latest - previous) / previous) * 100);
+}
+
+function trendLabelFromPercent(value) {
+  if (value == null || !Number.isFinite(value)) return 'Insufficient trend data';
+  if (value > 1) return 'Increasing';
+  if (value < -1) return 'Declining';
+  return 'Stable';
+}
+
+function demandEvidenceFromText(value) {
+  const text = normalizeEvidenceText(value);
+  if (['very high', 'high', 'opportunity'].includes(text)) return 'High';
+  if (['low', 'none'].includes(text)) return 'Low';
+  if (['moderate', 'steady'].includes(text)) return 'Moderate';
+  return null;
+}
+
+async function getExactDemandSupplyEvidence(productName, unit) {
+  const name = normalizeEvidenceText(productName);
+  const requestedUnit = normalizeEvidenceText(unit);
+  if (!name || !requestedUnit) return { demandLevel: null, supplyLevel: null };
+
+  const since = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const [orderResult, listingResult] = await Promise.all([
+      supabaseAdmin
+        .from('orders')
+        .select('product_name, unit, quantity, created_at')
+        .eq('payment_status', 'paid')
+        .gte('created_at', since)
+        .limit(500),
+      supabaseAdmin
+        .from('products')
+        .select('name, unit, status, quantity')
+        .eq('status', 'active')
+        .gt('quantity', 0),
+    ]);
+
+    const exactOrders = (orderResult.data || []).filter((row) =>
+      normalizeEvidenceText(row.product_name) === name
+      && normalizeEvidenceText(row.unit) === requestedUnit);
+    const exactListings = (listingResult.data || []).filter((row) =>
+      normalizeEvidenceText(row.name) === name
+      && normalizeEvidenceText(row.unit) === requestedUnit);
+
+    const demandVolume = exactOrders.reduce((sum, row) => sum + (Number(row.quantity) > 0 ? Number(row.quantity) : 0), 0);
+    const listingCount = exactListings.length;
+    const listingStock = exactListings.reduce((sum, row) => sum + (Number(row.quantity) > 0 ? Number(row.quantity) : 0), 0);
+    const demandPerListing = demandVolume / Math.max(listingCount, 1);
+    const demandLevel = demandVolume <= 0 ? 'Low' : demandPerListing >= 10 ? 'High' : 'Moderate';
+    const supplyLevel = exactListings.length === 0 ? 'Low'
+      : listingStock >= 100 ? 'High'
+        : listingStock >= 20 ? 'Moderate'
+          : 'Low';
+    return { demandLevel, supplyLevel };
+  } catch {
+    return { demandLevel: null, supplyLevel: null };
+  }
+}
+
+function calculateDynamicRecommendation({
+  marketReference,
+  requestedUnit,
+  costPrice,
+  marketTrendPercent,
+  exactAverage,
+  exactTrend,
+  demandLevel,
+  supplyLevel,
+}) {
+  const marketBase = roundMoney(marketReference);
+  if (!Number.isFinite(marketBase) || marketBase <= 0) return null;
+
+  let trendPercent = marketTrendPercent != null ? marketTrendPercent : null;
+  let trendLabel = trendLabelFromPercent(trendPercent);
+  if (exactTrend && trendPercent == null) {
+    trendLabel = exactTrend === 'rising' ? 'Increasing' : exactTrend === 'falling' ? 'Declining' : 'Stable';
+    trendPercent = exactTrend === 'rising' ? 3 : exactTrend === 'falling' ? -3 : 0;
+  }
+  trendPercent = trendPercent != null ? clamp(trendPercent, -12.5, 12.5) : 0;
+  const trendAdjustment = roundMoney(trendPercent);
+
+  const demandAdjustment = demandLevel === 'High' ? 2 : demandLevel === 'Low' ? -2 : 0;
+  const supplyAdjustment = supplyLevel === 'Low' ? 2 : supplyLevel === 'High' ? -1 : 0;
+
+  let blendedReference = marketBase;
+  if (Number.isFinite(exactAverage) && exactAverage > 0) {
+    const differencePercent = Math.abs((exactAverage - marketBase) / marketBase);
+    if (differencePercent <= 0.25) blendedReference = roundMoney((marketBase * 0.75) + (exactAverage * 0.25));
+  }
+
+  const evidenceAdjustment = roundMoney(trendAdjustment + demandAdjustment + supplyAdjustment);
+  const boundedAdjustment = roundMoney(clamp(evidenceAdjustment, -15, 20));
+  let recommended = roundMoney(blendedReference * (1 + boundedAdjustment / 100));
+
+  const cost = Number.isFinite(costPrice) && costPrice > 0 ? costPrice : null;
+  const profitabilityFloor = cost ? roundMoney(cost * 1.15) : null;
+  const unprofitableFloor = profitabilityFloor != null && recommended < profitabilityFloor;
+  if (profitabilityFloor != null) recommended = roundMoney(Math.max(recommended, profitabilityFloor));
+
+  const minimumCompetitorPrice = roundMoney(marketBase * 0.85);
+  const maximumCompetitorPrice = roundMoney(marketBase * 1.20);
+  const belowMarketFloor = recommended < minimumCompetitorPrice;
+  const aboveMarketCeiling = recommended > maximumCompetitorPrice;
+  if (cost && recommended > cost * 1.15 && aboveMarketCeiling) {
+    recommended = maximumCompetitorPrice;
+  }
+  if (!cost) recommended = roundMoney(clamp(recommended, minimumCompetitorPrice, maximumCompetitorPrice));
+
+  const actualAdjustment = roundMoney(((recommended - marketBase) / marketBase) * 100);
+  const profit = cost ? roundMoney(recommended - cost) : null;
+  const margin = cost && recommended > 0 ? roundMoney((profit / recommended) * 100) : null;
+  const estimatedTotal = null;
+
+  const reasons = [];
+  reasons.push(`Market Insights reference: ${formatPhp(marketBase)}/${requestedUnit}.`);
+  reasons.push(trendPercent ? `Market trend is ${trendLabel.toLowerCase()} (${trendPercent > 0 ? '+' : ''}${trendPercent}%).` : 'No reliable recent trend adjustment was available.');
+  if (demandLevel) reasons.push(`Demand evidence is ${demandLevel.toLowerCase()}.`);
+  if (supplyLevel) reasons.push(`Supply evidence is ${supplyLevel.toLowerCase()}.`);
+  if (cost) reasons.push(`Production cost of ${formatPhp(cost)}/${requestedUnit} requires at least ${formatPhp(profitabilityFloor)}/${requestedUnit} for a 15% selling margin.`);
+  reasons.push(`The final market-supported adjustment is ${actualAdjustment > 0 ? '+' : ''}${actualAdjustment}% from the market reference.`);
+  if (belowMarketFloor) reasons.push('The result may be below the practical market range.');
+  if (aboveMarketCeiling) reasons.push('The result may be uncompetitive above the 20% market ceiling.');
+  if (unprofitableFloor) reasons.push('The recommendation was raised to cover the cost floor.');
+
+  return {
+    marketReference: marketBase,
+    marketTrend: trendLabel,
+    marketTrendPercent: trendPercent,
+    adjustmentPercent: actualAdjustment,
+    evidenceAdjustment: boundedAdjustment,
+    recommendedUnitPrice: recommended,
+    costPrice: cost,
+    profit,
+    margin,
+    estimatedTotal,
+    belowMarketFloor,
+    aboveMarketCeiling,
+    why: reasons.join(' '),
+  };
 }
 
 export async function listOverrides(req, res) {
@@ -187,7 +355,12 @@ export async function getOverrideHistory(req, res) {
 }
 
 export async function getRecommendation(req, res) {
-  const { unit, kgPerUnit = null, quantity = '0' } = req.body || {};
+  const {
+    unit, kgPerUnit = null, quantity = '0', costPrice = null,
+    productName = '', historicalAverage = null, historicalLowest = null,
+    historicalHighest = null, historicalTrend = null, demandLevel = null,
+    supplyLevel = null, marketTrendPercent = null,
+  } = req.body || {};
   const requestedUnit = String(unit || '').trim();
   const milliQuantity = quantityInMilliUnits(quantity);
   if (!requestedUnit || requestedUnit.length > 30) throw new ApiError('Choose a valid product unit.', 400);
@@ -211,8 +384,8 @@ export async function getRecommendation(req, res) {
     return;
   }
 
-  const recommendedUnitPrice = priceForUnit(reference, requestedUnit, kgPerUnit);
-  if (recommendedUnitPrice == null) {
+  const marketReferencePrice = priceForUnit(reference, requestedUnit, kgPerUnit);
+  if (marketReferencePrice == null) {
     res.json({
       commodityId: commodity.id,
       commodityLabel: commodity.label,
@@ -228,6 +401,58 @@ export async function getRecommendation(req, res) {
     return;
   }
 
+  const cost = costPrice == null || costPrice === ''
+    ? null
+    : Number(costPrice);
+  const exactAverage = historicalAverage == null || historicalAverage === ''
+    ? null
+    : Number(historicalAverage);
+  const exactEvidence = await getExactDemandSupplyEvidence(productName, requestedUnit);
+  const resolvedDemandLevel = demandEvidenceFromText(demandLevel) || exactEvidence.demandLevel;
+  const resolvedSupplyLevel = demandEvidenceFromText(supplyLevel) || exactEvidence.supplyLevel;
+  const trendEvidencePercent = marketTrendPercent != null && marketTrendPercent !== ''
+    ? Number(marketTrendPercent)
+    : trendPercentFromPoints(reference.trendPoints);
+  const dynamic = calculateDynamicRecommendation({
+    marketReference: marketReferencePrice,
+    requestedUnit,
+    costPrice: Number.isFinite(cost) ? cost : null,
+    marketTrendPercent: Number.isFinite(trendEvidencePercent) ? roundMoney(trendEvidencePercent) : null,
+    exactAverage: Number.isFinite(exactAverage) ? exactAverage : null,
+    exactTrend: historicalTrend,
+    demandLevel: resolvedDemandLevel,
+    supplyLevel: resolvedSupplyLevel,
+  });
+  if (!dynamic) {
+    res.json({
+      commodityId: commodity.id,
+      commodityLabel: commodity.label,
+      available: false,
+      referencePrice: null,
+      recommendedUnitPrice: null,
+      estimatedTotal: null,
+    });
+    return;
+  }
+
+  const recommendedUnitPrice = dynamic.recommendedUnitPrice;
+  const profit = dynamic.profit;
+  const aiInsight = productName
+    ? await generateProductPriceInsight({
+        productName,
+        unit: requestedUnit,
+        orderCount: Number(req.body?.orderCount || 0),
+        averagePrice: Number.isFinite(exactAverage) ? exactAverage : dynamic.marketReference,
+        lowestPrice: historicalLowest == null ? dynamic.marketReference : Number(historicalLowest),
+        highestPrice: historicalHighest == null ? dynamic.marketReference : Number(historicalHighest),
+        trend: dynamic.marketTrend,
+        costPrice: dynamic.costPrice,
+        recommendedPrice: recommendedUnitPrice,
+        estimatedProfit: profit,
+        estimatedMargin: dynamic.margin,
+      })
+    : null;
+
   const priceCents = BigInt(toPriceCents(recommendedUnitPrice, 'Recommended price'));
   const totalCents = (priceCents * milliQuantity + 500n) / 1000n;
   if (totalCents > BigInt(Number.MAX_SAFE_INTEGER)) {
@@ -240,6 +465,25 @@ export async function getRecommendation(req, res) {
     referencePrice: reference.price,
     referenceUnit: reference.unit,
     recommendedUnitPrice,
+    priceRange: {
+      minimumPrice: roundMoney(dynamic.belowMarketFloor ? recommendedUnitPrice : recommendedUnitPrice * 0.95),
+      maximumPrice: roundMoney(dynamic.aboveMarketCeiling ? recommendedUnitPrice : recommendedUnitPrice * 1.05),
+      percent: 5,
+    },
+    marketTrend: dynamic.marketTrend,
+    marketTrendPercent: dynamic.marketTrendPercent,
+    adjustmentPercent: dynamic.adjustmentPercent,
+    costPrice: dynamic.costPrice,
+    estimatedProfit: profit,
+    profitMargin: dynamic.margin,
+    belowMarketFloor: dynamic.belowMarketFloor,
+    aboveMarketCeiling: dynamic.aboveMarketCeiling,
+    whyThisPrice: dynamic.why,
+    dataSource: reference.source,
+    dataUpdatedAt: reference.effectiveDate,
+    aiSummary: aiInsight?.summary || null,
+    aiRecommendation: aiInsight?.recommendation || null,
+    recommendationMethod: aiInsight ? 'Gemini-assisted, evidence-validated' : 'Rule-based, evidence-validated',
     requestedUnit,
     estimatedTotal: formatCents(totalCents),
     source: reference.source,

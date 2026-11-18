@@ -17,7 +17,7 @@ test('admin users queries remain bounded, role-scoped and reuse existing account
     async rpc(name,args) { calls.push(['rpc',name,args]); return {data:{id:'target',account_status:'suspended',verification_status:'verified'},error:historyError ? {code:'PGRST202'} : null}; },
   } } });
   const { getAdminUserPage, getAdminUserDetails, manageAccount } = await import('../src/lib/adminUserQueries.js');
-  const req = { profile:{id:'admin',role:'admin'},params:{id:'target'},query:{page:'2',search:'Farm, (Cebu)',verificationStatus:'not_required',accountStatus:'suspended'},body:{status:'suspended',expectedStatus:'active'} };
+  const req = { profile:{id:'admin',role:'admin'},params:{id:'target'},query:{page:'2',search:'Farm, (Cebu)',verificationStatus:'not_required',accountStatus:'suspended'},body:{status:'suspended',expectedStatus:'active',reason:' Policy violation '} };
   let response;
   await getAdminUserPage(req,{json(value){response=value;}});
   assert.deepEqual(calls.find((call)=>call[0]==='range'),['range',10,19]);
@@ -27,7 +27,12 @@ test('admin users queries remain bounded, role-scoped and reuse existing account
   assert.equal(response.total,21); assert.equal(response.pageSize,10);
   const result=await manageAccount(req,'account');
   assert.equal(result.verification_status,'verified');
-  assert.deepEqual(calls.at(-1),['rpc','manage_admin_account',{p_actor:'admin',p_user:'target',p_kind:'account',p_status:'suspended',p_reason:null,p_expected:'active'}]);
+  assert.deepEqual(calls.at(-1),['rpc','manage_admin_account',{p_actor:'admin',p_user:'target',p_kind:'account',p_status:'suspended',p_reason:'Policy violation',p_expected:'active'}]);
+  req.body.reason = '  ';
+  await assert.rejects(manageAccount(req,'account'),{status:400,message:'Provide a reason before deactivating this account.'});
+  req.body.reason = 'x'.repeat(501);
+  await assert.rejects(manageAccount(req,'account'),{status:400,message:'Reason must be 500 characters or fewer.'});
+  req.body.reason = 'Valid reason';
   req.profile.role='buyer';
   await assert.rejects(getAdminUserPage(req,{}),{status:403});
   await assert.rejects(manageAccount(req,'account'),{status:403});

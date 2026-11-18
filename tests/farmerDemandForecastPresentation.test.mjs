@@ -23,7 +23,12 @@ async function getForecastTable(sortBy) {
   const scope = {
     React: { createElement: element, Fragment: 'fragment' },
     useMemo: (callback) => callback(),
-    useState: (initial) => [stateIndex++ === 0 ? '' : sortBy || initial, () => {}],
+    useState: (initial) => {
+      const index = stateIndex++;
+      if (index === 0) return ['', () => {}];
+      if (index === 1) return [sortBy || initial, () => {}];
+      return [initial, () => {}];
+    },
     Search: 'Search',
     TrendIndicator: 'TrendIndicator',
     cropActionRecommendation: () => 'Sell',
@@ -90,10 +95,9 @@ test('forecast labels distinguish price differences from profit and avoid invent
   assert.doesNotMatch(weather, /Favorable conditions for harvesting/);
   assert.match(report, /price difference estimate, not profit/);
   assert.match(report, /Why this recommendation\?/);
-  assert.match(report, /aria-pressed=\{chartTab === option\.value\}/);
-  assert.match(report, /border-\[var\(--green-700\)\] bg-\[var\(--green-50\)\] text-\[var\(--green-900\)\] shadow-sm/);
-  assert.match(report, /focus-visible:outline-\[var\(--green-700\)\]/);
-  assert.match(report, /text-\[14px\] font-medium/);
+  assert.doesNotMatch(report, /Price forecast/);
+  assert.doesNotMatch(report, /ForecastChart|DemandChart|ForecastLegend|chartTab/);
+  assert.match(report, /Key metrics/);
   assert.match(page, /getDemandForecast\(\{ category, municipality, period, customDate, refreshKey: refreshToken \}\)/);
   assert.match(page, /getCropForecastDetail\(selectedCrop, \{[\s\S]*?unit: selectedForecast\?\.unit \|\| ''/);
   assert.match(page, /detailRequestKey = `\$\{selectedCrop\}:\$\{selectedForecast\?\.unit \|\| ''\}:\$\{period\}:/);
@@ -106,6 +110,9 @@ test('forecast labels distinguish price differences from profit and avoid invent
   assert.match(table, /Prices are per listed unit/);
   assert.match(table, /entry\.forecastKey === selectedCrop/);
   assert.match(table, /onSelectCrop\(entry\)/);
+  assert.match(table, /forecast-crop-hover-card/);
+  assert.match(table, /onMouseMove/);
+  assert.match(table, /onPointerDown/);
   assert.match(activityChart, /layout=\{isWide \? 'horizontal' : 'vertical'\}/);
   assert.match(page, /grid min-w-0 grid-cols-1 items-stretch gap-4 xl:grid-cols-2/);
 
