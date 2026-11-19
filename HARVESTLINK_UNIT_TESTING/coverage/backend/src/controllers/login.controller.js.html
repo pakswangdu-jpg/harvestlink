@@ -34,30 +34,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/48</span>
+                <span class='fraction'>6/48</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">13.46% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/52</span>
+                <span class='fraction'>7/52</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">33.33% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/3</span>
+                <span class='fraction'>1/3</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.76% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/47</span>
+                <span class='fraction'>6/47</span>
             </div>
         
             
@@ -192,10 +192,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -228,8 +228,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -296,11 +296,11 @@ function <span class="fstat-no" title="function not covered" >loginError(</span>
 <span class="cstat-no" title="statement not covered" >  return error;</span>
 }
 &nbsp;
-export async function <span class="fstat-no" title="function not covered" >login(</span>req, res) {
-  const email = <span class="cstat-no" title="statement not covered" >String(req.body?.email || '').trim().toLowerCase();</span>
-  const password = <span class="cstat-no" title="statement not covered" >req.body?.password;</span>
-<span class="cstat-no" title="statement not covered" >  if (!email || typeof password !== 'string' || !password) {</span>
-<span class="cstat-no" title="statement not covered" >    throw new ApiError('Enter your email address and password.', 400);</span>
+export async function login(req, res) {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const password = req.body?.password;
+  <span class="missing-if-branch" title="else path not taken" >E</span>if (!email || <span class="branch-1 cbranch-no" title="branch not covered" >typeof password !== 'string' </span>|| <span class="branch-2 cbranch-no" title="branch not covered" >!password)</span> {
+    throw new ApiError('Enter your email address and password.', 400);
   }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  await verifyRecaptchaToken(req.body?.captchaToken);</span>
@@ -333,8 +333,8 @@ export async function <span class="fstat-no" title="function not covered" >login
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  req.loginOutcome = 'authenticated';</span>
   const session = <span class="cstat-no" title="statement not covered" >data?.session;</span>
-  const userId = <span class="cstat-no" title="statement not covered" >data?.user?.id || session?.user?.id;</span>
-<span class="cstat-no" title="statement not covered" >  if (!session?.access_token || !session.refresh_token || !userId) {</span>
+  const userId = data?.user?.id || <span class="branch-1 cbranch-no" title="branch not covered" >session?.user?.id;</span>
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!session?.access_token || <span class="branch-1 cbranch-no" title="branch not covered" >!session.refresh_token </span>|| <span class="branch-2 cbranch-no" title="branch not covered" >!userId)</span> {
 <span class="cstat-no" title="statement not covered" >    throw new ApiError('Unable to complete sign-in. Please try again.', 401);</span>
   }
 &nbsp;
@@ -396,7 +396,7 @@ export function <span class="fstat-no" title="function not covered" >adminLogin(
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-11-18T20:48:40.313Z
+                at 2026-11-19T09:03:46.582Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

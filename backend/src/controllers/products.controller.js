@@ -221,6 +221,7 @@ export async function listPublicProducts(req, res) {
     sellingType: product.sellingType,
     moq: product.moq,
     price: product.price,
+    priceUpdatedAt: product.priceUpdatedAt,
     wholesalePrice: product.wholesalePrice,
     wholesaleMinQuantity: product.wholesaleMinQuantity,
     unit: product.unit,

@@ -7,9 +7,14 @@ const source = (await readFile(new URL('../src/components/cards/DonationCard.jsx
   .replace(/import[\s\S]*?from\s+['"][^'"]+['"];?/g, '')
   .replace(/import\s+['"][^'"]+['"];?/g, '').replace('export default ', '');
 const { code } = await transformWithOxc(source, 'DonationCard.jsx', { jsx: { runtime: 'classic' } });
+let detailsOpen = false;
 const scope = {
   React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
-  MapPin: 'location-icon', Package: 'package-icon', CalendarDays: 'calendar-icon', UserRound: 'recipient-icon',
+  useState: () => [detailsOpen, (next) => { detailsOpen = next; }],
+  createPortal: (node) => node,
+  document: { body: {} },
+  Modal: 'modal', ProductImageGallery: 'gallery',
+  Eye: 'view-icon', MapPin: 'location-icon', Package: 'package-icon', CalendarDays: 'calendar-icon', UserRound: 'recipient-icon',
   StatusBadge: 'status', formatDate: (date) => date,
   getExpiryStatus: (date) => date === 'soon' ? 'expiring_soon' : date === 'past' ? 'expired' : null,
 };
@@ -74,4 +79,27 @@ test('discovery expiry warning remains tied to the existing expiry resolver', ()
   assert.ok(nodes(expired).some(node => node.props.className === 'donation-date-expired'));
   const noDate = DonationCard({ donation: { ...donation, expirationDate: null }, variant: 'discovery' });
   assert.ok(!text(noDate).includes('Available until'));
+});
+
+test('the discovery photo opens a donation quick view and closing hides it', () => {
+  const imageUrls = ['/cabbage.jpg', '/cabbage-side.jpg'];
+  const props = { donation: { ...donation, imageUrls, description: 'Fresh surplus cabbage', availableQuantity: 3 }, variant: 'discovery' };
+  const render = () => nodes(DonationCard(props));
+  const trigger = render().find((node) => node.props['aria-haspopup'] === 'dialog');
+  assert.equal(trigger.type, 'button');
+  assert.equal(trigger.props['aria-label'], 'View Cabbage donation details');
+  assert.ok(!render().some((node) => node.type === 'modal'));
+  trigger.props.onClick();
+  try {
+    const modal = render().find((node) => node.type === 'modal');
+    assert.equal(modal.props.dialogLabel, 'Cabbage donation details');
+    assert.deepEqual(nodes(modal).find((node) => node.type === 'gallery').props.product, { name: 'Cabbage', image: '/cabbage.jpg', imageUrls });
+    for (const value of ['Fresh surplus cabbage', '3 kg available', 'From John', 'Mandaue City']) {
+      assert.ok(text(modal).includes(value));
+    }
+    modal.props.onClose();
+    assert.ok(!render().some((node) => node.type === 'modal'));
+  } finally {
+    detailsOpen = false;
+  }
 });

@@ -60,7 +60,7 @@ export default function ProductDetails() {
   useEffect(() => {
     let cancelled = false;
     const snapshot = getFarmerInquirySnapshot(location.state?.productContext, id, currentUser.id, currentUser.role);
-    getProductById(id)
+    getProductById(id, { fresh: true })
       .then((result) => {
         if (cancelled) return;
         if (!result) throw new Error('The product listing could not be found.');
@@ -93,15 +93,31 @@ export default function ProductDetails() {
   useEffect(() => {
     if (loadedId !== id) return undefined;
     let cancelled = false;
-    const refresh = () => getProductById(id, { fresh: true })
-      .then((latestProduct) => {
-        if (cancelled || !latestProduct) return;
-        setStoredProduct(latestProduct);
-        setStockRefreshError('');
-      })
-      .catch((error) => {
-        if (!cancelled) setStockRefreshError(error.message || 'Unable to refresh this listing right now.');
-      });
+    let refreshing = false;
+    const refresh = () => {
+      if (refreshing) return;
+      refreshing = true;
+      return getProductById(id, { fresh: true })
+        .then((latestProduct) => {
+          if (cancelled || !latestProduct) return;
+          setStoredProduct(latestProduct);
+          setLiveListingUnavailable(false);
+          setLoadError('');
+          setStockRefreshError('');
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          if (error?.status === 404) {
+            setStoredProduct((current) => current?.isInquirySnapshot ? current : null);
+            setLiveListingUnavailable(true);
+            setLoadError(PRODUCT_NOT_LISTED_MESSAGE);
+            setStockRefreshError('');
+            return;
+          }
+          setStockRefreshError(error.message || 'Unable to refresh this listing right now.');
+        })
+        .finally(() => { refreshing = false; });
+    };
     const channel = supabase
       .channel(`product-inventory-${id}`)
       .on(
@@ -116,10 +132,10 @@ export default function ProductDetails() {
       )
       .subscribe((status) => {
         if (!cancelled && ['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
-          setStockRefreshError('Live stock updates are unavailable. We will keep checking this listing.');
+          setStockRefreshError('Live product updates are unavailable. We will keep checking this listing.');
         }
       });
-    const interval = setInterval(refresh, 30000);
+    const interval = setInterval(refresh, 5000);
     return () => {
       cancelled = true;
       clearInterval(interval);

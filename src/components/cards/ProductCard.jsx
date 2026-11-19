@@ -6,7 +6,7 @@ import {
   ArrowRight, CalendarDays, Check, Eye, Leaf, MapPin, Package, ShoppingCart, Sprout, Star, User, X,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
-import { formatCurrency, formatDate, formatQuantity, titleCase } from '../../utils/formatters';
+import { formatCurrency, formatDate, formatDateTimeManila, formatQuantity, titleCase } from '../../utils/formatters';
 import { getExpiryStatus, ORDERING_ROLES } from '../../utils/constants';
 import Modal from '../admin/Modal';
 import { useAuth } from '../../features/auth/AuthContext';
@@ -39,6 +39,8 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   const { addItem, removeItem, isInCart } = useCart();
   const { showToast } = useToast();
   const isDiscounted = Boolean(product.discountPercent);
+  const listingUpdatedAt = Date.parse(product.updatedAt) > Date.parse(product.createdAt) ? product.updatedAt : null;
+  const displayedUpdateAt = product.priceUpdatedAt || listingUpdatedAt;
   const expiryStatus = getExpiryStatus(product.expirationDate);
   const isCriticallyLow = product.quantity > 0 && product.quantity <= CRITICAL_STOCK_THRESHOLD;
   const isOutOfStock = !(product.quantity > 0);
@@ -220,6 +222,12 @@ export default function ProductCard({ product, actions, showStatus = false, clas
             </div>
           </div>
 
+          {displayedUpdateAt ? (
+            <p className="text-[12px] leading-normal text-[var(--muted)]">
+              {product.priceUpdatedAt ? 'Farmer updated price' : 'Listing updated'}{' '}
+              <time dateTime={displayedUpdateAt}>{formatDateTimeManila(displayedUpdateAt)}</time> (PHT)
+            </p>
+          ) : null}
           {marketReference ? <AdminReferenceNotice reference={marketReference} /> : null}
           {hasWholesalePricing(product) ? (
             <p className="product-card-wholesale-price">

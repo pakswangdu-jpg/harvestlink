@@ -27,12 +27,15 @@ test('Marketplace shows eligible new listings from all locations by default and 
   assert.match(source, /<option value="">All locations<\/option>/);
 });
 
-test('Marketplace keeps the Price Range filter sticky and separate from scrolling filters', async () => {
+test('Marketplace Price Range scrolls with the page', async () => {
   const source = await readFile(new URL('../src/features/marketplace/Marketplace.jsx', import.meta.url), 'utf8');
   const css = await readFile(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
   assert.match(source, /<section className="panel marketplace-price-toolbar">\s*<PriceRangeSlider/);
-  assert.match(css, /\.marketplace-page \.marketplace-price-toolbar\s*\{[^}]*position: sticky;[^}]*top: 12px;/);
-  assert.match(css, /\.marketplace-page \.marketplace-price-toolbar\s*\{[^}]*align-self: start;/);
+  const toolbarRules = [...css.matchAll(/\.marketplace-page \.marketplace-price-toolbar\s*\{([^}]*)\}/g)];
+  assert.ok(toolbarRules.length);
+  for (const [, declarations] of toolbarRules) {
+    assert.doesNotMatch(declarations, /position:\s*(sticky|fixed)\b/);
+  }
 });
 
 test('Product fallback recovers when the uploaded image URL changes without modifying photos', async () => {

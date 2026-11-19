@@ -1,6 +1,35 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
+import { transformWithOxc } from 'vite';
+
+test('the required feedback popup blocks Escape and closes when the prompt unmounts', async () => {
+  const source = (await readFile(new URL('../src/components/common/RequiredFeedbackDialog.jsx', import.meta.url), 'utf8'))
+    .replace(/^import .*;\r?$/gm, '').replace('export default ', '');
+  const { code } = await transformWithOxc(source, 'RequiredFeedbackDialog.jsx', { jsx: { runtime: 'classic' } });
+  const calls = [];
+  const body = { style: { overflow: 'auto' } };
+  let cleanup;
+  const scope = {
+    React: { createElement: (type, props, ...children) => ({ type, props, children }) },
+    document: { body },
+    useId: () => 'feedback',
+    useRef: () => ({ current: { showModal: () => calls.push('open'), close: () => calls.push('close') } }),
+    useEffect: (effect) => { cleanup = effect(); },
+  };
+  const Dialog = new Function('scope', `with (scope) { ${code}; return RequiredFeedbackDialog; }`)(scope);
+  const submit = { type: 'button', props: { children: 'Submit rating' } };
+  const dialog = Dialog({ title: 'Rate Cebu Farm', children: submit });
+  assert.equal(dialog.type, 'dialog');
+  assert.equal(dialog.children.at(-1), submit);
+  assert.equal(dialog.props.onClick, undefined);
+  dialog.props.onCancel({ preventDefault: () => calls.push('cancel blocked') });
+  assert.deepEqual(calls, ['open', 'cancel blocked']);
+  assert.equal(body.style.overflow, 'hidden');
+  cleanup();
+  assert.deepEqual(calls, ['open', 'cancel blocked', 'close']);
+  assert.equal(body.style.overflow, 'auto');
+});
 
 test('Completed-order feedback accepts optional review photos or video', async () => {
   const source = await readFile(new URL('../src/features/orders/OrderTracking.jsx', import.meta.url), 'utf8');

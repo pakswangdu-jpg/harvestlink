@@ -10,11 +10,11 @@ export async function getProducts() {
 }
 
 export async function getActiveProducts() {
-  return apiClient.get('/products?activeOnly=true');
+  return apiClient.get('/products?activeOnly=true', { fresh: true });
 }
 
 export async function getMarketplaceProducts() {
-  return apiClient.get('/products/marketplace');
+  return apiClient.get('/products/marketplace', { fresh: true });
 }
 
 export async function getProductById(id, { fresh = false } = {}) {
@@ -22,7 +22,7 @@ export async function getProductById(id, { fresh = false } = {}) {
 }
 
 export async function getProductsByFarmer(farmerId) {
-  return apiClient.get(`/products?farmerId=${farmerId}`);
+  return apiClient.get(`/products?farmerId=${farmerId}`, { fresh: true });
 }
 
 

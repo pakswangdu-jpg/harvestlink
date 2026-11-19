@@ -34,30 +34,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">34.14% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/41</span>
+                <span class='fraction'>14/41</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">15% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>9/60</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">25% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>2/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">35.29% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/34</span>
+                <span class='fraction'>12/34</span>
             </div>
         
             
@@ -142,7 +142,7 @@
 <a name='L66'></a><a href='#L66'>66</a>
 <a name='L67'></a><a href='#L67'>67</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -150,25 +150,25 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -208,7 +208,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { BlockList, isIP } from 'node:net';
 &nbsp;
-export const ADMIN_NETWORK_ERROR = <span class="cstat-no" title="statement not covered" >'ADMIN_NETWORK_NOT_ALLOWED';</span>
+export const ADMIN_NETWORK_ERROR = 'ADMIN_NETWORK_NOT_ALLOWED';
 &nbsp;
 export function <span class="fstat-no" title="function not covered" >normalizeIPv4(</span>value) {
 <span class="cstat-no" title="statement not covered" >  if (typeof value !== 'string') <span class="cstat-no" title="statement not covered" >return null;</span></span>
@@ -216,25 +216,25 @@ export function <span class="fstat-no" title="function not covered" >normalizeIP
 <span class="cstat-no" title="statement not covered" >  return isIP(address) === 4 ? address : null;</span>
 }
 &nbsp;
-const nonPublic = <span class="cstat-no" title="statement not covered" >new BlockList();</span>
-<span class="cstat-no" title="statement not covered" >for (const [address, prefix] of [</span>
+const nonPublic = new BlockList();
+for (const [address, prefix] of [
   ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
   ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24],
   ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24],
   ['224.0.0.0', 4], ['240.0.0.0', 4],
-]) <span class="cstat-no" title="statement not covered" >nonPublic.addSubnet(address, prefix, 'ipv4');</span>
-const local = <span class="cstat-no" title="statement not covered" >new BlockList();</span>
-<span class="cstat-no" title="statement not covered" >for (const [address, prefix] of [['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16]]) <span class="cstat-no" title="statement not covered" >local.addSubnet(address, prefix, 'ipv4');</span></span>
+]) nonPublic.addSubnet(address, prefix, 'ipv4');
+const local = new BlockList();
+for (const [address, prefix] of [['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16]]) local.addSubnet(address, prefix, 'ipv4');
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >parseAdminAllowedIps(</span>env = <span class="branch-0 cbranch-no" title="branch not covered" >process.env)</span> {
-  const production = <span class="cstat-no" title="statement not covered" >env.NODE_ENV === 'production' || env.RENDER === 'true';</span>
-  const allowLocal = <span class="cstat-no" title="statement not covered" >!production &amp;&amp; env.ADMIN_ALLOW_LOCAL_IPS === 'true';</span>
-  const entries = <span class="cstat-no" title="statement not covered" >(env.ADMIN_ALLOWED_IPS || '').split(',').map(<span class="fstat-no" title="function not covered" >value </span>=&gt; <span class="cstat-no" title="statement not covered" >value.trim())</span>.filter(Boolean);</span>
-  const addresses = <span class="cstat-no" title="statement not covered" >entries.map(normalizeIPv4);</span>
-  const valid = <span class="cstat-no" title="statement not covered" >entries.length &gt; 0 &amp;&amp; addresses.every(<span class="fstat-no" title="function not covered" >address </span>=&gt; <span class="cstat-no" title="statement not covered" >address &amp;&amp; (</span></span>
+export function parseAdminAllowedIps(env = process.env) {
+  const production = env.NODE_ENV === 'production' || env.RENDER === 'true';
+  const allowLocal = !production &amp;&amp; env.ADMIN_ALLOW_LOCAL_IPS === 'true';
+  const entries = (env.ADMIN_ALLOWED_IPS || '').split(',').map(value =&gt; value.trim()).filter(Boolean);
+  const addresses = entries.map(normalizeIPv4);
+  const valid = entries.length &gt; 0 &amp;&amp; <span class="branch-1 cbranch-no" title="branch not covered" >addresses.every(<span class="fstat-no" title="function not covered" >address </span>=&gt; <span class="cstat-no" title="statement not covered" >address &amp;&amp; (</span></span>
     !nonPublic.check(address, 'ipv4') || (allowLocal &amp;&amp; local.check(address, 'ipv4'))
   ));
-<span class="cstat-no" title="statement not covered" >  return { valid, allowed: new Set(valid ? addresses : []) };</span>
+  return { valid, allowed: new Set(valid ? <span class="branch-0 cbranch-no" title="branch not covered" >addresses </span>: []) };
 }
 &nbsp;
 export function <span class="fstat-no" title="function not covered" >getTrustedProxies(</span>env = <span class="branch-0 cbranch-no" title="branch not covered" >process.env)</span> {
@@ -279,7 +279,7 @@ export function <span class="fstat-no" title="function not covered" >getAdminCli
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-11-18T20:48:40.313Z
+                at 2026-11-19T09:03:46.582Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

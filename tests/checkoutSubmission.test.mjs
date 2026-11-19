@@ -17,9 +17,23 @@ async function harness(onSubmit) {
   const render = () => { index = 0; refIndex = 0; const tree = Form(props); return { tree, summary: nodes(tree).find((node) => node.type === 'OrderSummaryPanel').props }; };
   render();
   const quote = { unitPrice: 55, subtotal: 55, total: 95, retailSubtotal: 55, discount: 0, estimate: { fee: 40 } };
-  values[4] = { key: JSON.stringify(['p1', '1', 'farmer_delivery', 'Cebu City']), data: quote };
-  return { render, values };
+  values[4] = { key: JSON.stringify(['p1', '1', 'farmer_delivery', 'Cebu City', 55]), data: quote };
+  return { render, values, product: props.product };
 }
+
+test('checkout clears a reviewed quote when the listing price changes', async () => {
+  const calls = [];
+  const page = await harness(async (values) => calls.push(values));
+  page.render().summary.onReview(true);
+  assert.equal(page.render().summary.isReviewed, true);
+  page.product.wholesalePrice = 45;
+  page.product.wholesaleMinQuantity = 1;
+  const { summary, tree } = page.render();
+  assert.equal(summary.quote, null);
+  assert.equal(summary.isReviewed, false);
+  await tree.props.onSubmit({ preventDefault() {} });
+  assert.equal(calls.length, 0);
+});
 
 test('checkout requires review and prevents double-click and post-success duplicates', async () => {
   const calls = []; let resolve;

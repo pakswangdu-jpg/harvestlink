@@ -8,6 +8,7 @@ import Button from '../../components/common/Button';
 import OrderReasonDialog from '../../components/orders/OrderReasonDialog';
 import StartDeliveryDialog from '../../components/orders/StartDeliveryDialog';
 import StarRating from '../../components/common/StarRating';
+import RequiredFeedbackDialog from '../../components/common/RequiredFeedbackDialog';
 import StatusBadge from '../../components/common/StatusBadge';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import OrderTracker from '../../components/orders/OrderTracker';
@@ -94,6 +95,9 @@ export default function OrderTracking() {
   const [notice, setNotice] = useState(location.state?.notice || '');
   const [error, setError] = useState('');
   const [existingRating, setExistingRating] = useState(null);
+  const [checkedRatingOrderId, setCheckedRatingOrderId] = useState(null);
+  const [ratingCheckError, setRatingCheckError] = useState('');
+  const [ratingCheckAttempt, setRatingCheckAttempt] = useState(0);
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingPhotos, setRatingPhotos] = useState([]);
@@ -256,22 +260,23 @@ export default function OrderTracking() {
 
 
   const needsRatingCheck = isBuyer && order?.status === 'completed';
+  const ratingPending = needsRatingCheck && checkedRatingOrderId === order.id && !existingRating;
   useEffect(() => {
     if (!needsRatingCheck) return undefined;
     let cancelled = false;
     getRatingForOrder(order.id)
       .then((result) => {
-        if (!cancelled) setExistingRating(result);
+        if (cancelled) return;
+        setExistingRating(result);
+        setCheckedRatingOrderId(order.id);
       })
       .catch(() => {
-
-
-
+        if (!cancelled) setRatingCheckError('Could not load your feedback. Please try again.');
       });
     return () => {
       cancelled = true;
     };
-  }, [needsRatingCheck, order?.id]);
+  }, [needsRatingCheck, order?.id, ratingCheckAttempt]);
 
   const hasTrackingProfiles = Boolean(order && trackingProfiles)
     && trackingProfiles.orderId === order.id
@@ -782,7 +787,7 @@ export default function OrderTracking() {
           </div>
         </section>
 
-        {isBuyer && order.status === 'completed' ? (
+        {needsRatingCheck && (checkedRatingOrderId === order.id || ratingCheckError) ? (
           <section ref={feedbackPanelRef} tabIndex={-1} className="panel ot-feedback-panel" aria-label="Order feedback">
             <div className="section-heading">
               <div>
@@ -790,7 +795,15 @@ export default function OrderTracking() {
                 <h2>Rate {order.farmerName}</h2>
               </div>
             </div>
-            {existingRating ? (
+            {checkedRatingOrderId !== order.id ? (
+              <div className="form-stack">
+                <p role="alert">{ratingCheckError}</p>
+                <Button onClick={() => {
+                  setRatingCheckError('');
+                  setRatingCheckAttempt((attempt) => attempt + 1);
+                }}>Retry feedback check</Button>
+              </div>
+            ) : existingRating ? (
               <div className="ot-review-card">
                 <div className="ot-review-header">
                   <StarRating value={existingRating.rating} />
@@ -810,80 +823,84 @@ export default function OrderTracking() {
                 {existingRating.createdAt ? <p className="ot-review-date">Reviewed {formatDate(existingRating.createdAt)}</p> : null}
               </div>
             ) : (
-              <div className="form-stack" aria-busy={isSubmittingRating || isCheckingRatingMedia}>
-                {ratingError ? <div className="form-alert error">{ratingError}</div> : null}
-                <StarRating value={ratingValue} onChange={setRatingValue} size={26} />
-                <textarea
-                  rows="3"
-                  value={ratingComment}
-                  onChange={(event) => setRatingComment(event.target.value)}
-                  placeholder="Optional — how was the produce and the farmer's service?"
-                />
-                <div className="ot-review-photo-field">
-                  <input
-                    ref={ratingPhotosInputRef}
-                    className="ot-review-photo-input"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    multiple
-                    aria-label="Choose optional review photos"
-                    disabled={isCheckingRatingMedia || isSubmittingRating}
-                    onChange={handleRatingPhotosChange}
+              <RequiredFeedbackDialog title={`Rate ${order.farmerName}`}>
+                <div className="form-stack" aria-busy={isSubmittingRating || isCheckingRatingMedia}>
+                  {ratingError ? <div className="form-alert error" role="alert">{ratingError}</div> : null}
+                  <StarRating value={ratingValue} onChange={isSubmittingRating ? undefined : setRatingValue} size={26} />
+                  <textarea
+                    rows="3"
+                    value={ratingComment}
+                    aria-label="Optional review comment"
+                    disabled={isSubmittingRating}
+                    onChange={(event) => setRatingComment(event.target.value)}
+                    placeholder="Optional — how was the produce and the farmer's service?"
                   />
-                  <Button
-                    variant="secondary"
-                    disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingVideo)}
-                    onClick={() => ratingPhotosInputRef.current?.click()}
-                  >
-                    <Camera size={16} aria-hidden="true" />
-                    {ratingPhotos.length ? 'Add more photos' : 'Add photos (optional)'}
+                  <div className="ot-review-photo-field">
+                    <input
+                      ref={ratingPhotosInputRef}
+                      className="ot-review-photo-input"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      aria-label="Choose optional review photos"
+                      disabled={isCheckingRatingMedia || isSubmittingRating}
+                      onChange={handleRatingPhotosChange}
+                    />
+                    <Button
+                      variant="secondary"
+                      disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingVideo)}
+                      onClick={() => ratingPhotosInputRef.current?.click()}
+                    >
+                      <Camera size={16} aria-hidden="true" />
+                      {ratingPhotos.length ? 'Add more photos' : 'Add photos (optional)'}
+                    </Button>
+                    <input
+                      ref={ratingVideoInputRef}
+                      className="ot-review-photo-input"
+                      type="file"
+                      accept="video/mp4,video/webm"
+                      aria-label="Choose an optional review video"
+                      disabled={isCheckingRatingMedia || isSubmittingRating}
+                      onChange={handleRatingVideoChange}
+                    />
+                    <Button
+                      variant="secondary"
+                      disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingPhotos.length)}
+                      onClick={() => ratingVideoInputRef.current?.click()}
+                    >
+                      <Video size={16} aria-hidden="true" />
+                      {isCheckingRatingMedia ? 'Checking video…' : ratingVideo ? 'Change video' : 'Add a video instead'}
+                    </Button>
+                    <span className="ot-review-photo-help">
+                      JPG, PNG, or WebP photos up to 5 MB each. Videos: MP4/WebM, up to 20 MB and 30 seconds.
+                    </span>
+                    {ratingMediaError ? <p className="ot-review-photo-error" role="alert">{ratingMediaError}</p> : null}
+                    {ratingPhotos.length ? (
+                      <div className="ot-review-photo-grid">
+                        {ratingPhotos.map(({ file, preview }) => (
+                          <div className="ot-review-photo-preview" key={`${file.name}-${preview}`}>
+                            <img src={preview} alt={`Preview of ${file.name}`} />
+                            <Button variant="ghost" disabled={isSubmittingRating} onClick={() => handleRemoveRatingPhoto(preview)}>
+                              Remove photo
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {ratingVideoPreview ? (
+                      <div className="ot-review-photo-preview">
+                        <video src={ratingVideoPreview} controls preload="metadata" aria-label="Preview of your review video">
+                          Your browser does not support video playback.
+                        </video>
+                        <Button variant="ghost" disabled={isSubmittingRating} onClick={handleRemoveRatingVideo}>Remove video</Button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button onClick={handleSubmitRating} disabled={isSubmittingRating || isCheckingRatingMedia}>
+                    {isSubmittingRating ? 'Submitting…' : 'Submit rating'}
                   </Button>
-                  <input
-                    ref={ratingVideoInputRef}
-                    className="ot-review-photo-input"
-                    type="file"
-                    accept="video/mp4,video/webm"
-                    aria-label="Choose an optional review video"
-                    disabled={isCheckingRatingMedia || isSubmittingRating}
-                    onChange={handleRatingVideoChange}
-                  />
-                  <Button
-                    variant="secondary"
-                    disabled={isSubmittingRating || isCheckingRatingMedia || Boolean(ratingPhotos.length)}
-                    onClick={() => ratingVideoInputRef.current?.click()}
-                  >
-                    <Video size={16} aria-hidden="true" />
-                    {isCheckingRatingMedia ? 'Checking video…' : ratingVideo ? 'Change video' : 'Add a video instead'}
-                  </Button>
-                  <span className="ot-review-photo-help">
-                    JPG, PNG, or WebP photos up to 5 MB each. Videos: MP4/WebM, up to 20 MB and 30 seconds.
-                  </span>
-                  {ratingMediaError ? <p className="ot-review-photo-error" role="alert">{ratingMediaError}</p> : null}
-                  {ratingPhotos.length ? (
-                    <div className="ot-review-photo-grid">
-                      {ratingPhotos.map(({ file, preview }) => (
-                        <div className="ot-review-photo-preview" key={`${file.name}-${preview}`}>
-                          <img src={preview} alt={`Preview of ${file.name}`} />
-                          <Button variant="ghost" disabled={isSubmittingRating} onClick={() => handleRemoveRatingPhoto(preview)}>
-                            Remove photo
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {ratingVideoPreview ? (
-                    <div className="ot-review-photo-preview">
-                      <video src={ratingVideoPreview} controls preload="metadata" aria-label="Preview of your review video">
-                        Your browser does not support video playback.
-                      </video>
-                      <Button variant="ghost" disabled={isSubmittingRating} onClick={handleRemoveRatingVideo}>Remove video</Button>
-                    </div>
-                  ) : null}
                 </div>
-                <Button onClick={handleSubmitRating} disabled={isSubmittingRating || isCheckingRatingMedia}>
-                  {isSubmittingRating ? 'Submitting…' : 'Submit rating'}
-                </Button>
-              </div>
+              </RequiredFeedbackDialog>
             )}
           </section>
         ) : null}
@@ -1021,7 +1038,7 @@ export default function OrderTracking() {
         ) : null}
         </DeliveryTrackingOverlay> : null}
 
-        <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>
+        {ratingPending ? null : <Button variant="ghost" onClick={() => navigate(-1)}>Back</Button>}
       </div>
 
       <OrderReasonDialog

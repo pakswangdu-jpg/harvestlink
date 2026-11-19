@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Calendar, CheckCircle2, History, Hourglass } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import DonationCard from '../../components/cards/DonationCard';
 import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
+import RequiredFeedbackDialog from '../../components/common/RequiredFeedbackDialog';
 import { useAuth } from '../auth/AuthContext';
 import {
   confirmReceipt,
@@ -18,39 +19,61 @@ import { stakeholderNavItems } from './stakeholderNav';
 import { stakeholderPickupDisplayStatus } from './dashboardPresentation';
 
 function DonationRatingPrompt({ donation, onRated }) {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [ratingCreated, setRatingCreated] = useState(false);
+  const savingRef = useRef(false);
 
-  if (donation.rated) {
-    return <span className="rating-summary">Rated, thank you!</span>;
-  }
-
-  const handleRate = async (value) => {
+  const handleRate = async () => {
+    if (!rating || savingRef.current) return;
+    savingRef.current = true;
     setIsSubmitting(true);
     setError('');
     try {
-      await createRating({
-        farmerId: donation.farmerId,
-        productId: donation.productId,
-        donationId: donation.id,
-        claimId: donation.myClaim?.id,
-        rating: value,
-      });
+      if (!ratingCreated) {
+        await createRating({
+          farmerId: donation.farmerId,
+          productId: donation.productId,
+          donationId: donation.id,
+          claimId: donation.myClaim?.id,
+          rating,
+          comment,
+        });
+        setRatingCreated(true);
+      }
       if (donation.myClaim?.id) await markDonationClaimRated(donation.myClaim.id);
       else await markDonationRated(donation.id);
-      await onRated();
     } catch (rateError) {
       setError(rateError.message);
+      return;
     } finally {
+      savingRef.current = false;
       setIsSubmitting(false);
     }
+    onRated();
   };
 
   return (
-    <span className="rating-summary">
-      <StarRating value={0} onChange={isSubmitting ? undefined : handleRate} size={18} />
-      {error ? <small className="field-error">{error}</small> : 'Rate this farm'}
-    </span>
+    <RequiredFeedbackDialog title={`Rate ${donation.farmerName}`}>
+      <div className="form-stack" aria-busy={isSubmitting}>
+        <p>{donation.productName}</p>
+        {error ? <div className="form-alert error" role="alert">{error}</div> : null}
+        <StarRating value={rating} onChange={isSubmitting || ratingCreated ? undefined : setRating} size={26} />
+        <textarea
+          rows={3}
+          aria-label="Optional donation feedback"
+          placeholder="How was the donation? (Optional)"
+          value={comment}
+          disabled={isSubmitting || ratingCreated}
+          onChange={(event) => setComment(event.target.value)}
+        />
+        <Button disabled={!rating || isSubmitting} onClick={handleRate}>
+          {isSubmitting ? 'Submitting…' : 'Submit rating'}
+        </Button>
+      </div>
+    </RequiredFeedbackDialog>
   );
 }
 
@@ -60,6 +83,7 @@ export default function StakeholderRequests() {
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [submittedReviews, setSubmittedReviews] = useState({});
 
   const openLiveTrackingPopup = (donation) => {
     const targetId = donation?.myClaim?.id || donation?.id;
@@ -99,6 +123,12 @@ export default function StakeholderRequests() {
   const scheduled = donations.filter((donation) => donation.status === 'scheduled' || claimStatus(donation) === 'scheduled');
   const history = donations.filter((donation) => ['completed', 'cancelled', 'expired'].includes(donation.status)
     || ['completed', 'cancelled', 'rejected', 'expired'].includes(claimStatus(donation)));
+  const reviewKey = (donation) => donation.myClaim?.id || donation.id;
+  const isRated = (donation) => (donation.myClaim ? donation.myClaim.rated : donation.rated) || submittedReviews[reviewKey(donation)];
+  const pendingReview = history.find((donation) => donation.productId && !isRated(donation)
+    && (donation.myClaim
+      ? donation.myClaim.status === 'completed'
+      : donation.status === 'completed' && donation.requestedById === currentUser.id));
 
   return (
     <AppShell
@@ -187,8 +217,7 @@ export default function StakeholderRequests() {
               <DonationCard
                 key={donation.id}
                 donation={donation}
-                actions={donation.status === 'completed' || donation.myClaim?.status === 'completed'
-                  ? <DonationRatingPrompt donation={donation} onRated={reload} /> : null}
+                actions={isRated(donation) ? <span className="rating-summary">Rated, thank you!</span> : null}
               />
             ))}
           </div>
@@ -196,6 +225,16 @@ export default function StakeholderRequests() {
           <EmptyState className="empty-state-transparent-icon" icon={History} title="No history yet" message="Completed and cancelled donation requests will be listed here." />
         )}
       </section>
+      {pendingReview ? (
+        <DonationRatingPrompt
+          key={reviewKey(pendingReview)}
+          donation={pendingReview}
+          onRated={() => {
+            setSubmittedReviews((reviews) => ({ ...reviews, [reviewKey(pendingReview)]: true }));
+            void reload();
+          }}
+        />
+      ) : null}
     </AppShell>
   );
 }

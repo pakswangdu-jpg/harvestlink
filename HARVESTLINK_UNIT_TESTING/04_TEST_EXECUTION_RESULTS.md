@@ -22,18 +22,18 @@ Execution date: 2026-11-19
 
 ## Dedicated Vitest Suite
 
-- Test files: 40
-- Tests: 126
-- Passed: 126
+- Test files: 49
+- Tests: 151
+- Passed: 151
 - Failed: 0
 - Skipped: 0
-- Duration: approximately 8.76 seconds in the coverage run
+- Duration: approximately 137.71 seconds in the coverage run
 
 ## Combined Total
 
-- Total test files discovered/executed: 166 existing Node files plus 40 dedicated Vitest files.
-- Test cases: 867
-- Passed: 867
+- Total test files discovered/executed: 165 existing Node files plus 49 dedicated Vitest files.
+- Test cases: 892
+- Passed: 892
 - Failed: 0
 - Skipped: 0
 

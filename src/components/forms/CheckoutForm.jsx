@@ -104,9 +104,10 @@ export default function CheckoutForm({
   const [isRefreshingProduct, setIsRefreshingProduct] = useState(false);
   const [productRefreshError, setProductRefreshError] = useState('');
   const [reviewedKey, setReviewedKey] = useState('');
-  const quoteKey = JSON.stringify([product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality]);
+  const listedUnitPrice = getApplicableUnitPrice(product, values.quantity);
+  const quoteKey = JSON.stringify([product.id, values.quantity, values.deliveryMethod, values.deliveryMunicipality, listedUnitPrice]);
   const quote = quoted?.key === quoteKey ? quoted.data : null;
-  const reviewKey = JSON.stringify([quoteKey, quote?.total, values.paymentMethod, values.message]);
+  const reviewKey = JSON.stringify([quoteKey, quote?.unitPrice, quote?.total, values.paymentMethod, values.message]);
   const isReviewed = Boolean(quote && reviewedKey === reviewKey);
 
   const originMunicipality = matchMunicipality(product.location);
@@ -146,7 +147,7 @@ export default function CheckoutForm({
         });
     }, 250);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [product.id, product.quantity, product.price, values.quantity, values.deliveryMethod, values.deliveryMunicipality, quoteKey, quoteRefresh, onProductRefresh, onStockConflict]);
+  }, [product.id, product.quantity, values.quantity, values.deliveryMethod, values.deliveryMunicipality, quoteKey, quoteRefresh, onProductRefresh, onStockConflict]);
 
 
 
@@ -440,7 +441,7 @@ export default function CheckoutForm({
             </FormField>
 
             <FormField
-              label="Message to farmer (optional)"
+              label="Message to farmer"
               name="message"
               helper="Add any pickup, delivery, or timing notes for the farmer."
             >
@@ -451,7 +452,7 @@ export default function CheckoutForm({
                   maxLength={MESSAGE_MAX_LENGTH}
                   value={values.message}
                   onChange={(event) => updateField('message', event.target.value)}
-                  placeholder="Can we pick this up tomorrow morning?"
+                  placeholder="Input your landmark, delivery instructions, or any other notes for the farmer here."
                 />
                 <span className="textarea-counter">{values.message.length} / {MESSAGE_MAX_LENGTH}</span>
               </div>

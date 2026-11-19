@@ -8,11 +8,11 @@ HarvestLink was scanned across frontend, backend, database, email, AI, mapping, 
 
 - Frontend Node suite: 458/458 passed.
 - Backend Node suite: 283/283 passed.
-- Dedicated Vitest suite: 126/126 passed.
-- Combined result: 867/867 passed.
-- Existing test files: 166.
-- Dedicated Vitest files: 40.
-- Dedicated coverage: 8.94% lines / 8.36% statements verified for the selected Vitest slice.
+- Dedicated Vitest suite: 151/151 passed.
+- Combined result: 892/892 passed.
+- Existing test files: 165.
+- Dedicated Vitest files: 49.
+- Dedicated coverage: 10.79% lines / 10.06% statements verified for the selected Vitest slice.
 
 ## Assessment
 

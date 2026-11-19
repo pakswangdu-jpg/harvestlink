@@ -4,7 +4,7 @@
 
 - Frontend: 112 existing test files under `tests/`.
 - Backend: 54 existing test files under `backend/tests/`.
-- Dedicated Vitest: 27 test files under `HARVESTLINK_UNIT_TESTING/unit-tests/`.
+- Dedicated Vitest: 49 test files under `HARVESTLINK_UNIT_TESTING/unit-tests/`.
 
 ## Dedicated Test Files
 
@@ -25,6 +25,14 @@
 - `profileAndLocation.test.js`
 - `vehicleAndTracking.test.js`
 - `notificationAndBrowser.test.js`
+- `constantsAndFormatters.test.js`
+- `geoAndDevice.test.js`
+- `authDestination.test.js`
+- `catalogManagement.test.js`
+- `profileManagement.test.js`
+- `messaging.test.js`
+- `donations.test.js`
+- `paymentValidation.test.js`
 
 ### Backend
 
@@ -40,6 +48,22 @@
 - `forecastAndMarket.test.js`
 - `donationAndArrival.test.js`
 - `paymentAndMobile.test.js`
+- `authRegistrationController.test.js`
+- `loginController.test.js`
+- `ordersPayments.test.js`
+- `passwordRecoveryController.test.js`
+- `profileAndLocation.test.js`
+- `profileManagement.test.js`
+- `contactController.test.js`
+- `deliveryFeeController.test.js`
+- `notificationController.test.js`
+- `ratingsController.test.js`
+- `checkoutQuote.test.js`
+- `roleAndAccount.test.js`
+- `forecastEngine.test.js`
+- `donationArrival.test.js`
+- `tripTelemetry.test.js`
+- `lalamoveStatus.test.js`
 
 ## Case Categories
 

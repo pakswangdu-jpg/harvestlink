@@ -165,10 +165,15 @@ Run `20261030_inventory_messaging_donations.sql` after the base schema and the
 existing order-integrity and shared-donations migrations. Deploy the backend and
 frontend together. The migration is rerunnable and intentionally fails closed
 when its service-role functions are not installed.
-Run `20261103_product_inventory_realtime.sql` after it to publish stock-only
-inventory events through Supabase Realtime. Authenticated clients can read
-public-listing stock events; farmers can also read events for their own listings.
-Product details continue to be loaded through the backend.
+Run `20261103_product_inventory_realtime.sql` to publish inventory events through
+Supabase Realtime, then apply `20261119010100_product_price_realtime.sql` to
+publish events when listing prices, discounts, wholesale terms, or price-review
+status change. Authenticated clients can read public-listing events. Farmers
+can also read events for their own listings. Clients fetch the current product
+from the backend after receiving an event.
+Apply `20261119010200_product_price_updated_at.sql` to show the date and time
+of the latest recorded price change on product cards. Existing listings acquire
+this timestamp when their pricing next changes.
 
 Marketplace checkout uses a service-role transaction that locks the product,
 validates the server-computed price and quantity, decrements available stock,

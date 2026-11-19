@@ -278,7 +278,7 @@ export default function Marketplace() {
       )
       .subscribe((status) => {
         if (!cancelled && ['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
-          setLoadError('Live stock updates are unavailable. We will keep checking products.');
+          setLoadError('Live product updates are unavailable. We will keep checking products.');
         }
       });
     const interval = setInterval(reload, 4000);

@@ -4,10 +4,10 @@
 
 The dedicated V8 coverage run reported:
 
-- Statements: 8.36%
-- Branches: 6.98%
-- Functions: 9.70%
-- Lines: 8.94%
+- Statements: 10.06%
+- Branches: 8.38%
+- Functions: 11.22%
+- Lines: 10.79%
 
 Coverage report locations:
 
@@ -17,7 +17,7 @@ Coverage report locations:
 
 ## Coverage Interpretation
 
-The 8.94% is the verified line coverage for the dedicated Vitest slice, not total repository or capstone coverage. It increased after adding utilities for notification sound, profile drafts, locations, units, vehicles, validators, delivery, pricing, forecasting, donations, and payments. Overall 80% repository coverage is not verified and is not claimed.
+The 10.79% is the verified line coverage for the dedicated Vitest slice, not total repository or capstone coverage. It increased after adding utilities for notification sound, profile drafts, locations, units, vehicles, validators, delivery, pricing, forecasting, donations, and payments. Overall 80% repository coverage is not verified and is not claimed.
 
 Features without adequate Vitest direct coverage include:
 

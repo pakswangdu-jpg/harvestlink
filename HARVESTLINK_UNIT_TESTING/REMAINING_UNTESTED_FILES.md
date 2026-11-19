@@ -69,4 +69,4 @@ The existing Node presentation suites cover many components, but direct V8/compo
 
 ## Why 80% Is Not Verifiable
 
-The coverage report includes 5,696 lines and 6,904 statements across utility, controller, service, and middleware files. Direct Vitest unit coverage is 8.90% lines. Controllers and external services remain intentionally mocked or excluded from direct execution. Claiming 80% repository coverage would be inaccurate.
+The coverage report includes 5,699 lines and 6,907 statements across utility, controller, service, and middleware files. Direct Vitest unit coverage is 10.79% lines. Controllers and external services remain partially mocked or excluded from direct execution. Claiming 80% repository coverage would be inaccurate.
