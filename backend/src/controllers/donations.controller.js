@@ -79,7 +79,15 @@ function inferPickupStatus(row) {
   return 'none';
 }
 
+const DONATION_WITH_SOURCE_PHOTOS = '*,source_product:products!donations_product_id_fkey(farmer_id,image_urls)';
+
 export function serializeDonation(row, extra = {}) {
+  const sourceImages = row.source_product?.farmer_id === row.farmer_id
+    ? row.source_product?.image_urls
+    : null;
+  const imageUrls = Array.isArray(row.image_urls) && row.image_urls.length
+    ? row.image_urls
+    : [...new Set([row.image_url, ...(sourceImages || [])].filter(Boolean))].slice(0, 10);
   return {
     id: row.id,
     productId: row.product_id,
@@ -90,7 +98,8 @@ export function serializeDonation(row, extra = {}) {
     claimedQuantity: Number(row.claimed_quantity || 0),
     location: row.location,
     description: row.description || '',
-    image: row.image_url || '',
+    image: row.image_url || imageUrls[0] || '',
+    imageUrls,
     expirationDate: row.expiration_date,
     expirationAt: row.expiration_at || null,
     farmerId: row.farmer_id,
@@ -146,7 +155,7 @@ export function serializeClaim(row) {
 }
 
 function scopedQuery(profile, options) {
-  let query = supabaseAdmin.from('donations').select('*', options);
+  let query = supabaseAdmin.from('donations').select(options ? '*' : DONATION_WITH_SOURCE_PHOTOS, options);
   if (profile.role === 'farmer') query = query.eq('farmer_id', profile.id);
   if (profile.role === 'stakeholder') query = query.or(`status.in.(available,fully_claimed),requested_by_id.eq.${profile.id}`);
   return query;
@@ -203,7 +212,7 @@ export async function listDonations(req, res) {
       .from('donation_claims').select('donation_id').eq('stakeholder_id', req.profile.id);
     if (claimsError && !['42P01', 'PGRST205'].includes(claimsError.code)) throw new ApiError(claimsError.message, 400);
     const ids = [...new Set((claims || []).map((claim) => claim.donation_id))];
-    query = supabaseAdmin.from('donations').select('*');
+    query = supabaseAdmin.from('donations').select(DONATION_WITH_SOURCE_PHOTOS);
     const filters = [`requested_by_id.eq.${req.profile.id}`];
     if (ids.length) filters.push(`id.in.(${ids.join(',')})`);
     query = query.or(filters.join(','));

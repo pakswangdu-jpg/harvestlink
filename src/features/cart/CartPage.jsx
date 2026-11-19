@@ -30,12 +30,16 @@ export default function CartPage() {
   useEffect(() => {
     if (!items.length) return undefined;
     let cancelled = false;
+    let refreshing = false;
     const loadProducts = () => {
+      if (refreshing) return;
+      refreshing = true;
       Promise.all(items.map((item) => (
-        getProductById(item.productId)
+        getProductById(item.productId, { fresh: true })
           .then((product) => [item.productId, product])
           .catch(() => [item.productId, null])
       ))).then((pairs) => {
+        refreshing = false;
         if (cancelled) return;
         setProductsById(Object.fromEntries(pairs));
       });

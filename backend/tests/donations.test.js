@@ -66,6 +66,25 @@ test('donation API uses shared storage and authenticated identity', async (t) =>
     assert.equal(response.length, 1);
   });
 
+  await t.test('legacy donation listings recover the source gallery and keep their saved cover first', async () => {
+    const cover = '/cover.jpg';
+    const second = '/second.jpg';
+    const legacy = { ...donation, image_url: cover, source_product: { farmer_id: id, image_urls: [cover, second] } };
+    result.data = [
+      legacy,
+      { ...legacy, image_urls: [cover, '/saved.jpg'] },
+      { ...legacy, source_product: { ...legacy.source_product, farmer_id: actor } },
+    ];
+    await api.listDonations(req(), res);
+    assert.ok(calls.some(([method, fields]) => method === 'select' && fields.includes('source_product:products')));
+    assert.deepEqual(response.map((row) => row.imageUrls), [[cover, second], [cover, '/saved.jpg'], [cover]]);
+    assert.equal(response[0].image, cover);
+
+    result.data = legacy;
+    await api.getDonation(req(), res);
+    assert.deepEqual(response.imageUrls, [cover, second]);
+  });
+
   await t.test('farmer listings are scoped to the signed-in farmer', async () => {
     result.data = [donation];
     const request = req();

@@ -12,7 +12,11 @@ const traceabilityMigration = await readFile(new URL('../../supabase/migrations/
 const unifiedMessagingMigration = await readFile(new URL('../../supabase/migrations/20261101_unified_listing_messaging.sql', import.meta.url), 'utf8');
 const compactDonationMessageQuantitiesMigration = await readFile(new URL('../../supabase/migrations/20261112_compact_donation_message_quantities.sql', import.meta.url), 'utf8');
 const addStockToExistingDonationMigration = await readFile(new URL('../../supabase/migrations/20261113_add_stock_to_existing_donation.sql', import.meta.url), 'utf8');
+const productGalleryMigration = await readFile(new URL('../../supabase/migrations/20261102_product_image_gallery.sql', import.meta.url), 'utf8');
+const donationGalleryMigration = await readFile(new URL('../../supabase/migrations/20261119010000_donation_image_gallery.sql', import.meta.url), 'utf8');
 const productInventoryRealtimeMigration = await readFile(new URL('../../supabase/migrations/20261103_product_inventory_realtime.sql', import.meta.url), 'utf8');
+const productPriceRealtimeMigration = await readFile(new URL('../../supabase/migrations/20261119010100_product_price_realtime.sql', import.meta.url), 'utf8');
+const productPriceUpdatedAtMigration = await readFile(new URL('../../supabase/migrations/20261119010200_product_price_updated_at.sql', import.meta.url), 'utf8');
 const confirmedOrderCancellationMigration = await readFile(new URL('../../supabase/migrations/20261104_prevent_confirmed_order_cancellation.sql', import.meta.url), 'utf8');
 
 const baseSchema = `
@@ -33,7 +37,8 @@ const baseSchema = `
     id uuid primary key, farmer_id uuid, name text, unit text, price numeric,
     cost_price numeric, quantity numeric, location text, image_url text,
     description text, status text, selling_type text, moq numeric, wholesale_price numeric,
-    wholesale_min_quantity numeric, price_review jsonb, expiration_date date,
+    wholesale_min_quantity numeric, original_price numeric, discount_percent numeric,
+    price_review jsonb, expiration_date date,
     updated_at timestamptz
   );
   create table orders(
@@ -81,6 +86,10 @@ test('inventory reservations, product context columns, and donation claims are a
   await db.exec(migration);
   await db.exec(productInventoryRealtimeMigration);
   await db.exec(productInventoryRealtimeMigration);
+  await db.exec(productPriceRealtimeMigration);
+  await db.exec(productPriceRealtimeMigration);
+  await db.exec(productPriceUpdatedAtMigration);
+  await db.exec(productPriceUpdatedAtMigration);
   await db.exec(traceabilityMigration);
   await db.exec(traceabilityMigration);
   await db.exec(unifiedMessagingMigration);
@@ -327,9 +336,26 @@ test('inventory reservations, product context columns, and donation claims are a
     await db.query(`insert into products(id, farmer_id, name, unit, quantity, location, status)
       values($1, $2, 'CABBAGE', 'KG', 4, 'Cebu City', 'active')`, [secondProduct, farmer]);
 
+    await db.exec(productGalleryMigration);
+    await db.query(`update products set image_url = '/cover.jpg', image_urls = array['/cover.jpg', '/second.jpg']
+      where id = $1`, [product]);
+    const legacy = await row('select * from create_surplus_donation($1,$2,$3)', [
+      farmer, product, new Date(Date.parse(expirationAt) + 2000).toISOString(),
+    ]);
+    await db.exec(donationGalleryMigration);
+    await db.exec(donationGalleryMigration);
+    const backfilled = await row('select image_urls from donations where id = $1', [legacy.id]);
+    assert.deepEqual(backfilled.image_urls, ['/cover.jpg', '/second.jpg']);
+
+    await db.query('update products set quantity = 6, status = $2 where id = $1', [product, 'active']);
+    await db.query(`update products set image_url = '/second.jpg', image_urls = array['/second.jpg', '/third.jpg']
+      where id = $1`, [secondProduct]);
     const existing = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, product, expirationAt]);
+    assert.deepEqual(existing.image_urls, ['/cover.jpg', '/second.jpg']);
     const added = await row('select * from create_surplus_donation($1,$2,$3)', [farmer, secondProduct, expirationAt]);
     assert.equal(added.id, existing.id);
+    assert.equal(added.image_url, '/cover.jpg');
+    assert.deepEqual(added.image_urls, ['/cover.jpg', '/second.jpg', '/third.jpg']);
     assert.equal(Number(added.quantity), 10);
     assert.equal(Number(added.available_quantity), 10);
     assert.equal(Number((await row('select quantity from products where id = $1', [secondProduct])).quantity), 0);
@@ -355,6 +381,36 @@ test('inventory reservations, product context columns, and donation claims are a
     const privileges = await row(`select has_function_privilege($1, 'create_marketplace_order(uuid,jsonb)', 'execute') as order_write,
       has_function_privilege($1, 'claim_surplus_donation(uuid,uuid,numeric)', 'execute') as donation_write`, ['authenticated']);
     assert.deepEqual(privileges, { order_write: false, donation_write: false });
+  });
+
+  await t.test('price-only edits and wholesale changes publish listing events for the appropriate roles', async () => {
+    await db.query("update products set status = 'active', price_review = null, price = 50 where id = $1", [product]);
+    const eventsSince = async (at) => (await db.query(
+      'select product_id, farmer_id, is_public from product_inventory_events where product_id = $1 and recorded_at > $2',
+      [product, at],
+    )).rows;
+    const { since } = await row('select clock_timestamp()::text as since');
+    await db.query('update products set price = 55 where id = $1', [product]);
+    await db.query('update products set wholesale_price = 40, wholesale_min_quantity = 2 where id = $1', [product]);
+    await db.query('update products set price = price where id = $1', [product]);
+    assert.deepEqual(await eventsSince(since), [
+      { product_id: product, farmer_id: farmer, is_public: true },
+      { product_id: product, farmer_id: farmer, is_public: true },
+    ]);
+
+    const { since: privateSince } = await row('select clock_timestamp()::text as since');
+    await db.query(`update products set price = 70, price_review = '{"status":"pending"}' where id = $1`, [product]);
+    assert.deepEqual(await eventsSince(privateSince), [{ product_id: product, farmer_id: farmer, is_public: false }]);
+  });
+
+  await t.test('the price timestamp advances for a discount but stays fixed for stock edits and no-op saves', async () => {
+    const retail = await row('update products set price = 80 where id = $1 returning price_updated_at::text as at', [product]);
+    const stock = await row('update products set quantity = quantity + 1, price = price where id = $1 returning price_updated_at::text as at', [product]);
+    assert.ok(retail.at);
+    assert.equal(stock.at, retail.at);
+    const discounted = await row(`update products set price = 72, original_price = 80, discount_percent = 10
+      where id = $1 returning price_updated_at > $2::timestamptz as advanced`, [product, retail.at]);
+    assert.equal(discounted.advanced, true);
   });
 
   await t.test('messaging grants backend writes while keeping browser writes revoked', async () => {

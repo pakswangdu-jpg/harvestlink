@@ -88,7 +88,7 @@ export default function FarmerProducts() {
       .subscribe((status) => {
         if (['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) setLoadError(true);
       });
-    const interval = setInterval(reload, 30000);
+    const interval = setInterval(reload, 5000);
     return () => {
       window.removeEventListener('focus', reload);
       clearInterval(interval);

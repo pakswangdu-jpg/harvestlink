@@ -16966,10 +16966,7 @@ td {
 }
 
 .marketplace-page .marketplace-price-toolbar {
-  position: sticky;
   align-self: start;
-  top: 12px;
-  z-index: 15;
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -17416,10 +17413,6 @@ td {
 @media (max-width: 640px) {
   .marketplace-page .marketplace-toolbar {
     padding: 12px;
-  }
-
-  .marketplace-page .marketplace-price-toolbar {
-    top: 8px;
   }
 
   .marketplace-page .marketplace-filters .search-field,

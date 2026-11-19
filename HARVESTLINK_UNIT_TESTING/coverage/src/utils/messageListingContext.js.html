@@ -34,30 +34,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">80% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/15</span>
+                <span class='fraction'>12/15</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">62.5% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/8</span>
+                <span class='fraction'>5/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/2</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">85.71% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>12/14</span>
             </div>
         
             
@@ -72,7 +72,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -100,54 +100,54 @@
 <a name='L24'></a><a href='#L24'>24</a>
 <a name='L25'></a><a href='#L25'>25</a>
 <a name='L26'></a><a href='#L26'>26</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export function <span class="fstat-no" title="function not covered" >getListingContextMessageIds(</span>messages) {
-  const visibleMessageIds = <span class="cstat-no" title="statement not covered" >new Set();</span>
-  let previousContextKey = <span class="cstat-no" title="statement not covered" >null;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export function getListingContextMessageIds(messages) {
+  const visibleMessageIds = new Set();
+  let previousContextKey = null;
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  messages.forEach(<span class="fstat-no" title="function not covered" >(m</span>essage) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (message.productContext?.productId) {</span>
-<span class="cstat-no" title="statement not covered" >      visibleMessageIds.add(message.id);</span>
-<span class="cstat-no" title="statement not covered" >      previousContextKey = `product:${message.productContext.productId}`;</span>
-<span class="cstat-no" title="statement not covered" >      return;</span>
+  messages.forEach((message) =&gt; {
+    if (message.productContext?.productId) {
+      visibleMessageIds.add(message.id);
+      previousContextKey = `product:${message.productContext.productId}`;
+      return;
     }
 &nbsp;
-    const contextKey = <span class="cstat-no" title="statement not covered" >message.donationContext?.donationId</span>
-      ? `donation:${message.donationContext.donationId}`
+    const contextKey = message.donationContext?.donationId
+      ? <span class="branch-0 cbranch-no" title="branch not covered" >`donation:${message.donationContext.donationId}`</span>
       : null;
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (!contextKey) {</span>
-<span class="cstat-no" title="statement not covered" >      previousContextKey = null;</span>
-<span class="cstat-no" title="statement not covered" >      return;</span>
+    if (!contextKey) {
+      previousContextKey = null;
+      return;
     }
 <span class="cstat-no" title="statement not covered" >    if (contextKey !== previousContextKey) <span class="cstat-no" title="statement not covered" >visibleMessageIds.add(message.id);</span></span>
 <span class="cstat-no" title="statement not covered" >    previousContextKey = contextKey;</span>
   });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  return visibleMessageIds;</span>
+  return visibleMessageIds;
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -156,7 +156,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-11-18T20:48:40.313Z
+                at 2026-11-19T09:03:46.582Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

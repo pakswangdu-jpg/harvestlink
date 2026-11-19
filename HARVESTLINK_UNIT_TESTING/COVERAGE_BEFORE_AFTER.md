@@ -11,18 +11,19 @@
 
 ## After
 
-- Statements: 8.36%
-- Branches: 6.98%
-- Functions: 9.70%
-- Lines: 8.94%
-- Dedicated Vitest files: 40
-- Dedicated passing cases: 126
+- Statements: 10.06%
+- Branches: 8.38%
+- Functions: 11.22%
+- Lines: 10.79%
+- Dedicated Vitest files: 49
+- Dedicated passing cases: 151
 
 ## Improvement
 
-- Statements: +2.90 percentage points
-- Branches: +2.89 percentage points
-- Functions: +3.45 percentage points
-- Lines: +3.20 percentage points
+- Statements: +4.60 percentage points
+- Branches: +4.29 percentage points
+- Functions: +4.97 percentage points
+- Lines: +5.05 percentage points
+
 
 The 80% repository target was not reached in this Vitest slice. Reaching 80% overall would require direct controller/component integration coverage plus browser and external-provider test infrastructure beyond unit testing.
