@@ -40,13 +40,17 @@ export function ToastProvider({ children }) {
   useEffect(() => {
     let timeoutId;
     try {
-      if (sessionStorage.getItem(LOGOUT_NOTICE_KEY) !== '1') return;
+      const notice = sessionStorage.getItem(LOGOUT_NOTICE_KEY);
+      if (notice !== '1' && notice !== 'admin') return;
       sessionStorage.removeItem(LOGOUT_NOTICE_KEY);
+      const isAdmin = notice === 'admin';
       timeoutId = window.setTimeout(() => {
         showToast({
           type: 'success',
-          title: 'Signed out',
-          message: 'You have been safely signed out of HarvestLink.',
+          title: isAdmin ? 'Signed out as administrator' : 'Signed out',
+          message: isAdmin
+            ? 'You have been safely signed out of the HarvestLink Admin Portal.'
+            : 'You have been safely signed out of HarvestLink.',
         });
       }, 0);
     } catch {
@@ -67,4 +71,10 @@ export function useToast() {
   const context = useContext(ToastContext);
   if (!context) throw new Error('useToast must be used inside ToastProvider.');
   return context;
+}
+
+const NOOP_TOAST = { showToast: () => {} };
+
+export function useOptionalToast() {
+  return useContext(ToastContext) || NOOP_TOAST;
 }

@@ -9,6 +9,7 @@ import Pagination from '../../components/admin/Pagination';
 import Button from '../../components/admin/Button';
 import DocumentCard from '../../components/admin/DocumentCard';
 import { useAuth } from '../auth/AuthContext';
+import { useOptionalToast } from '../../contexts/ToastContext';
 import { getAdminUserPage, getAdminUserDetails, getVerificationDocuments, setAccountStatus, setUserVerification } from '../../services/authService';
 import { formatDate, formatTime } from '../../utils/formatters';
 import { adminNavItems } from './adminNav';
@@ -116,6 +117,7 @@ function UserDetails({ id, adminId, onClose, onChanged }) {
 
 export default function AdminUsers() {
   const { currentUser } = useAuth();
+  const { showToast } = useOptionalToast();
   const [filters, setFilters] = useState(BASE);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +172,6 @@ export default function AdminUsers() {
       { key:'createdAt',label:'Created',render:(user) => formatDate(user.createdAt) },
       { key:'action',label:'Action',render:(user) => <button className="admin-user-link" type="button" onClick={() => setSelectedId(user.id)} aria-label={`View details for ${user.name}`}>View details <ArrowRight size={14} /></button> },
     ]} rows={result.users} emptyMessage={empty} /></div><Pagination page={filters.page} pageSize={10} total={result.total} onPageChange={(page) => { setLoading(true); setFilters((old) => ({ ...old,page })); }} /></> : null}
-    {selectedId ? <UserDetails key={selectedId} id={selectedId} adminId={currentUser.id} onClose={() => setSelectedId(null)} onChanged={(message) => { setNotice(message); setLoading(true); setRefresh((value) => value + 1); }} /> : null}
+    {selectedId ? <UserDetails key={selectedId} id={selectedId} adminId={currentUser.id} onClose={() => setSelectedId(null)} onChanged={(message) => { setNotice(message); showToast({ type: 'success', title: 'Account updated', message }); setLoading(true); setRefresh((value) => value + 1); }} /> : null}
   </div></AppShell>;
 }

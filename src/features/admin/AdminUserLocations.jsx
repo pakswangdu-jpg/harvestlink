@@ -5,6 +5,7 @@ import { MapPin, RefreshCw, RotateCcw, Search, Users } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
 import { useAuth } from '../auth/AuthContext';
+import { useOptionalToast } from '../../contexts/ToastContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAdminUserLocations, sendAdminLocationReminder } from '../../services/authService';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
@@ -222,6 +223,7 @@ function SummaryItem({ label, value, tone = 'default' }) {
 
 export default function AdminUserLocations() {
   const { currentUser } = useAuth();
+  const { showToast } = useOptionalToast();
   const { effectiveTheme } = useTheme();
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
@@ -484,8 +486,18 @@ export default function AdminUserLocations() {
     try {
       await sendAdminLocationReminder(user.id);
       setReminderState((previous) => ({ ...previous, [user.id]: { status: 'sent', message: 'Reminder sent.' } }));
+      showToast({
+        type: 'success',
+        title: 'Location reminder sent',
+        message: `Location reminder sent to ${user.name}.`,
+      });
     } catch (error) {
       setReminderState((previous) => ({ ...previous, [user.id]: { status: 'error', message: error.message } }));
+      showToast({
+        type: 'error',
+        title: 'Reminder failed',
+        message: error.message || 'Unable to send location reminder.',
+      });
     }
   };
 

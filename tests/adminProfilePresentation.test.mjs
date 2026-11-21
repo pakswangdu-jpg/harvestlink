@@ -17,6 +17,7 @@ async function fixture(user, changePassword = async () => {}) {
   const scope = {
     React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }) },
     useAuth: () => ({ currentUser: user }),
+    useOptionalToast: () => ({ showToast: () => {} }),
     useState: initial => { const i = index++; if (!(i in state)) state[i] = initial; return [state[i], value => { state[i] = typeof value === 'function' ? value(state[i]) : value; }]; },
     useRef: () => ref, hasErrors, validatePasswordForm, changePassword,
     getInitials: () => 'HA', formatDate: value => value || 'Not available', adminNavItems: [],

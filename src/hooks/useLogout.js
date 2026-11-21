@@ -5,7 +5,7 @@ import { useToast } from '../contexts/ToastContext';
 export const LOGOUT_NOTICE_KEY = 'harvestlink:logout-notice';
 
 export function useLogout() {
-  const { logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { showToast } = useToast();
   const pendingRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -23,10 +23,11 @@ export function useLogout() {
     if (!isConfirmOpen || pendingRef.current) return;
     pendingRef.current = true;
     setIsLoggingOut(true);
+    const isAdmin = currentUser?.role === 'admin';
     try {
       await logout();
-      window.sessionStorage?.setItem(LOGOUT_NOTICE_KEY, '1');
-      window.location.assign('/');
+      window.sessionStorage?.setItem(LOGOUT_NOTICE_KEY, isAdmin ? 'admin' : '1');
+      window.location.assign(isAdmin ? '/admin' : '/');
     } catch {
       pendingRef.current = false;
       setIsLoggingOut(false);

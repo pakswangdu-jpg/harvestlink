@@ -17,6 +17,7 @@ import Pagination from '../../components/admin/Pagination';
 import { usePagination } from '../../components/admin/usePagination';
 import { productStatusTone } from '../../components/admin/statusTone';
 import { useAuth } from '../auth/AuthContext';
+import { useOptionalToast } from '../../contexts/ToastContext';
 import { useCatalog } from '../../contexts/CatalogContext';
 import {
   getDeclinedPriceReviews, reactivatePriceReview,
@@ -80,6 +81,7 @@ const STATUS_FILTER_OPTIONS = ['all', ...Object.keys(STATUS_META)];
 
 export default function AdminPriceMonitoring() {
   const { currentUser } = useAuth();
+  const { showToast } = useOptionalToast();
   const {
     categories, units, refresh: refreshCatalog,
   } = useCatalog();
@@ -194,7 +196,13 @@ export default function AdminPriceMonitoring() {
   const modalInitialPrice = modalCommodity?.referencePrice ?? null;
 
   const handleConfirmOverride = async (price, details) => {
+    const label = modalCommodity?.label || 'Commodity';
     await saveOverride(modalCommodity.id, price, details);
+    showToast({
+      type: 'success',
+      title: 'Reference price updated',
+      message: `${label} reference price updated to ${formatCurrency(price)}/${details?.unit || modalCommodity?.unit || 'kg'}.`,
+    });
   };
 
   const handleResetOverride = (row) => setConfirmation({ type: 'reset', row });
@@ -209,10 +217,25 @@ export default function AdminPriceMonitoring() {
         reloadListings();
         reloadDeclined();
       }
-      setReviewNotice(confirmation.type === 'reset' ? `${confirmation.row.label}'s admin reference price was deactivated.` : `${confirmation.row.name}'s listing was reactivated.`);
+      const nextMessage = confirmation.type === 'reset'
+        ? `${confirmation.row.label}'s admin reference price was deactivated.`
+        : `${confirmation.row.name}'s listing was reactivated.`;
+      setReviewNotice(nextMessage);
       setReviewError('');
+      showToast({
+        type: 'success',
+        title: confirmation.type === 'reset' ? 'Reference price deactivated' : 'Listing reactivated',
+        message: nextMessage,
+      });
       setConfirmation(null);
-    } catch (error) { setReviewError(error.message); }
+    } catch (error) {
+      setReviewError(error.message);
+      showToast({
+        type: 'error',
+        title: 'Update failed',
+        message: error.message || 'Unable to complete the price monitoring update.',
+      });
+    }
     finally { actionLock.current = false; setConfirming(false); }
   };
 
@@ -231,16 +254,26 @@ export default function AdminPriceMonitoring() {
     });
   };
 
-  const handleAddCommodity = async () => {
+  const handleAddCommodity = async (createdName = '') => {
     await refreshCatalog();
     await reloadCommodityCatalog();
     setAddCommodityOpen(false);
+    showToast({
+      type: 'success',
+      title: 'Commodity added',
+      message: createdName ? `${createdName} was added to the commodity catalog.` : 'New commodity added to the catalog.',
+    });
   };
 
   const handleAddReferencePrice = async (row, price, details) => {
     await saveOverride(row.id, price, details);
     await refreshCatalog();
     reloadListings();
+    showToast({
+      type: 'success',
+      title: 'Reference price added',
+      message: `${row.label} reference price set to ${formatCurrency(price)}/${details?.unit || row.unit || 'kg'}.`,
+    });
   };
 
   return (
@@ -391,8 +424,14 @@ export default function AdminPriceMonitoring() {
         <PendingReviews
           reviews={reviews}
           commodities={rows}
-          onNotice={setReviewNotice}
-          onError={setReviewError}
+          onNotice={(message) => {
+            setReviewNotice(message);
+            if (message) showToast({ type: 'success', title: 'Price review updated', message });
+          }}
+          onError={(message) => {
+            setReviewError(message);
+            if (message) showToast({ type: 'error', title: 'Price review failed', message });
+          }}
           onReload={() => { reloadListings(); reloadDeclined(); }}
         />
       </Card>

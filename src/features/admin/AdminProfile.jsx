@@ -7,6 +7,7 @@ import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import FormAlert from '../../components/common/FormAlert';
 import { useAuth } from '../auth/AuthContext';
+import { useOptionalToast } from '../../contexts/ToastContext';
 import { changePassword } from '../../services/authService';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { hasErrors, validatePasswordForm } from '../../utils/validators';
@@ -17,6 +18,7 @@ const EMPTY_PASSWORD = { currentPassword: '', newPassword: '', confirmPassword: 
 
 export default function AdminProfile() {
   const { currentUser: user } = useAuth();
+  const { showToast } = useOptionalToast();
   const [editingPassword, setEditingPassword] = useState(false);
   const [draft, setDraft] = useState(EMPTY_PASSWORD);
   const [errors, setErrors] = useState({});
@@ -46,6 +48,11 @@ export default function AdminProfile() {
       setDraft(EMPTY_PASSWORD);
       setEditingPassword(false);
       setNotice('Password changed.');
+      showToast({
+        type: 'success',
+        title: 'Password updated',
+        message: 'Your admin password has been changed.',
+      });
     } catch (error) {
       setErrors({ form: error.message || 'Unable to change your password. Please try again.' });
     } finally {

@@ -24,8 +24,9 @@ export default function AddCommodityModal({ open, categories, units, onClose, on
     setError('');
     setSaving(true);
     try {
+      const createdName = values.name.trim();
       await createCommodity(values);
-      await onCreated();
+      await onCreated(createdName);
       setValues({ name: '', variety: '', category: '', unit: '', description: '', isActive: true });
     } catch (submitError) {
       setError(submitError.message || 'Could not add this commodity.');

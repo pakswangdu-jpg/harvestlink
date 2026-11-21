@@ -4,6 +4,7 @@ import Button from '../../../components/admin/Button';
 import Input from '../../../components/admin/Input';
 import Alert from '../../../components/admin/Alert';
 import Select from '../../../components/admin/Select';
+import { useOptionalToast } from '../../../contexts/ToastContext';
 import { formatCurrency } from '../../../utils/formatters';
 
 const MAX_OVERRIDE_PRICE = 999999;
@@ -12,6 +13,7 @@ const MAX_OVERRIDE_PRICE = 999999;
 
 
 function BulkUpdateForm({ rows, onClose, onConfirm }) {
+  const { showToast } = useOptionalToast();
   const [mode, setMode] = useState('fixed');
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
@@ -54,6 +56,11 @@ function BulkUpdateForm({ rows, onClose, onConfirm }) {
     }
     setSaving(false);
     setResult({ succeeded, failed });
+    showToast({
+      type: failed ? 'warning' : 'success',
+      title: failed ? 'Bulk price update completed with issues' : 'Reference prices updated',
+      message: `Updated ${succeeded} of ${rows.length} commodities${failed ? ` (${failed} failed).` : '.'}`,
+    });
     if (failed === 0) setTimeout(onClose, 900);
   };
 
