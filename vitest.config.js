@@ -1,21 +1,10 @@
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  plugins: [react()],
   test: {
-    include: ['HARVESTLINK_UNIT_TESTING/unit-tests/**/*.test.{js,mjs,jsx}'],
+    include: ['tests/Unit-Testing/**/*.test.{js,jsx}'],
     environment: 'node',
-    coverage: {
-      provider: 'v8',
-      reportsDirectory: 'HARVESTLINK_UNIT_TESTING/coverage',
-      reporter: ['text', 'html', 'json-summary', 'json'],
-      include: [
-        'src/utils/**/*.js',
-        'src/services/**/*.js',
-        'backend/src/lib/**/*.js',
-        'backend/src/controllers/**/*.js',
-        'backend/src/middleware/**/*.js',
-      ],
-      exclude: ['**/*.test.*', '**/node_modules/**'],
-    },
   },
 });
