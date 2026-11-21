@@ -58,13 +58,15 @@
 
 .admin-forecast-table-wrap { max-width: 100%; overflow-x: auto; }
 .admin-forecast-table-wrap:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
-.admin-forecast-table-wrap table { width: 100%; min-width: 880px; border-collapse: collapse; text-align: left; font-size: 13px; }
+.admin-forecast-table-wrap table { width: 100%; min-width: 960px; table-layout: auto; border-collapse: collapse; text-align: left; font-size: 13px; }
 .admin-forecast-table-wrap th { background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; }
-.admin-forecast-table-wrap :is(th, td) { padding: 10px; border-bottom: 1px solid var(--line); }
+.admin-forecast-table-wrap :is(th, td) { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.admin-forecast-table-wrap :is(th, td):first-child { min-width: 210px; padding-right: 18px; white-space: normal; }
 .admin-forecast-table-wrap tbody tr:last-child td { border-bottom: 0; }
 .admin-forecast-table-wrap tbody tr.is-selected { background: color-mix(in srgb, var(--green-100) 45%, var(--panel)); }
-.admin-forecast-table-wrap td { color: var(--text); white-space: nowrap; }
-.admin-forecast-table-wrap td button { min-height: 40px; padding: 2px 4px; border: 0; background: transparent; color: var(--green-700); font-weight: 600; text-align: left; cursor: pointer; }
+.admin-forecast-table-wrap td { color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.admin-forecast-table-wrap td button { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px; max-width: 100%; min-height: 40px; padding: 4px 6px; border: 0; border-radius: 4px; background: transparent; color: var(--green-700); font-weight: 600; line-height: 1.35; text-align: left; white-space: normal; cursor: pointer; }
+.admin-forecast-table-wrap td button small { color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
 .admin-forecast-table-wrap td button:hover { text-decoration: underline; }
 .admin-forecast-table-wrap td button:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
 
