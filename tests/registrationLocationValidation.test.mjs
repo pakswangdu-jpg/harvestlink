@@ -18,11 +18,12 @@ test('all account types can satisfy the shared registration GPS location require
   }
 });
 
-test('registration accepts valid coordinates with desktop or indoor GPS accuracy and rejects invalid values', () => {
-  const form = { latitude: 10.3, longitude: 123.9, locationAccuracyMeters: 200 };
-  assert.equal(hasAcceptableRegistrationLocation(form), true);
-  assert.equal(hasAcceptableRegistrationLocation({ ...form, locationAccuracyMeters: 30, latitude: null }), false);
-  assert.equal(hasAcceptableRegistrationLocation({ ...form, locationAccuracyMeters: 30, longitude: 181 }), false);
+test('registration accepts valid coordinates from any location regardless of GPS accuracy and rejects invalid values', () => {
+  for (const accuracy of [100, 200, 500, 2500]) {
+    assert.equal(hasAcceptableRegistrationLocation({ latitude: 14.5995, longitude: 120.9842, locationAccuracyMeters: accuracy }), true);
+  }
+  assert.equal(hasAcceptableRegistrationLocation({ latitude: null, longitude: 123.9, locationAccuracyMeters: 30 }), false);
+  assert.equal(hasAcceptableRegistrationLocation({ latitude: 10.3, longitude: 181, locationAccuracyMeters: 30 }), false);
 });
 
 test('GPS accuracy validation rejects invalid values and accepts non-negative readings', () => {

@@ -928,10 +928,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
     setForm((previous) => ({
       ...previous,
       [field]: value,
-      ...(field === 'address' ? { latitude: null, longitude: null, locationAccuracyMeters: null, zipCode: '' } : {}),
-      ...(field === 'municipality' || field === 'barangay' || field === 'role'
-        ? { latitude: null, longitude: null, locationAccuracyMeters: null }
-        : {}),
+      ...(field === 'role' ? { latitude: null, longitude: null, locationAccuracyMeters: null } : {}),
     }));
     setErrors((previous) => {
       const next = { ...previous, [field]: undefined, location: undefined, form: undefined };
@@ -1041,33 +1038,53 @@ export default function AuthPage({ mode, adminPortal = false }) {
         setLocationNotice('Location reading was invalid. Check your device Location Services and try again.');
         return;
       }
-      const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
-      if (request.signal.aborted) return;
       const accuracyText = ` Location accuracy is about ${Math.round(accuracy)} m.`;
-      if (!reverse) {
-        setLocationNotice(`No address was found for your GPS location.${accuracyText} Check your location settings and try again.`);
+      setForm((previous) => ({
+        ...previous,
+        latitude,
+        longitude,
+        locationAccuracyMeters: accuracy,
+      }));
+      setErrors((previous) => ({ ...previous, location: undefined, form: undefined }));
+      setMessage('');
+
+      let reverse = null;
+      try {
+        reverse = await reverseGeocode({ lat: latitude, lng: longitude });
+      } catch {
+        if (request.signal.aborted) return;
+        setLocationNotice(`GPS location captured.${accuracyText} Address lookup was unavailable; please enter or verify your address fields manually.`);
         return;
       }
-      if (!reverse.municipality) {
-        setLocationNotice(`The GPS location could not be matched to a supported Cebu municipality.${accuracyText} Capture the location again at your registered site.`);
+      if (request.signal.aborted) return;
+      if (!reverse) {
+        setLocationNotice(`GPS location captured.${accuracyText} Please enter or verify your address fields manually.`);
         return;
       }
       setForm((previous) => ({
         ...previous,
-        municipality: reverse.municipality,
-        address: isStakeholderRegister ? reverse.street : reverse.address,
-        ...(isStakeholderRegister ? { barangay: reverse.barangay } : {}),
-        zipCode: reverse.zipCode,
+        ...(reverse.municipality ? { municipality: reverse.municipality } : {}),
+        ...(isStakeholderRegister
+          ? (reverse.street ? { address: reverse.street } : {})
+          : (reverse.address ? { address: reverse.address } : {})),
+        ...(isStakeholderRegister && reverse.barangay ? { barangay: reverse.barangay } : {}),
+        ...(reverse.zipCode ? { zipCode: reverse.zipCode } : {}),
         latitude,
         longitude,
         locationAccuracyMeters: accuracy,
       }));
       setErrors((previous) => ({
-        ...previous, municipality: undefined, address: undefined,
-        ...(isStakeholderRegister ? { barangay: undefined } : {}),
-        location: undefined, form: undefined,
+        ...previous,
+        ...(reverse.municipality ? { municipality: undefined } : {}),
+        ...((isStakeholderRegister ? reverse.street : reverse.address) ? { address: undefined } : {}),
+        ...(isStakeholderRegister && reverse.barangay ? { barangay: undefined } : {}),
+        location: undefined,
+        form: undefined,
       }));
-      setMessage('');
+      if (!reverse.municipality) {
+        setLocationNotice(`GPS location captured.${accuracyText} Please select your municipality and verify your address fields.`);
+        return;
+      }
       const missing = [
         isStakeholderRegister && !reverse.barangay ? 'barangay' : null,
         !reverse.street ? 'street' : null,
