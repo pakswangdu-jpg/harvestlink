@@ -5,13 +5,19 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/hooks/useLogout.js', import.meta.url), 'utf8');
 
-async function setup(logout = async () => {}) {
+async function setup(logout = async () => {}, currentUser = null) {
   const slots = [];
   let index = 0;
   let logoutCalls = 0;
   const redirects = [];
   const toasts = [];
-  const context = vm.createContext({ window: { location: { assign: (url) => redirects.push(url) } } });
+  const storage = new Map();
+  const context = vm.createContext({
+    window: {
+      location: { assign: (url) => redirects.push(url) },
+      sessionStorage: { setItem: (key, value) => storage.set(key, value) },
+    },
+  });
   const imports = {
     react: {
       useRef(value) { const slot = index++; return slots[slot] ??= { current: value }; },
@@ -21,7 +27,7 @@ async function setup(logout = async () => {}) {
         return [slots[slot], (next) => { slots[slot] = next; }];
       },
     },
-    '../features/auth/AuthContext': { useAuth: () => ({ logout: async () => { logoutCalls++; await logout(); } }) },
+    '../features/auth/AuthContext': { useAuth: () => ({ currentUser, logout: async () => { logoutCalls++; await logout(); } }) },
     '../contexts/ToastContext': { useToast: () => ({ showToast: (toast) => toasts.push(toast) }) },
   };
   const module = new vm.SourceTextModule(source, { context });
@@ -37,6 +43,7 @@ async function setup(logout = async () => {}) {
     calls: () => logoutCalls,
     redirects,
     toasts,
+    storage,
   };
 }
 
@@ -91,4 +98,13 @@ test('Desktop and standalone mobile logout controls render the same accessible d
   assert.match(dialog, /disabled=\{busy\} autoFocus>Stay signed in/);
   assert.match(dialog, /You'll need to sign in again to access your account\./);
   assert.match(dialog, /if \(!busy\) onCancel\(\)/);
+});
+
+test('Admin logout signs out as administrator and returns to the Admin Portal entry', async () => {
+  const app = await setup(async () => {}, { id: 'admin-1', role: 'admin' });
+  app.render().handleLogout();
+  await app.render().confirmLogout();
+  assert.equal(app.calls(), 1);
+  assert.equal(app.storage.get('harvestlink:logout-notice'), 'admin');
+  assert.deepEqual(app.redirects, ['/admin']);
 });

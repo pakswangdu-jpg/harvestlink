@@ -12,6 +12,7 @@ async function compile(scope = {}) {
   return new Function('scope', `with(scope){${code};return {AdminUsers, UserDetails, verificationLabel, accountLabel, actionNotice};}`)({
     React: { createElement: element },
     useSearchParams: () => [new URLSearchParams(), () => {}],
+    useOptionalToast: () => ({ showToast: () => {} }),
     ...scope,
   });
 }
