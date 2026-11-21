@@ -27,15 +27,15 @@ export default function AddCommodityModal({ open, categories, units, onClose, on
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const isOtherCategory = values.category.trim().toLowerCase() === 'others';
+  const isOtherCategory = /^others?$/i.test(values.category.trim());
 
   const organizedCategories = useMemo(
     () => categories
       .filter((category) => category.isActive)
       .slice()
       .sort((a, b) => {
-        const aIsOthers = a.name.trim().toLowerCase() === 'others';
-        const bIsOthers = b.name.trim().toLowerCase() === 'others';
+        const aIsOthers = /^others?$/i.test(a.name.trim());
+        const bIsOthers = /^others?$/i.test(b.name.trim());
         if (aIsOthers && !bIsOthers) return 1;
         if (!aIsOthers && bIsOthers) return -1;
         return a.name.localeCompare(b.name);
@@ -55,7 +55,7 @@ export default function AddCommodityModal({ open, categories, units, onClose, on
     setValues((previous) => ({
       ...previous,
       category: nextCategory,
-      customCategory: nextCategory.trim().toLowerCase() === 'others' ? previous.customCategory : '',
+      customCategory: /^others?$/i.test(nextCategory.trim()) ? previous.customCategory : '',
     }));
   };
 
@@ -131,8 +131,9 @@ export default function AddCommodityModal({ open, categories, units, onClose, on
               id="commodity-custom-category"
               value={values.customCategory}
               onChange={(event) => updateCapitalized('customCategory', event.target.value)}
-              placeholder="Enter custom category"
+              placeholder="Type custom category..."
               maxLength={80}
+              autoFocus
               required
             />
           </div>
