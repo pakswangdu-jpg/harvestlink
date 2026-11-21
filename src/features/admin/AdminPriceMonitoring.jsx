@@ -511,7 +511,7 @@ export default function AdminPriceMonitoring() {
       />
       <AddReferencePriceModal
         open={addReferenceOpen}
-        rows={referenceRows}
+        rows={rows}
         onClose={() => setAddReferenceOpen(false)}
         onConfirm={handleAddReferencePrice}
       />
