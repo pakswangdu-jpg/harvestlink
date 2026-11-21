@@ -16,7 +16,7 @@ async function load(path) {
 }
 const parserModule = await load('../src/utils/reverseGeocodeResult.js');
 await parserModule.evaluate();
-const { parseReverseGeocodeResults } = parserModule.namespace;
+const { parseNominatimReverseResult, parseReverseGeocodeResults } = parserModule.namespace;
 const deviceModule = await load('../src/utils/deviceLocation.js');
 await deviceModule.evaluate();
 const { getAccurateDeviceLocation } = deviceModule.namespace;
@@ -36,6 +36,37 @@ test('reverse geocoding fills city, barangay, street, and postcode across result
   assert.equal(location.barangay, 'Mantuyong');
   assert.equal(location.street, '271 A. Del Rosario Street');
   assert.equal(location.zipCode, '6014');
+  assert.equal(location.completeAddress, '271 A. Del Rosario Street, Mantuyong, Mandaue City, Cebu, Philippines');
+});
+
+test('reverse geocoding builds completeAddress even without street or barangay and parses Nominatim fallback', () => {
+  const sparse = parseReverseGeocodeResults([
+    result([
+      component('Mandaue City', 'locality'),
+      component('Cebu', 'administrative_area_level_2'),
+      component('Philippines', 'country', 'PH'),
+      component('6014', 'postal_code'),
+    ], 'Mandaue City, Cebu, Philippines'),
+  ]);
+  assert.equal(sparse.completeAddress, 'Mandaue City, Cebu, Philippines');
+  assert.equal(sparse.zipCode, '6014');
+
+  const nominatim = parseNominatimReverseResult({
+    display_name: 'Cambaro, Mandaue, Cebu, 6014, Philippines',
+    address: {
+      road: 'Plaridel Street',
+      quarter: 'Cambaro',
+      city: 'Mandaue',
+      province: 'Cebu',
+      postcode: '6014',
+      country: 'Philippines',
+      country_code: 'ph',
+    },
+  });
+  assert.equal(nominatim.municipality, 'Mandaue City');
+  assert.equal(nominatim.barangay, 'Cambaro');
+  assert.equal(nominatim.zipCode, '6014');
+  assert.equal(nominatim.completeAddress, 'Plaridel Street, Cambaro, Mandaue City, Cebu, Philippines');
 });
 
 test('city aliases and administrative city components match the dropdown', () => {

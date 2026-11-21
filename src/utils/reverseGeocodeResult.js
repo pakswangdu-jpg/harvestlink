@@ -28,15 +28,62 @@ export function parseReverseGeocodeResults(results) {
     municipality && !findMunicipality(locality) ? locality : '',
   ].find((value) => value && !findMunicipality(value)) || '';
 
+  const countryName = country?.long_name || '';
+  const cityPart = (isSupportedArea ? municipality : null) || cityCandidates[0] || '';
+  const provincePart = province || component('administrative_area_level_1');
+  const composedAddress = [street, barangay, cityPart, provincePart, countryName]
+    .filter(Boolean)
+    .filter((part, idx, arr) => arr.findIndex((p) => p.toLowerCase() === part.toLowerCase()) === idx)
+    .join(', ');
+  const formattedAddress = results[0].formatted_address || '';
+  const completeAddress = composedAddress || formattedAddress;
+
   return {
     address: [street, barangay].filter(Boolean).join(', '),
+    completeAddress,
     street,
     barangay,
     zipCode: component('postal_code'),
     cityText: isSupportedArea ? municipality || cityCandidates[0] || '' : cityCandidates[0] || '',
     municipality: isSupportedArea ? municipality : null,
     isSupportedArea,
-    province: province || component('administrative_area_level_1'),
-    formattedAddress: results[0].formatted_address || '',
+    province: provincePart,
+    country: countryName,
+    formattedAddress,
+  };
+}
+
+export function parseNominatimReverseResult(data) {
+  if (!data || data.error) return null;
+  const addr = data.address || {};
+  const street = [addr.house_number, addr.road || addr.pedestrian || addr.residential].filter(Boolean).join(' ').trim();
+  const barangay = [addr.quarter, addr.suburb, addr.neighbourhood, addr.village, addr.hamlet]
+    .find((value) => value && !findMunicipality(value)) || '';
+  const cityRaw = addr.city || addr.town || addr.municipality || '';
+  const province = addr.province || addr.state || addr.region || '';
+  const countryName = addr.country || '';
+  const countryCode = String(addr.country_code || '').toUpperCase();
+  const municipality = findMunicipality(cityRaw, addr.county, data.display_name);
+  const isSupportedArea = (!countryCode || countryCode === 'PH')
+    && (!province || province.toLowerCase() === 'cebu' || Boolean(findMunicipality(province)) || Boolean(municipality));
+  const cityPart = (isSupportedArea ? municipality : null) || cityRaw;
+  const composedAddress = [street, barangay, cityPart, province, countryName]
+    .filter(Boolean)
+    .filter((part, idx, arr) => arr.findIndex((p) => p.toLowerCase() === part.toLowerCase()) === idx)
+    .join(', ');
+  const completeAddress = composedAddress || data.display_name || '';
+
+  return {
+    address: [street, barangay].filter(Boolean).join(', '),
+    completeAddress,
+    street,
+    barangay,
+    zipCode: String(addr.postcode || '').trim(),
+    cityText: cityPart,
+    municipality: isSupportedArea ? municipality : null,
+    isSupportedArea,
+    province,
+    country: countryName,
+    formattedAddress: data.display_name || completeAddress,
   };
 }
