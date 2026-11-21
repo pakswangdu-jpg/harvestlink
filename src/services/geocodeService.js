@@ -1,5 +1,5 @@
 import { loadGoogleGeocoding } from '../lib/googleMapsLoader';
-import { parseReverseGeocodeResults } from '../utils/reverseGeocodeResult';
+import { parseNominatimReverseResult, parseReverseGeocodeResults } from '../utils/reverseGeocodeResult';
 
 
 
@@ -102,14 +102,38 @@ export async function geocodeAccountLocation({ address, municipality }) {
 
 
 
+async function reverseGeocodeWithNominatim({ lat, lng }) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&addressdetails=1`;
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Nominatim reverse geocoding failed (${response.status}).`);
+  const data = await response.json();
+  return parseNominatimReverseResult(data);
+}
+
 export async function reverseGeocode({ lat, lng }) {
-  const geocoder = await getGeocoder();
+  const numericLat = Number(lat);
+  const numericLng = Number(lng);
+  let googleError = null;
   try {
+    const geocoder = await getGeocoder();
     const { results } = await geocoder.geocode({
-      location: { lat: Number(lat), lng: Number(lng) },
+      location: { lat: numericLat, lng: numericLng },
     });
-    return parseReverseGeocodeResults(results);
+    const parsed = parseReverseGeocodeResults(results);
+    if (parsed && (parsed.completeAddress || parsed.formattedAddress || parsed.address)) {
+      return parsed;
+    }
   } catch (error) {
-    throw new Error('Reverse geocoding failed.', { cause: error });
+    googleError = error;
   }
+
+  try {
+    const fallback = await reverseGeocodeWithNominatim({ lat: numericLat, lng: numericLng });
+    if (fallback) return fallback;
+  } catch (fallbackError) {
+    throw new Error('Reverse geocoding failed.', { cause: fallbackError });
+  }
+
+  if (googleError) throw new Error('Reverse geocoding failed.', { cause: googleError });
+  return null;
 }

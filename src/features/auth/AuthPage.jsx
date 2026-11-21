@@ -470,7 +470,7 @@ function RegistrationLocationControl({
       </Button>
       {locationNotice ? <p className={isStatusNotice ? 'muted' : 'field-error'} role={isStatusNotice ? 'status' : 'alert'}>{locationNotice}</p> : null}
       {!isLocating && error && (accuracy != null || !locationNotice) ? <p className="field-error" role="alert">{error}</p> : null}
-      {accuracy != null ? <p className="muted" role="status">GPS captured with about {Math.round(accuracy)} m accuracy.</p> : null}
+      {accuracy != null && !locationNotice ? <p className="muted" role="status">GPS captured with about {Math.round(accuracy)} m accuracy.</p> : null}
     </div>
   );
 }
@@ -1061,12 +1061,13 @@ export default function AuthPage({ mode, adminPortal = false }) {
         setLocationNotice(`GPS location captured.${accuracyText} Please enter or verify your address fields manually.`);
         return;
       }
+      const detectedAddress = isStakeholderRegister
+        ? (reverse.street || reverse.completeAddress || reverse.formattedAddress || reverse.address)
+        : (reverse.completeAddress || reverse.formattedAddress || reverse.address);
       setForm((previous) => ({
         ...previous,
         ...(reverse.municipality ? { municipality: reverse.municipality } : {}),
-        ...(isStakeholderRegister
-          ? (reverse.street ? { address: reverse.street } : {})
-          : (reverse.address ? { address: reverse.address } : {})),
+        ...(detectedAddress ? { address: detectedAddress } : {}),
         ...(isStakeholderRegister && reverse.barangay ? { barangay: reverse.barangay } : {}),
         ...(reverse.zipCode ? { zipCode: reverse.zipCode } : {}),
         latitude,
@@ -1076,7 +1077,8 @@ export default function AuthPage({ mode, adminPortal = false }) {
       setErrors((previous) => ({
         ...previous,
         ...(reverse.municipality ? { municipality: undefined } : {}),
-        ...((isStakeholderRegister ? reverse.street : reverse.address) ? { address: undefined } : {}),
+        ...(detectedAddress ? { address: undefined } : {}),
+        ...(reverse.zipCode ? { zipCode: undefined } : {}),
         ...(isStakeholderRegister && reverse.barangay ? { barangay: undefined } : {}),
         location: undefined,
         form: undefined,
@@ -1087,7 +1089,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
       }
       const missing = [
         isStakeholderRegister && !reverse.barangay ? 'barangay' : null,
-        !reverse.street ? 'street' : null,
+        !detectedAddress ? 'address' : null,
       ].filter(Boolean);
       const missingText = missing.length ? ` Please enter the ${missing.join(' and ')} manually; it was not returned by the map.` : '';
       setLocationNotice(`Location fields updated.${accuracyText}${missingText} Please double-check the detected address.`);
