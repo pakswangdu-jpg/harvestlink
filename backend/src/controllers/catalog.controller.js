@@ -22,27 +22,58 @@ export async function getCatalogHandler(req, res) {
   res.json(await getCatalog({ includeInactive }));
 }
 
+function capitalizeFirstLetter(value) {
+  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+}
+
 export async function createCommodity(req, res) {
-  const name = String(req.body.name || '').trim().replace(/\s+/g, ' ');
-  const variety = String(req.body.variety || '').trim().replace(/\s+/g, ' ') || null;
-  const categoryName = String(req.body.category || '').trim();
+  const name = capitalizeFirstLetter(req.body.name);
+  const variety = capitalizeFirstLetter(req.body.variety) || null;
+  const rawCategoryName = String(req.body.category || '').trim();
+  const customCategoryName = capitalizeFirstLetter(req.body.customCategory);
+  const isCustomCategory = rawCategoryName.toLowerCase() === 'others' && Boolean(customCategoryName);
+  const categoryName = isCustomCategory ? customCategoryName : rawCategoryName;
   const unit = String(req.body.unit || '').trim();
-  const description = String(req.body.description || '').trim() || null;
+  const description = capitalizeFirstLetter(req.body.description) || null;
   const isActive = req.body.isActive === undefined ? true : req.body.isActive;
 
   if (!name || name.length > 100) throw new ApiError('Commodity name is required and must be under 100 characters.', 400);
-  if (!categoryName) throw new ApiError('Choose a commodity category.', 400);
+  if (!categoryName || categoryName.length > 80) throw new ApiError('Choose a valid commodity category.', 400);
   if (!unit || unit.length > 30) throw new ApiError('Choose a valid unit of measurement.', 400);
   if (description && description.length > 500) throw new ApiError('Description cannot exceed 500 characters.', 400);
   if (typeof isActive !== 'boolean') throw new ApiError('Commodity status is invalid.', 400);
 
-  const [{ data: category, error: categoryError }, { data: units, error: unitError }] = await Promise.all([
-    supabaseAdmin.from('categories').select('id').eq('name', categoryName).eq('is_active', true).maybeSingle(),
+  const [{ data: existingCategory, error: categoryError }, { data: units, error: unitError }] = await Promise.all([
+    supabaseAdmin.from('categories').select('id, name, is_active').ilike('name', categoryName).maybeSingle(),
     supabaseAdmin.from('units').select('name, abbreviation'),
   ]);
   if (categoryError) throw new ApiError(categoryError.message, 400);
   if (unitError) throw new ApiError(unitError.message, 400);
   const validUnit = units.find((entry) => unit === unitStorageValue(entry));
+
+  let category = existingCategory?.is_active ? existingCategory : null;
+  if (!category && isCustomCategory) {
+    if (existingCategory) {
+      const { data: reactivated, error: reactivateError } = await supabaseAdmin
+        .from('categories')
+        .update({ is_active: true })
+        .eq('id', existingCategory.id)
+        .select('id, name')
+        .single();
+      if (reactivateError) throw new ApiError(reactivateError.message, 400);
+      category = reactivated;
+    } else {
+      const { data: createdCategory, error: createCategoryError } = await supabaseAdmin
+        .from('categories')
+        .insert({ name: customCategoryName, sort_order: 0 })
+        .select('id, name')
+        .single();
+      if (createCategoryError) throw duplicateOr(createCategoryError, 'A category with this name already exists.');
+      category = createdCategory;
+    }
+  }
+
   if (!category) throw new ApiError('Choose an active commodity category.', 400);
   if (!validUnit) throw new ApiError('Choose a valid unit of measurement.', 400);
   const normalizedName = normalizeCatalogValue(name);
