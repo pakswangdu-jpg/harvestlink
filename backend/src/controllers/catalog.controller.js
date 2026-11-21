@@ -32,7 +32,7 @@ export async function createCommodity(req, res) {
   const variety = capitalizeFirstLetter(req.body.variety) || null;
   const rawCategoryName = String(req.body.category || '').trim();
   const customCategoryName = capitalizeFirstLetter(req.body.customCategory);
-  const isCustomCategory = rawCategoryName.toLowerCase() === 'others' && Boolean(customCategoryName);
+  const isCustomCategory = /^others?$/i.test(rawCategoryName) && Boolean(customCategoryName);
   const categoryName = isCustomCategory ? customCategoryName : rawCategoryName;
   const unit = String(req.body.unit || '').trim();
   const description = capitalizeFirstLetter(req.body.description) || null;
