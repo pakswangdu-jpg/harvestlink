@@ -54,7 +54,7 @@ export default function AddReferencePriceModal({
     setError('');
     try {
       await onConfirm(selectedCommodity, amount, {
-        unit: selectedCommodity.unit,
+        unit: selectedCommodity.unit || unit.trim() || 'kg',
         customUnit: false,
         source,
         effectiveDate,
@@ -84,13 +84,30 @@ export default function AddReferencePriceModal({
           <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-commodity">Commodity</label>
           <select id="reference-commodity" className="pm-reason-choice" value={commodityId} onChange={(event) => selectCommodity(event.target.value)} required>
             <option value="" disabled>Select a commodity</option>
-            {rows.map((row) => <option key={row.id} value={row.id}>{row.label} · Added by admin</option>)}
+            {rows.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.label} · {row.isCustom
+                  ? 'Added by admin'
+                  : row.psaPrice != null
+                    ? `Market Insights (${formatCurrency(row.psaPrice)}/${row.unit || 'kg'})`
+                    : 'Market Insights (PSA)'}
+              </option>
+            ))}
           </select>
           {!rows.length ? (
             <p className="mt-1 text-[12px] text-[var(--muted)]">Add a commodity first, then set its reference price here.</p>
-          ) : commodity?.psaPrice == null ? (
-            <p className="mt-1 text-[12px] text-[var(--muted)]">PSA reference: No data available</p>
-          ) : <p className="mt-1 text-[12px] text-[var(--muted)]">PSA reference: {formatCurrency(commodity.psaPrice)}/kg</p>}
+          ) : commodity ? (
+            <p className="mt-1 text-[12px] text-[var(--muted)]">
+              {commodity.psaPrice != null
+                ? `Market Insights (PSA) reference: ${formatCurrency(commodity.psaPrice)}/${commodity.unit || 'kg'}${commodity.psaYear ? ` (${commodity.psaYear})` : ''}`
+                : 'PSA reference: No data available'}
+              {commodity.override?.isActive && commodity.override?.referencePrice != null
+                ? ` · Current admin reference: ${formatCurrency(commodity.override.referencePrice)}/${commodity.override.unit || commodity.unit || 'kg'}`
+                : ''}
+            </p>
+          ) : (
+            <p className="mt-1 text-[12px] text-[var(--muted)]">Select a Market Insights or admin-added commodity to set its reference price.</p>
+          )}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
