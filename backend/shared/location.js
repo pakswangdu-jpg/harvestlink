@@ -6,8 +6,7 @@ export function isAcceptableRegistrationLocationAccuracy(value) {
   const accuracy = Number(value);
   return hasValue
     && Number.isFinite(accuracy)
-    && accuracy >= 0
-    && accuracy <= MAX_REGISTRATION_LOCATION_ACCURACY_METERS;
+    && accuracy >= 0;
 }
 
 export function hasAcceptableRegistrationLocation(values) {

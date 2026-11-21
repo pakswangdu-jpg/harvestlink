@@ -17,7 +17,7 @@ export function profileLocationFields(values) {
 
 export function registrationLocationFields(values) {
   if (!hasAcceptableRegistrationLocation(values)) {
-    throw new ApiError('Allow device location and capture the account location with GPS accuracy of 100 m or better.', 400);
+    throw new ApiError('Allow device location and capture a valid account location to register.', 400);
   }
   const coordinates = profileLocationFields(values);
   return coordinates;
