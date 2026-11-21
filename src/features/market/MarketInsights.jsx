@@ -23,10 +23,14 @@ import AdminReferenceNotice from '../../components/market/AdminReferenceNotice';
 
 export default function MarketInsights() {
   const { currentUser } = useAuth();
-  const { commodities: catalogCommodities } = useCatalog();
+  const { commodities: catalogCommodities, refresh: refreshCatalog } = useCatalog();
   const navItems = getNavItemsForRole(currentUser.role);
   const [commodityId, setCommodityId] = useState(MARKET_COMMODITIES[0].id);
   const [result, setResult] = useState({ commodityId: null, points: null, error: '' });
+
+  useEffect(() => {
+    refreshCatalog().catch(() => {});
+  }, [refreshCatalog]);
   const selectableCommodities = useMemo(() => [
     ...MARKET_COMMODITIES,
     ...catalogCommodities.map((item) => ({
@@ -108,7 +112,7 @@ export default function MarketInsights() {
       navItems={navItems}
       title="Market price insights"
       subtitle={commodity.isCustom
-        ? 'Current admin-set reference and price history for this registered commodity.'
+        ? `Current admin-set reference and price history for ${commodity.label}${commodity.category ? ` (${commodity.category})` : ''}.`
         : 'Historical farmgate crop prices from the Philippine Statistics Authority, for Central Visayas.'}
     >
       <section className="panel marketplace-toolbar">
@@ -127,7 +131,7 @@ export default function MarketInsights() {
                   className={`crop-select-option${isSelected ? ' is-selected' : ''}`}
                   onClick={() => setCommodityId(item.id)}
                 >
-                  {item.label}
+                  {item.isCustom && item.category ? `${item.label} — ${item.category}` : item.label}
                 </button>
               );
             })}
