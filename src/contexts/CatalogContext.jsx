@@ -63,6 +63,9 @@ export function CatalogProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commodity_catalog' }, () => {
         refresh().catch((refreshError) => setError(refreshError.message || 'Unable to refresh the product catalog.'));
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
+        refresh().catch((refreshError) => setError(refreshError.message || 'Unable to refresh product categories.'));
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, () => {
         refresh().catch((refreshError) => setError(refreshError.message || 'Unable to refresh measurement units.'));
       })
