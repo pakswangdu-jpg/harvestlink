@@ -464,14 +464,15 @@ function RegistrationLocationControl({
   role, accuracy, error, isLocating, locationNotice, onCapture,
 }) {
   const target = role === 'farmer' ? 'farm' : role === 'buyer' ? 'delivery address' : 'organization site';
+  const isStatusNotice = isLocating || accuracy != null;
   return (
     <div className="registration-location-control">
       <p>Required: capture GPS while at your actual {target}. Registration needs accuracy within {MAX_REGISTRATION_LOCATION_ACCURACY_METERS} meters.</p>
       <Button type="button" variant="secondary" size="sm" onClick={onCapture} disabled={isLocating}>
         <LocateFixed size={15} /> {isLocating ? 'Locating…' : accuracy != null ? 'Refresh GPS location' : 'Capture GPS location'}
       </Button>
-      {locationNotice ? <p className={accuracy != null ? 'muted' : 'field-error'} role={accuracy != null ? 'status' : 'alert'}>{locationNotice}</p> : null}
-      {error ? <p className="field-error" role="alert">{error}</p> : null}
+      {locationNotice ? <p className={isStatusNotice ? 'muted' : 'field-error'} role={isStatusNotice ? 'status' : 'alert'}>{locationNotice}</p> : null}
+      {!isLocating && error && (accuracy != null || !locationNotice) ? <p className="field-error" role="alert">{error}</p> : null}
       {accuracy != null ? <p className="muted" role="status">GPS captured with about {Math.round(accuracy)} m accuracy.</p> : null}
     </div>
   );
@@ -1037,7 +1038,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
     }));
     let detectedPosition;
     try {
-      detectedPosition = await getAccurateDeviceLocation(navigator.geolocation, { signal: request.signal });
+      detectedPosition = await getAccurateDeviceLocation(navigator.geolocation, { signal: request.signal, timeout: 10000 });
       const { latitude, longitude, accuracy } = detectedPosition.coords;
       if (!isAcceptableRegistrationLocationAccuracy(accuracy)) {
         setLocationNotice(`GPS accuracy is about ${Math.round(accuracy)} m. Registration requires ${MAX_REGISTRATION_LOCATION_ACCURACY_METERS} m or better. Move outdoors and try again.`);
