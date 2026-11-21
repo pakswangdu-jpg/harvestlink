@@ -17,10 +17,7 @@ import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES, ROLE_DASHBOARDS } from '../../
 import { getProfileLocationFromPlace } from '../../utils/profileLocation';
 import { reverseGeocode } from '../../services/geocodeService';
 import { getAccurateDeviceLocation } from '../../utils/deviceLocation';
-import {
-  isAcceptableRegistrationLocationAccuracy,
-  MAX_REGISTRATION_LOCATION_ACCURACY_METERS,
-} from '../../../backend/shared/location.js';
+import { isAcceptableRegistrationLocationAccuracy } from '../../../backend/shared/location.js';
 import { checkContactNumberAvailability } from '../../services/authService';
 import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
 import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
@@ -467,7 +464,7 @@ function RegistrationLocationControl({
   const isStatusNotice = isLocating || accuracy != null;
   return (
     <div className="registration-location-control">
-      <p>Required: capture GPS while at your actual {target}. Registration needs accuracy within {MAX_REGISTRATION_LOCATION_ACCURACY_METERS} meters.</p>
+      <p>Required: capture your current GPS location while at your actual {target}.</p>
       <Button type="button" variant="secondary" size="sm" onClick={onCapture} disabled={isLocating}>
         <LocateFixed size={15} /> {isLocating ? 'Locating…' : accuracy != null ? 'Refresh GPS location' : 'Capture GPS location'}
       </Button>
@@ -1041,7 +1038,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
       detectedPosition = await getAccurateDeviceLocation(navigator.geolocation, { signal: request.signal, timeout: 10000 });
       const { latitude, longitude, accuracy } = detectedPosition.coords;
       if (!isAcceptableRegistrationLocationAccuracy(accuracy)) {
-        setLocationNotice(`GPS accuracy is about ${Math.round(accuracy)} m. Registration requires ${MAX_REGISTRATION_LOCATION_ACCURACY_METERS} m or better. Move outdoors and try again.`);
+        setLocationNotice('Location reading was invalid. Check your device Location Services and try again.');
         return;
       }
       const reverse = await reverseGeocode({ lat: latitude, lng: longitude });
