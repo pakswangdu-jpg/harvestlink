@@ -69,7 +69,20 @@ export async function verifyRegistrationOtp(email, token, password, pendingFiles
 
 
 export async function resendRegistrationOtp(email) {
-  const response = await apiClient.post('/auth/resend-registration-code', { email: email.trim().toLowerCase() });
+  const storageKey = 'harvestlink:verification-device-id';
+  let deviceId = '';
+  try {
+    deviceId = localStorage.getItem(storageKey) || '';
+    if (!deviceId) {
+      deviceId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(storageKey, deviceId);
+    }
+  } catch {
+  }
+  const response = await apiClient.post('/auth/resend-registration-code', {
+    email: email.trim().toLowerCase(),
+    ...(deviceId ? { deviceId } : {}),
+  });
   if (response.error) throw new Error(response.error);
 }
 

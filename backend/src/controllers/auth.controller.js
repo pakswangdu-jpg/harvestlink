@@ -250,16 +250,9 @@ export async function resendRegistrationCode(req, res) {
   }
 
   const now = new Date();
-  const lastSentAt = new Date(pending.last_sent_at).getTime();
-  if (now.getTime() - lastSentAt < RESEND_COOLDOWN_MS) {
-    throw new ApiError('Please wait a moment before requesting a new verification code.', 429);
-  }
 
   const pendingResendCount = normalizeResendState(pending);
   const nextResendCount = pendingResendCount + 1;
-  if (nextResendCount > MAX_RESENDS_PER_WINDOW) {
-    throw new ApiError('You have reached the resend limit. Please try again later.', 429);
-  }
 
   const code = generateVerificationCode();
   const codeHash = await hashVerificationCode(code);

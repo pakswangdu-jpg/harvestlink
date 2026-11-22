@@ -69,6 +69,13 @@ export function emailAndIpKey(req) {
   return `${requestIp(req)}:${email || 'missing-email'}`;
 }
 
+export function emailAndDeviceKey(req) {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const deviceId = String(req.body?.deviceId || '').trim().slice(0, 128);
+  const device = deviceId || `${requestIp(req)}:${req.get('user-agent') || 'unknown-device'}`;
+  return `${device}:${email || 'missing-email'}`;
+}
+
 const loginIpLimit = rateLimit({
   name: 'login',
   limit: 120,
