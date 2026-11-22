@@ -11,7 +11,7 @@ import FilePreviewCard from '../../components/common/FilePreviewCard';
 import ZoomableImage from '../../components/common/ZoomableImage';
 import { useAuth } from '../auth/AuthContext';
 import { changePassword, updateUserProfile } from '../../services/authService';
-import { getSignedDocumentUrl, uploadAvatar, uploadPaymentQr } from '../../services/uploadService';
+import { getSignedDocumentUrl, uploadAccreditationFile, uploadAvatar, uploadGovIdFile, uploadPaymentQr } from '../../services/uploadService';
 import { CEBU_MUNICIPALITIES, ORGANIZATION_TYPES } from '../../utils/constants';
 import { formatDate, getInitials } from '../../utils/formatters';
 import { buildProfileDraft } from '../../utils/profileDraft';
@@ -160,6 +160,8 @@ export default function Profile() {
   );
   const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [qrError, setQrError] = useState('');
+  const [isUploadingVerificationDocument, setIsUploadingVerificationDocument] = useState(false);
+  const [verificationDocumentError, setVerificationDocumentError] = useState('');
 
 
 
@@ -170,6 +172,37 @@ export default function Profile() {
   const hasGcashAccountName = Boolean(currentUser.gcashAccountName);
   const hasGcashQr = Boolean(currentUser.gcashQrUrl);
   const isGcashSetupComplete = hasGcashAccountName && hasGcashQr;
+  const isVerificationRejected = currentUser.verificationStatus === 'rejected';
+
+  const handleVerificationDocumentChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const accepted = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (!accepted.includes(file.type)) {
+      setVerificationDocumentError('Choose a PDF, JPG, PNG, or WebP document.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setVerificationDocumentError('Verification documents must be 10 MB or smaller.');
+      return;
+    }
+    setVerificationDocumentError('');
+    setIsUploadingVerificationDocument(true);
+    try {
+      const field = isFarmer ? 'govIdFile' : 'accreditationFile';
+      const filePath = isFarmer
+        ? await uploadGovIdFile(file, currentUser.id)
+        : await uploadAccreditationFile(file, currentUser.id);
+      await updateUserProfile(currentUser.id, { [field]: filePath });
+      await refreshUser();
+      setProfileNotice('Document re-uploaded. Your verification is pending admin review.');
+    } catch (error) {
+      setVerificationDocumentError(error.message || 'Could not upload the document. Please try again.');
+    } finally {
+      setIsUploadingVerificationDocument(false);
+    }
+  };
 
   const updateGcashField = (field, value) => {
     setGcashDraft((previous) => ({ ...previous, [field]: value }));
@@ -624,6 +657,16 @@ export default function Profile() {
                 file={currentUser.govIdFile}
                 resolveUrl={() => getSignedDocumentUrl(currentUser.govIdFile)}
               />
+              {isVerificationRejected ? (
+                <div className="profile-verification-reupload">
+                  <p className="muted">Your previous document was rejected. Upload an updated proof for admin review.</p>
+                  <label className="btn btn-secondary profile-reupload-button">
+                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} />
+                    {isUploadingVerificationDocument ? 'Uploading…' : 'Re-upload government ID / certificate'}
+                  </label>
+                  {verificationDocumentError ? <p className="field-error" role="alert">{verificationDocumentError}</p> : null}
+                </div>
+              ) : null}
             </section>
           ) : null}
         </div>
@@ -651,6 +694,16 @@ export default function Profile() {
                 file={currentUser.accreditationFile}
                 resolveUrl={() => getSignedDocumentUrl(currentUser.accreditationFile)}
               />
+              {isVerificationRejected ? (
+                <div className="profile-verification-reupload">
+                  <p className="muted">Your previous accreditation document was rejected. Upload an updated document for admin review.</p>
+                  <label className="btn btn-secondary profile-reupload-button">
+                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} />
+                    {isUploadingVerificationDocument ? 'Uploading…' : 'Re-upload accreditation document'}
+                  </label>
+                  {verificationDocumentError ? <p className="field-error" role="alert">{verificationDocumentError}</p> : null}
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>
