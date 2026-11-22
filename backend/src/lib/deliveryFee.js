@@ -3,6 +3,9 @@ import { haversineKm } from './geo.js';
 import { fetchRoadRoute } from './roadRouting.js';
 import { calculateFeeForDistance } from './deliveryFeeConfig.js';
 
+export const EXTERNAL_COURIER_ESTIMATE = Object.freeze({
+  fee: 0, distanceKm: null, durationMinutes: null, tierLabel: 'Arranged separately', source: 'external_courier',
+});
 
 
 
@@ -16,6 +19,7 @@ import { calculateFeeForDistance } from './deliveryFeeConfig.js';
 
 
 export async function calculateDeliveryFee(originMunicipality, deliveryMunicipality, deliveryMethod, buyerCoords) {
+  if (deliveryMethod === 'courier') return EXTERNAL_COURIER_ESTIMATE;
   if (deliveryMethod === 'buyer_pickup') {
     if (!buyerCoords) return { fee: 0, distanceKm: 0, durationMinutes: 0, tierLabel: 'Pickup', source: 'pickup' };
 

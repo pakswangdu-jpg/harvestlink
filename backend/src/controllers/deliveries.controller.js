@@ -2,7 +2,7 @@ import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { serializeDelivery, serializeOrder } from '../lib/serialize.js';
 import { createNotification } from '../lib/notify.js';
 import { ApiError } from '../lib/ApiError.js';
-import { isOfficialLalamoveTrackingUrl } from '../../shared/lalamove.js';
+import { isOfficialLalamoveTrackingUrl, normalizeManualLalamoveTrackingUrl } from '../../shared/lalamove.js';
 
 async function fetchOrderOr404(orderId) {
   const { data, error } = await supabaseAdmin.from('orders').select('*').eq('id', orderId).single();
@@ -42,9 +42,13 @@ function bookingDetails(body) {
 
 async function manageCourier(profile, order, action, details = {}) {
   assertFarmer(order, profile);
-  const { data, error } = await supabaseAdmin.rpc('manage_manual_courier', {
-    p_actor: profile.id, p_order: order.id, p_action: action, p_details: details,
-  });
+  const target = { p_actor: profile.id, p_order: order.id };
+  if (order.lalamove_quote_status && action !== 'handover') {
+    throw new ApiError('Use Add Tracking Source Link for this Lalamove order.', 409);
+  }
+  const { data, error } = action === 'handover' && (order.lalamove_quote_status || normalizeManualLalamoveTrackingUrl(order.manual_lalamove_tracking_url))
+    ? await supabaseAdmin.rpc('handover_lalamove_share_link_order', target)
+    : await supabaseAdmin.rpc('manage_manual_courier', { ...target, p_action: action, p_details: details });
   if (error) {
     if (['PGRST202', '42883', '42703'].includes(error.code)) {
       throw new ApiError('Courier setup requires the latest database migration. Please contact support.', 503);
@@ -71,7 +75,7 @@ export async function bookDelivery(req, res) {
   const saved = await manageCourier(req.profile, order, 'book', bookingDetails(req.body));
   await createNotification({
     userId: order.buyer_id, type: 'order', title: 'Lalamove courier booked',
-    message: 'Your order has been booked with Lalamove. Tracking details are now available.', link: `/orders/${order.id}`,
+    message: 'The farmer recorded an external Lalamove booking. Tracking details are now available.', link: `/orders/${order.id}`,
   });
   res.status(201).json({ order: serializeOrder(saved.order), delivery: serializeDelivery(saved.delivery) });
 }
@@ -81,6 +85,32 @@ export async function updateDelivery(req, res) {
   assertFarmer(order, req.profile);
   const saved = await manageCourier(req.profile, order, 'edit', bookingDetails(req.body || {}));
   res.json(serializeDelivery(saved.delivery));
+}
+
+export async function updateManualLalamoveTrackingLink(req, res) {
+  const order = await fetchOrderOr404(req.params.orderId);
+  assertFarmer(order, req.profile);
+  const provided = req.body?.trackingUrl;
+  const trackingUrl = provided === null ? null : normalizeManualLalamoveTrackingUrl(provided);
+  if (provided !== null && !trackingUrl) {
+    throw new ApiError('Enter an official HTTPS tracking link from share.lalamove.com.', 400);
+  }
+
+  const { data, error } = await supabaseAdmin.from('orders')
+    .update({ manual_lalamove_tracking_url: trackingUrl })
+    .eq('id', order.id)
+    .eq('farmer_id', req.profile.id)
+    .eq('delivery_method', 'courier')
+    .select('manual_lalamove_tracking_url')
+    .maybeSingle();
+  if (error?.code === '42703' || error?.code === 'PGRST204') {
+    throw new ApiError('Manual tracking requires the latest database migration.', 503);
+  }
+  if (error?.code === '23514') throw new ApiError(error.message, 409);
+  if (error) throw new ApiError('Could not save the Lalamove tracking link.', 500);
+  if (!data) throw new ApiError('This courier order is no longer available to edit.', 409);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ trackingUrl: data.manual_lalamove_tracking_url });
 }
 
 export async function updateDeliveryStatus(req, res) {

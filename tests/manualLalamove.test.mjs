@@ -2,7 +2,28 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import postcss from 'postcss';
-import { isOfficialLalamoveTrackingUrl, lalamoveDeliveryLabel } from '../backend/shared/lalamove.js';
+import { isOfficialLalamoveTrackingUrl, lalamoveDeliveryLabel, normalizeManualLalamoveTrackingUrl } from '../backend/shared/lalamove.js';
+
+test('manual tracking accepts the official production share host and preserves the signed query', () => {
+  assert.equal(normalizeManualLalamoveTrackingUrl(' https://SHARE.lalamove.com:443?PH123&sign=ABC%2F123 '),
+    'https://share.lalamove.com/?PH123&sign=ABC%2F123');
+  for (const url of ['https://share.lalamove.com/', 'https://www.lalamove.com/tracking', 'https://share.sandbox.lalamove.com/?demo',
+    'http://share.lalamove.com/?id=1', 'https://share.lalamove.com.attacker.test/?id=1', 'https://share.lalamove.com:999/?id=1']) {
+    assert.equal(normalizeManualLalamoveTrackingUrl(url), null);
+  }
+});
+
+test('manual link controls appear in courier details and shared buyer and stakeholder order history', async () => {
+  const [controls, orders, routes] = await Promise.all([
+    readFile(new URL('../src/components/orders/ManualLalamoveTracking.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/features/buyer/BuyerOrders.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/app/routes.jsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(controls, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(controls, /Waiting for the farmer to provide the Lalamove tracking link\./);
+  assert.equal(orders.match(/<ManualLalamoveTrackingLink order=\{order\}/g).length, 2);
+  assert.match(routes, /path="\/stakeholder-orders" element=\{<BuyerOrders/);
+});
 
 test('official Lalamove share links are parsed, not reconstructed, and unrelated or unsafe URLs are rejected', () => {
   for (const url of ['https://share.lalamove.com/?token=ABC%2F123', 'https://track.lalamove.com/path', 'https://share.lalamove.com:443/?token=abc']) assert.equal(isOfficialLalamoveTrackingUrl(url), true, url);
@@ -10,8 +31,9 @@ test('official Lalamove share links are parsed, not reconstructed, and unrelated
 });
 test('booking, awaiting handover and actual transit remain distinct from the general order state', () => {
   const order = { status: 'confirmed', deliveryStatus: 'packed' };
-  assert.equal(lalamoveDeliveryLabel(order, null), 'Not booked');
-  assert.equal(lalamoveDeliveryLabel(order, { deliveryStatus: 'booked' }), 'Courier booked');
+  assert.equal(lalamoveDeliveryLabel(order, null), 'Awaiting external booking');
+  assert.equal(lalamoveDeliveryLabel({ ...order, manualLalamoveTrackingUrl: 'https://share.lalamove.com/?id=1' }, null), 'Tracking link provided');
+  assert.equal(lalamoveDeliveryLabel(order, { deliveryStatus: 'booked' }), 'External booking recorded');
   assert.equal(lalamoveDeliveryLabel(order, { deliveryStatus: 'waiting_for_pickup' }), 'Awaiting handover');
   assert.equal(lalamoveDeliveryLabel({ ...order, deliveryStatus: 'out_for_delivery' }, { deliveryStatus: 'booked' }), 'Out for delivery');
   assert.equal(lalamoveDeliveryLabel({ ...order, status: 'completed', deliveryStatus: 'delivered' }, { deliveryStatus: 'booked' }), 'Delivered');

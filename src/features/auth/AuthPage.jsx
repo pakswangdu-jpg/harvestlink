@@ -1475,7 +1475,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                           </select>
                         </FormField>
                       </div>
-                      <FormField label="Proof of certification / government ID" name="govIdFile" helper="Optional. Uploaded securely — only visible to admins for verification.">
+                      <FormField label="Proof of certification / government ID" name="govIdFile" helper="Required. Upload securely — only visible to admins for verification.">
                         <FileUploadField
                           id="govIdFile"
                           accept="image/*,.pdf"

@@ -83,9 +83,6 @@ mock.module('../src/lib/notify.js', { namedExports: { createNotification: async 
 mock.module('../src/lib/deliveryFee.js', {
   namedExports: { calculateDeliveryFee: async () => ({ fee: 40, distanceKm: 2, durationMinutes: 10, tierLabel: 'Local' }) },
 });
-mock.module('../src/controllers/lalamove.controller.js', {
-  namedExports: { createLalamoveDeliveryForOrder: async () => ({ booked: false }) },
-});
 
 const { createProduct, updateProduct, applyDiscount, reactivatePriceReview } = await import('../src/controllers/products.controller.js');
 const { createOrder } = await import('../src/controllers/orders.controller.js');

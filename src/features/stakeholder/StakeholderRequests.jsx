@@ -6,6 +6,7 @@ import Button from '../../components/common/Button';
 import EmptyState from '../../components/common/EmptyState';
 import StarRating from '../../components/common/StarRating';
 import RequiredFeedbackDialog from '../../components/common/RequiredFeedbackDialog';
+import FeedbackSuccessDialog from '../../components/orders/FeedbackSuccessDialog';
 import { useAuth } from '../auth/AuthContext';
 import {
   confirmReceipt,
@@ -17,6 +18,7 @@ import { createRating } from '../../services/ratingService';
 import { useDonationList } from '../../hooks/useDonationList';
 import { stakeholderNavItems } from './stakeholderNav';
 import { stakeholderPickupDisplayStatus } from './dashboardPresentation';
+import SubmittedDonationReviews from './SubmittedDonationReviews';
 
 function DonationRatingPrompt({ donation, onRated }) {
   const [rating, setRating] = useState(0);
@@ -26,8 +28,14 @@ function DonationRatingPrompt({ donation, onRated }) {
   const [ratingCreated, setRatingCreated] = useState(false);
   const savingRef = useRef(false);
 
-  const handleRate = async () => {
+  const handleRate = async (event) => {
+    event.preventDefault();
+    const writtenFeedback = comment.trim();
     if (!rating || savingRef.current) return;
+    if (!writtenFeedback) {
+      setError('Enter written feedback before submitting.');
+      return;
+    }
     savingRef.current = true;
     setIsSubmitting(true);
     setError('');
@@ -39,7 +47,7 @@ function DonationRatingPrompt({ donation, onRated }) {
           donationId: donation.id,
           claimId: donation.myClaim?.id,
           rating,
-          comment,
+          comment: writtenFeedback,
         });
         setRatingCreated(true);
       }
@@ -57,22 +65,25 @@ function DonationRatingPrompt({ donation, onRated }) {
 
   return (
     <RequiredFeedbackDialog title={`Rate ${donation.farmerName}`}>
-      <div className="form-stack" aria-busy={isSubmitting}>
+      <form className="form-stack" aria-busy={isSubmitting} onSubmit={handleRate}>
         <p>{donation.productName}</p>
         {error ? <div className="form-alert error" role="alert">{error}</div> : null}
         <StarRating value={rating} onChange={isSubmitting || ratingCreated ? undefined : setRating} size={26} />
-        <textarea
-          rows={3}
-          aria-label="Optional donation feedback"
-          placeholder="How was the donation? (Optional)"
-          value={comment}
-          disabled={isSubmitting || ratingCreated}
-          onChange={(event) => setComment(event.target.value)}
-        />
-        <Button disabled={!rating || isSubmitting} onClick={handleRate}>
+        <label className="grid gap-1">
+          <span>Written feedback (required)</span>
+          <textarea
+            rows={3}
+            required
+            placeholder="How was the donation?"
+            value={comment}
+            disabled={isSubmitting || ratingCreated}
+            onChange={(event) => setComment(event.target.value)}
+          />
+        </label>
+        <Button type="submit" disabled={!rating || isSubmitting}>
           {isSubmitting ? 'Submitting…' : 'Submit rating'}
         </Button>
-      </div>
+      </form>
     </RequiredFeedbackDialog>
   );
 }
@@ -84,6 +95,7 @@ export default function StakeholderRequests() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [submittedReviews, setSubmittedReviews] = useState({});
+  const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
 
   const openLiveTrackingPopup = (donation) => {
     const targetId = donation?.myClaim?.id || donation?.id;
@@ -217,7 +229,9 @@ export default function StakeholderRequests() {
               <DonationCard
                 key={donation.id}
                 donation={donation}
-                actions={isRated(donation) ? <span className="rating-summary">Rated, thank you!</span> : null}
+                actions={isRated(donation) ? (
+                  <a className="btn btn-secondary btn-sm" href="#my-donation-reviews">Go to My Donation Reviews</a>
+                ) : null}
               />
             ))}
           </div>
@@ -225,16 +239,23 @@ export default function StakeholderRequests() {
           <EmptyState className="empty-state-transparent-icon" icon={History} title="No history yet" message="Completed and cancelled donation requests will be listed here." />
         )}
       </section>
-      {pendingReview ? (
+      <SubmittedDonationReviews key={currentUser.id} donations={donations} revision={submittedReviews} />
+      {pendingReview && !showFeedbackSuccess ? (
         <DonationRatingPrompt
           key={reviewKey(pendingReview)}
           donation={pendingReview}
           onRated={() => {
             setSubmittedReviews((reviews) => ({ ...reviews, [reviewKey(pendingReview)]: true }));
+            setShowFeedbackSuccess(true);
             void reload();
           }}
         />
       ) : null}
+      <FeedbackSuccessDialog
+        open={showFeedbackSuccess}
+        onClose={() => setShowFeedbackSuccess(false)}
+        note="Your review is now visible under My Donation Reviews."
+      />
     </AppShell>
   );
 }

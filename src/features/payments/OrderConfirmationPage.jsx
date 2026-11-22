@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
@@ -18,6 +18,10 @@ export default function OrderConfirmationPage() {
   useEffect(() => {
     getOrderById(id).then(setOrder).catch(() => setOrder(null));
   }, [id]);
+
+  if (order?.lalamoveQuoteStatus && order.lalamoveQuoteStatus !== 'accepted') {
+    return <Navigate to={`/orders/${id}`} replace />;
+  }
 
   return (
     <AppShell user={currentUser} navItems={getNavItemsForRole(currentUser.role)} title="Order confirmed" subtitle="Your order has been placed successfully.">

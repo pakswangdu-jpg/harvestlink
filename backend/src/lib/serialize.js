@@ -112,6 +112,12 @@ export function serializeOrder(row) {
   return {
     id: row.id,
     trackingId: row.tracking_id || null,
+    ...(row.lalamove_quote_status ? {
+      lalamoveQuoteStatus: row.lalamove_quote_status,
+      lalamoveQuotedAt: row.lalamove_quoted_at || null,
+      lalamoveAcceptedAt: row.lalamove_accepted_at || null,
+      lalamoveAcceptedTotal: row.lalamove_accepted_total == null ? null : Number(row.lalamove_accepted_total),
+    } : {}),
     productId: row.product_id_snapshot || row.product_id,
     productIdSnapshot: row.product_id_snapshot || row.product_id || null,
     productName: row.product_name,

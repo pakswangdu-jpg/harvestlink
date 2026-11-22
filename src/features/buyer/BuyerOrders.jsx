@@ -12,6 +12,8 @@ import PaymentMethodLabel from '../../components/common/PaymentMethodLabel';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, cancelOrder, getOrdersByBuyer, isCancellable } from '../../services/orderService';
+import { ManualLalamoveTrackingLink } from '../../components/orders/ManualLalamoveTracking';
+import { LALAMOVE_QUOTE_LABELS } from '../../services/lalamoveService';
 import { ONLINE_PAYMENT_METHODS } from '../../utils/constants';
 import {
   formatCurrency, formatDate, formatTime, getInitials, shortOrderId,
@@ -90,6 +92,7 @@ const ORDER_OVERVIEW_FILTERS = [
 
 
 function canPayNow(order) {
+  if (order.lalamoveQuoteStatus && order.lalamoveQuoteStatus !== 'accepted') return false;
   return order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod) && !order.paymentVerificationStatus;
 }
 
@@ -205,7 +208,7 @@ function OrderActions({ order, onCancel, onConfirmReceived }) {
 
   return (
     <div className="order-actions">
-      <OrderActionButton to={`/orders/${order.id}`} icon={MapPin}>Track</OrderActionButton>
+      <OrderActionButton to={`/orders/${order.id}`} icon={MapPin}>{order.lalamoveQuoteStatus === 'proposed' ? 'Review Delivery Quote' : 'Track'}</OrderActionButton>
       {canPayNow(order) ? (
         <OrderActionButton variant="primary" to={`/orders/${order.id}/pay/gcash`} icon={CreditCard}>Pay Now</OrderActionButton>
       ) : null}
@@ -491,13 +494,16 @@ export default function BuyerOrders() {
                               <span className="order-date-time">{formatTime(order.createdAt)}</span>
                             </span>
                           </td>
-                          <td><strong className="order-total">{formatCurrency(order.totalAmount)}</strong></td>
+                          <td><strong className="order-total">{order.lalamoveQuoteStatus === 'pending' ? 'Final total pending' : formatCurrency(order.totalAmount)}</strong>
+                            {order.lalamoveQuoteStatus ? <p className="text-sm text-[var(--muted)]">{LALAMOVE_QUOTE_LABELS[order.lalamoveQuoteStatus]}</p> : null}
+                          </td>
                           <td>
                             <OrderActions
                               order={order}
                               onCancel={setCancelTarget}
                               onConfirmReceived={(target) => run(() => advanceDelivery(target.id), 'The order is received! Thank you for confirming.')}
                             />
+                            <ManualLalamoveTrackingLink order={order} />
                           </td>
                         </tr>
                       ))}
@@ -526,7 +532,8 @@ export default function BuyerOrders() {
                         </div>
                         <div>
                           <p className="order-mobile-card-label">Total</p>
-                          <p className="order-mobile-card-value">{formatCurrency(order.totalAmount)}</p>
+                          <p className="order-mobile-card-value">{order.lalamoveQuoteStatus === 'pending' ? 'Final total pending' : formatCurrency(order.totalAmount)}</p>
+                          {order.lalamoveQuoteStatus ? <p className="text-sm text-[var(--muted)]">{LALAMOVE_QUOTE_LABELS[order.lalamoveQuoteStatus]}</p> : null}
                         </div>
                       </div>
 
@@ -541,6 +548,7 @@ export default function BuyerOrders() {
                           onCancel={setCancelTarget}
                           onConfirmReceived={(target) => run(() => advanceDelivery(target.id), 'The order is received! Thank you for confirming.')}
                         />
+                        <ManualLalamoveTrackingLink order={order} />
                       </div>
                     </div>
                   ))}

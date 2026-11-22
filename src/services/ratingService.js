@@ -13,6 +13,10 @@ export async function getRatingForOrder(orderId) {
   return ratings[0] || null;
 }
 
+export function getMyDonationRatings() {
+  return apiClient.get('/ratings/my-donations', { fresh: true });
+}
+
 
 
 

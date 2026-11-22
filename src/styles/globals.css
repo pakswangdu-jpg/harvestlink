@@ -5016,6 +5016,93 @@ a.user-chip:hover {
   }
 }
 
+/* Checkout summary typography and compact alignment */
+.checkout-page .checkout-summary-card {
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.checkout-page .checkout-summary-title,
+.checkout-page .checkout-summary-item-name,
+.checkout-page .checkout-summary-item-total,
+.checkout-page .checkout-summary-payment-label,
+.checkout-page .checkout-summary-total-row > span {
+  letter-spacing: 0;
+}
+
+.checkout-page .checkout-summary-title {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.checkout-page .checkout-summary-item-name,
+.checkout-page .checkout-summary-item-total {
+  font-size: 0.96rem;
+  font-weight: 600;
+}
+
+.checkout-page .checkout-summary-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  font-size: 0.875rem;
+  font-weight: 450;
+}
+
+.checkout-page .checkout-summary-line > span:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.checkout-page .checkout-summary-delivery-fee-row > span:last-child {
+  white-space: normal;
+  max-width: 15rem;
+  line-height: 1.35;
+}
+
+.checkout-page .checkout-summary-delivery-pending {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.checkout-page .checkout-summary-note {
+  max-width: 34rem;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  font-weight: 400;
+}
+
+.checkout-page .checkout-summary-total-row {
+  gap: 16px;
+  align-items: start;
+  font-weight: 600;
+}
+
+.checkout-page .checkout-summary-total-row strong.checkout-summary-pending-total {
+  max-width: 15rem;
+  color: var(--green-800);
+  font-size: 1.35rem;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .checkout-page .checkout-summary-line,
+  .checkout-page .checkout-summary-total-row {
+    gap: 10px;
+  }
+
+  .checkout-page .checkout-summary-delivery-fee-row > span:last-child,
+  .checkout-page .checkout-summary-total-row strong.checkout-summary-pending-total {
+    max-width: 12rem;
+  }
+}
+
 @media (max-width: 720px) {
   .seller-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -17049,10 +17136,8 @@ td {
   line-height: 1.4;
 }
 
-.marketplace-page .price-range-header img {
-  width: 15px;
-  height: 15px;
-  opacity: 0.8;
+.marketplace-page .price-range-header svg {
+  color: inherit;
 }
 
 .marketplace-page .price-range-value-input {
@@ -21831,27 +21916,26 @@ td {
 
 .product-camera-modal {
   position: fixed;
-
-
-
-
-
-
-  z-index: 150;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.product-camera-modal::backdrop {
   background: rgba(15, 23, 42, 0.68);
 }
 
 .product-camera-card {
-  width: min(100%, 520px);
-  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22);
+  border-radius: inherit;
 }
 
 .product-camera-header {
@@ -21919,6 +22003,7 @@ td {
 
 .product-camera-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding: 0 20px 20px;
@@ -21926,12 +22011,10 @@ td {
 
 @media (max-width: 560px) {
   .product-camera-modal {
-    align-items: end;
-    padding: 0;
-  }
-
-  .product-camera-card {
     width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 12px);
+    margin: auto 0 0;
     border-radius: 12px 12px 0 0;
   }
 

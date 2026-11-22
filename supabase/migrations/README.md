@@ -122,12 +122,19 @@ timestamp. Existing Buyer receipt confirmation still completes the transaction;
 a trigger synchronizes the manual courier record in that same transaction.
 No existing records, prices, fees, payments, or coordinates are rewritten.
 
-Farmers book externally and paste an official HTTPS `lalamove.com` share link.
-The saved link is opened unchanged, not reconstructed from a booking number.
-There is no automatic booking or HarvestLink courier GPS/map in this flow.
-Historical API fields remain intact. The existing courier checkout quotation
-and pricing path is intentionally unchanged and still needs its existing API
-configuration; supporting new courier checkout without that API is separate work.
+Apply `20261119010300_manual_lalamove_tracking_link.sql` and then
+`20261120010000_manual_lalamove_link_handover.sql` to support share-link-only
+orders. Farmers arrange delivery externally and paste the official HTTPS
+`share.lalamove.com` link. The HarvestLink checkout total excludes all external
+courier charges. Handover and receipt confirmation use HarvestLink's existing
+order stages. Historical booking and payment information remains available.
+The courier flow uses the pasted tracking page without API credentials.
+
+Apply `20261120010100_lalamove_delivery_quotes.sql` after those migrations to
+enable manual pricing for new Lalamove orders. Checkout reserves stock while the
+farmer proposes a fee. Buyer acceptance locks the total and unlocks payment.
+Declining cancels the order and releases reserved stock. Existing orders retain
+their prior prices and workflow. The farmer-entered fee is limited to PHP 10,000.
 
 ## Marketplace order integrity
 

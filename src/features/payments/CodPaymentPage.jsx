@@ -1,5 +1,5 @@
 import { Banknote, Loader2, ShieldCheck } from 'lucide-react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import AppShell from '../../components/layout/AppShell';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -31,6 +31,10 @@ export default function CodPaymentPage() {
       cancelled = true;
     };
   }, [id]);
+
+  if (order?.lalamoveQuoteStatus && order.lalamoveQuoteStatus !== 'accepted') {
+    return <Navigate to={`/orders/${id}`} replace />;
+  }
 
   return (
     <AppShell

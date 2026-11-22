@@ -34,6 +34,7 @@ export default function OrderSummaryPanel({
   quote, isReviewed, onReview, onRetryQuote, retryLabel = 'Refresh total',
 }) {
   const fee = isPickup ? 0 : (estimate?.fee ?? 0);
+  const isLalamove = deliveryMethod === 'courier';
   const total = quote?.total ?? subtotal + fee;
   const quantityNumber = Number(quantity) || 0;
   const deliveryLogo = DELIVERY_METHOD_LOGOS[deliveryMethod];
@@ -92,7 +93,7 @@ export default function OrderSummaryPanel({
 
           {isLoading && !estimate ? (
             <p className="checkout-summary-note">
-              <Loader2 size={13} className="animate-spin" aria-hidden="true" /> Calculating {isPickup ? 'distance' : 'delivery fee'}…
+              <Loader2 size={13} className="animate-spin" aria-hidden="true" /> Calculating {isPickup ? 'distance' : isLalamove ? 'order total' : 'delivery fee'}…
             </p>
           ) : estimate && estimate.distanceKm > 0 ? (
             <div className="checkout-summary-line muted">
@@ -106,10 +107,11 @@ export default function OrderSummaryPanel({
             </div>
           ) : null}
 
-          <div className="checkout-summary-line">
+          <div className="checkout-summary-line checkout-summary-delivery-fee-row">
             <span>Delivery fee</span>
-            <span>{isPickup ? 'Free' : quote ? formatCurrency(fee) : '--'}</span>
+            <span className={isLalamove ? 'checkout-summary-delivery-pending' : undefined}>{isLalamove ? 'Waiting for farmer to confirm delivery price' : isPickup ? 'Free' : quote ? formatCurrency(fee) : '--'}</span>
           </div>
+          {isLalamove ? <p className="checkout-summary-note">The farmer will send a delivery quote for you to review. Payment becomes available after you accept the final total.</p> : null}
         </div>
 
         <div className="checkout-summary-total-row checkout-summary-payment-row">
@@ -119,7 +121,7 @@ export default function OrderSummaryPanel({
 
         <div className="checkout-summary-total-row">
           <span>Total</span>
-          <strong>{quote ? formatCurrency(total) : '--'}</strong>
+          <strong className={isLalamove ? 'checkout-summary-pending-total' : undefined}>{isLalamove ? 'Final total pending farmer confirmation' : quote ? formatCurrency(total) : '--'}</strong>
         </div>
 
         <label className="checkout-review-check"><input type="checkbox" checked={Boolean(isReviewed)} onChange={(event) => onReview(event.target.checked)} disabled={!quote || isSubmitting || orderPlaced} /><span>I have reviewed the items, delivery, payment method, and total.</span></label>
@@ -127,11 +129,11 @@ export default function OrderSummaryPanel({
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-              Placing order…
+              {isLalamove ? 'Requesting delivery price…' : 'Placing order…'}
             </>
           ) : orderPlaced ? (
             'Order placed'
-          ) : isGcash ? (
+          ) : isLalamove ? 'Place Order — Request Delivery Price' : isGcash ? (
             <>
               <img src={gcashLogo} alt="" width={16} height={16} className="checkout-submit-btn-logo" />
               Place order

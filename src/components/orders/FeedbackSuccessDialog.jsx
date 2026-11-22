@@ -3,7 +3,7 @@ import { CheckCircle2 } from 'lucide-react';
 import Button from '../common/Button';
 import './FeedbackSuccessDialog.css';
 
-export default function FeedbackSuccessDialog({ open, onClose, returnFocusRef }) {
+export default function FeedbackSuccessDialog({ open, onClose, returnFocusRef, note = 'Your review is now visible on this order.' }) {
   const dialogRef = useRef(null);
   const doneRef = useRef(null);
   const titleId = useId();
@@ -45,7 +45,7 @@ export default function FeedbackSuccessDialog({ open, onClose, returnFocusRef })
       <CheckCircle2 className="feedback-success-icon" size={40} strokeWidth={1.8} aria-hidden="true" />
       <h2 id={titleId}>Thank you for your feedback</h2>
       <p id={messageId}>Your feedback helps farmers improve their service.</p>
-      <p className="feedback-success-note">Your review is now visible on this order.</p>
+      <p className="feedback-success-note">{note}</p>
       <Button ref={doneRef} className="feedback-success-done" onClick={onClose}>Done</Button>
     </dialog>
   );

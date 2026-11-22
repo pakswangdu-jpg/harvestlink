@@ -1,6 +1,5 @@
-import { Award, Layers, MapPin, Search, Tag, X } from 'lucide-react';
+import { Award, Layers, MapPin, Search, Tag, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import walletIcon from '../../assets/icons/marketplace-price-range.png';
 import { useSearchParams } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import ProductCard from '../../components/cards/ProductCard';
@@ -118,7 +117,7 @@ function PriceRangeSlider({ minPrice, maxPrice, bounds, onCommit }) {
   return (
     <div className="price-range-filter">
       <div className="price-range-header">
-        <img src={walletIcon} alt="" width={16} height={16} /> <span>Price Range</span>
+        <Wallet size={15} aria-hidden="true" /> <span>Price Range</span>
       </div>
       <div className="price-range-slider">
         <div className="price-range-track">

@@ -43,7 +43,7 @@ const PAYMENT_METHOD_ICONS = {
 const DELIVERY_METHOD_DESCRIPTIONS = {
   farmer_delivery: 'The farmer delivers to your address',
   buyer_pickup: "Pick up directly from the farmer's location",
-  courier: 'Delivered by a Lalamove rider',
+  courier: 'Arranged separately with Lalamove',
 };
 
 const PAYMENT_METHOD_DESCRIPTIONS = {
@@ -300,7 +300,7 @@ export default function CheckoutForm({
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onSubmit({ ...values, checkoutKey: requestRef.current.key, expectedTotal: quote.total });
+      await onSubmit({ ...values, checkoutKey: requestRef.current.key, expectedTotal: quote.requiresDeliveryQuote ? quote.subtotal : quote.total });
       setHasPlacedOrder(true);
       setIsSubmitting(false);
     } catch (error) {

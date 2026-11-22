@@ -1,8 +1,7 @@
 import { ApiError } from './ApiError.js';
 import { calculateDeliveryFee } from './deliveryFee.js';
 import { matchMunicipality } from './geo.js';
-import { getQuotation } from './lalamoveClient.js';
-import { CEBU_MUNICIPALITIES, DELIVERY_METHODS, getMunicipalityCoords } from '../utils/constants.js';
+import { CEBU_MUNICIPALITIES, DELIVERY_METHODS } from '../utils/constants.js';
 import { getApplicableUnitPrice, isWholesaleQuantity } from '../../shared/pricing.js';
 
 const money = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -45,16 +44,7 @@ export async function buildCheckoutQuote(product, values) {
   }
   const originMunicipality = matchMunicipality(product.location);
   const deliveryMunicipality = values.deliveryMethod === 'buyer_pickup' ? originMunicipality : values.deliveryMunicipality;
-  let estimate;
-  if (values.deliveryMethod === 'courier') {
-    const quotation = await getQuotation({
-      pickup: { ...getMunicipalityCoords(originMunicipality), address: product.location || originMunicipality },
-      dropoff: { ...getMunicipalityCoords(deliveryMunicipality), address: deliveryMunicipality },
-    });
-    estimate = { ...quotation, tierLabel: 'Lalamove', source: 'lalamove' };
-  } else {
-    estimate = await calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
-  }
+  const estimate = await calculateDeliveryFee(originMunicipality, deliveryMunicipality, values.deliveryMethod);
   const pricing = { price: product.price, wholesalePrice: product.wholesale_price, wholesaleMinQuantity: product.wholesale_min_quantity };
   const unitPrice = getApplicableUnitPrice(pricing, quantity);
   const subtotal = money(quantity * unitPrice);

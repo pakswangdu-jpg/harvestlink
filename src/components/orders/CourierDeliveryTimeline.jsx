@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { getDeliverySequence } from '../../services/orderService';
 import { DELIVERY_STEP_LABELS } from '../../utils/constants';
 import { formatDate, formatRelativeTime } from '../../utils/formatters';
+import { normalizeManualLalamoveTrackingUrl } from '../../../backend/shared/lalamove';
 
 export default function CourierDeliveryTimeline({ order, delivery }) {
   const recordedEvents = Array.isArray(order.deliveryEvents)
@@ -11,6 +12,7 @@ export default function CourierDeliveryTimeline({ order, delivery }) {
     return <p className="muted tracker-inactive">This order was {order.status}.</p>;
   }
   const active = ['confirmed', 'completed'].includes(order.status);
+  const hasShareLink = Boolean(normalizeManualLalamoveTrackingUrl(order.manualLalamoveTrackingUrl));
   const sequence = getDeliverySequence(order.deliveryMethod);
   const index = sequence.indexOf(order.deliveryStatus);
   if (recordedEvents.length) {
@@ -24,8 +26,8 @@ export default function CourierDeliveryTimeline({ order, delivery }) {
           .flatMap((step) => step === 'out_for_delivery'
             && order.deliveryMethod === 'courier'
             && index >= sequence.indexOf('packed')
-            && !recordedStatuses.has('booked')
-            ? [{ status: 'booked', title: 'Courier booking' }, { status: step, title: DELIVERY_STEP_LABELS[step] || step }]
+            && !recordedStatuses.has('booked') && !hasShareLink
+            ? [{ status: 'booked', title: 'Awaiting external booking' }, { status: step, title: DELIVERY_STEP_LABELS[step] || step }]
             : [{ status: step, title: DELIVERY_STEP_LABELS[step] || step }])
           .filter((step) => !recordedStatuses.has(step.status));
 
@@ -65,7 +67,7 @@ export default function CourierDeliveryTimeline({ order, delivery }) {
     ['confirmed', 'Farmer confirmed', active],
     ['preparing', 'Preparing', active && index >= sequence.indexOf('preparing')],
     ['packed', 'Packed', active && index >= sequence.indexOf('packed')],
-    ['booked', 'Courier booked', Boolean(delivery)],
+    ['booked', hasShareLink ? 'Tracking link provided' : delivery ? 'External booking recorded' : 'Awaiting external booking', hasShareLink || Boolean(delivery) || handedOver],
     ['handover', 'Handed to courier', handedOver],
     ['delivered', 'Delivered', delivered],
   ];

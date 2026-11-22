@@ -8,6 +8,8 @@ const buyer = '20000000-0000-0000-0000-000000000001';
 const admin = '30000000-0000-0000-0000-000000000001';
 const orderId = '40000000-0000-0000-0000-000000000001';
 const migration = await readFile(new URL('../../supabase/migrations/20261017_manual_lalamove.sql', import.meta.url), 'utf8');
+const trackingMigration = await readFile(new URL('../../supabase/migrations/20261119010300_manual_lalamove_tracking_link.sql', import.meta.url), 'utf8');
+const handoverMigration = await readFile(new URL('../../supabase/migrations/20261120010000_manual_lalamove_link_handover.sql', import.meta.url), 'utf8');
 const details = { booking_reference: 'PH-123', tracking_url: 'https://share.lalamove.com/?token=real-share-token', driver_name: null, vehicle_plate_number: null };
 
 test('manual Lalamove booking and physical handover use atomic, owner-only transitions', async (t) => {
@@ -27,11 +29,47 @@ test('manual Lalamove booking and physical handover use atomic, owner-only trans
       values('${orderId}','${buyer}','${farmer}','courier','confirmed','packed','cod','pending');`);
   await db.exec(migration);
   await db.exec(migration);
+  await db.exec(trackingMigration);
+  await db.exec(trackingMigration);
+  await db.exec(handoverMigration);
+  await db.exec(handoverMigration);
   const row = async (sql, args = []) => (await db.query(sql, args)).rows[0];
   const act = (action, data = details, actor = farmer) => row('select manage_manual_courier($1,$2,$3,$4::jsonb) as result', [actor, orderId, action, JSON.stringify(data)]).then((value) => value.result);
   const reset = () => db.exec(`delete from order_delivery_events; delete from deliveries;
-    update orders set status='confirmed',delivery_status='packed',delivery_method='courier',payment_method='cod',payment_status='pending',transit_started_at=null;
+    update orders set status='confirmed',delivery_status='packed',delivery_method='courier',payment_method='cod',payment_status='pending',transit_started_at=null,manual_lalamove_tracking_url=null;
     update profiles set account_status='active';`);
+  await t.test('the standalone tracking link persists independently of the courier booking', async () => {
+    const { delivery } = await act('book');
+    const setLink = (url) => db.query('update orders set manual_lalamove_tracking_url = $1 where id = $2', [url, orderId]);
+    const link = 'https://share.lalamove.com/?token=standalone%2Fencoded';
+    await setLink(link);
+    assert.equal((await row('select manual_lalamove_tracking_url, delivery_status from orders')).manual_lalamove_tracking_url, link);
+    assert.equal((await row('select delivery_status from orders')).delivery_status, 'packed');
+    assert.equal((await row('select tracking_url from deliveries')).tracking_url, delivery.tracking_url);
+    await assert.rejects(setLink('https://share.lalamove.com.attacker.test/'), { code: '23514' });
+    await setLink(null);
+    assert.equal((await row('select manual_lalamove_tracking_url from orders')).manual_lalamove_tracking_url, null);
+    await db.exec("update orders set delivery_method = 'buyer_pickup'");
+    await assert.rejects(setLink(link), { code: '23514' });
+    await reset();
+  });
+  await t.test('share-link handover requires ownership, a saved link, and verified online payment', async () => {
+    const handover = (actor = farmer) => row('select handover_lalamove_share_link_order($1,$2) as result', [actor, orderId]).then(({ result }) => result);
+    await assert.rejects(handover(buyer), { code: '42501' });
+    await assert.rejects(handover(), { code: '23514' });
+    await db.query("update orders set manual_lalamove_tracking_url=$1,payment_method='gcash'", [details.tracking_url]);
+    await assert.rejects(handover(), { code: '23514' });
+    await db.exec("update orders set payment_status='paid'");
+    const result = await handover();
+    assert.equal(result.order.delivery_status, 'out_for_delivery');
+    assert.equal(result.order.manual_lalamove_tracking_url, details.tracking_url);
+    assert.equal(result.delivery, null);
+    assert.equal((await row('select source from order_delivery_events')).source, 'farmer');
+    await assert.rejects(handover(), { code: '23514' });
+    const { allowed } = await row("select has_function_privilege('authenticated', 'handover_lalamove_share_link_order(uuid,uuid)', 'execute') as allowed");
+    assert.equal(allowed, false);
+    await reset();
+  });
   await t.test('booking keeps a packed order packed, creates one record and records no GPS or transit time', async () => {
     const saved = await act('book');
     assert.equal(saved.order.delivery_status, 'packed');

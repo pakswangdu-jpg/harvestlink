@@ -112,6 +112,9 @@ export function validateAuthForm(values, mode) {
     if (!required(values.farmName)) errors.farmName = 'Enter your farm name.';
     validateContactNumber(values, errors);
     if (!required(values.municipality)) errors.municipality = 'Choose your farm location.';
+    if (!(values.govIdFile instanceof File)) {
+      errors.govIdFile = 'Upload a proof of certification or government ID to continue.';
+    }
   }
   if (mode === 'register' && values.role === 'buyer') {
     validateContactNumber(values, errors);

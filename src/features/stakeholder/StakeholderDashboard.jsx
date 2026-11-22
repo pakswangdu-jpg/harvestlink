@@ -14,6 +14,7 @@ import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistanc
 import { getMunicipalityCoords } from '../../utils/constants';
 import { activityTitle, buildDonationFarmers, findNewAvailableDonations, partnerDashboardOverview, requestNextStep, stakeholderPickupDisplayStatus } from './dashboardPresentation';
 import { stakeholderNavItems } from './stakeholderNav';
+import SubmittedDonationReviews from './SubmittedDonationReviews';
 import { DONATION_MARKER_COLOR } from '../../components/map/donationMarker';
 import './StakeholderDashboard.css';
 
@@ -177,6 +178,7 @@ export default function StakeholderDashboard() {
         {latestActivity.length ? <ActivityList items={latestActivity} /> : <CompactEmpty icon={ShoppingBasket} title="No recent activity" message="Updates to your donation requests and pickups will appear here." />}
       </section>
     </div>
+    <SubmittedDonationReviews key={currentUser.id} donations={myRequests} />
   </AppShell>;
 }
 

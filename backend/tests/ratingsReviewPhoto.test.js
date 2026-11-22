@@ -4,6 +4,7 @@ import { beforeEach, mock, test } from 'node:test';
 process.env.SUPABASE_URL ||= 'https://harvestlink-test.supabase.co';
 
 let insertedRating;
+let donationReviewFilters;
 const farmerId = '11111111-1111-4111-8111-111111111111';
 const buyerId = '22222222-2222-4222-8222-222222222222';
 const orderId = '33333333-3333-4333-8333-333333333333';
@@ -22,6 +23,7 @@ mock.module('../src/lib/supabaseClient.js', {
         const query = {
           select() { return this; },
           eq(field, value) { filters.push({ field, value }); return this; },
+          is(field, value) { filters.push({ field, value }); return this; },
           in(field, values) { filters.push({ field, values }); return this; },
           order() { return this; },
           single() {
@@ -53,6 +55,15 @@ mock.module('../src/lib/supabaseClient.js', {
           insert(row) { inserted = row; insertedRating = row; return this; },
           then(resolve, reject) {
             if (table === 'ratings') {
+              if (filters.some(({ field }) => field === 'rater_id')) {
+                donationReviewFilters = filters;
+                const savedReview = { id: 'donation-rating', rater_id: buyerId, rater_role: 'stakeholder', order_id: null, rating: 4, comment: 'Fresh cabbage' };
+                const reviews = [savedReview, { ...savedReview, rater_id: farmerId }, { ...savedReview, order_id: orderId }];
+                return Promise.resolve({
+                  data: reviews.filter((review) => filters.every(({ field, value }) => review[field] === value)),
+                  error: null,
+                }).then(resolve, reject);
+              }
               const productFilter = filters.find(({ field }) => field === 'product_id_snapshot');
               const ratings = productFilter?.value === productId
                 ? [{ id: 'rating-id', product_id_snapshot: productId, order_id: orderId, farmer_id: farmerId, rater_id: buyerId, rater_role: 'buyer', rating: 5, comment: 'Fresh produce', created_at: '2026-10-31T00:00:00Z' }]
@@ -68,10 +79,29 @@ mock.module('../src/lib/supabaseClient.js', {
   },
 });
 
-const { createRating, listRatings } = await import('../src/controllers/ratings.controller.js');
+const { createRating, listMyDonationRatings, listRatings } = await import('../src/controllers/ratings.controller.js');
 
 beforeEach(() => {
   insertedRating = null;
+  donationReviewFilters = undefined;
+});
+
+test('my donation reviews use the authenticated stakeholder and exclude purchase reviews', async () => {
+  let reviews;
+  const headers = {};
+  const response = { json: (value) => { reviews = value; }, setHeader: (name, value) => { headers[name] = value; } };
+  await assert.rejects(listMyDonationRatings({ profile: { id: buyerId, role: 'buyer' } }, response), { status: 403 });
+  assert.equal(donationReviewFilters, undefined);
+  await listMyDonationRatings({ profile: { id: buyerId, role: 'stakeholder' }, query: { raterId: farmerId } }, response);
+  assert.deepEqual(donationReviewFilters, [
+    { field: 'rater_id', value: buyerId },
+    { field: 'rater_role', value: 'stakeholder' },
+    { field: 'order_id', value: null },
+  ]);
+  assert.deepEqual(reviews.map(({ id, rating, comment }) => ({ id, rating, comment })), [
+    { id: 'donation-rating', rating: 4, comment: 'Fresh cabbage' },
+  ]);
+  assert.equal(headers['Cache-Control'], 'private, no-store');
 });
 
 async function submit(body) {
@@ -171,7 +201,7 @@ test('donation reviews require a product identifier', async () => {
   assert.equal(insertedRating, null);
 });
 
-test('received donation reviews save the exact product and receipt', async () => {
+test('received donation reviews save written feedback for the exact product and receipt', async () => {
   const response = {
     statusCode: 200,
     status(code) { this.statusCode = code; return this; },
@@ -179,10 +209,12 @@ test('received donation reviews save the exact product and receipt', async () =>
   };
   await createRating({
     profile: { id: buyerId, role: 'stakeholder' },
-    body: { farmerId, productId, donationId, claimId, rating: 5 },
+    body: { farmerId, productId, donationId, claimId, rating: 5, comment: '  Fresh cabbage and a smooth pickup.  ' },
   }, response);
   assert.equal(insertedRating.product_id_snapshot, productId);
   assert.equal(response.body.productId, productId);
+  assert.equal(insertedRating.comment, 'Fresh cabbage and a smooth pickup.');
+  assert.equal(response.body.comment, insertedRating.comment);
 });
 
 test('completed-order ratings save and serialize an attached reviewer video', async () => {

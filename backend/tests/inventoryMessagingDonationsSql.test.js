@@ -18,6 +18,8 @@ const productInventoryRealtimeMigration = await readFile(new URL('../../supabase
 const productPriceRealtimeMigration = await readFile(new URL('../../supabase/migrations/20261119010100_product_price_realtime.sql', import.meta.url), 'utf8');
 const productPriceUpdatedAtMigration = await readFile(new URL('../../supabase/migrations/20261119010200_product_price_updated_at.sql', import.meta.url), 'utf8');
 const confirmedOrderCancellationMigration = await readFile(new URL('../../supabase/migrations/20261104_prevent_confirmed_order_cancellation.sql', import.meta.url), 'utf8');
+const trackingLinkMigration = await readFile(new URL('../../supabase/migrations/20261119010300_manual_lalamove_tracking_link.sql', import.meta.url), 'utf8');
+const deliveryQuoteMigration = await readFile(new URL('../../supabase/migrations/20261120010100_lalamove_delivery_quotes.sql', import.meta.url), 'utf8');
 
 const baseSchema = `
   create function gen_random_uuid() returns uuid language sql volatile as $func$
@@ -50,7 +52,8 @@ const baseSchema = `
     delivery_fee numeric, delivery_distance_km numeric, delivery_duration_minutes numeric,
     delivery_fee_tier text, total_amount numeric, checkout_key uuid,
     checkout_fingerprint text, message text, payment_method text,
-    payment_status text, delivery_method text, delivery_status text,
+    payment_status text, payment_verification_status text, payment_receipt_url text,
+    delivery_method text, delivery_status text,
     origin_municipality text, delivery_municipality text, status text,
     stock_state text, cancellation_reason text, rejection_reason text,
     current_lat numeric, current_lng numeric, location_updated_at timestamptz,
@@ -100,6 +103,8 @@ test('inventory reservations, product context columns, and donation claims are a
   await db.exec(compactDonationMessageQuantitiesMigration);
   await db.exec(confirmedOrderCancellationMigration);
   await db.exec(confirmedOrderCancellationMigration);
+  await db.exec(trackingLinkMigration);
+  await db.exec(deliveryQuoteMigration);
   await db.exec(addStockToExistingDonationMigration);
   await db.exec(addStockToExistingDonationMigration);
 
@@ -113,6 +118,54 @@ test('inventory reservations, product context columns, and donation claims are a
     checkout_key: key, checkout_fingerprint: `fingerprint-${key}`, message: '',
     payment_method: 'cod', delivery_method: 'buyer_pickup', delivery_status: 'pending',
     origin_municipality: 'Cebu City', delivery_municipality: 'Cebu City', created_at: new Date().toISOString(),
+  });
+
+  await t.test('Lalamove quote requests gate payment and confirmation, lock accepted totals, and release stock on decline', async () => {
+    const create = (actor, key, payment) => row('select * from create_lalamove_quote_order($1,$2::jsonb)', [actor,
+      JSON.stringify({ ...orderPayload(key, 2), delivery_method: 'courier', payment_method: payment })]);
+    const quote = (actor, id, action, fee = null, version = null) => row(
+      'select manage_lalamove_delivery_quote($1,$2,$3,$4,$5) as result', [actor, id, action, fee, version],
+    ).then(({ result }) => result);
+    const pending = await create(stakeholder, '40000000-0000-4000-8000-000000000081', 'cod');
+    assert.equal(pending.status, 'pending');
+    assert.equal(pending.lalamove_quote_status, 'pending');
+    await assert.rejects(db.query("update orders set payment_status = 'paid' where id = $1", [pending.id]), { code: '23514' });
+    await assert.rejects(row("select * from transition_marketplace_order($1,$2,'confirmed')", [farmer, pending.id]), { code: '23514' });
+    await assert.rejects(quote(buyer, pending.id, 'propose', 50), { code: '42501' });
+    await assert.rejects(quote(farmer, pending.id, 'propose', 10001), { code: '23514' });
+    const first = (await quote(farmer, pending.id, 'propose', 25.5)).order;
+    const revised = (await quote(farmer, pending.id, 'propose', 30)).order;
+    assert.equal(Number(first.total_amount), 125.5);
+    await assert.rejects(quote(stakeholder, pending.id, 'accept', null, first.lalamove_quoted_at), { code: '23514' });
+    await assert.rejects(quote(buyer, pending.id, 'decline', null, revised.lalamove_quoted_at), { code: '42501' });
+    const declined = (await quote(stakeholder, pending.id, 'decline', null, revised.lalamove_quoted_at)).order;
+    assert.equal(declined.status, 'cancelled');
+    assert.equal(declined.stock_state, 'released');
+    assert.equal((await quote(stakeholder, pending.id, 'decline', null, revised.lalamove_quoted_at)).changed, false);
+
+    await db.exec("update profiles set gcash_account_name='Farmer', gcash_qr_url='/qr' where role='farmer'");
+    const online = await create(buyer, '40000000-0000-4000-8000-000000000082', 'gcash');
+    const proposed = (await quote(farmer, online.id, 'propose', 50)).order;
+    const accepted = (await quote(buyer, online.id, 'accept', null, proposed.lalamove_quoted_at)).order;
+    assert.equal(Number(accepted.lalamove_accepted_total), 150);
+    assert.ok(accepted.lalamove_accepted_at);
+    assert.equal((await quote(buyer, online.id, 'accept', null, proposed.lalamove_quoted_at)).changed, false);
+    await assert.rejects(quote(farmer, online.id, 'propose', 55), { code: '23514' });
+    await assert.rejects(db.query('update orders set total_amount=155 where id=$1', [online.id]), { code: '23514' });
+    await assert.rejects(row("select * from transition_marketplace_order($1,$2,'confirmed')", [farmer, online.id]), { code: '23514' });
+    await db.query("update orders set payment_verification_status='pending' where id=$1", [online.id]);
+    await assert.rejects(row("select * from transition_marketplace_order($1,$2,'cancelled')", [buyer, online.id]), { code: '23514' });
+    await db.query("update orders set payment_status='paid', payment_verification_status='approved' where id=$1", [online.id]);
+    assert.equal((await row("select * from transition_marketplace_order($1,$2,'confirmed')", [farmer, online.id])).status, 'confirmed');
+    await db.query("update orders set delivery_status='preparing' where id=$1", [online.id]);
+    const saveLink = () => db.query("update orders set manual_lalamove_tracking_url='https://share.lalamove.com/?test' where id=$1", [online.id]);
+    await assert.rejects(saveLink(), { code: '23514' });
+    await db.query("update orders set delivery_status='packed' where id=$1", [online.id]);
+    await assert.rejects(db.query("update orders set delivery_status='out_for_delivery' where id=$1", [online.id]), { code: '23514' });
+    await saveLink();
+    await db.query("update orders set delivery_status='out_for_delivery' where id=$1", [online.id]);
+    await db.query('delete from orders where id in ($1,$2)', [pending.id, online.id]);
+    await db.query('update products set quantity=10,reserved_quantity=0 where id=$1', [product]);
   });
 
   await t.test('checkout reserves once, idempotent retries do not double reserve, and rejection releases', async () => {

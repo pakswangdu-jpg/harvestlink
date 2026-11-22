@@ -36,6 +36,22 @@ function validateReviewMediaUrl(value, raterId, orderId, bucket, extensions, lab
 
 
 
+export async function listMyDonationRatings(req, res) {
+  if (req.profile.role !== 'stakeholder') {
+    throw new ApiError('Only stakeholders can view their donation reviews.', 403);
+  }
+
+  const { data, error } = await supabaseAdmin.from('ratings').select('*')
+    .eq('rater_id', req.profile.id)
+    .eq('rater_role', 'stakeholder')
+    .is('order_id', null)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+  if (error) throw new ApiError(error.message, 400);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json(data.map(serializeRating));
+}
+
 export async function listRatings(req, res) {
   const { farmerId, orderId, productId } = req.query;
   if (!farmerId && !orderId && !productId) {

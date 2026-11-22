@@ -15,6 +15,8 @@ import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
+import { ManageManualLalamoveTracking, ManualLalamoveTrackingLink } from '../../components/orders/ManualLalamoveTracking';
+import LalamoveDeliveryQuote from '../../components/orders/LalamoveDeliveryQuote';
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
 import TrackingRouteSummary from '../../components/orders/TrackingRouteSummary';
 import FeedbackSuccessDialog from '../../components/orders/FeedbackSuccessDialog';
@@ -503,6 +505,9 @@ export default function OrderTracking() {
   const { isNearDestination } = transit;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
+  const quotePending = order.lalamoveQuoteStatus === 'pending';
+  const canPayLalamove = !order.lalamoveQuoteStatus || order.lalamoveQuoteStatus === 'accepted';
+  const canConfirmLalamove = canPayLalamove && (!order.lalamoveQuoteStatus || order.paymentMethod !== 'gcash' || order.paymentStatus === 'paid');
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
   const TrackingStatusIcon = TRACKING_STATUS_ICON[trackingStatus.key];
 
@@ -567,7 +572,7 @@ export default function OrderTracking() {
             </div>
             <div className="ot-order-meta">
               <span>{order.quantity} {order.unit}</span>
-              <span>{formatCurrency(order.totalAmount)}</span>
+              <span>{quotePending ? 'Final total pending' : formatCurrency(order.totalAmount)}</span>
               <span>{formatDate(order.createdAt)}</span>
             </div>
           </div>
@@ -667,7 +672,7 @@ export default function OrderTracking() {
               <div className="ot-detail-group ot-payment-details">
                 <h4>Payment</h4>
                 <div className="ot-detail-row"><span>Payment method</span><strong><PaymentMethodLabel method={order.paymentMethod} /></strong></div>
-                <div className="ot-detail-row"><span>{order.paymentMethod === 'cod' ? 'Amount to collect' : 'Amount'}</span><strong className="ot-payment-amount">{formatCurrency(order.totalAmount)}</strong></div>
+                <div className="ot-detail-row"><span>{!canPayLalamove ? 'Amount payable' : order.paymentMethod === 'cod' ? 'Amount to collect' : 'Amount'}</span><strong className="ot-payment-amount">{canPayLalamove ? formatCurrency(order.totalAmount) : 'Pending quote acceptance'}</strong></div>
                 <div className="ot-detail-row"><span>Payment status</span><StatusBadge value={order.paymentStatus} type="paymentStatus" /></div>
                 {order.paymentMethod === 'gcash' && order.paymentVerificationStatus ? (
                   <>
@@ -699,6 +704,8 @@ export default function OrderTracking() {
                     <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
                     <strong>{formatCurrency(order.deliveryFee)}</strong>
                   </div>
+                ) : isCourier && (order.lalamoveQuoteStatus || order.deliveryFeeTier === 'Arranged separately') ? (
+                  <div className="ot-detail-row"><span>Delivery fee</span><strong>{quotePending ? 'Awaiting farmer confirmation' : order.lalamoveQuoteStatus ? formatCurrency(0) : 'Arranged separately'}</strong></div>
                 ) : null}
                 {order.status === 'confirmed' && !isCourier && displayEstimatedTotalMinutes != null ? (
                   <div className="ot-detail-row">
@@ -732,9 +739,9 @@ export default function OrderTracking() {
             <div className="form-actions">
               {isFarmer && order.status === 'pending' ? (
                 <>
-                  <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
+                  {canConfirmLalamove ? <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
                     <Check size={15} /> Confirm order
-                  </Button>
+                  </Button> : null}
                   <Button variant="danger" onClick={() => setIsRejectDialogOpen(true)}>
                     <X size={15} /> Reject order
                   </Button>
@@ -769,7 +776,7 @@ export default function OrderTracking() {
                 </Link>
               ) : null}
 
-              {isBuyer && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod)
+              {isBuyer && canPayLalamove && order.paymentStatus === 'pending' && ONLINE_PAYMENT_METHODS.includes(order.paymentMethod)
               && !order.paymentVerificationStatus ? (
                 <Button onClick={() => navigate(`/orders/${order.id}/pay/gcash`)}>Pay now</Button>
               ) : null}
@@ -909,6 +916,22 @@ export default function OrderTracking() {
 
 
                                                                                          }
+        {isCourier && (isBuyer || isFarmer) ? (
+          <section className="panel form-stack" aria-label="Lalamove Delivery Tracking">
+            <div className="section-heading"><h2>Lalamove Delivery Tracking</h2></div>
+            {order.lalamoveQuoteStatus ? <LalamoveDeliveryQuote key={order.id} order={order} isFarmer={isFarmer} onUpdated={(updated) => {
+              setOrder((previous) => previous?.id === order.id ? { ...previous, ...updated } : previous);
+            }} /> : null}
+            <p className="text-sm text-[var(--muted)]">The shared link opens Lalamove’s tracking page. Live location availability depends on the booking.</p>
+            <div>
+              {isFarmer && (!order.lalamoveQuoteStatus || ['packed', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus)) ? (
+                <ManageManualLalamoveTracking key={order.id} order={order} onSaved={(trackingUrl) => {
+                  setOrder((previous) => previous?.id === order.id ? { ...previous, manualLalamoveTrackingUrl: trackingUrl } : previous);
+                }} />
+              ) : isBuyer ? <ManualLalamoveTrackingLink order={order} /> : null}
+            </div>
+          </section>
+        ) : null}
         {isTrackable && isCourier ? (
           <DeliveryInfoCard
             key={order.id}

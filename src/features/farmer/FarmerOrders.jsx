@@ -17,6 +17,9 @@ import { usePagination } from '../../components/admin/usePagination';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { advanceDelivery, getNextDeliveryStatus, getOrdersByFarmer, updateOrderStatus } from '../../services/orderService';
+import { ManageManualLalamoveTracking } from '../../components/orders/ManualLalamoveTracking';
+import LalamoveDeliveryQuote from '../../components/orders/LalamoveDeliveryQuote';
+import { updateDeliveryStatus } from '../../services/deliveryService';
 import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
 import { formatCurrency, formatDate, formatTime, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
 import { farmerNavItems } from './farmerNav';
@@ -125,7 +128,15 @@ function getPrimaryAction(order) {
 
 
 
-    if (order.deliveryMethod === 'courier') return { kind: 'book-courier' };
+    if (order.deliveryMethod === 'courier') {
+      if (order.lalamoveQuoteStatus === 'accepted' && order.manualLalamoveTrackingUrl) {
+        return {
+          kind: 'advance', next: nextStep, label: 'Start Delivery', requiresConfirm: true,
+          confirmMessage: 'Confirm that you have physically handed the order to the Lalamove courier.',
+        };
+      }
+      return { kind: 'book-courier' };
+    }
     return { kind: 'advance', next: nextStep, label: 'Start Delivery' };
   }
 
@@ -245,9 +256,11 @@ function OrderActions({ order, onAction, onReviewPayment }) {
         <Button size="sm" variant="ghost" className="farmer-order-action farmer-order-action-reject" onClick={() => onAction('reject', order)} aria-label={`Reject order from ${order.buyerName}`}>
           Reject
         </Button>
+        {!order.lalamoveQuoteStatus || (order.lalamoveQuoteStatus === 'accepted' && (order.paymentMethod !== 'gcash' || order.paymentStatus === 'paid')) ? (
         <Button size="sm" className="farmer-order-action farmer-order-action-primary" onClick={() => onAction('confirm', order)} aria-label={`Confirm order from ${order.buyerName}`}>
           <Check size={16} aria-hidden="true" /> Confirm order
         </Button>
+        ) : null}
       </div>
     );
   }
@@ -484,7 +497,8 @@ export default function FarmerOrders() {
     if (!confirmAction) return;
     const { order, action } = confirmAction;
     run(
-      () => advanceDelivery(order.id),
+      () => order.deliveryMethod === 'courier' && action.next === 'out_for_delivery'
+        ? updateDeliveryStatus(order.id, action.next) : advanceDelivery(order.id),
       `Order marked "${action.label}".`,
       getOrderStage({ ...order, deliveryStatus: action.next }),
     );
@@ -723,7 +737,7 @@ export default function FarmerOrders() {
                       <div className="farmer-purchase-summary">
                         <div className="farmer-purchase-product">
                           <ProductCell order={order} />
-                          <div className="farmer-purchase-total"><span>Order total</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
+                          <div className="farmer-purchase-total"><span>{order.lalamoveQuoteStatus === 'pending' ? 'Product subtotal' : 'Order total'}</span><strong>{formatCurrency(order.totalAmount)}</strong></div>
                         </div>
                         <div className="farmer-purchase-logistics">
                           <PaymentCell order={order} onViewPayment={(target) => setVerifyingOrderId(target.id)} />
@@ -734,6 +748,18 @@ export default function FarmerOrders() {
                       <div className="farmer-purchase-decision">
                         <OrderStageBadge order={order} />
                         <OrderActions order={order} onAction={handleAction} onReviewPayment={(target) => setVerifyingOrderId(target.id)} />
+                        {order.lalamoveQuoteStatus && order.status === 'pending' ? (
+                          <LalamoveDeliveryQuote order={order} isFarmer onUpdated={(updated) => {
+                            setOrders((previous) => previous.map((item) => item.id === order.id ? { ...item, ...updated } : item));
+                          }} />
+                        ) : null}
+                        {order.deliveryMethod === 'courier' && (!order.lalamoveQuoteStatus || ['packed', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus)) ? (
+                          <ManageManualLalamoveTracking order={order} onSaved={(trackingUrl) => {
+                            setOrders((previous) => previous.map((item) => item.id === order.id
+                              ? { ...item, manualLalamoveTrackingUrl: trackingUrl }
+                              : item));
+                          }} />
+                        ) : null}
                         {order.status === 'pending' ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link> : null}
                       </div>
                     </article>

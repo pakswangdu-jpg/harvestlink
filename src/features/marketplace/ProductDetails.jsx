@@ -247,7 +247,7 @@ export default function ProductDetails() {
 
 
     removeItem(product.id);
-    navigate(order.paymentMethod === 'gcash'
+    navigate(order.deliveryMethod === 'courier' ? `/orders/${order.id}` : order.paymentMethod === 'gcash'
       ? `/orders/${order.id}/pay/gcash`
       : `/orders/${order.id}/pay/cod`, {
         state: { checkoutPath: `/products/${product.id}` },

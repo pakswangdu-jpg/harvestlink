@@ -46,10 +46,12 @@ const MAX_PRODUCT_IMAGES = 10;
 function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, onValidationError, onRemove }) {
   const cameraInputRef = useRef(null);
   const uploadInputRef = useRef(null);
+  const cameraDialogRef = useRef(null);
   const videoRef = useRef(null);
   const cameraStreamRef = useRef(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraReady, setCameraReady] = useState(false);
 
   const validateAndSelect = (candidates) => {
     const files = Array.from(candidates || []).filter(Boolean);
@@ -74,6 +76,7 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
   };
 
   const closeCamera = () => {
+    cameraDialogRef.current?.close();
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
@@ -83,6 +86,8 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
   useEffect(() => {
     if (!isCameraOpen) return undefined;
 
+    const dialog = cameraDialogRef.current;
+    if (!dialog.open) dialog.showModal();
     let cancelled = false;
     const startCamera = async () => {
       if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
@@ -105,13 +110,19 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
           await videoRef.current.play();
         }
       } catch {
-        if (!cancelled) setCameraError('Camera access was blocked. You can upload an image instead.');
+        if (!cancelled) {
+          cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+          cameraStreamRef.current = null;
+          setCameraReady(false);
+          setCameraError('The camera could not start. Check camera permissions or upload an image.');
+        }
       }
     };
 
     startCamera();
     return () => {
       cancelled = true;
+      dialog.close();
       cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
       cameraStreamRef.current = null;
     };
@@ -119,6 +130,7 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
 
   const openCamera = () => {
     setCameraError('');
+    setCameraReady(false);
     if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
       setIsCameraOpen(true);
     } else {
@@ -129,6 +141,8 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
 
   const capturePhoto = () => {
     const video = videoRef.current;
+    const stream = cameraStreamRef.current;
+    if (!stream || !cameraReady) return;
     if (!video?.videoWidth || !video.videoHeight) {
       setCameraError('The camera is still starting. Try again in a moment.');
       return;
@@ -137,9 +151,18 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setCameraError('The photo could not be captured. Try again.');
+      return;
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setCameraReady(false);
+    setCameraError('');
     canvas.toBlob((blob) => {
+      if (cameraStreamRef.current !== stream) return;
       if (!blob) {
+        setCameraReady(true);
         setCameraError('The photo could not be captured. Try again.');
         return;
       }
@@ -190,12 +213,16 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
 
 
 
-        <div
+        <dialog
+          ref={cameraDialogRef}
           className="product-camera-modal"
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="product-camera-title"
           onClick={(event) => { if (event.target === event.currentTarget) closeCamera(); }}
+          onKeyDown={(event) => { if (event.key === 'Escape') event.stopPropagation(); }}
+          onCancel={(event) => {
+            event.preventDefault();
+            closeCamera();
+          }}
         >
           <div className="product-camera-card">
             <div className="product-camera-header">
@@ -207,16 +234,22 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
             </div>
             {cameraError ? <p className="product-camera-error" role="alert">{cameraError}</p> : null}
             <div className="product-camera-viewfinder">
-              <video ref={videoRef} autoPlay muted playsInline aria-label="Camera preview" />
+              <video ref={videoRef} autoPlay muted playsInline aria-label="Camera preview" onPlaying={() => setCameraReady(true)} />
             </div>
             <div className="product-camera-actions">
               <button type="button" className="btn btn-secondary btn-md" onClick={closeCamera}>Cancel</button>
-              <button type="button" className="btn btn-primary btn-md" onClick={capturePhoto} disabled={Boolean(cameraError)}>
+              {cameraError && !cameraReady ? (
+                <button type="button" className="btn btn-primary btn-md" onClick={() => {
+                  closeCamera();
+                  uploadInputRef.current?.click();
+                }}>Upload images</button>
+              ) : null}
+              <button type="button" className="btn btn-primary btn-md" onClick={capturePhoto} disabled={!cameraReady}>
                 Capture photo
               </button>
             </div>
           </div>
-        </div>,
+        </dialog>,
         document.body,
       ) : null}
     </>

@@ -41,6 +41,21 @@ function assertFarmer(req, order) {
   if (req.profile.id !== order.farmer_id) throw new ApiError('You do not have permission to review this payment.', 403);
 }
 
+function assertLalamovePayable(order) {
+  if (!order.lalamove_quote_status) return;
+  if (order.lalamove_quote_status !== 'accepted' || !['pending', 'confirmed'].includes(order.status)) {
+    throw new ApiError('Accept the final Lalamove total before paying for this order.', 409);
+  }
+}
+
+function matchLalamovePaymentState(query, order) {
+  if (!order.lalamove_quote_status) return query;
+  const scoped = query.eq('status', order.status).eq('payment_status', order.payment_status);
+  return order.payment_verification_status == null
+    ? scoped.is('payment_verification_status', null)
+    : scoped.eq('payment_verification_status', order.payment_verification_status);
+}
+
 
 
 
@@ -48,6 +63,7 @@ function assertFarmer(req, order) {
 export async function getGcashCheckout(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertBuyer(req, order);
+  assertLalamovePayable(order);
   if (order.payment_method !== 'gcash') throw new ApiError('This order is not a GCash payment.', 400);
   if (order.payment_status === 'paid') throw new ApiError('This order has already been paid.', 400);
 
@@ -83,6 +99,7 @@ export async function getGcashCheckout(req, res) {
 export async function submitPaymentProof(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertBuyer(req, order);
+  assertLalamovePayable(order);
   if (order.payment_method !== 'gcash') throw new ApiError('This order is not a GCash payment.', 400);
 
   if (order.payment_status === 'paid') {
@@ -97,7 +114,7 @@ export async function submitPaymentProof(req, res) {
   if (!referenceNumber?.trim()) throw new ApiError('Enter the GCash reference number.', 400);
   if (!senderName?.trim()) throw new ApiError('Enter the sender name on the payment.', 400);
 
-  const { data: updated, error } = await supabaseAdmin
+  const query = supabaseAdmin
     .from('orders')
     .update({
       payment_receipt_url: receiptUrl,
@@ -108,9 +125,8 @@ export async function submitPaymentProof(req, res) {
       payment_verification_status: 'pending',
       payment_rejection_reason: null,
     })
-    .eq('id', order.id)
-    .select()
-    .single();
+    .eq('id', order.id);
+  const { data: updated, error } = await matchLalamovePaymentState(query, order).select().single();
   if (error) throw new ApiError(error.message, 400);
 
   await createNotification({
@@ -136,11 +152,12 @@ export async function submitPaymentProof(req, res) {
 export async function approvePaymentVerification(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertFarmer(req, order);
+  assertLalamovePayable(order);
   if (order.payment_verification_status !== 'pending') {
     throw new ApiError('There is no pending payment verification for this order.', 400);
   }
 
-  const { data: updated, error } = await supabaseAdmin
+  const query = supabaseAdmin
     .from('orders')
     .update({
       payment_status: 'paid',
@@ -149,9 +166,8 @@ export async function approvePaymentVerification(req, res) {
       paid_at: new Date().toISOString(),
       payment_reviewed_at: new Date().toISOString(),
     })
-    .eq('id', order.id)
-    .select()
-    .single();
+    .eq('id', order.id);
+  const { data: updated, error } = await matchLalamovePaymentState(query, order).select().single();
   if (error) throw new ApiError(error.message, 400);
 
   await supabaseAdmin.from('order_delivery_events').insert({
@@ -178,6 +194,7 @@ export async function approvePaymentVerification(req, res) {
 export async function rejectPaymentVerification(req, res) {
   const order = await fetchOrderOr404(req.params.orderId);
   assertFarmer(req, order);
+  assertLalamovePayable(order);
   if (order.payment_verification_status !== 'pending') {
     throw new ApiError('There is no pending payment verification for this order.', 400);
   }
@@ -185,16 +202,15 @@ export async function rejectPaymentVerification(req, res) {
   const reason = req.body.reason?.trim();
   if (!reason) throw new ApiError('Enter a reason for rejecting this payment.', 400);
 
-  const { data: updated, error } = await supabaseAdmin
+  const query = supabaseAdmin
     .from('orders')
     .update({
       payment_verification_status: 'rejected',
       payment_rejection_reason: reason,
       payment_reviewed_at: new Date().toISOString(),
     })
-    .eq('id', order.id)
-    .select()
-    .single();
+    .eq('id', order.id);
+  const { data: updated, error } = await matchLalamovePaymentState(query, order).select().single();
   if (error) throw new ApiError(error.message, 400);
 
   await createNotification({

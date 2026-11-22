@@ -9,6 +9,7 @@ import { ApiError } from '../lib/ApiError.js';
 import { buildCheckoutQuote } from '../lib/checkoutQuote.js';
 import { queryAdminOrders } from '../lib/adminOrderQuery.js';
 import { loadOrderReceipt } from '../lib/orderReceipt.js';
+import { normalizeManualLalamoveTrackingUrl, validateManualLalamoveFee, MAX_MANUAL_LALAMOVE_FEE } from '../../shared/lalamove.js';
 
 async function transitionOrder(actor, orderId, action, reason) {
   const { data, error } = await supabaseAdmin.rpc('transition_marketplace_order', {
@@ -27,10 +28,42 @@ export async function getCheckoutQuote(req, res) {
   const { data: product, error } = await supabaseAdmin.from('products').select('*').eq('id', req.body.productId).single();
   if (error || !product) throw new ApiError('Product was not found.', 404);
   if (req.profile.role === 'admin' || product.farmer_id === req.profile.id) throw new ApiError('You cannot order this product.', 403);
-  res.json(await buildCheckoutQuote(product, {
+  const quote = await buildCheckoutQuote(product, {
     ...req.body,
     deliveryMunicipality: req.profile.municipality || req.body.deliveryMunicipality,
-  }));
+  });
+  res.json(req.body.deliveryMethod === 'courier' ? { ...quote, total: null, requiresDeliveryQuote: true } : quote);
+}
+
+export async function manageLalamoveDeliveryQuote(req, res) {
+  const { action, fee, quotedAt } = req.body || {};
+  if (!['propose', 'accept', 'decline'].includes(action)) throw new ApiError('Choose a valid quote action.', 400);
+  if (action === 'propose' && !validateManualLalamoveFee(fee)) {
+    throw new ApiError(`Enter a delivery fee from PHP 0 to PHP ${MAX_MANUAL_LALAMOVE_FEE.toLocaleString('en-PH')} with up to two decimals.`, 400);
+  }
+  if (action !== 'propose' && (typeof quotedAt !== 'string' || Number.isNaN(Date.parse(quotedAt)))) {
+    throw new ApiError('Refresh the delivery quote before responding.', 400);
+  }
+  const { data, error } = await supabaseAdmin.rpc('manage_lalamove_delivery_quote', {
+    p_actor: req.profile.id, p_order: req.params.id, p_action: action,
+    p_fee: action === 'propose' ? fee : null, p_quoted_at: action === 'propose' ? null : quotedAt,
+  });
+  if (error) {
+    if (['42883', 'PGRST202'].includes(error.code)) throw new ApiError('Lalamove delivery pricing requires the latest database migration.', 503);
+    throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+  }
+  const { order, changed } = data;
+  if (changed) {
+    const title = { propose: 'Lalamove total ready for review', accept: 'Lalamove total accepted', decline: 'Lalamove quote declined' }[action];
+    const message = {
+      propose: 'The farmer entered a delivery price. Open your order to review the total.',
+      accept: 'The recipient accepted the order total. Check the payment status before confirming the order.',
+      decline: 'The recipient declined the delivery quote. The order was cancelled and its reserved stock released.',
+    }[action];
+    await createNotification({ userId: action === 'propose' ? order.buyer_id : order.farmer_id, type: 'order', title, message, link: `/orders/${order.id}` })
+      .catch((failure) => console.warn('Lalamove quote notification failed:', failure.message));
+  }
+  res.json(serializeOrderForViewer(order, req.profile));
 }
 
 async function hydrateFarmerProfiles(orders) {
@@ -83,6 +116,17 @@ function assertParty(req, order) {
   return { isAdmin, isBuyer, isFarmer };
 }
 
+function serializeOrderForViewer(order, profile) {
+  const serialized = serializeOrder(order);
+  if (order.delivery_method === 'courier' && (
+    (profile.role === 'farmer' && profile.id === order.farmer_id)
+    || (['buyer', 'stakeholder'].includes(profile.role) && profile.id === order.buyer_id)
+  )) {
+    serialized.manualLalamoveTrackingUrl = normalizeManualLalamoveTrackingUrl(order.manual_lalamove_tracking_url);
+  }
+  return serialized;
+}
+
 
 
 export async function listOrders(req, res) {
@@ -101,7 +145,9 @@ export async function listOrders(req, res) {
 
   const { data, error } = await query;
   if (error) throw new ApiError(error.message, 400);
-  res.json((await hydrateFarmerProfiles(data)).map(serializeOrder));
+  const orders = (await hydrateFarmerProfiles(data)).map((order) => serializeOrderForViewer(order, req.profile));
+  if (orders.some((order) => order.manualLalamoveTrackingUrl)) res.setHeader('Cache-Control', 'private, no-store');
+  res.json(orders);
 }
 
 export async function getOrder(req, res) {
@@ -118,7 +164,9 @@ export async function getOrder(req, res) {
     .order('occurred_at', { ascending: true });
 
   if (eventsError) throw new ApiError('Unable to load order history. Try again.', 500);
-  res.json({ ...serializeOrder(order), deliveryEvents: (events || []).map(serializeDeliveryEvent) });
+  const serialized = serializeOrderForViewer(order, req.profile);
+  if (serialized.manualLalamoveTrackingUrl) res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ ...serialized, deliveryEvents: (events || []).map(serializeDeliveryEvent) });
 }
 
 export async function getOrderTrackingProfiles(req, res) {
@@ -290,7 +338,7 @@ export async function createOrder(req, res) {
   let order;
   let error;
   if (typeof supabaseAdmin.rpc === 'function') {
-    ({ data: order, error } = await supabaseAdmin.rpc('create_marketplace_order', {
+    ({ data: order, error } = await supabaseAdmin.rpc(values.deliveryMethod === 'courier' ? 'create_lalamove_quote_order' : 'create_marketplace_order', {
       p_actor: req.profile.id,
       p_order: row,
     }));
@@ -356,6 +404,10 @@ export async function updateOrderStatus(req, res) {
 
   const { status } = req.body;
   if (!['confirmed', 'rejected'].includes(status)) throw new ApiError('Invalid order status.', 400);
+  if (status === 'confirmed' && existing.lalamove_quote_status) {
+    if (existing.lalamove_quote_status !== 'accepted') throw new ApiError('The recipient must accept the Lalamove total first.', 409);
+    if (existing.payment_method === 'gcash' && existing.payment_status !== 'paid') throw new ApiError('Verify GCash payment before confirming this order.', 409);
+  }
 
   const order = await transitionOrder(req.profile.id, existing.id, status, req.body.reason);
 

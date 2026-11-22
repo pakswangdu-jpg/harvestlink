@@ -9,6 +9,7 @@ import {
   getOrderReceipt,
   getCheckoutQuote,
   listOrders,
+  manageLalamoveDeliveryQuote,
   updateOrderLocation,
   updateOrderStatus,
 } from '../controllers/orders.controller.js';
@@ -22,6 +23,7 @@ router.get('/:id', requireAuth, getOrder);
 router.get('/:id/tracking-profiles', requireAuth, getOrderTrackingProfiles);
 router.get('/:id/receipt', requireAuth, getOrderReceipt);
 router.patch('/:id/status', requireAuth, updateOrderStatus);
+router.patch('/:id/lalamove-delivery-quote', requireAuth, manageLalamoveDeliveryQuote);
 router.patch('/:id/cancel', requireAuth, cancelOrder);
 router.patch('/:id/advance-delivery', requireAuth, advanceDelivery);
 router.patch('/:id/location', requireAuth, updateOrderLocation);

@@ -4,6 +4,7 @@ import {
   Gift, History, Hourglass, Package, PackageCheck, Search, Truck,
 } from 'lucide-react';
 import AppShell from '../../components/layout/AppShell';
+import DonationReviewsReceived from './DonationReviewsReceived';
 import Button from '../../components/common/Button';
 import Modal from '../../components/admin/Modal';
 import { Card, CardHeader } from '../../components/admin/Card';
@@ -491,6 +492,8 @@ export default function FarmerDonations() {
         />
         <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} />
       </Card>
+
+      <DonationReviewsReceived key={currentUser.id} farmerId={currentUser.id} donations={donations} />
 
       <Modal
         open={Boolean(donationProduct)}

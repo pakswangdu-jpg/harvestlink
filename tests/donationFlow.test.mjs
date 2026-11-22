@@ -34,6 +34,8 @@ async function screen(file, mutation, reject = false, claimQuantity = '1', donat
     stakeholderPickupDisplayStatus,
     [mutation]: async (...args) => { events.push(args); return pending; },
     AppShell: 'shell', DonationCard: 'donation', Button: 'button', EmptyState: 'empty', StarRating: 'stars', Link: 'link',
+    SubmittedDonationReviews: 'submitted-donation-reviews',
+    FeedbackSuccessDialog: 'feedback-success-dialog',
     Gift: 'gift', Calendar: 'calendar', CheckCircle2: 'check', History: 'history', Hourglass: 'hourglass', MessageCircle: 'msg', Navigation: 'nav', stakeholderNavItems: [],
   };
   const component = new Function('scope', `with(scope){${code};return ${file};}`)(scope);
