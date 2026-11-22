@@ -16,8 +16,58 @@ export function toPositiveNumber(value) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
-export function isValidZipCode(value) {
-  return /^\d{4}$/.test(String(value || '').trim());
+const MUNICIPALITY_ZIP_CODES = {
+  'Cebu City': ['6000'],
+  Consolacion: ['6001'],
+  Liloan: ['6002'],
+  Compostela: ['6003'],
+  'Danao City': ['6004'],
+  Carmen: ['6005'],
+  Catmon: ['6006'],
+  Sogod: ['6007'],
+  Borbon: ['6008'],
+  Tabogon: ['6009'],
+  'Bogo City': ['6010'],
+  'San Remigio': ['6011'],
+  Medellin: ['6012'],
+  Daanbantayan: ['6013'],
+  'Mandaue City': ['6014'],
+  'Lapu-Lapu City': ['6015'],
+  Cordova: ['6017'],
+  'San Fernando': ['6018'],
+  'Carcar City': ['6019'],
+  Sibonga: ['6020'],
+  Argao: ['6021'],
+  Dalaguete: ['6022'],
+  Alcoy: ['6023'],
+  Boljoon: ['6024'],
+  Oslob: ['6025'],
+  Santander: ['6026'],
+  Samboan: ['6027'],
+  Ginatilan: ['6028'],
+  Malabuyoc: ['6029'],
+  Alegria: ['6030'],
+  Badian: ['6031'],
+  Moalboal: ['6032'],
+  Alcantara: ['6033'],
+  Ronda: ['6034'],
+  Dumanjug: ['6035'],
+  Barili: ['6036'],
+  'Naga City': ['6037'],
+  'Toledo City': ['6038'],
+  Pinamungajan: ['6039'],
+  Balamban: ['6041'],
+  Asturias: ['6042'],
+  Tuburan: ['6043'],
+  'Talisay City': ['6045'],
+  Minglanilla: ['6046'],
+};
+
+export function isValidZipCode(value, municipality = '') {
+  const zipCode = String(value || '').trim();
+  if (!/^\d{4}$/.test(zipCode)) return false;
+  const acceptedCodes = MUNICIPALITY_ZIP_CODES[String(municipality || '').trim()];
+  return !acceptedCodes || acceptedCodes.includes(zipCode);
 }
 
 
@@ -81,7 +131,7 @@ export function validateAuthForm(values, mode) {
 
   if (mode === 'register' && ['farmer', 'buyer'].includes(values.role)) {
     if (!required(values.address)) errors.address = 'Enter your complete address.';
-    if (!isValidZipCode(values.zipCode)) errors.zipCode = 'Enter a valid 4-digit zip code.';
+    if (!isValidZipCode(values.zipCode, values.municipality)) errors.zipCode = 'Enter a valid zip code for the selected location.';
   }
   if (mode === 'register' && values.role === 'stakeholder') {
     if (!required(values.organizationName)) errors.organizationName = 'Enter your organization name.';
@@ -225,7 +275,7 @@ export function validateProfileForm(values, role) {
   if (!required(values.name)) errors.name = 'Enter your full name.';
   if (!required(values.municipality)) errors.municipality = 'Choose your location.';
   if (!required(values.address)) errors.address = 'Enter your complete address.';
-  if (!isValidZipCode(values.zipCode)) errors.zipCode = 'Enter a valid 4-digit zip code.';
+  if (!isValidZipCode(values.zipCode, values.municipality)) errors.zipCode = 'Enter a valid zip code for the selected location.';
   if (role === 'farmer' || role === 'buyer' || role === 'stakeholder') {
     if (!required(values.contactNumber)) errors.contactNumber = 'Enter a contact number.';
   }

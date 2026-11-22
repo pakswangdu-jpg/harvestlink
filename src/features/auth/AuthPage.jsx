@@ -19,7 +19,7 @@ import { reverseGeocode } from '../../services/geocodeService';
 import { getAccurateDeviceLocation } from '../../utils/deviceLocation';
 import { isAcceptableRegistrationLocationAccuracy } from '../../../backend/shared/location.js';
 import { checkContactNumberAvailability } from '../../services/authService';
-import { hasErrors, isValidEmail, validateAuthForm } from '../../utils/validators';
+import { hasErrors, isValidEmail, isValidZipCode, validateAuthForm } from '../../utils/validators';
 import { isValidPhilippineMobile, sanitizePhoneInput, toE164PhilippineMobile } from '../../utils/philippineMobile';
 import { useAuth } from './AuthContext';
 import { getAuthDestination } from '../../utils/authDestination';
@@ -1566,7 +1566,13 @@ export default function AuthPage({ mode, adminPortal = false }) {
                           <input
                             id="zipCode"
                             value={form.zipCode}
-                            onChange={(event) => updateField('zipCode', event.target.value)}
+                            onChange={(event) => {
+                              const value = event.target.value.replace(/\D/g, '').slice(0, 4);
+                              updateField('zipCode', value);
+                              if (value.length === 4 && !isValidZipCode(value, form.municipality)) {
+                                setFieldError('zipCode', 'Enter a valid zip code for the selected location.');
+                              }
+                            }}
                             onBlur={() => handleBlur('zipCode')}
                             placeholder="6000"
                             inputMode="numeric"
