@@ -162,6 +162,7 @@ export default function Profile() {
   const [qrError, setQrError] = useState('');
   const [isUploadingVerificationDocument, setIsUploadingVerificationDocument] = useState(false);
   const [verificationDocumentError, setVerificationDocumentError] = useState('');
+  const verificationInputRef = useRef(null);
 
 
 
@@ -660,10 +661,10 @@ export default function Profile() {
               {isVerificationRejected ? (
                 <div className="profile-verification-reupload">
                   <p className="muted">Your previous document was rejected. Upload an updated proof for admin review.</p>
-                  <label className="btn btn-secondary profile-reupload-button">
-                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} />
+                  <button type="button" className="btn btn-secondary profile-reupload-button" onClick={() => verificationInputRef.current?.click()} disabled={isUploadingVerificationDocument}>
                     {isUploadingVerificationDocument ? 'Uploading…' : 'Re-upload government ID / certificate'}
-                  </label>
+                  </button>
+                  <input ref={verificationInputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} className="profile-reupload-input" />
                   {verificationDocumentError ? <p className="field-error" role="alert">{verificationDocumentError}</p> : null}
                 </div>
               ) : null}
@@ -697,10 +698,10 @@ export default function Profile() {
               {isVerificationRejected ? (
                 <div className="profile-verification-reupload">
                   <p className="muted">Your previous accreditation document was rejected. Upload an updated document for admin review.</p>
-                  <label className="btn btn-secondary profile-reupload-button">
-                    <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} />
+                  <button type="button" className="btn btn-secondary profile-reupload-button" onClick={() => verificationInputRef.current?.click()} disabled={isUploadingVerificationDocument}>
                     {isUploadingVerificationDocument ? 'Uploading…' : 'Re-upload accreditation document'}
-                  </label>
+                  </button>
+                  <input ref={verificationInputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={handleVerificationDocumentChange} disabled={isUploadingVerificationDocument} className="profile-reupload-input" />
                   {verificationDocumentError ? <p className="field-error" role="alert">{verificationDocumentError}</p> : null}
                 </div>
               ) : null}
