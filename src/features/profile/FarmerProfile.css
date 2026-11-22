@@ -23,11 +23,32 @@
 .app-shell .profile-page.farmer-profile-page .info-row small { font-size: 12px; font-weight: 400; line-height: 1.5; letter-spacing: 0; text-transform: none; }
 .app-shell .profile-page.farmer-profile-page .info-row strong { font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
 .app-shell .profile-page.farmer-profile-page .profile-file-card { background: var(--soft); border: 1px solid var(--line); }
-.app-shell .profile-page.farmer-profile-page .profile-verification-reupload { display: grid; gap: 8px; margin-top: 12px; }
-.app-shell .profile-page.farmer-profile-page .profile-reupload-button { width: fit-content; cursor: pointer; }
+.app-shell .profile-page.farmer-profile-page .profile-verification-reupload,
+.app-shell .profile-page:not(.buyer-profile-page) .profile-verification-reupload {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--red-700) 24%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--red-700) 5%, var(--panel));
+}
+.app-shell .profile-page.farmer-profile-page .profile-verification-reupload .muted,
+.app-shell .profile-page:not(.buyer-profile-page) .profile-verification-reupload .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.app-shell .profile-page.farmer-profile-page .profile-reupload-button,
+.app-shell .profile-page:not(.buyer-profile-page) .profile-reupload-button {
+  width: fit-content;
+  min-height: 36px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 550;
+}
 .app-shell .profile-page.farmer-profile-page .profile-reupload-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.app-shell .profile-page:not(.buyer-profile-page) .profile-verification-reupload { display: grid; gap: 8px; margin-top: 12px; }
-.app-shell .profile-page:not(.buyer-profile-page) .profile-reupload-button { width: fit-content; cursor: pointer; }
 .app-shell .profile-page:not(.buyer-profile-page) .profile-reupload-button input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .app-shell .profile-page.farmer-profile-page .btn { min-height: 44px; white-space: normal; font-size: 13px; font-weight: 500; }
 .app-shell .profile-page.farmer-profile-page .form-stack :is(input, select) { min-height: 44px; min-width: 0; max-width: 100%; }
