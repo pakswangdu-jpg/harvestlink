@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { ROLE_DASHBOARDS } from '../../utils/constants';
 
-export default function ProtectedRoute({ allowedRoles }) {
+export default function ProtectedRoute({ allowedRoles, allowRejected = false }) {
   const { currentUser, loading } = useAuth();
   const location = useLocation();
 
@@ -34,6 +34,10 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   if (!allowedRoles.includes(currentUser.role)) {
     return <Navigate to={currentUser.role === 'admin' ? '/' : ROLE_DASHBOARDS[currentUser.role] || '/'} replace />;
+  }
+
+  if (!allowRejected && ['farmer', 'stakeholder'].includes(currentUser.role) && currentUser.verificationStatus === 'rejected') {
+    return <Navigate to="/profile" state={{ verificationRejected: true }} replace />;
   }
 
   return <Outlet />;

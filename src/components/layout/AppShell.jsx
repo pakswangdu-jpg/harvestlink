@@ -96,7 +96,11 @@ export default function AppShell({
   }, [user.role, openTrackingPopup]);
 
 
-  const navItemsWithBadges = useNavItemsWithBadges(user, navItems);
+  const isRejectedVerification = ['farmer', 'stakeholder'].includes(user?.role) && user?.verificationStatus === 'rejected';
+  const visibleNavItems = isRejectedVerification
+    ? navItems.filter((item) => ['Dashboard', 'Profile'].includes(item.label))
+    : navItems;
+  const navItemsWithBadges = useNavItemsWithBadges(user, visibleNavItems);
 
 
 
@@ -319,7 +323,7 @@ export default function AppShell({
         {children}
       </main>
 
-      <MobileBottomNav user={user} navItems={navItems} />
+      <MobileBottomNav user={user} navItems={visibleNavItems} />
       <LogoutConfirmDialog
         open={isConfirmOpen}
         busy={isLoggingOut}

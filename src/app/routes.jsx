@@ -60,11 +60,13 @@ export default function AppRoutes() {
       <Route path="/access-denied" element={<AccessDeniedPage />} />
 
       <Route element={<ProtectedRoute allowedRoles={['farmer']} />}>
-        <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
         <Route path="/farmer-products" element={<FarmerProducts />} />
         <Route path="/farmer-orders" element={<FarmerOrders />} />
         <Route path="/farmer-donations" element={<FarmerDonations />} />
         <Route path="/demand-forecast" element={<FarmerDemandForecast />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['farmer']} allowRejected />}>
+        <Route path="/farmer-dashboard" element={<FarmerDashboard />} />
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['buyer']} />}>
@@ -93,13 +95,15 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['stakeholder']} />}>
-        <Route path="/stakeholder-dashboard" element={<StakeholderDashboard />} />
         <Route path="/stakeholder-orders" element={<BuyerOrders />} />
         <Route path="/stakeholder-donations" element={<StakeholderDonations />} />
         <Route path="/stakeholder-requests" element={<StakeholderRequests />} />
       </Route>
+      <Route element={<ProtectedRoute allowedRoles={['stakeholder']} allowRejected />}>
+        <Route path="/stakeholder-dashboard" element={<StakeholderDashboard />} />
+      </Route>
 
-      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer', 'stakeholder']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['farmer', 'buyer', 'stakeholder']} allowRejected />}>
         <Route path="/profile" element={<Profile />} />
       </Route>
 
