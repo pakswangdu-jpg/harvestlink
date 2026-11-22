@@ -1200,7 +1200,11 @@ export default function AuthPage({ mode, adminPortal = false }) {
 
   const handleVerifyOtp = async (event) => {
     event.preventDefault();
-    if (otpValue.length !== OTP_LENGTH) return;
+    if (otpValue.length !== OTP_LENGTH) {
+      setOtpError('Enter the 6-digit verification code to continue.');
+      setOtpNotice('');
+      return;
+    }
     setOtpError('');
     setIsVerifyingOtp(true);
     try {
@@ -1682,7 +1686,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
               aria-live="polite"
               disabled={
                 authStage === 'otp'
-                  ? otpValue.length !== OTP_LENGTH || isVerifyingOtp
+                  ? isVerifyingOtp
                   : isSubmitting || !isRegisterFormReady
                     || (!isRegister && (rateLimitSeconds > 0 || !isRecaptchaConfigured || !captchaReady || !captchaToken))
               }
