@@ -1132,6 +1132,14 @@ export default function AuthPage({ mode, adminPortal = false }) {
       setErrors((previous) => ({ ...previous, form: 'Please complete the security verification.' }));
       return;
     }
+    if (isRegister && !agreedToTerms) {
+      setErrors((previous) => ({
+        ...previous,
+        form: 'Please accept the Terms of Service and Privacy Policy to continue.',
+        formTitle: 'Terms and Privacy Policy required',
+      }));
+      return;
+    }
     const nextErrors = validateAuthForm(form, mode);
     if (hasErrors(nextErrors)) {
       const firstValidationMessage = Object.values(nextErrors).find((value) => typeof value === 'string' && value.trim());
@@ -1279,7 +1287,6 @@ export default function AuthPage({ mode, adminPortal = false }) {
     isValidPhilippineMobile(form.contactNumber)
     && isValidEmail(form.email)
     && PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(form.password))
-    && agreedToTerms
   );
 
 
@@ -1665,16 +1672,24 @@ export default function AuthPage({ mode, adminPortal = false }) {
           )}
 
           {isRegister && authStage === 'form' ? (
-            <label className="auth-terms-row">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(event) => setAgreedToTerms(event.target.checked)}
-                aria-required="true"
-              />
-              <span>
-                I agree to the{' '}
-                {
+             <>
+               <label className="auth-terms-row">
+                 <input
+                   type="checkbox"
+                   checked={agreedToTerms}
+                   onChange={(event) => {
+                     const checked = event.target.checked;
+                     setAgreedToTerms(checked);
+                     if (checked) {
+                       setErrors((previous) => ({ ...previous, form: undefined, formTitle: undefined }));
+                     }
+                   }}
+                   aria-required="true"
+                   aria-invalid={errors.formTitle === 'Terms and Privacy Policy required'}
+                 />
+                 <span>
+                   I agree to the{' '}
+                   {
 
 
 
@@ -1682,9 +1697,13 @@ export default function AuthPage({ mode, adminPortal = false }) {
                                                                   }
                 <Link to="/terms-of-service?returnTo=/register"><strong>Terms of Service</strong></Link>
                 {' '}and{' '}
-                <Link to="/privacy-policy?returnTo=/register"><strong>Privacy Policy</strong></Link>.
-              </span>
-            </label>
+                   <Link to="/privacy-policy?returnTo=/register"><strong>Privacy Policy</strong></Link>.
+                 </span>
+               </label>
+               {errors.formTitle === 'Terms and Privacy Policy required' ? (
+                 <p className="field-error terms-required-error" role="alert">Please check this box to agree to the Terms of Service and Privacy Policy.</p>
+               ) : null}
+             </>
           ) : null}
 
           {isRegister && authStage === 'form' ? (
