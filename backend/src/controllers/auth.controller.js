@@ -10,7 +10,7 @@ import { encryptText, decryptText } from '../lib/security.js';
 import { sendVerificationCodeEmail } from '../lib/email.js';
 
 const VERIFICATION_CODE_LENGTH = 6;
-const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000;
+const VERIFICATION_CODE_TTL_MS = 5 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_RESENDS_PER_WINDOW = 3;
 const RESEND_WINDOW_MS = 60 * 60 * 1000;

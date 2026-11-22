@@ -114,7 +114,7 @@ function verificationEmailHtml(code) {
             <tr>
               <td style="padding:14px 32px 32px;">
                 <p style="margin:0; font-family:${FONT_STACK}; font-size:13px; line-height:1.6; color:${TEXT_MUTED};">
-                  This expires in 10 minutes. Didn't try to sign up for HarvestLink? You can ignore this email — no account gets created without the code above.
+                  This expires in 5 minutes. Didn't try to sign up for HarvestLink? You can ignore this email — no account gets created without the code above.
                 </p>
               </td>
             </tr>
@@ -141,7 +141,7 @@ function verificationEmailText(code) {
     '',
     spacedDigits(code),
     '',
-    "This expires in 10 minutes. Didn't try to sign up for HarvestLink? You can ignore this email — no account gets created without the code above.",
+    "This expires in 5 minutes. Didn't try to sign up for HarvestLink? You can ignore this email — no account gets created without the code above.",
     '',
     'HarvestLink · Cebu Farm-To-Market',
   ].join('\n');
