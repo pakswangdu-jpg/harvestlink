@@ -287,16 +287,32 @@ function OtpInput({ value, onChange, disabled }) {
 
 
 
-function FileUploadField({ id, accept, file, onChange }) {
+function FileUploadField({ id, accept, file, onChange, onRemove }) {
+  const inputRef = useRef(null);
   const fileName = file instanceof File ? file.name : '';
+  const handleRemove = () => {
+    if (inputRef.current) inputRef.current.value = '';
+    onRemove?.();
+  };
   return (
     <div className="file-upload">
-      <input id={id} type="file" accept={accept} onChange={onChange} className="file-upload-input" />
+      <input ref={inputRef} id={id} type="file" accept={accept} onChange={onChange} className="file-upload-input" />
       <div className="file-upload-dropzone">
         <UploadCloud size={18} className="file-upload-icon" />
         <span className="file-upload-text">
           {fileName ? <span className="file-upload-filename">{fileName}</span> : 'Click to upload a file (image or PDF)'}
         </span>
+        {fileName ? (
+          <button
+            type="button"
+            className="file-upload-remove"
+            onClick={handleRemove}
+            aria-label={`Remove ${fileName}`}
+            title="Remove file"
+          >
+            <XCircle size={18} aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -1491,6 +1507,7 @@ export default function AuthPage({ mode, adminPortal = false }) {
                           accept="image/*,.pdf"
                           file={form.govIdFile}
                           onChange={handleFileChange('govIdFile')}
+                          onRemove={() => updateField('govIdFile', '')}
                         />
                       </FormField>
                     </>

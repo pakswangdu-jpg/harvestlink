@@ -9678,6 +9678,30 @@ td {
   font-weight: 750;
 }
 
+.file-upload-remove {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.file-upload-remove:hover,
+.file-upload-remove:focus-visible {
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+}
+
 
 
 
