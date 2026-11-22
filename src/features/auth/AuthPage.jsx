@@ -1118,7 +1118,13 @@ export default function AuthPage({ mode, adminPortal = false }) {
     }
     const nextErrors = validateAuthForm(form, mode);
     if (hasErrors(nextErrors)) {
-      setErrors(nextErrors);
+      const firstValidationMessage = Object.values(nextErrors).find((value) => typeof value === 'string' && value.trim());
+      setErrors({
+        ...nextErrors,
+        ...(isRegister && firstValidationMessage
+          ? { form: firstValidationMessage, formTitle: 'Please complete the required information.' }
+          : {}),
+      });
       return;
     }
 
