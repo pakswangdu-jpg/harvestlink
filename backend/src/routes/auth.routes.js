@@ -24,7 +24,7 @@ router.get('/admin-access', requireAuth, requireRole('admin'), (req, res) => {
 
 router.post('/login', loginProtection, login);
 router.post('/admin-login', requireAdminEntryNetwork, loginProtection, adminLogin);
-router.post('/register', rateLimit({ name: 'registration', limit: 5, windowMs: 60 * 60 * 1000 }), register);
+router.post('/register', rateLimit({ name: 'registration', limit: 5, windowMs: 60 * 60 * 1000, key: emailAndDeviceKey }), register);
 router.post('/verify-registration-code', rateLimit({ name: 'verification', limit: 5, windowMs: 10 * 60 * 1000, key: emailAndIpKey }), verifyRegistrationCode);
 router.post('/resend-registration-code', rateLimit({ name: 'verification-resend', limit: 3, windowMs: 15 * 60 * 1000, key: emailAndDeviceKey }), resendRegistrationCode);
 router.get('/check-contact-number', checkContactNumber);

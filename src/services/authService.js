@@ -5,11 +5,19 @@ import { fetchAllAdminUserLocations } from '../utils/fetchAdminUserLocations';
 
 
 
-
-
-
-
-
+function getVerificationDeviceId() {
+  const storageKey = 'harvestlink:verification-device-id';
+  try {
+    let deviceId = localStorage.getItem(storageKey) || '';
+    if (!deviceId) {
+      deviceId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(storageKey, deviceId);
+    }
+    return deviceId;
+  } catch {
+    return '';
+  }
+}
 
 export async function registerUser(values) {
   const email = values.email.trim().toLowerCase();
@@ -17,7 +25,8 @@ export async function registerUser(values) {
 
   const { password, ...profileFields } = values;
 
-  await apiClient.post('/auth/register', { ...profileFields, email, password });
+  const deviceId = getVerificationDeviceId();
+  await apiClient.post('/auth/register', { ...profileFields, email, password, ...(deviceId ? { deviceId } : {}) });
   return { pendingVerification: true };
 }
 
@@ -69,16 +78,7 @@ export async function verifyRegistrationOtp(email, token, password, pendingFiles
 
 
 export async function resendRegistrationOtp(email) {
-  const storageKey = 'harvestlink:verification-device-id';
-  let deviceId = '';
-  try {
-    deviceId = localStorage.getItem(storageKey) || '';
-    if (!deviceId) {
-      deviceId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem(storageKey, deviceId);
-    }
-  } catch {
-  }
+  const deviceId = getVerificationDeviceId();
   const response = await apiClient.post('/auth/resend-registration-code', {
     email: email.trim().toLowerCase(),
     ...(deviceId ? { deviceId } : {}),
