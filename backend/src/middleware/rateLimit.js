@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ApiError } from '../lib/ApiError.js';
+import { createClient } from 'redis';
 
 const buckets = new Map();
 const failedLoginBuckets = new Map();
@@ -7,6 +8,21 @@ const CLEANUP_INTERVAL_MS = 60 * 1000;
 const FAILED_LOGIN_LIMIT = 5;
 const FAILED_LOGIN_WINDOW_MS = 15 * 60 * 1000;
 let lastCleanup = 0;
+let redisClient;
+let redisConnectPromise;
+
+function getRedisClient() {
+  if (!process.env.REDIS_URL) return null;
+  if (!redisClient) {
+    redisClient = createClient({ url: process.env.REDIS_URL });
+    redisClient.on('error', (error) => console.error('Rate-limit Redis error:', error.message));
+    redisConnectPromise = redisClient.connect().catch((error) => {
+      console.error('Rate-limit Redis connection failed; using local fallback:', error.message);
+      redisClient = null;
+    });
+  }
+  return redisClient;
+}
 
 function requestIp(req) {
   return req.ip || req.socket?.remoteAddress || 'unknown';
@@ -39,6 +55,28 @@ function rateLimitError(name, retryAfter) {
 
 export function rateLimit({ limit, windowMs, name, key = clientKey }) {
   return (req, res, next) => {
+    const sharedStore = getRedisClient();
+    if (sharedStore) {
+      const bucketKey = `harvestlink:ratelimit:${name}:${key(req)}`;
+      const max = typeof limit === 'function' ? limit(req) : limit;
+      Promise.resolve(redisConnectPromise).then(async () => {
+        if (!redisClient) return next();
+        const count = await redisClient.incr(bucketKey);
+        if (count === 1) await redisClient.expire(bucketKey, Math.ceil(windowMs / 1000));
+        const ttl = Math.max(1, await redisClient.ttl(bucketKey));
+        const retryAfter = ttl;
+        res.setHeader('RateLimit-Limit', max);
+        res.setHeader('RateLimit-Remaining', Math.max(0, max - count));
+        res.setHeader('RateLimit-Reset', Math.ceil((Date.now() + ttl * 1000) / 1000));
+        if (count > max) {
+          res.setHeader('Retry-After', retryAfter);
+          next(rateLimitError(name, retryAfter));
+          return;
+        }
+        next();
+      }).catch(() => next(new ApiError('Rate limiting is temporarily unavailable. Please try again later.', 503)));
+      return;
+    }
     const now = Date.now();
     cleanup(now);
     const bucketKey = `${name}:${key(req)}`;
@@ -74,6 +112,14 @@ export function emailAndDeviceKey(req) {
   const deviceId = String(req.body?.deviceId || '').trim().slice(0, 128);
   const device = deviceId || `${requestIp(req)}:${req.get('user-agent') || 'unknown-device'}`;
   return `${device}:${email || 'missing-email'}`;
+}
+
+export function normalizedEmailKey(req) {
+  return String(req.body?.email || '').trim().toLowerCase() || 'missing-email';
+}
+
+export function ipKey(req) {
+  return requestIp(req);
 }
 
 const loginIpLimit = rateLimit({

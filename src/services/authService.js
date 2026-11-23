@@ -48,9 +48,11 @@ export async function verifyRegistrationOtp(email, token, password, pendingFiles
     throw new Error('Unable to complete verification because the password is missing. Please try again.');
   }
 
+  const deviceId = getVerificationDeviceId();
   await apiClient.post('/auth/verify-registration-code', {
     email: email.trim().toLowerCase(),
     code: token,
+    ...(deviceId ? { deviceId } : {}),
   });
 
   const { error: signInError } = await supabase.auth.signInWithPassword({
