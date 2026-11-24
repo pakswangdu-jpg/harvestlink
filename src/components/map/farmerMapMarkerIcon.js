@@ -5,7 +5,7 @@ const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.37
 
 export function buildFarmerMapMarkerIcon(mapsApi, {
   donationAlert = false, alert = false, isYou = false, currentUserGreen = false,
-  farmerMarkersGreen = false, width = 28, height = 38,
+  farmerMarkersGreen = false, pulsePhase = false, width = 28, height = 38,
 } = {}) {
   const color = farmerMarkersGreen || (isYou && currentUserGreen)
     ? MAP_COLORS.farmer
@@ -13,7 +13,7 @@ export function buildFarmerMapMarkerIcon(mapsApi, {
   const viewBoxHeight = isYou ? 42 : 32;
   const iconHeight = isYou ? height + 12 : height;
   const alertRing = alert
-    ? `<circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.45"><animate attributeName="r" values="7;11;7" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.75;0.2;0.75" dur="1.6s" repeatCount="indefinite"/></circle>`
+    ? `<circle cx="12" cy="12" r="${pulsePhase ? 11 : 7}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${pulsePhase ? 0.2 : 0.75}"/>`
     : '';
   const accountRing = isYou ? `<circle cx="12" cy="12" r="7" fill="#ffffff" stroke="#0c4a6e" stroke-width="2"/>` : '<circle cx="12" cy="12" r="5" fill="#ffffff"/>';
   const accountDot = isYou ? `<circle cx="12" cy="38" r="4" fill="${MAP_COLORS.viewer}" stroke="#ffffff" stroke-width="1.5"/>` : '';
