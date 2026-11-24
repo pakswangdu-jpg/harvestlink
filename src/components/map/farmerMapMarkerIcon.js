@@ -12,11 +12,8 @@ export function buildFarmerMapMarkerIcon(mapsApi, {
     : donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer;
   const viewBoxHeight = isYou ? 42 : 32;
   const iconHeight = isYou ? height + 12 : height;
-  const pulseStep = Number(pulsePhase) || 0;
-  const pulseRadius = [6, 9, 12][pulseStep % 3];
-  const pulseOpacity = [0.8, 0.5, 0.15][pulseStep % 3];
   const alertRing = alert
-    ? `<circle cx="12" cy="12" r="${pulseRadius}" fill="none" stroke="${color}" stroke-width="2.5" opacity="${pulseOpacity}"/>`
+    ? `<circle cx="12" cy="12" r="9" fill="none" stroke="${color}" stroke-width="2.5" opacity="0.45"/>`
     : '';
   const accountRing = isYou ? `<circle cx="12" cy="12" r="7" fill="#ffffff" stroke="#0c4a6e" stroke-width="2"/>` : '<circle cx="12" cy="12" r="5" fill="#ffffff"/>';
   const accountDot = isYou ? `<circle cx="12" cy="38" r="4" fill="${MAP_COLORS.viewer}" stroke="#ffffff" stroke-width="1.5"/>` : '';

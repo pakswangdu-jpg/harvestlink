@@ -125,7 +125,6 @@ export default function StakeholderDashboard() {
           donationFarmers={mapFarmers}
           initialCenter={nearbyMapCenter}
           currentUserId={currentUser.id}
-          nearbyView
           animateDonationAlerts
         />
         {!donationFarmers.length ? <p className="stakeholder-map-note">No nearby surplus is available right now. This map updates when farmers list a donation.</p> : null}

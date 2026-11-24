@@ -67,7 +67,6 @@ export default function FarmerMap({
   const buyerCoordsById = useMapCoordinates(uniqueBuyers, { registeredOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(uniqueStakeholders, { registeredOnly: nearbyView });
   const donationFarmerCoordsById = useMapCoordinates(uniqueDonationFarmers, { registeredOnly: true });
-  const pulsePhaseRef = useRef(0);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -138,20 +137,6 @@ export default function FarmerMap({
     return () => zoomListener.remove();
   }, [mapReady]);
 
-  useEffect(() => {
-    if (!mapReady || !nearbyView) return undefined;
-    const timer = window.setInterval(() => {
-      pulsePhaseRef.current = (pulsePhaseRef.current + 1) % 3;
-      Object.values(markersRef.current).forEach((entry) => {
-        if (!entry.donationAlert || !entry.buildIcon) return;
-        const icon = entry.buildIcon(pulsePhaseRef.current);
-        entry.marker.setIcon(icon);
-        entry.icon = icon;
-      });
-    }, 400);
-    return () => window.clearInterval(timer);
-  }, [mapReady, nearbyView]);
-
 
 
 
@@ -181,7 +166,7 @@ export default function FarmerMap({
       const id = getRoleMarkerKey(role, userId);
       seenIds.add(id);
       allPoints.push(coords);
-      const icon = buildIcon(pulsePhaseRef.current);
+      const icon = buildIcon();
       const zIndex = title === 'Your location' ? 1000 : donationAlert ? 750 : 700;
       const existing = markersRef.current[id];
       if (existing) {
@@ -236,7 +221,7 @@ export default function FarmerMap({
       const infoWindow = new mapsApi.InfoWindow({ content: popupHtml });
       const entry = {
         key: id, role, userId: String(userId), title, marker, infoWindow, position: coords,
-        popupHtml, donationAlert, animateGoogleMarker, icon, zIndex, onClick, buildIcon,
+        popupHtml, donationAlert, animateGoogleMarker, icon, zIndex, onClick,
       };
       entry.markerClickListener = marker.addListener('click', () => {
         showProfileMarkerInfo(map, mapsApi, entry, { current: markersRef.current }, openInfoWindowRef);
@@ -275,7 +260,7 @@ export default function FarmerMap({
         products: `${donationAlert ? '<strong>Surplus donation available</strong><br/>' : ''}${productsLine.replace('<br/>', '')}`,
         links: isYou ? [] : [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
       });
-      upsertMarker('farmer', farmer.id, coords, (pulsePhase) => buildFarmerMapMarkerIcon(mapsApi, { donationAlert, alert: donationAlert, pulsePhase, isYou }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), donationAlert ? `${realDisplayName}: surplus donation available` : realDisplayName, donationAlert, donationAlert && animateDonationAlerts && !nearbyView);
+      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert, alert: donationAlert, isYou }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), donationAlert ? `${realDisplayName}: surplus donation available` : realDisplayName, donationAlert, donationAlert && animateDonationAlerts && !nearbyView);
     });
 
     uniqueBuyers.forEach((buyer) => {
@@ -341,7 +326,7 @@ export default function FarmerMap({
         products: `<strong>Available donations</strong><br/>${donationList}`,
         links: [...(farmer.donationDetailsHref === '/stakeholder-donations' ? [{ href: '/stakeholder-donations', label: 'View donation' }] : []), { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
       });
-      upsertMarker('farmer', farmer.id, coords, (pulsePhase) => buildFarmerMapMarkerIcon(mapsApi, { donationAlert: true, alert: true, pulsePhase }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), `${displayName}: surplus donation available`, true, animateDonationAlerts && !nearbyView);
+      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert: true, alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), `${displayName}: surplus donation available`, true, animateDonationAlerts && !nearbyView);
     });
 
 
