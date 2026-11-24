@@ -18,7 +18,7 @@ export default function ToastStack({ toasts, onDismiss }) {
         return (
           <div
             key={toast.id}
-            className={`toast form-alert ${toast.type} has-icon`}
+            className={`toast form-alert ${toast.type} has-icon${toast.title === 'Donation listed' ? ' donation-success-toast' : ''}`}
             role={toast.type === 'error' ? 'alert' : 'status'}
             aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
           >

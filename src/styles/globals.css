@@ -7331,6 +7331,15 @@ a.user-chip:hover {
   animation: toast-in 0.18s ease-out;
 }
 
+.toast.donation-success-toast {
+  animation: donation-toast-pulse 1.2s ease-in-out;
+}
+
+@keyframes donation-toast-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 10px 28px rgba(16, 24, 40, 0.14), 0 2px 6px rgba(16, 24, 40, 0.06); }
+  50% { transform: scale(1.025); box-shadow: 0 0 0 5px color-mix(in srgb, var(--green-700) 18%, transparent), 0 12px 30px rgba(16, 24, 40, 0.16); }
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -21807,12 +21816,12 @@ td {
   height: 84px;
   flex: none;
   object-fit: contain;
-  animation: farmer-donation-marker-float 4s ease-in-out infinite;
+  animation: farmer-donation-marker-pulse 2s ease-in-out infinite;
 }
 
-@keyframes farmer-donation-marker-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+@keyframes farmer-donation-marker-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgb(68 168 111 / 0%)); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 8px rgb(68 168 111 / 42%)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -26060,3 +26069,15 @@ button,
     font-size: 34px;
   }
 }
+.reset-password-requirements {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reset-password-requirements li.met { color: var(--green-700); }
+

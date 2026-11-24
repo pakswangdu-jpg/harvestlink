@@ -7,6 +7,14 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
 
+const PASSWORD_REQUIREMENTS = [
+  { label: 'At least 8 characters', test: (value) => value.length >= 8 },
+  { label: 'One uppercase letter (A–Z)', test: (value) => /[A-Z]/.test(value) },
+  { label: 'One lowercase letter (a–z)', test: (value) => /[a-z]/.test(value) },
+  { label: 'One number (0–9)', test: (value) => /[0-9]/.test(value) },
+  { label: 'One special character (!@#$%^&*)', test: (value) => /[!@#$%^&*]/.test(value) },
+];
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
@@ -95,8 +103,16 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!password) {
+      setError('Enter your password.');
+      return;
+    }
+    if (!PASSWORD_REQUIREMENTS.every((requirement) => requirement.test(password))) {
+      setError('Password must meet all requirements.');
+      return;
+    }
+    if (!confirmPassword) {
+      setError('Confirm your password.');
       return;
     }
     if (password !== confirmPassword) {
@@ -177,6 +193,13 @@ export default function ResetPasswordPage() {
                 placeholder="Enter new password"
                 autoFocus
               />
+              <ul className="reset-password-requirements" aria-label="Password requirements">
+                {PASSWORD_REQUIREMENTS.map((requirement) => (
+                  <li key={requirement.label} className={requirement.test(password) ? 'met' : ''}>
+                    {requirement.test(password) ? '✓' : '○'} {requirement.label}
+                  </li>
+                ))}
+              </ul>
             </FormField>
             <FormField label="Confirm new password" name="confirmPassword" error={null}>
               <input

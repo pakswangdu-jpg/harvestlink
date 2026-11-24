@@ -173,7 +173,7 @@ export default function FarmerProducts() {
           ...createValues, price: 0, sellingType: 'retail', moq: '', allowDuplicate: true,
         });
         await createDonation(created, expirationAt);
-        showToast({ type: 'success', message: `${created.name} listed as a surplus donation for partner organizations.` });
+        showToast({ type: 'success', title: 'Donation listed', message: `${created.name} listed as a surplus donation for partner organizations.` });
         closeDrawer();
       } else {
         const createValues = { ...values };
