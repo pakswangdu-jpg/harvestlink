@@ -15,6 +15,12 @@ const PASSWORD_REQUIREMENTS = [
   { label: 'One special character (!@#$%^&*)', test: (value) => /[!@#$%^&*]/.test(value) },
 ];
 
+const PASSWORD_STRENGTH_TIERS = [
+  { minMet: 0, key: 'weak', label: 'Weak password' },
+  { minMet: 3, key: 'medium', label: 'Medium password' },
+  { minMet: 5, key: 'strong', label: 'Strong password' },
+];
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
@@ -200,6 +206,9 @@ export default function ResetPasswordPage() {
                   </li>
                 ))}
               </ul>
+              <p className={`password-strength-indicator ${[...PASSWORD_STRENGTH_TIERS].reverse().find((tier) => PASSWORD_REQUIREMENTS.filter((requirement) => requirement.test(password)).length >= tier.minMet).key}`}>
+                {[...PASSWORD_STRENGTH_TIERS].reverse().find((tier) => PASSWORD_REQUIREMENTS.filter((requirement) => requirement.test(password)).length >= tier.minMet).label}
+              </p>
             </FormField>
             <FormField label="Confirm new password" name="confirmPassword" error={null}>
               <input
