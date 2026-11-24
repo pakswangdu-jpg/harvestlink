@@ -4,6 +4,7 @@ import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
 import PasswordInput from '../../components/common/PasswordInput';
+import FormAlert from '../../components/common/FormAlert';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
@@ -32,6 +33,7 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [linkSecondsRemaining, setLinkSecondsRemaining] = useState(0);
   const [recoveryToken] = useState(() => {
@@ -144,7 +146,8 @@ export default function ResetPasswordPage() {
         console.warn('Password changed, but the local profile could not refresh:', refreshError);
       }
       await supabase.auth.signOut({ scope: 'local' });
-      navigate('/login', { replace: true });
+      setSuccessMessage('Your password has been reset successfully.');
+      window.setTimeout(() => navigate('/login', { replace: true }), 1200);
     } catch (updateError) {
       setIsSubmitting(false);
       setError(updateError.message || 'Unable to update the password. Please request a new reset link and try again.');
@@ -170,6 +173,7 @@ export default function ResetPasswordPage() {
       </section>
 
       <section className="auth-card">
+        {successMessage ? <FormAlert type="success" message={successMessage} /> : null}
         <div className="auth-card-header">
           <h2>Reset password</h2>
           <p>
