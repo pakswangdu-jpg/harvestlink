@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import BrandWordmark from '../../components/common/BrandWordmark';
 import Button from '../../components/common/Button';
 import FormField from '../../components/common/FormField';
+import PasswordInput from '../../components/common/PasswordInput';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from './AuthContext';
 import logo from '../../assets/logo.png';
@@ -191,13 +192,11 @@ export default function ResetPasswordPage() {
           <form className="form-stack" onSubmit={handleSubmit}>
             {error ? <div className="form-alert error">{error}</div> : null}
             <FormField label="New password" name="password" error={null}>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="Enter new password"
-                autoFocus
               />
               <ul className="reset-password-requirements" aria-label="Password requirements">
                 {PASSWORD_REQUIREMENTS.map((requirement) => (
@@ -211,13 +210,15 @@ export default function ResetPasswordPage() {
               </p>
             </FormField>
             <FormField label="Confirm new password" name="confirmPassword" error={null}>
-              <input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder="Re-enter new password"
               />
+              {confirmPassword && password !== confirmPassword ? (
+                <p className="field-error" role="alert">Passwords do not match.</p>
+              ) : null}
             </FormField>
             <Button type="submit" className="full-width" disabled={isSubmitting}>
               {isSubmitting ? 'Updating…' : 'Update password'}
