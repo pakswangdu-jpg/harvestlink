@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 test('Farmer Active Users keeps other Farmer markers green even when a donation alert is active', async () => {
   const icon = await read('../src/components/map/farmerMapMarkerIcon.js');
 
-  assert.match(icon, /farmerMarkersGreen \|\| \(isYou && currentUserGreen\)\s*\?\s*MAP_COLORS\.farmer\s*:\s*donationAlert \? DONATION_MARKER_COLOR : MAP_COLORS\.farmer/);
+  assert.match(icon, /const color = isYou \? MAP_COLORS\.farmer : \(donationAlert \? DONATION_MARKER_COLOR : MAP_COLORS\.farmer\)/);
   assert.match(icon, /new mapsApi\.Size\(width, iconHeight\)/);
   assert.match(icon, /new mapsApi\.Point\(width \/ 2, isYou \? iconHeight \* \(38 \/ viewBoxHeight\) : height\)/);
 });
@@ -24,9 +24,7 @@ test('authenticated role pins keep their role color and add an anchored account 
     assert.match(icon, /<circle cx="12" cy="38" r="4" fill="\$\{MAP_COLORS\.viewer\}" stroke="#ffffff" stroke-width="1\.5"\/>/);
     assert.match(icon, /new mapsApi\.Point\(width \/ 2, isYou \? iconHeight \* \(38 \/ viewBoxHeight\) : height\)/);
   }
-  assert.match(farmer, /donationAlert \? DONATION_MARKER_COLOR : MAP_COLORS\.farmer/);
-  assert.match(farmer, /isYou && currentUserGreen[\s\S]*?MAP_COLORS\.farmer/);
-  assert.match(farmer, /farmerMarkersGreen \|\| \(isYou && currentUserGreen\)/);
+  assert.match(farmer, /isYou \? MAP_COLORS\.farmer : \(donationAlert \? DONATION_MARKER_COLOR : MAP_COLORS\.farmer\)/);
   assert.match(buyer, /isYou && currentUserGreen \? MAP_COLORS\.farmer : MAP_COLORS\.buyer/);
   assert.match(stakeholder, /isYou && currentUserGreen \? MAP_COLORS\.farmer : color/);
 });
@@ -72,7 +70,7 @@ test('map role markers use their role-specific artwork while legends retain role
   assert.match(colors, /buyer: '#2563eb'/);
   assert.match(colors, /stakeholder: '#db2777'/);
   assert.match(farmerMarker, /isYou = false/);
-  assert.match(farmerMarker, /isYou && currentUserGreen[\s\S]*?MAP_COLORS\.farmer/);
+  assert.match(farmerMarker, /const color = isYou \? MAP_COLORS\.farmer : \(donationAlert \? DONATION_MARKER_COLOR : MAP_COLORS\.farmer\)/);
   assert.match(deliveryMap, /buildFarmerMapMarkerIcon\(mapsApi, \{ donationAlert, isYou, currentUserGreen, farmerMarkersGreen \}\)/);
   assert.match(farmerMarker, /font-size="7"[^>]*>F<\/text>/);
   assert.match(buyerMarker, /font-size="7"[^>]*>B<\/text>/);
@@ -114,9 +112,9 @@ test('stakeholder dashboard includes a role-aware Active Users map with its auth
 
   assert.match(dashboard, /getNearbyMapProfiles\(\)/);
   assert.match(dashboard, /setState\(\{ available, myRequests, donationFarmers, mapProfiles \}\)/);
-  assert.match(dashboard, /includeCurrentRoleProfile\(mapProfiles\.filter\(\(profile\) => profile\.role === 'farmer'\), 'farmer', currentUser\)/);
-  assert.match(dashboard, /includeCurrentRoleProfile\(mapProfiles\.filter\(\(profile\) => profile\.role === 'buyer'\), 'buyer', currentUser\)/);
-  assert.match(dashboard, /includeCurrentRoleProfile\(mapProfiles\.filter\(\(profile\) => profile\.role === 'stakeholder'\), 'stakeholder', currentUser\)/);
+  assert.match(dashboard, /mapProfiles\.filter\(\(profile\) => profile\.role === 'farmer' && profile\.verificationStatus === 'verified'\)/);
+  assert.match(dashboard, /mapProfiles\.filter\(\(profile\) => profile\.role === 'buyer'\)/);
+  assert.match(dashboard, /mapProfiles\.filter\(\(profile\) => profile\.role === 'stakeholder' && profile\.verificationStatus === 'verified'\)/);
   assert.match(dashboard, /<SectionHeader title="Active Users"/);
   assert.match(dashboard, /<DeliveryMap[\s\S]*?farmers=\{activeMapFarmers\}[\s\S]*?buyers=\{activeMapBuyers\}[\s\S]*?stakeholders=\{activeMapStakeholders\}[\s\S]*?currentUserId=\{currentUser\.id\}/);
   const activeUsersMap = dashboard.slice(dashboard.indexOf('<DeliveryMap'), dashboard.indexOf('/>', dashboard.indexOf('<DeliveryMap')) + 2);

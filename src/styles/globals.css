@@ -17198,9 +17198,11 @@ td {
 }
 
 .marketplace-page .marketplace-product-card {
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  height: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -17218,6 +17220,7 @@ td {
   height: auto;
   aspect-ratio: 16 / 9;
   background: var(--soft);
+  border-radius: 7px 7px 0 0;
 }
 
 .product-card-media-trigger:focus-visible {
@@ -17382,12 +17385,16 @@ td {
 }
 
 .marketplace-page .marketplace-product-card > div {
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
 }
 
 .marketplace-page .marketplace-product-card > div > .flex.flex-col.gap-3 {
-  gap: 12px;
+  gap: 10px;
+}
+
+.marketplace-page .marketplace-product-card > div > .mt-auto {
+  margin-top: auto;
 }
 
 .marketplace-page .product-card-category {
@@ -17420,9 +17427,9 @@ td {
 
 .marketplace-page .product-card-meta {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .marketplace-page .product-card-meta svg {
@@ -17430,8 +17437,10 @@ td {
 }
 
 .marketplace-page .product-card-meta .truncate {
-  white-space: normal;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .marketplace-page .product-card-image-fallback {
@@ -17445,9 +17454,9 @@ td {
 
 .marketplace-page .product-card-trust {
   color: var(--text-secondary);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .marketplace-page .product-card-trust > span:first-child {
@@ -17462,11 +17471,26 @@ td {
 
 .marketplace-page .product-card-price {
   color: var(--text);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+.marketplace-page .product-card-update-slot {
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+.marketplace-page .product-card-reference-slot {
+  position: relative;
+  height: 38px;
+  flex: 0 0 38px;
+}
+
+.marketplace-page .product-card-reference-slot:empty {
+  border-top: 1px solid var(--line);
 }
 
 .marketplace-page .product-card-unit {
@@ -17489,19 +17513,23 @@ td {
   line-height: 1.4;
 }
 
+.marketplace-page .product-card-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
 .marketplace-page .product-card-actions > * {
-  flex: 1 1 110px;
-  min-height: 44px;
+  width: 100%;
+  min-height: 40px;
   height: auto;
   padding: 8px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.4;
 }
-
-.marketplace-page .product-card-actions { flex-wrap: wrap; }
 
 .marketplace-page .marketplace-load-state {
   margin: 0;

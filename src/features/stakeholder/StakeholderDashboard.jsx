@@ -5,7 +5,6 @@ import AppShell from '../../components/layout/AppShell';
 import StatusBadge from '../../components/common/StatusBadge';
 import FarmerMap from '../../components/map/FarmerMap';
 import DeliveryMap from '../../components/orders/DeliveryMap';
-import { includeCurrentRoleProfile } from '../../components/map/mapDirectoryProfiles';
 import { useAuth } from '../auth/AuthContext';
 import { getNearbyMapProfiles } from '../../services/authService';
 import { getAvailableDonations, getDonationsForStakeholder } from '../../services/donationService';
@@ -73,16 +72,16 @@ export default function StakeholderDashboard() {
   const discoveryDonations = [...available].sort((a, b) => (farmersById.get(a.farmerId)?.distanceKm ?? Infinity) - (farmersById.get(b.farmerId)?.distanceKm ?? Infinity));
   const mapFarmers = nearbyFarmers.map(farmer => ({ ...farmer, donationDetailsHref: '/stakeholder-donations', distanceLabel: Number.isFinite(farmer.distanceKm) ? formatNearbyDistance(farmer.distanceKm) : '' }));
   const activeMapFarmers = useMemo(
-    () => includeCurrentRoleProfile(mapProfiles.filter((profile) => profile.role === 'farmer'), 'farmer', currentUser),
-    [mapProfiles, currentUser],
+    () => mapProfiles.filter((profile) => profile.role === 'farmer' && profile.verificationStatus === 'verified'),
+    [mapProfiles],
   );
   const activeMapBuyers = useMemo(
-    () => includeCurrentRoleProfile(mapProfiles.filter((profile) => profile.role === 'buyer'), 'buyer', currentUser),
-    [mapProfiles, currentUser],
+    () => mapProfiles.filter((profile) => profile.role === 'buyer'),
+    [mapProfiles],
   );
   const activeMapStakeholders = useMemo(
-    () => includeCurrentRoleProfile(mapProfiles.filter((profile) => profile.role === 'stakeholder'), 'stakeholder', currentUser),
-    [mapProfiles, currentUser],
+    () => mapProfiles.filter((profile) => profile.role === 'stakeholder' && profile.verificationStatus === 'verified'),
+    [mapProfiles],
   );
   const currentUserCoords = getRegisteredCoordinates(currentUser);
   const nearbyMapCenter = currentUserCoords || getMunicipalityCoords(currentUser.municipality);

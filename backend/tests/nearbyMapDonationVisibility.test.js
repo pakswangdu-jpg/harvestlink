@@ -5,9 +5,11 @@ test('only Farmer and Stakeholder map responses include donation availability', 
   const calls = [];
   const profileSelections = [];
   const profiles = [
-    { id: 'farmer-1', role: 'farmer', name: 'Farmer', address: 'B. Ceniza St', barangay: 'Subangdaku', municipality: 'Mandaue City', latitude: '10.3', longitude: '123.9' },
+    { id: 'farmer-1', role: 'farmer', name: 'Farmer', verification_status: 'verified', address: 'B. Ceniza St', barangay: 'Subangdaku', municipality: 'Mandaue City', latitude: '10.3', longitude: '123.9' },
+    { id: 'farmer-pending', role: 'farmer', name: 'Pending Farmer', verification_status: 'pending', latitude: '10.31', longitude: '123.91' },
     { id: 'buyer-1', role: 'buyer', name: 'Buyer', latitude: '10.4', longitude: '123.8' },
-    { id: 'stakeholder-1', role: 'stakeholder', name: 'Partner', latitude: '10.5', longitude: '123.7' },
+    { id: 'stakeholder-1', role: 'stakeholder', name: 'Partner', verification_status: 'verified', latitude: '10.5', longitude: '123.7' },
+    { id: 'stakeholder-rejected', role: 'stakeholder', name: 'Rejected Partner', verification_status: 'rejected', latitude: '10.51', longitude: '123.71' },
   ];
 
   t.mock.module('../src/lib/supabaseClient.js', {
@@ -64,7 +66,7 @@ test('only Farmer and Stakeholder map responses include donation availability', 
   assert.equal('address' in stakeholderProfiles.find((profile) => profile.id === 'buyer-1'), false);
   assert.match(profileSelections.at(-1), /address, barangay/);
 
-  const expectedIds = profiles.map((profile) => profile.id);
+  const expectedIds = ['farmer-1', 'buyer-1', 'stakeholder-1'];
   for (const roleProfiles of [buyerProfiles, farmerProfiles, stakeholderProfiles]) {
     assert.deepEqual(roleProfiles.map((profile) => profile.id), expectedIds);
     roleProfiles.forEach((profile) => {

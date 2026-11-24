@@ -339,7 +339,7 @@ export async function getProfileById(req, res) {
 export async function getNearbyMapProfiles(req, res) {
   const canViewDonationMarkers = ['farmer', 'stakeholder'].includes(req.profile.role);
   const canViewDonorAddresses = req.profile.role === 'stakeholder';
-  const profileColumns = 'id, role, name, farm_name, municipality, latitude, longitude, avatar_url, organization_name, last_active_at';
+  const profileColumns = 'id, role, name, farm_name, municipality, latitude, longitude, avatar_url, organization_name, last_active_at, verification_status';
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .select(canViewDonorAddresses ? `${profileColumns}, address, barangay` : profileColumns)
@@ -350,7 +350,11 @@ export async function getNearbyMapProfiles(req, res) {
 
   if (error) throw new ApiError(error.message, 400);
 
-  const farmerIds = data.filter(profile => profile.role === 'farmer').map(profile => profile.id);
+  const visibleProfiles = data.filter((profile) => (
+    profile.role === 'buyer'
+      || (['farmer', 'stakeholder'].includes(profile.role) && profile.verification_status === 'verified')
+  ));
+  const farmerIds = visibleProfiles.filter(profile => profile.role === 'farmer').map(profile => profile.id);
   let donationFarmerIds = new Set();
   if (canViewDonationMarkers && farmerIds.length) {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
@@ -360,7 +364,7 @@ export async function getNearbyMapProfiles(req, res) {
     if (result.error) console.warn('Unable to refresh map donation indicators:', result.error.code || 'unknown');
     else donationFarmerIds = new Set((result.data || []).map(item => item.farmer_id));
   }
-  res.json(data.map(row => {
+  res.json(visibleProfiles.map(row => {
     const { address, barangay, ...profile } = serializeProfile(row);
     return {
       ...profile,

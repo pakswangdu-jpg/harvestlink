@@ -88,7 +88,7 @@ export default function ProductCard({ product, actions, showStatus = false, clas
   };
 
   return (
-    <article className={`group product-card flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)] ${className}`.trim()}>
+    <article data-product-id={product.id} className={`group product-card flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--panel)] shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[box-shadow,transform] duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(16,24,40,0.08)] ${className}`.trim()}>
       {
 
                                                                                         }
@@ -222,13 +222,17 @@ export default function ProductCard({ product, actions, showStatus = false, clas
             </div>
           </div>
 
-          {displayedUpdateAt ? (
-            <p className="text-[12px] leading-normal text-[var(--muted)]">
-              {product.priceUpdatedAt ? 'Farmer updated price' : 'Listing updated'}{' '}
-              <time dateTime={displayedUpdateAt}>{formatDateTimeManila(displayedUpdateAt)}</time> (PHT)
-            </p>
-          ) : null}
-          {marketReference ? <AdminReferenceNotice reference={marketReference} /> : null}
+          <div className="product-card-update-slot">
+            {displayedUpdateAt ? (
+              <p className="text-[12px] leading-normal text-[var(--muted)]">
+                {product.priceUpdatedAt ? 'Farmer updated price' : 'Listing updated'}{' '}
+                <time dateTime={displayedUpdateAt}>{formatDateTimeManila(displayedUpdateAt)}</time> (PHT)
+              </p>
+            ) : null}
+          </div>
+          <div className="product-card-reference-slot">
+            {marketReference ? <AdminReferenceNotice reference={marketReference} /> : null}
+          </div>
           {hasWholesalePricing(product) ? (
             <p className="product-card-wholesale-price">
               Wholesale available: {formatCurrency(product.wholesalePrice)}/{product.unit} for {formatQuantity(product.wholesaleMinQuantity)}+ {product.unit}

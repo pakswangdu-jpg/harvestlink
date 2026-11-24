@@ -4,12 +4,10 @@ import { DONATION_MARKER_COLOR } from './donationMarker';
 const PIN_PATH = 'M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20s12-11 12-20C24 5.373 18.627 0 12 0z';
 
 export function buildFarmerMapMarkerIcon(mapsApi, {
-  donationAlert = false, alert = false, isYou = false, currentUserGreen = false,
-  farmerMarkersGreen = false, pulsePhase = false, width = 28, height = 38,
+  donationAlert = false, alert = false, isYou = false,
+  width = 28, height = 38,
 } = {}) {
-  const color = farmerMarkersGreen || (isYou && currentUserGreen)
-    ? MAP_COLORS.farmer
-    : donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer;
+  const color = isYou ? MAP_COLORS.farmer : (donationAlert ? DONATION_MARKER_COLOR : MAP_COLORS.farmer);
   const viewBoxHeight = isYou ? 42 : 32;
   const iconHeight = isYou ? height + 12 : height;
   const alertRing = alert
