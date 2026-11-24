@@ -147,7 +147,7 @@ export default function ResetPasswordPage() {
       }
       await supabase.auth.signOut({ scope: 'local' });
       setSuccessMessage('Your password has been reset successfully.');
-      window.setTimeout(() => navigate('/login', { replace: true }), 1200);
+      setIsSubmitting(false);
     } catch (updateError) {
       setIsSubmitting(false);
       setError(updateError.message || 'Unable to update the password. Please request a new reset link and try again.');
