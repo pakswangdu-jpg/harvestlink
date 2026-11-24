@@ -35,7 +35,7 @@ describe('CASE-037: Buyer Sign Up with Invalid Zip Code', () => {
       const errors = validateAuthForm(buyerWithInvalidZip, 'register');
       expect(isValidZipCode(invalidZipCode)).toBe(false);
       expect(invalidZipCode).not.toMatch(/^\d{4}$/);
-      expect(errors).toMatchObject({ zipCode: 'Enter a valid 4-digit zip code.' });
+      expect(errors).toMatchObject({ zipCode: 'Enter a valid zip code for the selected location.' });
       expect(errors).not.toHaveProperty('firstName');
       expect(errors).not.toHaveProperty('lastName');
       expect(errors).not.toHaveProperty('contactNumber');
@@ -44,7 +44,7 @@ describe('CASE-037: Buyer Sign Up with Invalid Zip Code', () => {
       expect(errors).not.toHaveProperty('email');
       expect(errors).not.toHaveProperty('password');
       expect(errors).not.toHaveProperty('confirmPassword');
-      expect(validatorSource).toContain("errors.zipCode = 'Enter a valid 4-digit zip code.'");
+      expect(validatorSource).toContain("errors.zipCode = 'Enter a valid zip code for the selected location.'");
       expect(authSource).toContain('Zip code');
       expect(authSource).toContain("form.role === 'buyer'");
       expect(postMock).not.toHaveBeenCalled();

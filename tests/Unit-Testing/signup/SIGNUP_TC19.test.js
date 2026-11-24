@@ -32,7 +32,7 @@ describe('TC-019: Farmer Sign Up Without Accepting Terms and Privacy Policy', ()
       expect(source).toContain('I agree to the');
       expect(source).toContain('Terms of Service');
       expect(source).toContain('Privacy Policy');
-      expect(source).toContain('&& agreedToTerms');
+      expect(source).toContain('if (isRegister && !agreedToTerms)');
       expect(validFarmer.password).toBe(validFarmer.confirmPassword);
       expect(postMock).not.toHaveBeenCalled();
 

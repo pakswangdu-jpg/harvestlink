@@ -30,7 +30,7 @@ describe('CASE-079: Reset Password with Empty New Password', () => {
       const emptyPassword = '';
       expect(emptyPassword.length).toBeLessThan(6);
       expect(updateUserMock).not.toHaveBeenCalled();
-      expect(source).toContain("navigate('/login', { replace: true })");
+      expect(source).toContain("setError('Enter your password.')");
       console.log(`Test Case ID: ${testCaseId}`);
       console.log(`Test Description: ${testDescription}`);
       console.log(`Expected Result: ${expectedResult}`);

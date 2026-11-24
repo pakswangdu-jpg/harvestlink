@@ -31,7 +31,7 @@ describe('CASE-043: Buyer Sign Up Without Accepting Terms and Privacy Policy', (
 
     try {
       expect(validateAuthForm(buyer, 'register')).toEqual({});
-      expect(authSource).toContain('&& agreedToTerms');
+      expect(authSource).toContain('if (isRegister && !agreedToTerms)');
       expect(authSource).toContain('checked={agreedToTerms}');
       expect(authSource).toContain('I agree to the');
       expect(authSource).toContain('Terms of Service');

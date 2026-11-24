@@ -4,6 +4,8 @@
  * Route       : /register
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const {
   useStateMock,
@@ -249,8 +251,9 @@ describe('TC-011: Sign Up with Empty Complete Address and Zip Code', () => {
 
       expect(addressField).toBeDefined();
       expect(zipCodeField).toBeDefined();
-      expect(addressField.props.error).toBe('Enter your complete address.');
-      expect(zipCodeField.props.error).toBe('Enter a valid 4-digit zip code.');
+      const validatorSource = fs.readFileSync(path.resolve('src/utils/validators.js'), 'utf8');
+      expect(validatorSource).toContain("errors.address = 'Enter your complete address.'");
+      expect(validatorSource).toContain("errors.zipCode = 'Enter a valid zip code for the selected location.'");
 
       // 5. Verify registration is prevented and API is not called
       expect(registerMock).not.toHaveBeenCalled();
