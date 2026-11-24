@@ -22,7 +22,7 @@ export function buildFarmerMapMarkerIcon(mapsApi, {
   const accountDot = isYou ? `<circle cx="12" cy="38" r="4" fill="${MAP_COLORS.viewer}" stroke="#ffffff" stroke-width="1.5"/>` : '';
   const svg =
     `<svg width="${width}" height="${iconHeight}" viewBox="0 0 24 ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">` +
-    `${alertRing}<path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="1.25"/>${accountRing}<text x="12" y="14.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="700" fill="${color}">F</text>${accountDot}` +
+    `<path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="1.25"/>${alertRing}${accountRing}<text x="12" y="14.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="700" fill="${color}">F</text>${accountDot}` +
     `</svg>`;
   return {
     url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
