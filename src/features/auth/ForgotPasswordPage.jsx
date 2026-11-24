@@ -31,7 +31,7 @@ function getResetErrorMessage(error) {
   if (networkError) {
     return 'Unable to connect to the server. Please check your internet connection and try again.';
   }
-  return "We couldn't send the reset link. Please check the email address and try again.";
+  return "Unable to connect to the server. Please check your internet connection and try again.";
 }
 
 export default function ForgotPasswordPage() {
