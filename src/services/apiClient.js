@@ -83,7 +83,7 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
       });
     } catch (error) {
       if (error.name === 'TypeError' && !controller.signal.aborted) {
-        const connectionError = new Error('Unable to connect to the HarvestLink server. Please check your connection and try again.', { cause: error });
+        const connectionError = new Error('Unable to connect to the server. Please check your internet connection and try again.', { cause: error });
         connectionError.code = 'API_UNREACHABLE';
         throw connectionError;
       }
