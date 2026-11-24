@@ -61,9 +61,9 @@ test('password reset sends only for a verified existing account', async (t) => {
   });
 
   for (const [name, configure, status, message] of [
-    ['unknown email', () => { state.profile.data = null; }, 404, /No account exists/],
-    ['profile with no auth account', () => { state.account = { data: null, error: { status: 404 } }; }, 404, /No account exists/],
-    ['different auth email', () => { state.account.data.user = { ...user, email: 'other@example.com' }; }, 404, /No account exists/],
+    ['unknown email', () => { state.profile.data = null; }, 404, /No account found with this email address/],
+    ['profile with no auth account', () => { state.account = { data: null, error: { status: 404 } }; }, 404, /No account found with this email address/],
+    ['different auth email', () => { state.account.data.user = { ...user, email: 'other@example.com' }; }, 404, /No account found with this email address/],
     ['unverified account', () => { state.account.data.user = { ...user, email_confirmed_at: null }; }, 400, /verify your email/],
     ['database lookup failure', () => { state.profile.error = { message: 'Database failed' }; }, 503, /Unable to check/],
     ['auth service failure', () => { state.account = { data: null, error: { status: 500 } }; }, 503, /Unable to check/],

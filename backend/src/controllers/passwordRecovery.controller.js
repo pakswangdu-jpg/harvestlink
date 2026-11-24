@@ -34,7 +34,7 @@ export async function requestPasswordReset(req, res) {
   const { data: profile, error: profileError } = await supabaseAdmin.from('profiles')
     .select('id,email').eq('email', email).maybeSingle();
   if (profileError) throw new ApiError('Unable to check your account right now. Please try again.', 503);
-  if (!profile) throw new ApiError('No account exists with this email address.', 404);
+  if (!profile) throw new ApiError('No account found with this email address. Please check your email and try again.', 404);
 
   const { data: account, error: accountError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
   if (accountError && accountError.status !== 404) {
@@ -42,7 +42,7 @@ export async function requestPasswordReset(req, res) {
   }
   const user = account?.user;
   if (!user || user.email?.toLowerCase() !== email) {
-    throw new ApiError('No account exists with this email address.', 404);
+    throw new ApiError('No account found with this email address. Please check your email and try again.', 404);
   }
   if (!user.email_confirmed_at) throw new ApiError('Please verify your email before resetting your password.', 400);
 
