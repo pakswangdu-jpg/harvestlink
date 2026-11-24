@@ -67,7 +67,7 @@ export default function FarmerMap({
   const buyerCoordsById = useMapCoordinates(uniqueBuyers, { registeredOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(uniqueStakeholders, { registeredOnly: nearbyView });
   const donationFarmerCoordsById = useMapCoordinates(uniqueDonationFarmers, { registeredOnly: true });
-  const pulsePhaseRef = useRef(false);
+  const pulsePhaseRef = useRef(0);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -141,14 +141,14 @@ export default function FarmerMap({
   useEffect(() => {
     if (!mapReady || !nearbyView) return undefined;
     const timer = window.setInterval(() => {
-      pulsePhaseRef.current = !pulsePhaseRef.current;
+      pulsePhaseRef.current = (pulsePhaseRef.current + 1) % 3;
       Object.values(markersRef.current).forEach((entry) => {
         if (!entry.donationAlert || !entry.buildIcon) return;
         const icon = entry.buildIcon(pulsePhaseRef.current);
         entry.marker.setIcon(icon);
         entry.icon = icon;
       });
-    }, 800);
+    }, 400);
     return () => window.clearInterval(timer);
   }, [mapReady, nearbyView]);
 
