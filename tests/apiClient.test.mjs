@@ -160,7 +160,7 @@ test('connection failures are actionable, unrelated aborts are preserved, and ti
   });
   for (failure of failures) {
     await assert.rejects(client.get('/products'), (error) => failure.name === 'TypeError'
-      ? error.code === 'API_UNREACHABLE' && error.cause === failure && /Unable to connect to the HarvestLink server/.test(error.message)
+      ? error.code === 'API_UNREACHABLE' && error.cause === failure && /Unable to connect to the server/.test(error.message)
       : error === failure);
   }
   t.mock.timers.tick(90000);
