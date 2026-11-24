@@ -89,6 +89,7 @@ export default function FarmerDashboard() {
   }, [currentUser.id]);
 
   const { products, orders, mapProfiles } = state;
+  const dashboardError = loadError || donationError;
   const activeMapFarmers = useMemo(() => mapProfiles.filter((profile) => profile.role === 'farmer'), [mapProfiles]);
   const activeMapBuyers = useMemo(() => mapProfiles.filter((profile) => profile.role === 'buyer'), [mapProfiles]);
   const activeMapStakeholders = useMemo(() => mapProfiles.filter((profile) => profile.role === 'stakeholder'), [mapProfiles]);
@@ -134,7 +135,7 @@ export default function FarmerDashboard() {
       subtitle="Manage your harvest listings, orders, and surplus donations from one workspace."
       pageClassName="farmer-dashboard-page"
     >
-      {loadError ? <div className="form-alert error" role="alert">{loadError}</div> : null}
+      {dashboardError ? <div className="form-alert error" role="alert">{dashboardError}</div> : null}
       {currentUser.verificationStatus === 'verified' && currentUser.verificationAcknowledged === false ? (
         <div className="form-alert success">
           <strong>Your account has been approved by admin!</strong>
@@ -370,7 +371,7 @@ export default function FarmerDashboard() {
             <Gift size={16} /> Manage donations
           </Link>
         </div>
-        {donationError ? <div className="form-alert warning" role="alert">{donationError}</div> : donationsLoading ? <p role="status">Loading donations...</p> : pendingDonationRequests.length ? (
+        {donationsLoading ? <p role="status">Loading donations...</p> : pendingDonationRequests.length ? (
           <DataTable
             className="farmer-dashboard-donation-table"
             responsiveLabels
