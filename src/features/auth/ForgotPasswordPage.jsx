@@ -15,20 +15,21 @@ function getPasswordRecoveryRedirect() {
 
 function getResetErrorMessage(error) {
   if (error?.status === 429) {
-    const minutes = error.retryAfterSeconds
-      ? Math.ceil(error.retryAfterSeconds / 60)
-      : null;
-    return minutes
-      ? `Too many reset requests. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`
-      : 'Too many reset requests. Please wait before trying again.';
+    return 'Too many reset requests. Please try again later.';
   }
+  if (error?.status >= 500) return 'Something went wrong. Please try again later.';
   if ([400, 404, 503].includes(error?.status) && error.message) return error.message;
   const message = typeof error?.message === 'string' ? error.message.toLowerCase() : '';
   if (message.includes('invalid') && message.includes('email')) {
     return 'Please enter a valid email address.';
   }
-  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
-    return 'Something went wrong while sending the reset link. Please try again.';
+  const networkError = error?.name === 'TypeError'
+    || ['ECONNABORTED', 'ECONNRESET', 'ENETUNREACH', 'ENOTFOUND', 'ETIMEDOUT'].includes(error?.code)
+    || message.includes('network')
+    || message.includes('failed to fetch')
+    || message.includes('timeout');
+  if (networkError) {
+    return 'Unable to connect to the server. Please check your internet connection and try again.';
   }
   return "We couldn't send the reset link. Please check the email address and try again.";
 }
