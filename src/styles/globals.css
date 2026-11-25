@@ -17125,6 +17125,14 @@ td {
   line-height: 1.4;
 }
 
+/* Keep the search control's single outer border; the shared input focus ring
+   would otherwise create a second border inside the control. */
+.marketplace-page .marketplace-filters .search-field input:focus {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 .marketplace-page .marketplace-filters .search-field input::placeholder {
   color: var(--muted);
   font-weight: 400;
