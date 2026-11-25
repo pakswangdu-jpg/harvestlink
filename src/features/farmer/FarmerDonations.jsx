@@ -55,6 +55,7 @@ function getDonationDraft() {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return {
+    quantity: '',
     expirationDate: `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`,
     expirationTime: '17:00',
   };
@@ -157,6 +158,7 @@ export default function FarmerDonations() {
 
   useEffect(() => {
     if (!location.state?.donationProduct) return;
+    setDonationDraft(getDonationDraft());
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
 
@@ -212,12 +214,17 @@ export default function FarmerDonations() {
   const createDonationOffer = async (event) => {
     event.preventDefault();
     if (!donationProduct || !donationDraft.expirationDate || !donationDraft.expirationTime) return;
+    const quantity = Number(donationDraft.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > Number(donationProduct.quantity)) {
+      setError(`Enter a donation quantity between 0 and ${formatQuantity(donationProduct.quantity)} ${donationProduct.unit}.`);
+      return;
+    }
 
     const expirationAt = new Date(
       `${donationDraft.expirationDate}T${donationDraft.expirationTime}:00+08:00`,
     ).toISOString();
     const created = await run(
-      () => createDonation(donationProduct, expirationAt),
+      () => createDonation(donationProduct, expirationAt, quantity),
       `${donationProduct.name} is now available to partner organizations.`,
     );
     if (created) setDonationProduct(null);
@@ -516,11 +523,27 @@ export default function FarmerDonations() {
                 <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted)]">Your donation offer</p>
                 <p className="mt-1 text-[15px] font-semibold text-[var(--text)]">{donationProduct.name}</p>
                 <p className="mt-1 text-[13px] text-[var(--muted)]">
-                  {formatQuantity(donationProduct.quantity)} {donationProduct.unit} will be offered to verified partner organizations.
+                  {donationDraft.quantity
+                    ? `${formatQuantity(donationDraft.quantity)} ${donationProduct.unit} will be offered to verified partner organizations.`
+                    : `Choose up to ${formatQuantity(donationProduct.quantity)} ${donationProduct.unit} to offer to verified partner organizations.`}
                 </p>
               </div>
             </div>
             <div className="farmer-donation-expiration-grid">
+              <label className="farmer-donation-pickup-field">
+                <span>Quantity to donate ({donationProduct.unit})</span>
+                <input
+                  type="number"
+                  min="0.01"
+                  max={donationProduct.quantity}
+                  step="0.01"
+                  value={donationDraft.quantity}
+                  onChange={(event) => setDonationDraft((previous) => ({ ...previous, quantity: event.target.value }))}
+                  placeholder={`Up to ${formatQuantity(donationProduct.quantity)}`}
+                  required
+                />
+                <small>Available: {formatQuantity(donationProduct.quantity)} {donationProduct.unit}.</small>
+              </label>
               <label className="farmer-donation-pickup-field">
                 <span>Offer expiration date</span>
                 <input
@@ -548,7 +571,7 @@ export default function FarmerDonations() {
             </p>
             <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
               <Button type="button" variant="secondary" onClick={closeDonationComposer} disabled={saving}>Cancel</Button>
-              <Button type="submit" disabled={saving || !donationDraft.expirationDate || !donationDraft.expirationTime}>
+              <Button type="submit" disabled={saving || !donationDraft.quantity || !donationDraft.expirationDate || !donationDraft.expirationTime}>
                 {saving ? 'Adding donated stock...' : 'Create or add donated stock'}
               </Button>
             </div>

@@ -290,9 +290,17 @@ export async function createDonation(req, res) {
   if (!expiration) {
     throw new ApiError('Choose a valid donation expiration date and time.', 400);
   }
-  const { data, error } = await supabaseAdmin.rpc('create_surplus_donation', {
+  const requestedQuantity = req.body?.quantity;
+  const quantity = requestedQuantity == null || requestedQuantity === '' ? null : Number(requestedQuantity);
+  if (quantity !== null && (!Number.isFinite(quantity) || quantity <= 0)) {
+    throw new ApiError('Enter a valid donation quantity.', 400);
+  }
+  const rpcName = quantity === null ? 'create_surplus_donation' : 'create_surplus_donation_with_quantity';
+  const rpcArgs = {
     actor_id: req.profile.id, source_product_id: requireId(req.body?.productId), p_expiration_at: expiration.toISOString(),
-  });
+  };
+  if (quantity !== null) rpcArgs.p_quantity = quantity;
+  const { data, error } = await supabaseAdmin.rpc(rpcName, rpcArgs);
   checkError(error);
   res.status(201).json(serializeDonation(data));
 }

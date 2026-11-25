@@ -6,9 +6,10 @@ export const getDonationById = (id) => apiClient.get(`/donations/${encodeURIComp
 export const getAvailableDonations = () => apiClient.get('/donations?status=available');
 export const getDonationsByFarmer = (id) => apiClient.get(`/donations?farmerId=${encodeURIComponent(id)}`);
 export const getDonationsForStakeholder = (id) => apiClient.get(`/donations?stakeholderId=${encodeURIComponent(id)}`);
-export const createDonation = (product, expirationAt) => apiClient.post('/donations', {
+export const createDonation = (product, expirationAt, quantity) => apiClient.post('/donations', {
   productId: product.id,
   ...(typeof expirationAt === 'string' ? { expirationAt } : {}),
+  ...(quantity !== undefined ? { quantity: Number(quantity) } : {}),
 });
 
 const act = (id, action, values = {}) => apiClient.post(`/donations/${encodeURIComponent(id)}/${action}`, values);
