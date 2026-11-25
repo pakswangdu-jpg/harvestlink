@@ -94,6 +94,16 @@
   outline: none;
 }
 
+/* The container owns the visible border and focus ring. Keep the nested
+   input completely borderless so the shared input focus rule cannot create a
+   second green outline inside the search control. */
+.farmer-products-page .product-filter-toolbar .search-field input:focus,
+.farmer-products-page .product-filter-toolbar .search-field input:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
 .farmer-products-page .product-filter-toolbar .search-field input::placeholder {
   color: #66756c;
   opacity: 1;
