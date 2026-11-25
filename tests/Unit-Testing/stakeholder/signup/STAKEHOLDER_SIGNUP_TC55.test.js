@@ -1,4 +1,4 @@
-/**
+go/**
  * Test Case ID: CASE-055
  * Scenario    : Stakeholder Sign Up with Existing Email Address
  * Route       : /register

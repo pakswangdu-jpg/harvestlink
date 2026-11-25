@@ -27,6 +27,18 @@ export default function ToastStack({ toasts, onDismiss }) {
               {toast.title ? <span className="form-alert-title">{toast.title}</span> : null}
               {toast.message ? <span className="form-alert-body">{toast.message}</span> : null}
             </div>
+            {toast.actionLabel && toast.onAction ? (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  toast.onAction();
+                  onDismiss(toast.id);
+                }}
+              >
+                {toast.actionLabel}
+              </button>
+            ) : null}
             <button type="button" className="toast-close" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification">
               <X size={14} strokeWidth={2} />
             </button>

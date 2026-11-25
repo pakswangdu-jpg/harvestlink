@@ -29,10 +29,10 @@ export function ToastProvider({ children }) {
     }
   }, []);
 
-  const showToast = useCallback(({ type = 'success', title, message }) => {
+  const showToast = useCallback(({ type = 'success', title, message, actionLabel, onAction }) => {
     nextId += 1;
     const id = nextId;
-    setToasts((previous) => [...previous, { id, type, title, message }]);
+    setToasts((previous) => [...previous, { id, type, title, message, actionLabel, onAction }]);
     timers.current[id] = setTimeout(() => dismissToast(id), TOAST_DURATION_MS);
     return id;
   }, [dismissToast]);

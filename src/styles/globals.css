@@ -7323,6 +7323,7 @@ a.user-chip:hover {
 .toast {
   position: relative;
   padding-right: 36px;
+  padding-bottom: 62px;
   background: var(--panel);
 
 
@@ -7371,6 +7372,51 @@ a.user-chip:hover {
 .toast-close:hover {
   opacity: 1;
   background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.toast-action {
+  position: absolute;
+  right: 34px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 44px;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--green-700) 55%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--green-700) 10%, var(--panel));
+  color: var(--green-700);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.toast-action:hover,
+.toast-action:focus-visible {
+  color: var(--green-800);
+  border-color: var(--green-700);
+  background: color-mix(in srgb, var(--green-700) 16%, var(--panel));
+  text-decoration: none;
+}
+
+.toast-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--green-700) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.toast-action:active {
+  transform: scale(0.98);
+}
+
+.toast .form-alert-content {
+  padding-right: 76px;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {

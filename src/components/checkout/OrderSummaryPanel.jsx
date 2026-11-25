@@ -109,7 +109,7 @@ export default function OrderSummaryPanel({
 
           <div className="checkout-summary-line checkout-summary-delivery-fee-row">
             <span>Delivery fee</span>
-            <span className={isLalamove ? 'checkout-summary-delivery-pending' : undefined}>{isLalamove ? 'Waiting for farmer to confirm delivery price' : isPickup ? 'Free' : quote ? formatCurrency(fee) : '--'}</span>
+            <span className={isLalamove ? 'checkout-summary-delivery-pending' : undefined}>{isLalamove ? 'Waiting for farmer to confirm delivery price' : isPickup ? '-' : quote ? formatCurrency(fee) : '--'}</span>
           </div>
           {isLalamove ? <p className="checkout-summary-note">The farmer will send a delivery quote for you to review. Payment becomes available after you accept the final total.</p> : null}
         </div>

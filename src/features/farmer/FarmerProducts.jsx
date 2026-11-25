@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Archive, ArchiveRestore, Eye, Gift, MessageSquareText, Plus, SearchX, Trash2 } from 'lucide-react';
@@ -54,6 +54,7 @@ export default function FarmerProducts() {
   const [reviewsProduct, setReviewsProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
+  const pendingDeletes = useRef(new Map());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -220,14 +221,38 @@ export default function FarmerProducts() {
   };
 
   const handleDeleteConfirm = async () => {
-    try {
-      await deleteProduct(deleteTarget.id);
-      showToast({ type: 'error', message: 'Product deleted.' });
-      setDeleteTarget(null);
-      reload();
-    } catch (deleteError) {
-      showToast({ type: 'error', message: deleteError.message });
-    }
+    const product = deleteTarget;
+    if (!product) return;
+    setDeleteTarget(null);
+    setProducts((previous) => previous.filter((item) => item.id !== product.id));
+
+    const finalizeDelete = async () => {
+      pendingDeletes.current.delete(product.id);
+      try {
+        await deleteProduct(product.id);
+        reload();
+      } catch (deleteError) {
+        setProducts((previous) => (previous.some((item) => item.id === product.id) ? previous : [...previous, product]));
+        showToast({ type: 'error', message: deleteError.message });
+      }
+    };
+
+    const timer = window.setTimeout(finalizeDelete, 3200);
+    pendingDeletes.current.set(product.id, { product, timer });
+    showToast({
+      type: 'success',
+      title: 'Product deleted',
+      message: `${product.name} was removed from your products.`,
+      actionLabel: 'Undo',
+      onAction: () => {
+        const pending = pendingDeletes.current.get(product.id);
+        if (!pending) return;
+        window.clearTimeout(pending.timer);
+        pendingDeletes.current.delete(product.id);
+        setProducts((previous) => (previous.some((item) => item.id === product.id) ? previous : [...previous, product]));
+        showToast({ type: 'info', message: `${product.name} was restored.` });
+      },
+    });
   };
 
   const handleApplyDiscount = async (percent) => {
