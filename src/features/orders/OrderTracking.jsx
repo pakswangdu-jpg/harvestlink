@@ -15,6 +15,8 @@ import OrderTracker from '../../components/orders/OrderTracker';
 import LiveDeliveryMap from '../../components/orders/LiveDeliveryMap';
 import DeliveryInfoCard from '../../components/orders/DeliveryInfoCard';
 import CourierDeliveryTimeline from '../../components/orders/CourierDeliveryTimeline';
+import WholesaleOrderTimeline from '../../components/orders/WholesaleOrderTimeline';
+import WholesaleDeliveryArrangement from '../../components/orders/WholesaleDeliveryArrangement';
 import { ManageManualLalamoveTracking, ManualLalamoveTrackingLink } from '../../components/orders/ManualLalamoveTracking';
 import LalamoveDeliveryQuote from '../../components/orders/LalamoveDeliveryQuote';
 import DeliveryTrackingOverlay from '../../components/orders/DeliveryTrackingOverlay';
@@ -30,6 +32,7 @@ import { uploadReviewImage, uploadReviewVideo } from '../../services/uploadServi
 import { getDelivery } from '../../services/deliveryService';
 import {
   advanceDelivery,
+  advanceWholesaleDelivery,
   cancelOrder,
   getDeliverySequence,
   getDeliveryTrackingStatus,
@@ -41,6 +44,10 @@ import {
   mapOrderRealtimeRow,
   updateOrderStatus,
 } from '../../services/orderService';
+import {
+  getWholesaleNextDeliveryStatus,
+  usesSharedArrangedDelivery,
+} from '../../../backend/shared/wholesaleDelivery.js';
 import { DELIVERY_STEP_LABELS, ONLINE_PAYMENT_METHODS } from '../../utils/constants';
 import { getRegisteredCoordinates } from '../../utils/geo';
 import { requestDeviceOrientationPermission } from '../../utils/vehicleMarker';
@@ -95,6 +102,7 @@ export default function OrderTracking() {
   const [courierLoad, setCourierLoad] = useState(null);
   const [courierRetry, setCourierRetry] = useState(0);
   const [notice, setNotice] = useState(location.state?.notice || '');
+  const [noticeTitle] = useState(location.state?.noticeTitle || '');
   const [error, setError] = useState('');
   const [existingRating, setExistingRating] = useState(null);
   const [checkedRatingOrderId, setCheckedRatingOrderId] = useState(null);
@@ -495,19 +503,38 @@ export default function OrderTracking() {
     if (received) setIsOrderThanksOpen(true);
   };
 
-  const nextStep = getNextDeliveryStatus(order);
+  const usesArrangedFlow = usesSharedArrangedDelivery(order);
+  const isWholesaleManualFlow = usesArrangedFlow && !['farmer_delivery', 'buyer_pickup'].includes(order.deliveryMethod);
+  const wholesaleNextStep = isWholesaleManualFlow ? getWholesaleNextDeliveryStatus(order) : null;
+  const WHOLESALE_ACTION_LABELS = {
+    waiting_for_courier: 'Confirm Courier Booking',
+    preparing: 'Start Preparing Order',
+    ready_for_pickup: 'Mark Ready for Pickup',
+    in_transit: 'Mark In Transit',
+    delivered: 'Mark Order Delivered',
+    completed: 'Confirm Receipt',
+  };
+  const nextStep = isWholesaleManualFlow ? wholesaleNextStep : getNextDeliveryStatus(order);
   const isTrackable = order.status === 'confirmed' || order.status === 'completed';
   const deliverySequence = getDeliverySequence(order.deliveryMethod);
 
 
 
-  const isFinalNextStep = nextStep && deliverySequence[deliverySequence.length - 1] === nextStep;
+  const isFinalNextStep = isWholesaleManualFlow
+    ? wholesaleNextStep === 'completed'
+    : Boolean(nextStep && deliverySequence[deliverySequence.length - 1] === nextStep);
   const { isNearDestination } = transit;
   const isPickup = order.deliveryMethod === 'buyer_pickup';
   const isCourier = order.deliveryMethod === 'courier';
-  const quotePending = order.lalamoveQuoteStatus === 'pending';
-  const canPayLalamove = !order.lalamoveQuoteStatus || order.lalamoveQuoteStatus === 'accepted';
-  const canConfirmLalamove = canPayLalamove && (!order.lalamoveQuoteStatus || order.paymentMethod !== 'gcash' || order.paymentStatus === 'paid');
+  const quotePending = usesArrangedFlow
+    ? order.deliveryArrangementStatus !== 'confirmed'
+    : order.lalamoveQuoteStatus === 'pending';
+  const canPayLalamove = usesArrangedFlow
+    ? order.deliveryArrangementStatus === 'confirmed'
+    : (!order.lalamoveQuoteStatus || order.lalamoveQuoteStatus === 'accepted');
+  const canConfirmLalamove = usesArrangedFlow
+    ? order.deliveryArrangementStatus === 'confirmed'
+    : (canPayLalamove && (!order.lalamoveQuoteStatus || order.paymentMethod !== 'gcash' || order.paymentStatus === 'paid'));
   const trackingStatus = getDeliveryTrackingStatus(order, isInTransit, isNearDestination);
   const TrackingStatusIcon = TRACKING_STATUS_ICON[trackingStatus.key];
 
@@ -541,8 +568,13 @@ export default function OrderTracking() {
             Back to chat
           </Link>
         ) : null}
-        {notice ? <div className="form-alert success">{notice}</div> : null}
-        {error || profileLocationError
+        {notice ? (
+          <div className="form-alert success">
+            {noticeTitle ? <strong className="block mb-0.5">{noticeTitle}</strong> : null}
+            <span>{notice}</span>
+          </div>
+        ) : null}
+        {error || (!isWholesaleManualFlow && profileLocationError)
           ? <div className="form-alert error">{error || profileLocationError}</div>
           : null}
           {isBuyer && order.status === 'rejected' ? (
@@ -603,15 +635,17 @@ export default function OrderTracking() {
                 <p className="ot-section-subtitle">Track the current order status</p>
               </div>
               <div className="ot-progress-heading-actions">
-                {isTrackable && isCourier ? <a className="ot-view-tracking-btn" href="#courier-delivery"><Truck size={15} aria-hidden="true" /> Courier details</a> : null}
-                {isTrackable && !isCourier ? (
+                {isTrackable && isCourier && !isWholesaleManualFlow ? <a className="ot-view-tracking-btn" href="#courier-delivery"><Truck size={15} aria-hidden="true" /> Courier details</a> : null}
+                {isTrackable && !isCourier && !isWholesaleManualFlow ? (
                   <button type="button" className="ot-view-tracking-btn" onClick={() => setIsTrackingOpen(true)}>
                     <Map size={15} aria-hidden="true" /> View live tracking
                   </button>
                 ) : null}
               </div>
             </div>
-            {isCourier ? (
+            {isWholesaleManualFlow ? (
+              <WholesaleOrderTimeline order={order} />
+            ) : isCourier ? (
               <CourierDeliveryTimeline order={order} delivery={currentDelivery} />
             ) : <OrderTracker order={order} isFarmer={isFarmer} showSummary={false} />}
           </div>
@@ -696,10 +730,22 @@ export default function OrderTracking() {
               <div className="ot-detail-group">
                 <h4>Delivery</h4>
                 <div className="ot-detail-row"><span>Delivery method</span><strong>{deliveryMethodLabel(order.deliveryMethod)}</strong></div>
+                {usesArrangedFlow && order.deliveryAddress ? (
+                  <div className="ot-detail-row"><span>Delivery address</span><strong>{order.deliveryAddress}</strong></div>
+                ) : null}
                 {order.vehiclePlateNumber ? (
                   <div className="ot-detail-row"><span>Vehicle plate number</span><strong>{order.vehiclePlateNumber}</strong></div>
                 ) : null}
-                {order.deliveryFee > 0 ? (
+                {usesArrangedFlow ? (
+                  <div className="ot-detail-row">
+                    <span>Delivery fee</span>
+                    <strong>
+                      {order.deliveryArrangementStatus === 'pending_farmer'
+                        ? 'Pending farmer confirmation.'
+                        : formatCurrency(order.deliveryFee)}
+                    </strong>
+                  </div>
+                ) : order.deliveryFee > 0 ? (
                   <div className="ot-detail-row">
                     <span>Delivery fee{order.deliveryFeeTier ? ` (${order.deliveryFeeTier})` : ''}</span>
                     <strong>{formatCurrency(order.deliveryFee)}</strong>
@@ -736,27 +782,45 @@ export default function OrderTracking() {
               </Link>
             </div>
 
-            <div className="form-actions">
+            <div className="form-actions ot-order-decision-actions">
               {isFarmer && order.status === 'pending' ? (
                 <>
-                  {canConfirmLalamove ? <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
-                    <Check size={15} /> Confirm order
-                  </Button> : null}
+                  {canConfirmLalamove ? (
+                    <Button onClick={() => run(() => updateOrderStatus(order.id, 'confirmed'), 'Order confirmed.')}>
+                      <Check size={15} /> Confirm order
+                    </Button>
+                  ) : usesArrangedFlow ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => document.getElementById('wholesale-delivery-arrangement')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    >
+                      <Truck size={15} /> {order.deliveryArrangementStatus === 'pending_farmer' ? 'Arrange Delivery' : 'View Delivery Arrangement'}
+                    </Button>
+                  ) : null}
                   <Button variant="danger" onClick={() => setIsRejectDialogOpen(true)}>
                     <X size={15} /> Reject order
                   </Button>
                 </>
               ) : null}
 
-              {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep && !(isCourier && nextStep === 'out_for_delivery') ? (
+              {isFarmer && order.status === 'confirmed' && nextStep && !isFinalNextStep && (isWholesaleManualFlow || !(isCourier && nextStep === 'out_for_delivery')) ? (
                 <Button onClick={() => {
+                  if (isWholesaleManualFlow) {
+                    run(
+                      () => advanceWholesaleDelivery(order.id, nextStep),
+                      `Order updated to "${WHOLESALE_ACTION_LABELS[nextStep] || nextStep}".`,
+                    );
+                    return;
+                  }
                   if (nextStep === 'out_for_delivery' && order.deliveryMethod === 'farmer_delivery') {
                     setIsStartDeliveryDialogOpen(true);
                     return;
                   }
                   run(() => advanceDelivery(order.id), `Order marked "${DELIVERY_STEP_LABELS[nextStep]}".`);
                 }}>
-                  {nextStep === 'out_for_delivery' ? (
+                  {isWholesaleManualFlow ? (
+                    <>{WHOLESALE_ACTION_LABELS[nextStep] || nextStep}</>
+                  ) : nextStep === 'out_for_delivery' ? (
                     <><Navigation size={15} /> Start Delivery</>
                   ) : (
                     <>Mark {DELIVERY_STEP_LABELS[nextStep]}</>
@@ -765,8 +829,18 @@ export default function OrderTracking() {
               ) : null}
 
               {isBuyer && order.status === 'confirmed' && isFinalNextStep ? (
-                <Button onClick={handleConfirmReceived}>
-                  <Check size={15} /> Got it
+                <Button onClick={async () => {
+                  if (isWholesaleManualFlow) {
+                    const completed = await run(
+                      () => advanceWholesaleDelivery(order.id, 'completed'),
+                      'Order completed. Thank you for confirming receipt.',
+                    );
+                    if (completed) setIsOrderThanksOpen(true);
+                    return;
+                  }
+                  handleConfirmReceived();
+                }}>
+                  <Check size={15} /> {isWholesaleManualFlow ? 'Confirm Receipt' : 'Got it'}
                 </Button>
               ) : null}
 
@@ -829,7 +903,7 @@ export default function OrderTracking() {
                 ) : null}
                 {existingRating.createdAt ? <p className="ot-review-date">Reviewed {formatDate(existingRating.createdAt)}</p> : null}
               </div>
-            ) : (
+            ) : !isOrderThanksOpen ? (
               <RequiredFeedbackDialog title={`Rate ${order.farmerName}`}>
                 <div className="form-stack" aria-busy={isSubmittingRating || isCheckingRatingMedia}>
                   {ratingError ? <div className="form-alert error" role="alert">{ratingError}</div> : null}
@@ -908,7 +982,7 @@ export default function OrderTracking() {
                   </Button>
                 </div>
               </RequiredFeedbackDialog>
-            )}
+            ) : null}
           </section>
         ) : null}
 
@@ -916,7 +990,19 @@ export default function OrderTracking() {
 
 
                                                                                          }
-        {isCourier && (isBuyer || isFarmer) ? (
+        {usesArrangedFlow && (isBuyer || isFarmer) ? (
+          <WholesaleDeliveryArrangement
+            key={`${order.id}-${order.deliveryArrangedAt || 'none'}`}
+            order={order}
+            isFarmer={isFarmer}
+            onUpdated={(updated) => {
+              setOrder((previous) => previous?.id === order.id ? { ...previous, ...updated } : previous);
+            }}
+            onNavigatePayment={() => navigate(`/orders/${order.id}/pay/gcash`)}
+          />
+        ) : null}
+
+        {!usesArrangedFlow && isCourier && (isBuyer || isFarmer) ? (
           <section className="panel form-stack" aria-label="Lalamove Delivery Tracking">
             <div className="section-heading"><h2>Lalamove Delivery Tracking</h2></div>
             {order.lalamoveQuoteStatus ? <LalamoveDeliveryQuote key={order.id} order={order} isFarmer={isFarmer} onUpdated={(updated) => {
@@ -932,7 +1018,7 @@ export default function OrderTracking() {
             </div>
           </section>
         ) : null}
-        {isTrackable && isCourier ? (
+        {!usesArrangedFlow && isTrackable && isCourier ? (
           <DeliveryInfoCard
             key={order.id}
             order={order}
@@ -962,7 +1048,7 @@ export default function OrderTracking() {
           />
         ) : null}
 
-        {!isCourier ? <DeliveryTrackingOverlay
+        {!isCourier && !isWholesaleManualFlow ? <DeliveryTrackingOverlay
           open={isTrackingOpen}
           onClose={() => setIsTrackingOpen(false)}
           title={isPickup ? 'Pickup tracking' : 'Delivery tracking'}
@@ -1082,6 +1168,7 @@ export default function OrderTracking() {
       />
       <StartDeliveryDialog
         open={isStartDeliveryDialogOpen}
+        initialPlateNumber={order.vehiclePlateNumber || ''}
         onConfirm={handleStartDelivery}
         onCancel={() => setIsStartDeliveryDialogOpen(false)}
       />

@@ -26,14 +26,46 @@ export default function CommodityTable({ rows, sortState, onSort, selectedIds, o
   const selection = (row) => row.isCustom
     ? <input type="checkbox" aria-label={`Select ${row.label}`} checked={selectedIds.has(row.id)} onChange={() => onToggleSelect(row.id)} disabled={row.loading} />
     : <span aria-label="Reference updates are limited to admin-added commodities">—</span>;
-  const adminReference = (row) => row.isOverride
-    ? <>{formatCurrency(row.override?.referencePrice ?? row.referencePrice)}/{row.override?.unit || row.unit}<small>{row.override?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered'}</small></>
-    : <span className="pm-secondary">Not set</span>;
+  const adminReference = (row) => {
+    if (!row.isRetailOverride && !row.isWholesaleOverride) {
+      return <span className="pm-secondary">Not set</span>;
+    }
+    return (
+      <div className="space-y-0.5 text-[12px]">
+        <div>
+          <span className="text-[var(--muted)]">Retail: </span>
+          {row.isRetailOverride
+            ? <strong>{formatCurrency(row.retailOverride?.referencePrice ?? row.retailReferencePrice)}/{row.retailOverride?.unit || row.unit}</strong>
+            : <span className="pm-secondary">Not set</span>}
+        </div>
+        <div>
+          <span className="text-[var(--muted)]">Wholesale: </span>
+          {row.isWholesaleOverride
+            ? <strong>{formatCurrency(row.wholesaleOverride?.referencePrice ?? row.wholesaleReferencePrice)}/{row.wholesaleOverride?.unit || row.unit}</strong>
+            : <span className="pm-secondary">Not set</span>}
+        </div>
+      </div>
+    );
+  };
   const effectiveReference = (row) => row.loading
     ? 'Loading...'
-    : row.referencePrice == null
+    : row.referencePrice == null && !row.isWholesaleOverride
       ? 'Unavailable'
-      : <>{formatCurrency(row.referencePrice)}/{row.unit}{' '}<small>{row.isOverride ? (row.override?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered') : `PSA ${row.referenceYear || ''}`}</small></>;
+      : (
+        <div className="space-y-0.5">
+          <div>
+            {row.referencePrice != null
+              ? <>{formatCurrency(row.referencePrice)}/{row.unit} <small>{row.isRetailOverride ? (row.retailOverride?.source === 'verified_local_market' ? 'Retail · Local survey' : 'Retail · Admin') : `Retail · PSA ${row.referenceYear || ''}`}</small></>
+              : <span className="pm-secondary">Retail: Unavailable</span>}
+          </div>
+          {row.isWholesaleOverride ? (
+            <div>
+              {formatCurrency(row.wholesaleReferencePrice)}/{row.wholesaleOverride?.unit || row.unit}{' '}
+              <small>{row.wholesaleOverride?.source === 'verified_local_market' ? 'Wholesale · Local survey' : 'Wholesale · Admin'}</small>
+            </div>
+          ) : null}
+        </div>
+      );
   return <>
     <div className="pm-desktop-table">
       <table className="pm-table">
@@ -47,7 +79,16 @@ export default function CommodityTable({ rows, sortState, onSort, selectedIds, o
             <td><button className="pm-expand" type="button" aria-expanded={expandedId === row.id} onClick={() => onToggleExpand(row.id)}>{expandedId === row.id ? <ChevronDown size={15} /> : <ChevronRight size={15} />}{row.label}</button></td>
             <td className="pm-secondary">{row.category}</td><td>{reference(row)}</td><td>{adminReference(row)}</td><td>{effectiveReference(row)}</td><td>{row.avgFarmerPrice == null ? '-' : `${formatCurrency(row.avgFarmerPrice)}/kg`}</td>
             <td>{difference(row)?.label || '-'}</td><td>{row.listingsCount}</td><td>{status(row)}</td>
-            <td>{row.isCustom ? <button type="button" className="pm-link" disabled={row.loading} onClick={() => onOpenOverrideModal(row)}>{row.isOverride ? 'Edit override' : 'Set price'}</button> : '—'}</td>
+            <td>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="pm-link" disabled={row.loading} onClick={() => onOpenOverrideModal(row, 'retail')}>
+                  {row.isRetailOverride ? 'Edit retail' : 'Set retail'}
+                </button>
+                <button type="button" className="pm-link" disabled={row.loading} onClick={() => onOpenOverrideModal(row, 'wholesale')}>
+                  {row.isWholesaleOverride ? 'Edit wholesale' : 'Set wholesale'}
+                </button>
+              </div>
+            </td>
           </tr>
           {!mobile && expandedId === row.id && <tr><td colSpan={11} className="pm-detail-cell">{details(row)}</td></tr>}
         </Fragment>)}</tbody>

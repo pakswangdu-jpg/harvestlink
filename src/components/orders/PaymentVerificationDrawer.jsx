@@ -77,7 +77,7 @@ function PaymentReviewContent({ order, titleId, busy, canReview, onClose, onDeci
             ...(order.paymentVerificationStatus ? [['Verification', <StatusBadge key="verification" value={order.paymentVerificationStatus} type="paymentVerificationStatus" />]] : []),
             ...(order.paymentRejectionReason ? [['Rejection reason', order.paymentRejectionReason]] : []),
           ]} /></section>
-          {canReview ? <fieldset className="payment-review-checklist" disabled={busy || !receiptUrl}><legend>Verify at least 2 before approving</legend>
+          {canReview ? <fieldset className="payment-review-checklist" disabled={busy || !receiptUrl}><legend>Verify before approving</legend>
             {PAYMENT_REVIEW_CHECKS.map((label, index) => <label key={label}><input type="checkbox" checked={checks[index]} onChange={event => toggleCheck(index, event.target.checked)} /><span>{label}</span></label>)}
           </fieldset> : null}
         </div>

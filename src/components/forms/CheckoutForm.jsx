@@ -1,22 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Banknote, Check, Truck,
+  Banknote, Check, Info, LocateFixed, Loader2, Truck,
 } from 'lucide-react';
 import gcashLogo from '../../assets/icons/gcash-logo.png';
 import lalamoveLogo from '../../assets/icons/lalamove-logo.png';
 import buyerPickupIcon from '../../assets/icons/buyer-pickup-icon.png';
+import AddressAutocomplete from '../common/AddressAutocomplete';
 import FormField from '../common/FormField';
 import CheckoutProductCard from '../checkout/CheckoutProductCard';
 import QuantityStepper from '../checkout/QuantityStepper';
 import OrderSummaryPanel from '../checkout/OrderSummaryPanel';
 import CheckoutTrustRow from '../checkout/CheckoutTrustRow';
 import { DELIVERY_METHODS, PAYMENT_METHODS, getMunicipalityCoords, matchMunicipality } from '../../utils/constants';
-import { haversineKm } from '../../utils/geo';
+import { getRegisteredCoordinates, haversineKm } from '../../utils/geo';
+import { reverseGeocode } from '../../services/geocodeService';
 import { getDeliveryFeeEstimate } from '../../services/deliveryFeeService';
 import { getCheckoutQuote } from '../../services/orderService';
 import { hasErrors, validateCheckoutForm } from '../../utils/validators';
 import { formatQuantity } from '../../utils/formatters';
 import { getApplicableUnitPrice, isWholesaleQuantity } from '../../../backend/shared/pricing.js';
+import {
+  RETAIL_LALAMOVE_DESCRIPTION,
+  WHOLESALE_DELIVERY_DESCRIPTION,
+  WHOLESALE_DELIVERY_METHOD,
+} from '../../../backend/shared/wholesaleDelivery.js';
 import '../checkout/CheckoutReview.css';
 
 const MESSAGE_MAX_LENGTH = 200;
@@ -74,6 +81,15 @@ function buildPickupFallbackEstimate(originMunicipality, buyerCoords) {
 
 
 
+function buildSavedProfileAddress(user) {
+  const rawAddress = String(user?.address || '').trim();
+  const municipality = String(user?.municipality || '').trim();
+  if (rawAddress && municipality && !rawAddress.toLowerCase().includes(municipality.toLowerCase())) {
+    return `${rawAddress}, ${municipality}, Cebu`;
+  }
+  return rawAddress || municipality || '';
+}
+
 function defaultQuantity(product, initialQuantity) {
   if (initialQuantity) return initialQuantity;
   const stock = Number(product.quantity) || 0;
@@ -85,13 +101,18 @@ function defaultQuantity(product, initialQuantity) {
 export default function CheckoutForm({
   product, currentUser, onSubmit, onProductRefresh, onStockConflict, initialQuantity = '', orderPlaced = false,
 }) {
+  const isWholesaleProduct = product.sellingType === 'wholesale';
   const [values, setValues] = useState(() => ({
     quantity: defaultQuantity(product, initialQuantity),
     message: '',
     paymentMethod: product.farmerGcashEnabled ? 'gcash' : 'cod',
-    deliveryMethod: 'farmer_delivery',
+    deliveryMethod: isWholesaleProduct ? WHOLESALE_DELIVERY_METHOD : 'farmer_delivery',
     deliveryMunicipality: currentUser.municipality || matchMunicipality(currentUser.address) || '',
+    deliveryAddress: buildSavedProfileAddress(currentUser),
   }));
+  const [isLocatingAddress, setIsLocatingAddress] = useState(false);
+  const [addressLocateStatus, setAddressLocateStatus] = useState('');
+  const addressManuallyEditedRef = useRef(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submittingRef = useRef(false);
@@ -132,17 +153,25 @@ export default function CheckoutForm({
         .then((data) => { if (!cancelled) setQuoted({ key: quoteKey, data }); })
         .catch(async (error) => {
           if (cancelled) return;
-          if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK'].includes(error.code)) {
+          if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK', 'PRODUCT_EXPIRED'].includes(error.code)) {
             onStockConflict?.(error);
             setQuoteErrorCode(error.code);
-            try {
-              await onProductRefresh?.();
-            } catch {
-              if (!cancelled) setProductRefreshError('We could not refresh the latest stock. Please try again.');
+            if (error.code !== 'PRODUCT_EXPIRED') {
+              try {
+                await onProductRefresh?.();
+              } catch {
+                if (!cancelled) setProductRefreshError('We could not refresh the latest stock. Please try again.');
+              }
             }
           }
           if (!cancelled) {
-            setQuoteError(error.code === 'PRODUCT_OUT_OF_STOCK' ? `Product Out of Stock. ${error.message}` : error.message || 'Unable to load the order total. Try again.');
+            setQuoteError(
+              error.code === 'PRODUCT_OUT_OF_STOCK'
+                ? `Product Out of Stock. ${error.message}`
+                : error.code === 'PRODUCT_EXPIRED'
+                  ? `${error.title || 'Product No Longer Available'}. ${error.message}`
+                  : error.message || 'Unable to load the order total. Try again.',
+            );
           }
         });
     }, 250);
@@ -205,6 +234,84 @@ export default function CheckoutForm({
   };
 
 
+
+  const resolveAddressFromCoords = async (coords, { force = false } = {}) => {
+    const resolved = await reverseGeocode(coords);
+    const accurateAddress = resolved?.completeAddress || resolved?.formattedAddress || resolved?.address || '';
+    if (!accurateAddress) return false;
+    if (!force && addressManuallyEditedRef.current) return true;
+    setValues((previous) => ({
+      ...previous,
+      deliveryAddress: accurateAddress,
+      ...(resolved?.municipality ? { deliveryMunicipality: resolved.municipality } : {}),
+    }));
+    setErrors((previous) => ({ ...previous, deliveryAddress: undefined }));
+    return true;
+  };
+
+  const isRetailLalamove = !isWholesaleProduct && values.deliveryMethod === 'courier';
+  const needsArrangedAddress = isWholesaleProduct || isRetailLalamove;
+
+  const locateWholesaleAddress = ({ force = false } = {}) => {
+    if (!needsArrangedAddress) return;
+    if (force) addressManuallyEditedRef.current = false;
+    setIsLocatingAddress(true);
+    setAddressLocateStatus('Locating your accurate delivery address…');
+
+    const fallbackToSavedCoords = async (fallbackMessage) => {
+      const savedCoords = getRegisteredCoordinates(currentUser);
+      if (savedCoords) {
+        try {
+          const ok = await resolveAddressFromCoords(savedCoords, { force });
+          if (ok) {
+            setAddressLocateStatus('Delivery address located from your saved profile coordinates.');
+            setIsLocatingAddress(false);
+            return;
+          }
+        } catch {
+          // Keep saved profile address text if reverse geocoding is unavailable.
+        }
+      }
+      setAddressLocateStatus(fallbackMessage || '');
+      setIsLocatingAddress(false);
+    };
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      void fallbackToSavedCoords('Automatic GPS detection is unavailable on this device. Search or edit your address below.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const ok = await resolveAddressFromCoords(
+            { lat: position.coords.latitude, lng: position.coords.longitude },
+            { force },
+          );
+          if (ok) {
+            setAddressLocateStatus('Accurate delivery address detected from your current location.');
+            setIsLocatingAddress(false);
+            return;
+          }
+          await fallbackToSavedCoords('Could not resolve street details for your location. You can select an address below.');
+        } catch {
+          await fallbackToSavedCoords('Could not resolve your GPS address. You can search and select an address below.');
+        }
+      },
+      () => {
+        void fallbackToSavedCoords(
+          force ? 'Location access was denied. Enable browser location or search your address below.' : '',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+
+  useEffect(() => {
+    if (!needsArrangedAddress) return;
+    locateWholesaleAddress({ force: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsArrangedAddress, product.id]);
 
   useEffect(() => {
     if (isPickup && locationStatus === 'idle') requestBuyerLocation();
@@ -270,7 +377,9 @@ export default function CheckoutForm({
   const isWholesalePrice = quote?.isWholesalePrice ?? isWholesaleQuantity(product, quantityNumber);
   const subtotal = quote?.subtotal ?? quantityNumber * unitPrice;
   const isGcash = values.paymentMethod === 'gcash';
-  const deliveryMethodLabel = DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
+  const deliveryMethodLabel = isWholesaleProduct
+    ? 'Farmer-Arranged Delivery'
+    : DELIVERY_METHODS.find((method) => method.value === values.deliveryMethod)?.label || '';
 
 
 
@@ -300,7 +409,11 @@ export default function CheckoutForm({
     submittingRef.current = true;
     setIsSubmitting(true);
     try {
-      await onSubmit({ ...values, checkoutKey: requestRef.current.key, expectedTotal: quote.requiresDeliveryQuote ? quote.subtotal : quote.total });
+      await onSubmit({
+        ...values,
+        checkoutKey: requestRef.current.key,
+        expectedTotal: (quote.requiresFarmerArrangement || quote.requiresDeliveryQuote) ? quote.subtotal : quote.total,
+      });
       setHasPlacedOrder(true);
       setIsSubmitting(false);
     } catch (error) {
@@ -381,34 +494,159 @@ export default function CheckoutForm({
               />
             </FormField>
 
-            <FormField label="Delivery method" name="deliveryMethod" error={errors.deliveryMethod}>
-              <div className="method-card-group three" role="radiogroup" aria-label="Delivery method">
-                {DELIVERY_METHODS.map((method) => {
-                  const Icon = DELIVERY_METHOD_ICONS[method.value];
-                  const isSelected = values.deliveryMethod === method.value;
-                  return (
-                    <button
-                      key={method.value}
-                      type="button"
-                      className={`method-card method-card-${method.value}${isSelected ? ' is-selected' : ''}`}
-                      aria-pressed={isSelected}
-                      onClick={() => updateField('deliveryMethod', method.value)}
+            {isWholesaleProduct ? (
+              <>
+                <FormField label="Delivery arrangement" name="deliveryMethod">
+                  <div className="wholesale-delivery-callout" role="note" aria-label="Farmer-Arranged Delivery notice">
+                    <span className="wholesale-delivery-callout-icon" aria-hidden="true">
+                      <Info size={18} strokeWidth={2} />
+                    </span>
+                    <div className="wholesale-delivery-callout-body">
+                      <p className="wholesale-delivery-callout-title">Farmer-Arranged Delivery</p>
+                      <p className="wholesale-delivery-callout-text">{WHOLESALE_DELIVERY_DESCRIPTION}</p>
+                      <p className="wholesale-delivery-callout-note">
+                        You will be notified to review and confirm the delivery fee and final total before payment or dispatch.
+                      </p>
+                    </div>
+                  </div>
+                </FormField>
+
+                <FormField
+                  label="Delivery address"
+                  name="deliveryAddress"
+                  error={errors.deliveryAddress}
+                  helper={addressLocateStatus || 'Automatically located for accurate delivery. You can also search or refine your exact address.'}
+                >
+                  <div className="flex flex-col gap-2">
+                    <AddressAutocomplete
+                      id="deliveryAddress"
+                      name="deliveryAddress"
+                      value={values.deliveryAddress}
+                      onChange={(nextValue) => {
+                        addressManuallyEditedRef.current = true;
+                        updateField('deliveryAddress', nextValue);
+                      }}
+                      onSelect={(details) => {
+                        addressManuallyEditedRef.current = true;
+                        const selectedAddress = details?.formattedAddress || values.deliveryAddress;
+                        const matchedMunicipality = matchMunicipality(selectedAddress);
+                        setValues((previous) => ({
+                          ...previous,
+                          deliveryAddress: selectedAddress,
+                          ...(matchedMunicipality ? { deliveryMunicipality: matchedMunicipality } : {}),
+                        }));
+                        setErrors((previous) => ({ ...previous, deliveryAddress: undefined }));
+                      }}
+                      placeholder="Street, Barangay, City / Municipality"
+                      error={errors.deliveryAddress}
+                    />
+                    <div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
+                        disabled={isLocatingAddress}
+                        onClick={() => locateWholesaleAddress({ force: true })}
+                      >
+                        {isLocatingAddress
+                          ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                          : <LocateFixed size={14} aria-hidden="true" />}
+                        {isLocatingAddress ? 'Locating address…' : 'Use my current location'}
+                      </button>
+                    </div>
+                  </div>
+                </FormField>
+              </>
+            ) : (
+              <>
+                <FormField label="Delivery method" name="deliveryMethod" error={errors.deliveryMethod}>
+                  <div className="method-card-group three" role="radiogroup" aria-label="Delivery method">
+                    {DELIVERY_METHODS.map((method) => {
+                      const Icon = DELIVERY_METHOD_ICONS[method.value];
+                      const isSelected = values.deliveryMethod === method.value;
+                      return (
+                        <button
+                          key={method.value}
+                          type="button"
+                          className={`method-card method-card-${method.value}${isSelected ? ' is-selected' : ''}`}
+                          aria-pressed={isSelected}
+                          onClick={() => updateField('deliveryMethod', method.value)}
+                        >
+                          {isSelected ? <span className="method-card-check"><Check size={11} strokeWidth={3} /></span> : null}
+                          {method.value === 'courier' ? (
+                            <img src={lalamoveLogo} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
+                          ) : method.value === 'buyer_pickup' ? (
+                            <img src={buyerPickupIcon} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
+                          ) : (
+                            <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
+                          )}
+                          <span className="method-card-label">{method.label}</span>
+                          <span className="method-card-description">{DELIVERY_METHOD_DESCRIPTIONS[method.value]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FormField>
+
+                {isRetailLalamove ? (
+                  <>
+                    <div className="wholesale-delivery-callout" role="note" aria-label="Lalamove delivery notice">
+                      <span className="wholesale-delivery-callout-icon" aria-hidden="true">
+                        <Info size={18} strokeWidth={2} />
+                      </span>
+                      <div className="wholesale-delivery-callout-body">
+                        <p className="wholesale-delivery-callout-title">Lalamove Delivery</p>
+                        <p className="wholesale-delivery-callout-text">{RETAIL_LALAMOVE_DESCRIPTION}</p>
+                      </div>
+                    </div>
+
+                    <FormField
+                      label="Delivery address"
+                      name="deliveryAddress"
+                      error={errors.deliveryAddress}
+                      helper={addressLocateStatus || 'Provide your exact drop-off address so the farmer can get an accurate Lalamove quotation.'}
                     >
-                      {isSelected ? <span className="method-card-check"><Check size={11} strokeWidth={3} /></span> : null}
-                      {method.value === 'courier' ? (
-                        <img src={lalamoveLogo} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
-                      ) : method.value === 'buyer_pickup' ? (
-                        <img src={buyerPickupIcon} alt="" width={20} height={20} className="method-card-icon method-card-icon-logo" />
-                      ) : (
-                        <Icon size={20} strokeWidth={1.75} className="method-card-icon" aria-hidden="true" />
-                      )}
-                      <span className="method-card-label">{method.label}</span>
-                      <span className="method-card-description">{DELIVERY_METHOD_DESCRIPTIONS[method.value]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </FormField>
+                      <div className="flex flex-col gap-2">
+                        <AddressAutocomplete
+                          id="deliveryAddress"
+                          name="deliveryAddress"
+                          value={values.deliveryAddress}
+                          onChange={(nextValue) => {
+                            addressManuallyEditedRef.current = true;
+                            updateField('deliveryAddress', nextValue);
+                          }}
+                          onSelect={(details) => {
+                            addressManuallyEditedRef.current = true;
+                            const selectedAddress = details?.formattedAddress || values.deliveryAddress;
+                            const matchedMunicipality = matchMunicipality(selectedAddress);
+                            setValues((previous) => ({
+                              ...previous,
+                              deliveryAddress: selectedAddress,
+                              ...(matchedMunicipality ? { deliveryMunicipality: matchedMunicipality } : {}),
+                            }));
+                            setErrors((previous) => ({ ...previous, deliveryAddress: undefined }));
+                          }}
+                          placeholder="Street, Barangay, City / Municipality"
+                          error={errors.deliveryAddress}
+                        />
+                        <div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
+                            disabled={isLocatingAddress}
+                            onClick={() => locateWholesaleAddress({ force: true })}
+                          >
+                            {isLocatingAddress
+                              ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                              : <LocateFixed size={14} aria-hidden="true" />}
+                            {isLocatingAddress ? 'Locating address…' : 'Use my current location'}
+                          </button>
+                        </div>
+                      </div>
+                    </FormField>
+                  </>
+                ) : null}
+              </>
+            )}
 
             <FormField label="Payment method" name="paymentMethod" error={errors.paymentMethod}>
               <div className={`method-card-group ${availablePaymentMethods.length === 1 ? 'one' : 'two'}`} role="radiogroup" aria-label="Payment method">

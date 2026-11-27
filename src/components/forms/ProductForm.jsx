@@ -327,7 +327,7 @@ function ProductImageDropzone({ imageUrls, isUploading, error, onFilesSelect, on
 
 
 
-const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'wholesalePrice', 'wholesaleMinQuantity', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'expirationTime', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
+const FIELD_ORDER = ['name', 'category', 'grade', 'sellingType', 'moq', 'price', 'discountPercent', 'unit', 'quantity', 'expirationDate', 'expirationTime', 'costPrice', 'kgPerUnit', 'location', 'description', 'image'];
 
 function focusFirstError(errors) {
   const firstField = FIELD_ORDER.find((field) => errors[field]);
@@ -342,7 +342,6 @@ function buildDefaultValues(product, currentUser) {
     category: 'Vegetables',
     grade: 'A',
     sellingType: 'retail',
-    price: '',
     unit: '',
     quantity: '',
     description: '',
@@ -350,6 +349,9 @@ function buildDefaultValues(product, currentUser) {
     status: 'active',
     isDonation: false,
     ...product,
+    price: product?.discountPercent > 0 && product?.originalPrice != null
+      ? product.originalPrice
+      : (product?.price ?? ''),
     imageUrls: Array.isArray(product?.imageUrls) && product.imageUrls.length
       ? product.imageUrls.slice(0, MAX_PRODUCT_IMAGES)
       : product?.image ? [product.image] : [],
@@ -357,7 +359,7 @@ function buildDefaultValues(product, currentUser) {
 
 
 
-    discountPercent: '',
+    discountPercent: product?.discountPercent != null ? String(product.discountPercent) : '',
     moq: product?.moq ?? '',
     kgPerUnit: product?.kgPerUnit ?? '',
     expirationDate: product?.expirationDate ?? '',
@@ -365,7 +367,8 @@ function buildDefaultValues(product, currentUser) {
     wholesaleEnabled: product?.sellingType !== 'wholesale' && product?.wholesalePrice != null,
     wholesalePrice: product?.wholesalePrice ?? '',
     wholesaleMinQuantity: product?.wholesaleMinQuantity ?? '',
-
+    handlingCostPerOrder: '',
+    targetProfitMargin: '',
 
     markupPercent: RECOMMENDED_MARGIN_PERCENT,
 
@@ -389,11 +392,20 @@ export default function ProductForm({
     const imageUrls = Array.isArray(draft.imageUrls)
       ? draft.imageUrls.slice(0, MAX_PRODUCT_IMAGES)
       : draft.image ? [draft.image] : [];
-    return { ...defaults, ...draft, imageUrls, image: imageUrls[0] || '' };
+    return {
+      ...defaults,
+      ...draft,
+      wholesaleEnabled: false,
+      wholesalePrice: '',
+      wholesaleMinQuantity: '',
+      imageUrls,
+      image: imageUrls[0] || '',
+    };
   });
   const [errors, setErrors] = useState({});
   const [isReadingImage, setIsReadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [marketResult, setMarketResult] = useState({
     commodityId: null, reference: null, recommendation: null, loading: false, error: '',
   });
@@ -449,8 +461,13 @@ export default function ProductForm({
         unit: requestUnit,
         kgPerUnit: values.kgPerUnit,
         quantity: values.quantity || '0',
-        costPrice: values.costPrice || null,
+        costPrice: values.costPrice === '' ? null : values.costPrice,
         productName: values.name.trim(),
+        sellingType: values.sellingType,
+        moq: values.moq === '' ? null : values.moq,
+        handlingCostPerOrder: values.handlingCostPerOrder === '' ? null : values.handlingCostPerOrder,
+        targetProfitMargin: values.targetProfitMargin === '' ? null : values.targetProfitMargin,
+        sellingPrice: values.price === '' ? null : values.price,
         historicalAverage: historicalResult.data?.matched ? historicalResult.data.averagePrice : null,
         historicalLowest: historicalResult.data?.matched ? historicalResult.data.lowestPrice : null,
         historicalHighest: historicalResult.data?.matched ? historicalResult.data.highestPrice : null,
@@ -463,6 +480,7 @@ export default function ProductForm({
           commodityLabel: result.commodityLabel,
           referencePrice: result.referencePrice,
           referenceUnit: result.referenceUnit,
+          referenceMarketType: result.referenceMarketType || values.sellingType,
           referenceYear: result.referenceYear,
           effectiveDate: result.effectiveDate,
           source: result.source,
@@ -473,7 +491,12 @@ export default function ProductForm({
           commodityId: matchedCommodity.id,
           reference,
           recommendation: result.available ? {
+            salesType: result.salesType || values.sellingType,
             price: result.recommendedUnitPrice,
+            retailRecommendedPrice: result.retailRecommendedPrice,
+            pricingBasis: result.pricingBasis,
+            wholesaleMarketDataAvailable: result.wholesaleMarketDataAvailable,
+            insufficientMarketData: result.insufficientMarketData,
             estimatedTotal: result.estimatedTotal,
             unit: result.requestedUnit,
             priceRange: result.priceRange,
@@ -481,11 +504,26 @@ export default function ProductForm({
             marketTrendPercent: result.marketTrendPercent,
             adjustmentPercent: result.adjustmentPercent,
             costPrice: result.costPrice,
+            handlingCostPerOrder: result.handlingCostPerOrder,
+            handlingCostPerUnit: result.handlingCostPerUnit,
+            totalCostPerUnit: result.totalCostPerUnit,
+            breakEvenCost: result.breakEvenCost,
+            targetProfitMargin: result.targetProfitMargin,
+            moq: result.moq,
+            moqExceedsStock: result.moqExceedsStock,
+            minimumOrderTotal: result.minimumOrderTotal,
+            estimatedStockValue: result.estimatedStockValue,
+            totalExpenses: result.totalExpenses,
+            estimatedGrossProfit: result.estimatedGrossProfit,
             estimatedProfit: result.estimatedProfit,
             profitMargin: result.profitMargin,
+            isBelowBreakEven: result.isBelowBreakEven,
+            isEnteredPriceBelowBreakEven: result.isEnteredPriceBelowBreakEven,
             belowMarketFloor: result.belowMarketFloor,
             aboveMarketCeiling: result.aboveMarketCeiling,
             whyThisPrice: result.whyThisPrice,
+            wholesaleVsRetailExplanation: result.wholesaleVsRetailExplanation,
+            formulaLines: result.formulaLines,
             dataSource: result.dataSource,
             dataUpdatedAt: result.dataUpdatedAt,
             aiSummary: result.aiSummary,
@@ -493,6 +531,7 @@ export default function ProductForm({
             recommendationMethod: result.recommendationMethod,
           } : null,
           unavailableReason: result.reason || '',
+          unavailableMessage: !result.available ? (result.whyThisPrice || '') : '',
           loading: false,
           error: '',
         });
@@ -538,6 +577,11 @@ export default function ProductForm({
     values.quantity,
     values.costPrice,
     values.name,
+    values.sellingType,
+    values.moq,
+    values.handlingCostPerOrder,
+    values.targetProfitMargin,
+    values.price,
     historicalResult,
   ]);
 
@@ -617,8 +661,14 @@ export default function ProductForm({
 
 
 
-  const isReferenceRecommendationLoss = Boolean(marketReference) && Boolean(recommendedPrice) && costNum > 0 && recommendedPrice.price <= costNum;
-  const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice <= costNum;
+  const breakEvenCostNum = recommendedPrice?.breakEvenCost ?? (costNum > 0 ? costNum : null);
+  const moqExceedsStockInline = isWholesale
+    && Number(values.moq) > 0
+    && Number(values.quantity) > 0
+    && Number(values.moq) > Number(values.quantity);
+
+  const isReferenceRecommendationLoss = Boolean(marketReference) && Boolean(recommendedPrice) && breakEvenCostNum != null && recommendedPrice.price < breakEvenCostNum;
+  const isHistoricalRecommendationLoss = Boolean(historicalAnalysis) && costNum > 0 && historicalAnalysis.recommendedPrice < costNum;
 
   const updateField = (field, value) => {
     setValues((previous) => ({
@@ -672,16 +722,30 @@ export default function ProductForm({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     const nextErrors = validateProductForm(values, availableUnits, product);
+    if (nextErrors.wholesalePrice && !nextErrors.price && product?.wholesalePrice != null) {
+      nextErrors.price = `This listing has an existing bulk price of ${formatCurrency(product.wholesalePrice)} for ${product.wholesaleMinQuantity}+ ${product.unit}. Retail price must remain above the saved bulk price.`;
+      delete nextErrors.wholesalePrice;
+    }
+    if (nextErrors.wholesaleMinQuantity && !nextErrors.quantity && product?.wholesaleMinQuantity != null) {
+      nextErrors.quantity = `Quantity available must remain at least ${product.wholesaleMinQuantity} ${product.unit} to preserve this listing's existing bulk pricing.`;
+      delete nextErrors.wholesaleMinQuantity;
+    }
     if (hasErrors(nextErrors)) {
       setErrors(nextErrors);
       focusFirstError(nextErrors);
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
-    setIsSubmitting(false);
-    onSubmit({ ...values, marketReference });
+    try {
+      await onSubmit({ ...values, marketReference });
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -769,74 +833,59 @@ export default function ProductForm({
         </FormField>
 
         {!values.isDonation && isWholesale ? (
-          <FormField
-            label="Minimum Order Quantity (MOQ)"
-            name="moq"
-            error={errors.moq}
-            helper={`Buyers must order at least this much ${values.unit} to purchase.`}
-          >
-            <input
-              id="moq"
-              type="number"
-              min="0"
-              step="0.01"
-              value={values.moq}
-              onChange={(event) => updateField('moq', event.target.value)}
-              placeholder="50"
-            />
-          </FormField>
-        ) : null}
-
-        {!values.isDonation && !isWholesale ? (
-          <div className="wholesale-pricing-toggle-wrap">
-            <label className="donation-toggle">
+          <>
+            <FormField
+              label="Minimum Order Quantity (MOQ)"
+              name="moq"
+              error={errors.moq || (moqExceedsStockInline ? 'MOQ cannot exceed the quantity available.' : undefined)}
+              helper={`Buyers must order at least this much ${values.unit || 'unit'} to purchase.`}
+            >
               <input
-                type="checkbox"
-                checked={Boolean(values.wholesaleEnabled)}
-                onChange={(event) => updateField('wholesaleEnabled', event.target.checked)}
+                id="moq"
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.moq}
+                onChange={(event) => updateField('moq', event.target.value)}
+                placeholder="e.g. 50"
               />
-              <div>
-                <strong>Offer a lower price for bulk orders</strong>
-                <span> Buyers ordering the minimum quantity will receive the saved wholesale price.</span>
-              </div>
-            </label>
-            {values.wholesaleEnabled ? (
-              <div className="form-grid">
-                <FormField
-                  label="Wholesale minimum quantity"
-                  name="wholesaleMinQuantity"
-                  error={errors.wholesaleMinQuantity}
-                  helper={`Must not exceed ${values.quantity || 0} ${values.unit || 'units'} available.`}
-                >
-                  <input
-                    id="wholesaleMinQuantity"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={values.wholesaleMinQuantity}
-                    onChange={(event) => updateField('wholesaleMinQuantity', event.target.value)}
-                    placeholder="10"
-                  />
-                </FormField>
-                <FormField
-                  label="Wholesale price per unit"
-                  name="wholesalePrice"
-                  error={errors.wholesalePrice}
-                  helper={`Applied to orders of at least ${values.wholesaleMinQuantity || 'the minimum'} ${values.unit || 'units'}.`}
-                >
-                  <input
-                    id="wholesalePrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={values.wholesalePrice}
-                    onChange={(event) => updateField('wholesalePrice', event.target.value)}
-                    placeholder="48.00"
-                  />
-                </FormField>
-              </div>
-            ) : null}
-          </div>
+            </FormField>
+            <div className="form-grid">
+              <FormField
+                label="Handling cost per order (₱)"
+                name="handlingCostPerOrder"
+                error={errors.handlingCostPerOrder}
+                helper="Optional packaging, sorting, or transport cost per wholesale order — divided across MOQ."
+              >
+                <input
+                  id="handlingCostPerOrder"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={values.handlingCostPerOrder}
+                  onChange={(event) => updateField('handlingCostPerOrder', event.target.value)}
+                  placeholder="e.g. 250.00"
+                />
+              </FormField>
+              <FormField
+                label="Target profit margin (%)"
+                name="targetProfitMargin"
+                error={errors.targetProfitMargin}
+                helper="Desired gross margin (0%–99.9%) for cost-based wholesale price estimates."
+              >
+                <input
+                  id="targetProfitMargin"
+                  type="number"
+                  min="0"
+                  max="99.9"
+                  step="0.1"
+                  value={values.targetProfitMargin}
+                  onChange={(event) => updateField('targetProfitMargin', event.target.value)}
+                  placeholder="e.g. 20"
+                />
+              </FormField>
+            </div>
+          </>
         ) : null}
 
         <div className="form-grid three">
@@ -970,33 +1019,48 @@ export default function ProductForm({
             </div>
           ) : isReferenceRecommendationLoss ? (
             <SellingBelowCostWarning
-              costPrice={costNum}
+              costPrice={breakEvenCostNum}
               unit={values.unit}
-              marketPriceLabel="Reference price"
+              marketPriceLabel={isWholesale ? 'Recommended wholesale price' : 'Reference price'}
               marketPriceValue={recommendedPrice.price}
               marketPriceUnit={values.unit}
               recommendedPrice={recommendedPrice}
               currentPrice={values.price}
             />
-          ) : marketReference ? (
+          ) : marketReference || (isWholesale && recommendedPrice) ? (
             <div className={`price-analysis-card${isOverThreshold ? ' warning' : ''}`}>
-              <p className="price-analysis-card-title">
-                <span>
-                  {marketReference.source === 'psa' ? 'PSA farmgate reference' : 'Effective reference'}: {formatCurrency(marketReference.referencePrice)}/{marketReference.referenceUnit}
-                </span>
-                {marketReference.source === 'admin_entered' ? <span className="badge badge-verified price-hint-badge">Admin-entered</span> : null}
-                {marketReference.source === 'verified_local_market' ? <span className="badge badge-verified price-hint-badge">Verified local survey</span> : null}
-              </p>
-              <p className="price-analysis-card-desc">
-                {marketReference.commodityLabel}
-                {marketReference.source === 'psa' ? `, Central Visayas (${marketReference.referenceYear})` : ` · Effective ${marketReference.effectiveDate}`}
-                {marketReference.supportingReference ? ` · ${marketReference.supportingReference}` : ''}
-              </p>
+              {marketReference ? (
+                <>
+                  <p className="price-analysis-card-title">
+                    <span>
+                      {marketReference.source === 'psa'
+                        ? 'PSA farmgate reference'
+                        : isWholesale
+                          ? 'Effective wholesale reference'
+                          : 'Effective retail reference'}: {formatCurrency(marketReference.referencePrice)}/{marketReference.referenceUnit}
+                    </span>
+                    {marketReference.source === 'admin_entered' ? <span className="badge badge-verified price-hint-badge">Admin-entered</span> : null}
+                    {marketReference.source === 'verified_local_market' ? <span className="badge badge-verified price-hint-badge">Verified local survey</span> : null}
+                  </p>
+                  <p className="price-analysis-card-desc">
+                    {marketReference.commodityLabel}
+                    {marketReference.source === 'psa' ? `, Central Visayas (${marketReference.referenceYear})` : ` · Effective ${marketReference.effectiveDate}`}
+                    {marketReference.supportingReference ? ` · ${marketReference.supportingReference}` : ''}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="price-analysis-card-title">Cost-Based Wholesale Price Estimate</p>
+                  <p className="price-analysis-card-desc">
+                    No verified wholesale reference price is available for {matchedCommodity?.label || values.name}. This estimate is calculated from your production cost, handling cost per order, MOQ, and target profit margin (retail reference prices are never substituted).
+                  </p>
+                </>
+              )}
               {recommendedPrice ? (
                 <PriceRecommendationBreakdown
                   unit={values.unit}
-                  referenceUnit={marketReference.referenceUnit}
-                  referencePrice={marketReference.referencePrice}
+                  referenceUnit={marketReference?.referenceUnit || values.unit}
+                  referencePrice={marketReference?.referencePrice ?? null}
                   recommendedPrice={recommendedPrice}
                   estimatedTotal={recommendedPrice.estimatedTotal}
                   priceRange={recommendedPrice.priceRange}
@@ -1012,6 +1076,8 @@ export default function ProductForm({
                   aiSummary={recommendedPrice.aiSummary}
                   aiRecommendation={recommendedPrice.aiRecommendation}
                   recommendationMethod={recommendedPrice.recommendationMethod}
+                  salesType={values.sellingType}
+                  currentPrice={values.price}
                   onUsePrice={(price) => updateField('price', String(price))}
                 />
               ) : (
@@ -1025,11 +1091,16 @@ export default function ProductForm({
             </div>
           ) : matchedCommodity ? (
             <div className="price-analysis-card">
-              <p className="price-analysis-card-title">Reference price unavailable</p>
+              <p className="price-analysis-card-title">
+                {isWholesale ? 'Wholesale reference price unavailable' : 'Reference price unavailable'}
+              </p>
               <p className="price-analysis-card-desc">
                 {marketResult.error
                   ? `Could not load current pricing data: ${marketResult.error}`
-                  : 'There is no active admin reference or PSA price for this commodity. You can still enter your own selling price.'}
+                  : marketResult.unavailableMessage
+                    || (isWholesale
+                      ? 'No active wholesale reference price is available for this commodity. Enter your production cost, MOQ, and target profit margin to calculate a cost-based wholesale estimate, or enter your own wholesale selling price.'
+                      : 'There is no active admin reference or PSA price for this commodity. You can still enter your own selling price.')}
               </p>
             </div>
           ) : isHistoricalRecommendationLoss ? (
@@ -1048,13 +1119,9 @@ export default function ProductForm({
               analysis={historicalAnalysis}
               unit={values.unit}
               onUsePrice={(price) => updateField('price', String(price))}
-              wholesaleEnabled={Boolean(values.wholesaleEnabled)}
+              wholesaleEnabled={false}
               costPrice={values.costPrice}
               availableQuantity={values.quantity}
-              onUseWholesalePrice={({ price, minimumQuantity }) => {
-                updateField('wholesalePrice', String(price));
-                updateField('wholesaleMinQuantity', String(minimumQuantity));
-              }}
             />
           ) : costNum > 0 ? (
             <CostBasedEstimateCard
@@ -1064,12 +1131,14 @@ export default function ProductForm({
               onMarkupChange={(value) => updateField('markupPercent', value)}
               isImplausible={isCostImplausible}
               costPerKg={costPerKg}
-              wholesaleEnabled={Boolean(values.wholesaleEnabled)}
+              wholesaleEnabled={false}
               availableQuantity={values.quantity}
-              onUseWholesalePrice={({ price, minimumQuantity }) => {
-                updateField('wholesalePrice', String(price));
-                updateField('wholesaleMinQuantity', String(minimumQuantity));
-              }}
+              sellingType={values.sellingType}
+              moq={values.moq}
+              handlingCostPerOrder={values.handlingCostPerOrder}
+              targetProfitMargin={values.targetProfitMargin}
+              currentPrice={values.price}
+              onUsePrice={(price) => updateField('price', String(price))}
             />
           ) : (
             <NoMarketDataCard />
@@ -1080,9 +1149,11 @@ export default function ProductForm({
           <FormField label="Discount" name="discount" helper="Optional promotional discount visible to buyers.">
             <DiscountCalculator
               product={product}
+              currentPrice={values.price}
               costPrice={values.costPrice}
               onApplyDiscount={onApplyDiscount}
               onRemoveDiscount={onRemoveDiscount}
+              onDiscountChange={(value) => updateField('discountPercent', value)}
             />
           </FormField>
         ) : null}

@@ -1,6 +1,10 @@
-import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Search, X } from 'lucide-react';
 import TrendIndicator from './TrendIndicator';
+import ForecastChart from './ForecastChart';
+import DemandChart from './DemandChart';
+import ForecastLegend from './ForecastLegend';
+import { getCropForecastDetail } from '../../services/demandForecastService';
 import { cropActionRecommendation, formatCurrency } from '../../utils/formatters';
 
 const inputClass = 'h-11 w-full min-w-0 rounded-lg border border-[var(--line)] bg-[var(--input-bg)] px-3 text-[14px] font-medium text-[var(--text-secondary)] outline-none transition-colors duration-200 focus:border-[var(--green-600)]';
@@ -159,16 +163,110 @@ function CropCard({ entry, selected, onSelectCrop, onShowForecast }) {
           <dd className="mt-1"><TrendIndicator trend={entry.marketTrend} /></dd>
         </div>
       </dl>
+      <div className="mt-3 flex justify-end border-t border-[var(--line)] pt-2.5">
+        <button
+          type="button"
+          className="forecast-mobile-trend-btn"
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            onShowForecast?.(entry, rect.left, rect.top);
+          }}
+        >
+          View price &amp; demand trend
+        </button>
+      </div>
     </article>
   );
 }
 
 export default function ForecastTable({
   crops, selectedCrop, onSelectCrop, category, onCategoryChange, categoryOptions, demandLevel, onDemandLevelChange,
+  period = '7_days', municipality = '', customDate = '', refreshToken = 0,
 }) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('change_desc');
   const [hoveredForecast, setHoveredForecast] = useState(null);
+  const [hoverChartTab, setHoverChartTab] = useState('price');
+  const [hoverDetailState, setHoverDetailState] = useState({ key: '', detail: null, error: '' });
+  const detailCacheRef = useRef(new Map());
+  const closeTimerRef = useRef(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setHoveredForecast(null);
+    }, 180);
+  }, [clearCloseTimer]);
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
+
+  const hoveredEntry = hoveredForecast?.entry || null;
+  const hoverKey = hoveredEntry
+    ? `${hoveredEntry.crop}|${hoveredEntry.unit || ''}|${period}|${municipality}|${customDate}|${refreshToken}`
+    : '';
+
+  const openHoverForecast = useCallback((entry, x, y) => {
+    clearCloseTimer();
+    const key = `${entry.crop}|${entry.unit || ''}|${period}|${municipality}|${customDate}|${refreshToken}`;
+    const cached = detailCacheRef.current.get(key);
+    setHoveredForecast({ entry, x, y });
+    if (cached) {
+      setHoverDetailState({ key, detail: cached, error: '' });
+    }
+  }, [clearCloseTimer, period, municipality, customDate, refreshToken]);
+
+  useEffect(() => {
+    if (!hoveredEntry || !hoverKey) return undefined;
+    if (detailCacheRef.current.has(hoverKey)) return undefined;
+
+    let cancelled = false;
+    getCropForecastDetail(hoveredEntry.crop, {
+      period,
+      municipality,
+      customDate,
+      refreshKey: refreshToken,
+      unit: hoveredEntry.unit || '',
+    })
+      .then((result) => {
+        detailCacheRef.current.set(hoverKey, result);
+        if (!cancelled) setHoverDetailState({ key: hoverKey, detail: result, error: '' });
+      })
+      .catch(() => {
+        if (!cancelled) setHoverDetailState({ key: hoverKey, detail: null, error: 'Unable to load chart preview.' });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hoveredEntry, hoverKey, period, municipality, customDate, refreshToken]);
+
+  const activeHoverDetail = hoverKey && hoverDetailState.key === hoverKey ? hoverDetailState.detail : null;
+  const activeHoverError = hoverKey && hoverDetailState.key === hoverKey ? hoverDetailState.error : '';
+  const isHoverDetailLoading = Boolean(hoverKey) && hoverDetailState.key !== hoverKey;
+  const isHoverHistoricalOnly = hoverChartTab === 'price'
+    ? (activeHoverDetail?.forecastCurve?.length || 0) < 2
+    : (activeHoverDetail?.demandForecastCurve?.length || 0) < 2;
+
+  const hoverCardPosition = useMemo(() => {
+    if (!hoveredForecast) return null;
+    const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768;
+    const cardW = Math.min(540, viewportW - 24);
+    const cardH = 390;
+    const left = Math.min(Math.max(12, hoveredForecast.x + 16), Math.max(12, viewportW - cardW - 12));
+    const preferAbove = hoveredForecast.y > cardH + 24;
+    const top = preferAbove
+      ? Math.max(12, hoveredForecast.y - cardH - 12)
+      : Math.min(Math.max(12, hoveredForecast.y + 16), Math.max(12, viewportH - cardH - 12));
+    return { left: `${left}px`, top: `${top}px` };
+  }, [hoveredForecast]);
 
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -232,21 +330,13 @@ export default function ForecastTable({
                   <tr
                     key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`}
                     className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}
-                    onMouseMove={(event) => setHoveredForecast({
-                      entry,
-                      x: event.clientX,
-                      y: event.clientY,
-                    })}
-                    onMouseLeave={() => setHoveredForecast(null)}
+                    onMouseEnter={(event) => openHoverForecast(entry, event.clientX, event.clientY)}
+                    onMouseLeave={scheduleClose}
                     onFocusCapture={(event) => {
                       const rect = event.currentTarget.getBoundingClientRect();
-                      setHoveredForecast({
-                        entry,
-                        x: rect.left,
-                        y: rect.top,
-                      });
+                      openHoverForecast(entry, rect.left + 120, rect.top);
                     }}
-                    onBlurCapture={() => setHoveredForecast(null)}
+                    onBlurCapture={scheduleClose}
                   >
                       <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-2 text-[15px] text-[var(--text)]">
                         <CropDetailsButton entry={entry} selected={selected} onSelectCrop={onSelectCrop} />
@@ -273,35 +363,123 @@ export default function ForecastTable({
                 selected={entry.forecastKey === selectedCrop}
                 onSelectCrop={onSelectCrop}
                 onShowForecast={(entry, x, y) => {
-                  setHoveredForecast({ entry, x, y });
-                  window.setTimeout(() => setHoveredForecast(null), 2400);
+                  openHoverForecast(entry, x, y);
                 }}
               />
             ))}
           </div>
         </>
       )}
-      {hoveredForecast ? (
-        <div
-          className="forecast-crop-hover-card"
-          role="tooltip"
-          style={{
-            left: `${Math.min(Math.max(12, hoveredForecast.x + 12), Math.max(12, (typeof window !== 'undefined' ? window.innerWidth : 320) - 280))}px`,
-            top: `${hoveredForecast.y > 220 ? hoveredForecast.y - 176 : hoveredForecast.y + 16}px`,
-          }}
-        >
-          <p className="forecast-crop-hover-title">
-            {hoveredForecast.entry.crop}
-            {hoveredForecast.entry.unit ? ` / ${hoveredForecast.entry.unit}` : ''}
-          </p>
-          <dl className="forecast-crop-hover-grid">
-            <div><dt>Current</dt><dd><PriceReference entry={hoveredForecast.entry} /></dd></div>
-            <div><dt>Forecast</dt><dd>{hoveredForecast.entry.forecastPrice != null ? `${formatCurrency(hoveredForecast.entry.forecastPrice)}${hoveredForecast.entry.unit ? `/${hoveredForecast.entry.unit}` : ''}` : 'Not available'}</dd></div>
-            <div><dt>Change</dt><dd>{priceChangeCell(hoveredForecast.entry.expectedChangePercent)}</dd></div>
-            <div><dt>Demand</dt><dd>{hoveredForecast.entry.currentDemand || DEMAND_LABEL[hoveredForecast.entry.signal] || 'Not available'}</dd></div>
+      {hoveredForecast && hoverCardPosition ? (
+        <>
+          <div
+            className="forecast-crop-hover-backdrop md:hidden"
+            onClick={() => setHoveredForecast(null)}
+            aria-hidden="true"
+          />
+          <div
+            className="forecast-crop-hover-card"
+            role="dialog"
+            aria-label={`${hoveredForecast.entry.crop} price and demand forecast`}
+            style={hoverCardPosition}
+            onMouseEnter={clearCloseTimer}
+            onMouseLeave={scheduleClose}
+          >
+            <div className="forecast-crop-hover-header">
+              <div>
+                <p className="forecast-crop-hover-title">
+                  {hoveredForecast.entry.crop}
+                  {hoveredForecast.entry.unit ? ` / ${hoveredForecast.entry.unit}` : ''}
+                </p>
+                <p className="forecast-crop-hover-subtitle">
+                  {hoverChartTab === 'price' ? 'Price trend forecast' : 'Demand trend'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="forecast-hover-tabs" role="tablist" aria-label="Forecast trend type">
+                  {[{ value: 'price', label: 'Price' }, { value: 'demand', label: 'Demand' }].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={hoverChartTab === option.value}
+                      onClick={() => setHoverChartTab(option.value)}
+                      className={`forecast-hover-tab${hoverChartTab === option.value ? ' is-active' : ''}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="forecast-hover-close md:hidden"
+                  onClick={() => setHoveredForecast(null)}
+                  aria-label="Close forecast preview"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+          <dl className="forecast-crop-hover-metrics">
+            <div>
+              <dt>Reference Price</dt>
+              <dd><PriceReference entry={activeHoverDetail || hoveredForecast.entry} /></dd>
+            </div>
+            <div>
+              <dt>Expected Peak</dt>
+              <dd>
+                {activeHoverDetail?.priceHigh != null
+                  ? `${formatCurrency(activeHoverDetail.priceHigh)}${hoveredForecast.entry.unit ? `/${hoveredForecast.entry.unit}` : ''}`
+                  : hoveredForecast.entry.forecastPrice != null
+                    ? `${formatCurrency(hoveredForecast.entry.forecastPrice)}${hoveredForecast.entry.unit ? `/${hoveredForecast.entry.unit}` : ''}`
+                    : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>Expected Lowest</dt>
+              <dd>
+                {activeHoverDetail?.priceLow != null
+                  ? `${formatCurrency(activeHoverDetail.priceLow)}${hoveredForecast.entry.unit ? `/${hoveredForecast.entry.unit}` : ''}`
+                  : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>Predicted Change</dt>
+              <dd>{priceChangeCell((activeHoverDetail || hoveredForecast.entry).expectedChangePercent)}</dd>
+            </div>
           </dl>
-          <p className="forecast-crop-hover-action"><Recommendation entry={hoveredForecast.entry} /></p>
+
+          <div className="forecast-crop-hover-chart">
+            {isHoverDetailLoading ? (
+              <div className="forecast-crop-hover-loading">Loading forecast trend…</div>
+            ) : activeHoverError ? (
+              <div className="forecast-crop-hover-loading">{activeHoverError}</div>
+            ) : activeHoverDetail ? (
+              <>
+                {hoverChartTab === 'price' ? (
+                  <ForecastChart
+                    historicalChart={activeHoverDetail.historicalChart}
+                    forecastCurve={activeHoverDetail.forecastCurve}
+                    unit={activeHoverDetail.unit}
+                    height={190}
+                  />
+                ) : (
+                  <DemandChart
+                    historicalChart={activeHoverDetail.demandHistoricalChart}
+                    forecastCurve={activeHoverDetail.demandForecastCurve}
+                    unit={activeHoverDetail.unit || 'unit'}
+                    height={190}
+                  />
+                )}
+                <div className="mt-2">
+                  <ForecastLegend showForecast={!isHoverHistoricalOnly} />
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
+        </>
       ) : null}
     </section>
   );

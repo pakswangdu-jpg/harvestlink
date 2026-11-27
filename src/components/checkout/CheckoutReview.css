@@ -9,3 +9,72 @@
 .checkout-page .checkout-grid > .checkout-main { order: 1; }
 .checkout-page .checkout-grid > .checkout-summary { order: 2; }
 .checkout-page .checkout-grid > .checkout-trust-row { order: 3; }
+
+.checkout-page .wholesale-delivery-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #c6dccb;
+  border-left: 4px solid #2f6b3e;
+  border-radius: 8px;
+  background: #f2f8f3;
+}
+
+.checkout-page .wholesale-delivery-callout-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  color: #2f6b3e;
+  flex-shrink: 0;
+}
+
+.checkout-page .wholesale-delivery-callout-body {
+  min-width: 0;
+}
+
+.checkout-page .wholesale-delivery-callout-title {
+  margin: 0;
+  color: #16331e;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.checkout-page .wholesale-delivery-callout-text {
+  margin: 5px 0 0;
+  color: #2c4634;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.checkout-page .wholesale-delivery-callout-note {
+  margin: 6px 0 0;
+  color: #3f5e48;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+[data-theme='dark'] .checkout-page .wholesale-delivery-callout {
+  border-color: #2f4b38;
+  border-left-color: #53a86b;
+  background: #1a2a20;
+}
+
+[data-theme='dark'] .checkout-page .wholesale-delivery-callout-icon {
+  color: #7cc992;
+}
+
+[data-theme='dark'] .checkout-page .wholesale-delivery-callout-title {
+  color: #eef5f0;
+}
+
+[data-theme='dark'] .checkout-page .wholesale-delivery-callout-text {
+  color: #cbd9cf;
+}
+
+[data-theme='dark'] .checkout-page .wholesale-delivery-callout-note {
+  color: #98b9a2;
+}

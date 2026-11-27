@@ -106,6 +106,7 @@ export default function AdminPriceMonitoring() {
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [marketTypeFilter, setMarketTypeFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortState, setSortState] = useState('newest');
@@ -114,7 +115,7 @@ export default function AdminPriceMonitoring() {
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [expandedId, setExpandedId] = useState(null);
-  const [modalCommodity, setModalCommodity] = useState(null);
+  const [modalTarget, setModalTarget] = useState(null);
   const [addCommodityOpen, setAddCommodityOpen] = useState(false);
   const [addReferenceOpen, setAddReferenceOpen] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
@@ -140,11 +141,13 @@ export default function AdminPriceMonitoring() {
     return rows.filter((row) => {
       if (term && !row.label.toLowerCase().includes(term)) return false;
       if (categoryFilter !== 'all' && row.category !== categoryFilter) return false;
+      if (marketTypeFilter === 'retail' && !row.isRetailOverride && row.psaPrice == null) return false;
+      if (marketTypeFilter === 'wholesale' && !row.isWholesaleOverride) return false;
       if (yearFilter !== 'all' && String(row.referenceYear) !== yearFilter) return false;
       if (statusFilter !== 'all' && (row.loading || row.status !== statusFilter)) return false;
       return true;
     });
-  }, [rows, search, categoryFilter, yearFilter, statusFilter]);
+  }, [rows, search, categoryFilter, marketTypeFilter, yearFilter, statusFilter]);
 
   const sortedRows = useMemo(() => sortCommodities(filteredRows, sortState), [filteredRows, sortState]);
   const {
@@ -191,34 +194,34 @@ export default function AdminPriceMonitoring() {
 
   const handleSort = (key) => setSortState(key);
 
-  const handleOpenOverrideModal = (row) => setModalCommodity(row);
-
-  const modalInitialPrice = modalCommodity?.referencePrice ?? null;
+  const handleOpenOverrideModal = (row, marketType = 'retail') => setModalTarget({ row, marketType });
 
   const handleConfirmOverride = async (price, details) => {
-    const label = modalCommodity?.label || 'Commodity';
-    await saveOverride(modalCommodity.id, price, details);
+    const label = modalTarget?.row?.label || 'Commodity';
+    const marketLabel = details?.marketType === 'wholesale' ? 'Wholesale' : 'Retail';
+    await saveOverride(modalTarget.row.id, price, details);
     showToast({
       type: 'success',
-      title: 'Reference price updated',
-      message: `${label} reference price updated to ${formatCurrency(price)}/${details?.unit || modalCommodity?.unit || 'kg'}.`,
+      title: `${marketLabel} reference price updated`,
+      message: `${label} (${marketLabel}) reference price updated to ${formatCurrency(price)}/${details?.unit || modalTarget?.row?.unit || 'kg'}.`,
     });
   };
 
-  const handleResetOverride = (row) => setConfirmation({ type: 'reset', row });
+  const handleResetOverride = (row, marketType = 'retail') => setConfirmation({ type: 'reset', row, marketType });
   const handleConfirmation = async () => {
     if (!confirmation || actionLock.current) return;
     actionLock.current = true;
     setConfirming(true);
     try {
-      if (confirmation.type === 'reset') await resetOverride(confirmation.row.id);
+      if (confirmation.type === 'reset') await resetOverride(confirmation.row.id, confirmation.marketType || 'retail');
       else {
         await reactivatePriceReview(confirmation.row.id);
         reloadListings();
         reloadDeclined();
       }
+      const marketLabel = confirmation.marketType === 'wholesale' ? 'wholesale' : 'retail';
       const nextMessage = confirmation.type === 'reset'
-        ? `${confirmation.row.label}'s admin reference price was deactivated.`
+        ? `${confirmation.row.label}'s ${marketLabel} admin reference price was deactivated.`
         : `${confirmation.row.name}'s listing was reactivated.`;
       setReviewNotice(nextMessage);
       setReviewError('');
@@ -266,13 +269,14 @@ export default function AdminPriceMonitoring() {
   };
 
   const handleAddReferencePrice = async (row, price, details) => {
+    const marketLabel = details?.marketType === 'wholesale' ? 'Wholesale' : 'Retail';
     await saveOverride(row.id, price, details);
     await refreshCatalog();
     reloadListings();
     showToast({
       type: 'success',
-      title: 'Reference price added',
-      message: `${row.label} reference price set to ${formatCurrency(price)}/${details?.unit || row.unit || 'kg'}.`,
+      title: `${marketLabel} reference price added`,
+      message: `${row.label} (${marketLabel}) reference price set to ${formatCurrency(price)}/${details?.unit || row.unit || 'kg'}.`,
     });
   };
 
@@ -342,20 +346,24 @@ export default function AdminPriceMonitoring() {
           action={(
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="secondary" onClick={() => setAddCommodityOpen(true)}><Plus size={14} /> Add Commodity</Button>
-              <Button variant="primary" disabled={!referenceRows.length} onClick={() => setAddReferenceOpen(true)}><Plus size={14} /> Add Reference Price</Button>
+              <Button variant="primary" disabled={!rows.length} onClick={() => setAddReferenceOpen(true)}><Plus size={14} /> Add Reference Price</Button>
             </div>
           )}
         />
 
-        {
-
-                                                                                                 }
         <div className="pm-toolbar">
           <div className="relative min-w-0 flex-1">
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
             <Input aria-label="Search commodities" placeholder="Search commodities..." value={search} onChange={(event) => setSearch(event.target.value)} className="pl-8" />
           </div>
           <div className="pm-filter-fields">
+            <div className="w-[155px]">
+              <label>Market type</label><Select aria-label="Market type" value={marketTypeFilter} onChange={(event) => setMarketTypeFilter(event.target.value)}>
+                <option value="all">All market types</option>
+                <option value="retail">Retail</option>
+                <option value="wholesale">Wholesale</option>
+              </Select>
+            </div>
             <div className="w-[170px]">
               <label>Category</label><Select aria-label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
                 <option value="all">All categories</option>
@@ -485,10 +493,10 @@ export default function AdminPriceMonitoring() {
       </Card>
 
       <MarketplaceListings products={products} commodities={rows} />
-      <Modal open={Boolean(confirmation)} onClose={() => { if (!actionLock.current) setConfirmation(null); }} title={confirmation?.type === 'reset' ? 'Deactivate admin price?' : 'Reactivate this listing?'} className="pm-modal" dialogLabel="Confirm price monitoring action">
+      <Modal open={Boolean(confirmation)} onClose={() => { if (!actionLock.current) setConfirmation(null); }} title={confirmation?.type === 'reset' ? `Deactivate ${confirmation.marketType === 'wholesale' ? 'wholesale' : 'retail'} reference price?` : 'Reactivate this listing?'} className="pm-modal" dialogLabel="Confirm price monitoring action">
         {confirmation && <div className="space-y-4">
           <p>{confirmation.type === 'reset'
-            ? `Deactivate the admin reference price for ${confirmation.row.label}? ${confirmation.row.psaPrice == null ? 'No PSA reference is currently available.' : `The Farmer Portal will use the PSA reference of ${formatCurrency(confirmation.row.psaPrice)}/kg instead.`}`
+            ? `Deactivate the ${confirmation.marketType === 'wholesale' ? 'wholesale' : 'retail'} admin reference price for ${confirmation.row.label}? ${confirmation.marketType === 'wholesale' ? 'Your retail reference price will remain unchanged.' : confirmation.row.psaPrice == null ? 'No PSA reference is currently available.' : `The Farmer Portal will use the PSA reference of ${formatCurrency(confirmation.row.psaPrice)}/kg instead.`}`
             : `${confirmation.row.name} - ${confirmation.row.farmerName}`}</p>
           {reviewError && <Alert tone="danger">{reviewError}</Alert>}
           <div className="flex justify-end gap-2"><Button variant="secondary" disabled={confirming} onClick={() => setConfirmation(null)}>Cancel</Button><Button variant="primary" disabled={confirming} onClick={handleConfirmation}>{confirming ? 'Saving...' : confirmation.type === 'reset' ? 'Deactivate price' : 'Reactivate'}</Button></div>
@@ -496,10 +504,10 @@ export default function AdminPriceMonitoring() {
       </Modal>
 
       <OverrideModal
-        commodity={modalCommodity}
-        initialPrice={modalInitialPrice}
+        commodity={modalTarget?.row || null}
+        initialMarketType={modalTarget?.marketType || 'retail'}
         units={units}
-        onClose={() => setModalCommodity(null)}
+        onClose={() => setModalTarget(null)}
         onConfirm={handleConfirmOverride}
       />
       <AddCommodityModal
@@ -512,6 +520,7 @@ export default function AdminPriceMonitoring() {
       <AddReferencePriceModal
         open={addReferenceOpen}
         rows={rows}
+        units={units}
         onClose={() => setAddReferenceOpen(false)}
         onConfirm={handleAddReferencePrice}
       />

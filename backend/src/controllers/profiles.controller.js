@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
+import { sendPushToUser } from '../lib/webPushService.js';
 import { serializeProfile } from '../lib/serialize.js';
 import { getAdminUserPage, manageAccount } from '../lib/adminUserQueries.js';
 import { ApiError } from '../lib/ApiError.js';
@@ -259,7 +260,7 @@ export async function sendAdminLocationReminder(req, res) {
   const message = user.role === 'buyer'
     ? 'Please add or update your registered address and saved location in your profile so your registered location can be included on the HarvestLink user map.'
     : 'Please add or update your registered address and saved location in your profile to support the Admin review of your account verification.';
-  const { error: notificationError } = await supabaseAdmin
+  const { data: insertedNotification, error: notificationError } = await supabaseAdmin
     .from('notifications')
     .insert({
       user_id: user.id,
@@ -267,7 +268,9 @@ export async function sendAdminLocationReminder(req, res) {
       title: 'Complete your profile location',
       message,
       link: '/profile',
-    });
+    })
+    .select('id')
+    .single();
   if (notificationError) {
     console.error('Failed to send Admin location reminder:', {
       code: notificationError.code,
@@ -279,6 +282,14 @@ export async function sendAdminLocationReminder(req, res) {
     }
     throw new ApiError('Unable to send the profile reminder. Please try again.', 500);
   }
+
+  sendPushToUser(user.id, {
+    id: insertedNotification?.id || null,
+    type: 'profile',
+    title: 'Complete your profile location',
+    message,
+    link: '/profile',
+  }).catch(() => {});
 
   res.status(201).json({ message: 'Profile reminder sent.' });
 }

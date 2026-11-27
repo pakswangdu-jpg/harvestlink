@@ -211,6 +211,7 @@ export function paymentStatusLabel(value) {
 }
 
 export function deliveryMethodLabel(value) {
+  if (value === 'farmer_arranged') return 'Farmer-Arranged Delivery';
   return DELIVERY_METHOD_LABELS[value] || value;
 }
 

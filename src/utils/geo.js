@@ -26,6 +26,8 @@ export function getRegisteredCoordinates(profile) {
   return validateCoordinates(profile?.latitude, profile?.longitude);
 }
 
+export const NEARBY_FARMERS_RADIUS_KM = 10;
+
 // Unknown locations stay last; municipality/geocoding fallbacks must not imply exact distances.
 export function sortByRegisteredDistance(origin, people) {
   const registeredOrigin = validateCoordinates(origin?.lat, origin?.lng);
@@ -34,6 +36,13 @@ export function sortByRegisteredDistance(origin, people) {
     const distanceKm = registeredOrigin && point ? haversineKm(registeredOrigin, point) : null;
     return { ...person, distanceKm: Number.isFinite(distanceKm) ? distanceKm : null };
   }).sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
+}
+
+export function filterNearbyByRegisteredDistance(origin, people, maxDistanceKm = NEARBY_FARMERS_RADIUS_KM) {
+  const registeredOrigin = validateCoordinates(origin?.lat, origin?.lng);
+  if (!registeredOrigin || !Number.isFinite(maxDistanceKm) || maxDistanceKm <= 0) return [];
+  return sortByRegisteredDistance(registeredOrigin, people)
+    .filter((person) => Number.isFinite(person.distanceKm) && person.distanceKm <= maxDistanceKm);
 }
 
 export function formatNearbyDistance(distanceKm) {

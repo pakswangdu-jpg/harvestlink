@@ -66,10 +66,27 @@
   max-width: none;
 }
 
-.farmer-products-page .product-status-select {
-  flex: 0 0 240px;
+.farmer-products-page .product-sales-type-select {
+  flex: 0 0 180px;
   width: 100%;
-  max-width: 240px;
+  max-width: 180px;
+}
+
+.farmer-products-page .product-status-select {
+  flex: 0 0 220px;
+  width: 100%;
+  max-width: 220px;
+}
+
+.farmer-products-page .product-sales-type-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.farmer-products-page .product-grade-label {
+  color: var(--text);
+  font-weight: 500;
 }
 
 .farmer-products-page .product-filter-toolbar .search-field svg,
@@ -241,25 +258,67 @@
   background: #f0f6f0;
 }
 
-.farmer-products-page .table-wrap .badge-low-stock {
+.farmer-products-page .table-wrap .badge-low-stock,
+.farmer-products-page .table-wrap .badge-expiring-soon {
   border-color: #eadfc8;
   color: #8b6a35;
   background: #fbf6eb;
 }
 
 .farmer-products-page .table-wrap .badge-inactive,
-.farmer-products-page .table-wrap .badge-out-of-stock {
+.farmer-products-page .table-wrap .badge-out-of-stock,
+.farmer-products-page .table-wrap .badge-expired {
   border-color: #ead9d9;
   color: #8e5c5c;
   background: #faf2f2;
 }
 
 .farmer-products-page .table-wrap .badge-inactive,
-.farmer-products-page .product-mobile-card .badge-inactive {
+.farmer-products-page .table-wrap .badge-expired,
+.farmer-products-page .product-mobile-card .badge-inactive,
+.farmer-products-page .product-mobile-card .badge-expired {
   border-color: #E5B8B8;
   color: #B4232C;
   background: #FFF1F1;
   font-weight: 600;
+}
+
+.farmer-products-page .product-expiry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.farmer-products-page .product-expiry-date {
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.farmer-products-page .product-expiry-indicator {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.farmer-products-page .product-expiry-fresh {
+  color: #2f6b3e;
+}
+
+.farmer-products-page .product-expiry-soon {
+  color: #9a6318;
+}
+
+.farmer-products-page .product-expiry-expired {
+  color: #b4232c;
+}
+
+.farmer-products-page .product-mobile-card-expiry {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .farmer-products-page .table-wrap .price-original {
@@ -345,14 +404,16 @@
   background: #f0f6f0;
 }
 
-.farmer-products-page .product-mobile-card .badge-low-stock {
+.farmer-products-page .product-mobile-card .badge-low-stock,
+.farmer-products-page .product-mobile-card .badge-expiring-soon {
   border-color: #eadfc8;
   color: #8b6a35;
   background: #fbf6eb;
 }
 
 .farmer-products-page .product-mobile-card .badge-inactive,
-.farmer-products-page .product-mobile-card .badge-out-of-stock {
+.farmer-products-page .product-mobile-card .badge-out-of-stock,
+.farmer-products-page .product-mobile-card .badge-expired {
   border-color: #ead9d9;
   color: #8e5c5c;
   background: #faf2f2;
@@ -415,7 +476,9 @@
 }
 
 [data-theme='dark'] .farmer-products-page .table-wrap .badge-low-stock,
-[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-low-stock {
+[data-theme='dark'] .farmer-products-page .table-wrap .badge-expiring-soon,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-low-stock,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-expiring-soon {
   border-color: #5b4d34;
   color: #dbc18e;
   background: #393226;
@@ -423,18 +486,34 @@
 
 [data-theme='dark'] .farmer-products-page .table-wrap .badge-inactive,
 [data-theme='dark'] .farmer-products-page .table-wrap .badge-out-of-stock,
+[data-theme='dark'] .farmer-products-page .table-wrap .badge-expired,
 [data-theme='dark'] .farmer-products-page .product-mobile-card .badge-inactive,
-[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-out-of-stock {
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-out-of-stock,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-expired {
   border-color: #594142;
   color: #d6a6a6;
   background: #35292a;
 }
 
 [data-theme='dark'] .farmer-products-page .table-wrap .badge-inactive,
-[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-inactive {
+[data-theme='dark'] .farmer-products-page .table-wrap .badge-expired,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-inactive,
+[data-theme='dark'] .farmer-products-page .product-mobile-card .badge-expired {
   border-color: #704044;
   color: #F0A3A3;
   background: #352124;
+}
+
+[data-theme='dark'] .farmer-products-page .product-expiry-fresh {
+  color: #86c997;
+}
+
+[data-theme='dark'] .farmer-products-page .product-expiry-soon {
+  color: #e3bc78;
+}
+
+[data-theme='dark'] .farmer-products-page .product-expiry-expired {
+  color: #f09a9a;
 }
 
 @media (max-width: 640px) {
@@ -477,6 +556,7 @@
   }
 
   .farmer-products-page .product-filter-toolbar .search-field,
+  .farmer-products-page .product-sales-type-select,
   .farmer-products-page .product-status-select {
     flex: 1 1 auto;
     max-width: none;
@@ -588,3 +668,45 @@
 .product-price-edit { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 3px 0; color: var(--green-700); font: inherit; font-size: 12px; cursor: pointer; }
 .product-price-edit:focus-visible { outline: 2px solid var(--green-700); outline-offset: 2px; }
 .product-price-edit:hover { text-decoration: underline; }
+
+.product-duplicate-alert {
+  border-color: #e5b8b8 !important;
+  border-top: 3px solid #c93038 !important;
+}
+
+.product-duplicate-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid #f0c7c9;
+  background: #fdf0f0;
+  color: #b4232c;
+}
+
+.product-duplicate-alert-eyebrow {
+  margin: 0 0 2px;
+  color: #b4232c;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+[data-theme='dark'] .product-duplicate-alert {
+  border-color: #6b3539 !important;
+  border-top-color: #e05259 !important;
+}
+
+[data-theme='dark'] .product-duplicate-alert-icon {
+  border-color: #6b3539;
+  background: #361e21;
+  color: #f48b8f;
+}
+
+[data-theme='dark'] .product-duplicate-alert-eyebrow {
+  color: #f48b8f;
+}

@@ -39,56 +39,168 @@
 .forecast-crop-hover-card {
   position: fixed;
   z-index: 80;
-  width: min(268px, calc(100vw - 24px));
-  pointer-events: none;
+  width: min(540px, calc(100vw - 24px));
+  pointer-events: auto;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface-elevated, var(--panel));
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
-  padding: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.24);
+  padding: 16px;
+}
+
+.forecast-crop-hover-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .forecast-crop-hover-title {
-  margin: 0 0 8px;
+  margin: 0;
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
 }
 
-.forecast-crop-hover-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
+.forecast-crop-hover-subtitle {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
-.forecast-crop-hover-grid div {
+.forecast-hover-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.forecast-hover-tab {
+  min-height: 28px;
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.forecast-hover-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel) 65%, transparent);
+}
+
+.forecast-hover-tab.is-active {
+  border-color: var(--green-700);
+  background: color-mix(in srgb, var(--green-600) 16%, var(--panel));
+  color: var(--green-700);
+}
+
+[data-theme='dark'] .forecast-hover-tab.is-active {
+  border-color: #3f7c54;
+  background: #1f3326;
+  color: #8ee0a8;
+}
+
+.forecast-crop-hover-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.forecast-crop-hover-metrics div {
   min-width: 0;
 }
 
-.forecast-crop-hover-grid dt {
+.forecast-crop-hover-metrics dt {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
 }
 
-.forecast-crop-hover-grid dd {
+.forecast-crop-hover-metrics dd {
   margin-top: 2px;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 650;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
-.forecast-crop-hover-action {
-  margin: 10px 0 0;
-  padding-top: 9px;
-  border-top: 1px solid var(--line);
+.forecast-crop-hover-chart {
+  margin-top: 4px;
+}
+
+.forecast-crop-hover-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 190px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.forecast-mobile-trend-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--green-700);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.forecast-hover-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.forecast-crop-hover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  background: rgba(15, 23, 18, 0.52);
 }
 
 @media (max-width: 767px) {
   .forecast-crop-hover-card {
-    pointer-events: none;
+    left: 12px !important;
+    right: 12px;
+    top: 50% !important;
+    transform: translateY(-50%);
+    width: auto;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  .forecast-crop-hover-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

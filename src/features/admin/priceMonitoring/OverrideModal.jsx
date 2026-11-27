@@ -15,30 +15,54 @@ function localDateValue() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
-  const [price, setPrice] = useState(initialPrice != null ? String(initialPrice) : '');
-  const [unit, setUnit] = useState(commodity.override?.unit || commodity.unit || 'kg');
-  const [source, setSource] = useState(commodity.override?.source || 'admin_entered');
-  const [effectiveDate, setEffectiveDate] = useState(commodity.override?.effectiveDate || localDateValue());
-  const [supportingReference, setSupportingReference] = useState(commodity.override?.supportingReference || '');
+function OverrideForm({ commodity, initialMarketType = 'retail', units, onClose, onConfirm }) {
+  const [marketType, setMarketType] = useState(initialMarketType === 'wholesale' ? 'wholesale' : 'retail');
+  const getOverrideFor = (type) => (type === 'wholesale' ? commodity.wholesaleOverride : commodity.retailOverride);
+  const currentOverride = getOverrideFor(marketType);
+
+  const [price, setPrice] = useState(
+    currentOverride?.referencePrice != null
+      ? String(currentOverride.referencePrice)
+      : (marketType === 'retail' && commodity.referencePrice != null ? String(commodity.referencePrice) : ''),
+  );
+  const [unit, setUnit] = useState(currentOverride?.unit || commodity.unit || 'kg');
+  const [source, setSource] = useState(currentOverride?.source || 'admin_entered');
+  const [effectiveDate, setEffectiveDate] = useState(currentOverride?.effectiveDate || localDateValue());
+  const [supportingReference, setSupportingReference] = useState(currentOverride?.supportingReference || '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
 
+  const handleMarketTypeChange = (nextType) => {
+    setMarketType(nextType);
+    const nextOverride = getOverrideFor(nextType);
+    setPrice(nextOverride?.referencePrice != null ? String(nextOverride.referencePrice) : '');
+    setUnit(nextOverride?.unit || commodity.unit || 'kg');
+    setSource(nextOverride?.source || 'admin_entered');
+    setEffectiveDate(nextOverride?.effectiveDate || localDateValue());
+    setSupportingReference(nextOverride?.supportingReference || '');
+    setError('');
+  };
+
   const handleConfirm = async () => {
     if (inFlight.current) return;
     const value = Number(price);
     if (!price || !Number.isFinite(value) || value <= 0) {
-      setError('Override price must be greater than 0.');
+      setError('Reference price must be greater than 0.');
       return;
     }
     if (value > MAX_OVERRIDE_PRICE) {
-      setError(`Override price cannot exceed ${formatCurrency(MAX_OVERRIDE_PRICE)}.`);
+      setError(`Reference price cannot exceed ${formatCurrency(MAX_OVERRIDE_PRICE)}.`);
+      return;
+    }
+    const trimmedSupport = supportingReference.trim();
+    if (trimmedSupport.length < 10 || trimmedSupport.split(/\s+/).filter(Boolean).length < 2) {
+      setError('Supporting reference is required and must include source and location details.');
       return;
     }
     if (!reason.trim()) {
-      setError('A reason is required.');
+      setError('An explanation is required.');
       return;
     }
     inFlight.current = true;
@@ -47,17 +71,18 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
     try {
       await onConfirm(value, {
         commodityLabel: commodity.label,
+        marketType,
         unit,
         source,
         effectiveDate,
         referenceYear: Number(effectiveDate.slice(0, 4)),
-        supportingReference,
+        supportingReference: trimmedSupport,
         reason: reason.trim(),
-        baselinePrice: commodity.psaPrice,
+        baselinePrice: marketType === 'retail' ? commodity.psaPrice : null,
       });
       onClose();
     } catch (confirmError) {
-      setError(confirmError.message || 'Could not save this override.');
+      setError(confirmError.message || 'Could not save this reference price.');
       setSaving(false);
       inFlight.current = false;
     }
@@ -73,6 +98,20 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
       </div>
 
       <div>
+        <label className="mb-1 block text-[13px] font-medium" htmlFor="override-market-type">Market Type</label>
+        <select
+          id="override-market-type"
+          className="pm-reason-choice"
+          value={marketType}
+          onChange={(event) => handleMarketTypeChange(event.target.value)}
+          disabled={saving}
+        >
+          <option value="retail">Retail</option>
+          <option value="wholesale">Wholesale</option>
+        </select>
+      </div>
+
+      <div>
         <p className="text-[12px] font-medium text-[var(--muted)]">PSA reference</p>
         <p className="mt-0.5 text-[14px] text-[var(--text)]">
           {commodity.psaPrice == null ? 'No PSA data available' : `${formatCurrency(commodity.psaPrice)} / kg (PSA ${commodity.psaYear})`}
@@ -81,7 +120,7 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
 
       <div>
         <label className="mb-1 block text-[12px] font-medium uppercase tracking-wide text-[var(--muted)]" htmlFor="override-price-input">
-          New reference price
+          New {marketType} reference price (PHP)
         </label>
         <Input
           id="override-price-input"
@@ -99,7 +138,7 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-[13px] font-medium" htmlFor="override-unit">Unit</label>
-          <select id="override-unit" className="pm-reason-choice" value={unit} onChange={(event) => setUnit(event.target.value)} disabled={saving || commodity.isCustom}>
+          <select id="override-unit" className="pm-reason-choice" value={unit} onChange={(event) => setUnit(event.target.value)} disabled={saving}>
             {units.map((option) => <option key={option.id} value={option.value}>{option.name}</option>)}
           </select>
         </div>
@@ -117,8 +156,18 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-[13px] font-medium" htmlFor="override-supporting-reference">Supporting reference <span className="text-[var(--muted)]">(optional)</span></label>
-        <Input id="override-supporting-reference" value={supportingReference} onChange={(event) => setSupportingReference(event.target.value)} disabled={saving} maxLength={500} />
+        <label className="mb-1 block text-[13px] font-medium" htmlFor="override-supporting-reference">
+          Supporting reference <span className="text-[var(--red-700)]">*</span>
+        </label>
+        <Input
+          id="override-supporting-reference"
+          value={supportingReference}
+          onChange={(event) => setSupportingReference(event.target.value)}
+          disabled={saving}
+          maxLength={500}
+          placeholder="Market location, source agency, and survey date"
+          required
+        />
       </div>
 
       <div>
@@ -144,13 +193,8 @@ function OverrideForm({ commodity, initialPrice, units, onClose, onConfirm }) {
   );
 }
 
-
-
-
-
-
 export default function OverrideModal({
-  commodity, initialPrice, units = [], onClose, onConfirm,
+  commodity, initialMarketType = 'retail', units = [], onClose, onConfirm,
 }) {
   const saving = useRef(false);
   const close = () => { if (!saving.current) onClose(); };
@@ -159,12 +203,12 @@ export default function OverrideModal({
     try { await onConfirm(...args); } finally { saving.current = false; }
   };
   return (
-    <Modal open={Boolean(commodity)} onClose={close} title="Set manual reference price?" className="pm-modal" dialogLabel="Set manual reference price">
+    <Modal open={Boolean(commodity)} onClose={close} title="Set reference price" className="pm-modal" dialogLabel="Set reference price">
       {commodity ? (
         <OverrideForm
-          key={commodity.id}
+          key={`${commodity.id}-${initialMarketType}`}
           commodity={commodity}
-          initialPrice={initialPrice}
+          initialMarketType={initialMarketType}
           units={units}
           onClose={close}
           onConfirm={confirm}

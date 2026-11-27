@@ -5,6 +5,19 @@ import { getHistoricalPriceAnalysis as computeHistoricalPriceAnalysis } from '..
 import { ApiError } from '../lib/ApiError.js';
 import { getCatalog } from '../lib/catalogRepo.js';
 import { getWholesalePricingErrors } from '../../shared/pricing.js';
+import {
+  EXPIRED_PRODUCT_ERROR_CODE,
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  getTodayInPhilippines,
+  isProductExpired,
+} from '../../shared/expiration.js';
+import {
+  DUPLICATE_PRODUCT_ERROR_CODE,
+  DUPLICATE_PRODUCT_ERROR_MESSAGE,
+  DUPLICATE_PRODUCT_ERROR_TITLE,
+  findDuplicateActiveProduct,
+} from '../../shared/productDuplicate.js';
 import { notifyAdminsOfPriceReview, notifyFarmerOfPriceDecision } from '../lib/priceReviewNotifications.js';
 import { getServerPriceReviewReference } from '../lib/effectiveMarketPrice.js';
 import { containsProhibitedListingText } from '../lib/prohibitedListingText.js';
@@ -56,20 +69,11 @@ function titleCaseName(name) {
 }
 
 function todayInCebu() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  return getTodayInPhilippines();
 }
 
 function isExpiredDate(value) {
-  if (!value) return false;
-  const expirationDate = String(value).slice(0, 10);
-  return !/^\d{4}-\d{2}-\d{2}$/.test(expirationDate) || expirationDate < todayInCebu();
+  return isProductExpired(value);
 }
 
 async function assertValidCategoryAndUnit(values, existing) {
@@ -248,7 +252,12 @@ export async function getProduct(req, res) {
     throw new ApiError('Product was not found.', 404);
   }
   if (['buyer', 'stakeholder'].includes(req.profile.role) && isExpiredDate(product.expiration_date)) {
-    throw new ApiError('This product is no longer available because it has expired.', 404);
+    throw new ApiError(
+      EXPIRED_PRODUCT_ERROR_MESSAGE,
+      404,
+      EXPIRED_PRODUCT_ERROR_CODE,
+      EXPIRED_PRODUCT_ERROR_TITLE,
+    );
   }
   const [serialized] = await withFarmerNames([product]);
   res.json(serialized);
@@ -272,18 +281,24 @@ export async function getHistoricalPriceAnalysis(req, res) {
 
 
 
-const MERGE_KEY_COLUMNS = ['name', 'category', 'grade', 'unit', 'selling_type'];
-
-
-
-
-async function findMergeTarget(farmerId, row) {
-  let query = supabaseAdmin.from('products').select('*').eq('farmer_id', farmerId);
-  MERGE_KEY_COLUMNS.forEach((column) => { query = query.eq(column, row[column]); });
-
-  const { data, error } = await query.order('updated_at', { ascending: false }).limit(1);
+async function findDuplicateActiveListing(farmerId, candidate, excludeId = null) {
+  const { data, error } = await supabaseAdmin
+    .from('products')
+    .select('*')
+    .eq('farmer_id', farmerId)
+    .eq('status', 'active');
   if (error) throw new ApiError(error.message, 400);
-  return data?.[0] || null;
+  return findDuplicateActiveProduct(data || [], candidate, excludeId);
+}
+
+function throwDuplicateListingError(duplicate) {
+  throw new ApiError(
+    DUPLICATE_PRODUCT_ERROR_MESSAGE,
+    409,
+    DUPLICATE_PRODUCT_ERROR_CODE,
+    DUPLICATE_PRODUCT_ERROR_TITLE,
+    duplicate?.id ? { existingProductId: duplicate.id } : undefined,
+  );
 }
 
 export async function createProduct(req, res) {
@@ -342,6 +357,8 @@ export async function createProduct(req, res) {
     selling_type: values.sellingType || 'retail',
     moq: values.sellingType === 'wholesale' ? Number(values.moq) : null,
     price,
+    original_price: originalPrice,
+    discount_percent: discountPercent,
     wholesale_price: wholesalePrice,
     wholesale_min_quantity: wholesaleMinQuantity,
     unit: values.unit,
@@ -354,8 +371,6 @@ export async function createProduct(req, res) {
     status: values.isDonation ? 'inactive' : 'active',
     price_review: buildPriceReview(marketReference, values.price, null, kgPerUnit),
     cost_price: values.costPrice ? Number(values.costPrice) : null,
-    original_price: originalPrice,
-    discount_percent: discountPercent,
     expiration_date: values.expirationDate || null,
     created_at: now,
     updated_at: now,
@@ -366,60 +381,19 @@ export async function createProduct(req, res) {
 
 
 
-  const mergeTarget = values.allowDuplicate ? null : await findMergeTarget(req.profile.id, row);
-
-  if (mergeTarget) {
-    const mergedQuantity = Number(mergeTarget.quantity) + Number(values.quantity);
-    const mergePriceChanged = Number(mergeTarget.price) !== row.price || mergeTarget.unit !== row.unit;
-    const mergedReview = mergeTarget.price_review
-      ? mergePriceChanged ? resubmitPriceReview(marketReference, row.price, mergeTarget.price_review, kgPerUnit, row.unit) : mergeTarget.price_review
-      : row.price_review;
-    const { data, error } = await supabaseAdmin
-      .from('products')
-      .update({
-        quantity: mergedQuantity,
-
-
-
-        price: row.price,
-        wholesale_price: row.wholesale_price,
-        wholesale_min_quantity: row.wholesale_min_quantity,
-        moq: row.moq,
-        kg_per_unit: row.kg_per_unit,
-        location: row.location,
-        description: row.description,
-        image_url: row.image_url || mergeTarget.image_url,
-        image_urls: row.image_urls.length ? row.image_urls : mergeTarget.image_urls || (mergeTarget.image_url ? [mergeTarget.image_url] : []),
-        cost_price: row.cost_price,
-
-
-
-        original_price: row.original_price,
-        discount_percent: row.discount_percent,
-        expiration_date: row.expiration_date,
-        price_review: mergedReview,
-
-
-        status: mergedReview && ['pending', 'needs_adjustment', 'declined'].includes(mergedReview.status) ? mergeTarget.status : 'active',
-        updated_at: now,
-      })
-      .eq('id', mergeTarget.id)
-      .select()
-      .single();
-    if (error) throw new ApiError(error.message, 400);
-
-    const [serialized] = await withFarmerNames([data]);
-    if (mergedReview?.status === 'pending'
-        && (mergePriceChanged || mergeTarget.price_review?.status !== 'pending')) {
-      await notifyAdminsOfPriceReview(serialized);
-    }
-
-    res.json({ ...serialized, merged: true, addedQuantity: Number(values.quantity) });
-    return;
+  if (!values.isDonation && !values.allowDuplicate) {
+    const duplicate = await findDuplicateActiveListing(req.profile.id, row);
+    if (duplicate) throwDuplicateListingError(duplicate);
   }
 
   const { data, error } = await supabaseAdmin.from('products').insert(row).select().single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) {
+    if (error.code === '23505') {
+      const duplicate = await findDuplicateActiveListing(req.profile.id, row);
+      throwDuplicateListingError(duplicate);
+    }
+    throw new ApiError(error.message, 400);
+  }
   const [serialized] = await withFarmerNames([data]);
   if (serialized.priceReview?.status === 'pending') await notifyAdminsOfPriceReview(serialized);
   res.status(201).json(serialized);
@@ -445,7 +419,19 @@ export async function updateProduct(req, res) {
     unit,
     kgPerUnit,
   );
-  const price = values.price !== undefined ? Number(values.price) : Number(existing.price);
+  const rawPrice = values.price !== undefined ? Number(values.price) : Number(existing.original_price ?? existing.price);
+  const rawDiscount = values.discountPercent !== undefined
+    ? (values.discountPercent === '' || values.discountPercent === null ? 0 : Number(values.discountPercent))
+    : Number(existing.discount_percent || 0);
+  if (!Number.isFinite(rawDiscount) || rawDiscount < 0 || rawDiscount > 100) {
+    throw new ApiError('Discount percent must be between 0 and 100.', 400);
+  }
+  const hasDiscount = rawDiscount > 0;
+  const originalPrice = hasDiscount ? rawPrice : null;
+  const discountPercent = hasDiscount ? rawDiscount : null;
+  const price = hasDiscount
+    ? Number((rawPrice * (1 - rawDiscount / 100)).toFixed(2))
+    : (values.price !== undefined ? rawPrice : Number(existing.price));
   const quantity = values.quantity !== undefined ? Number(values.quantity) : Number(existing.quantity);
   const sellingType = values.sellingType ?? existing.selling_type;
   const costPrice = values.costPrice !== undefined ? (values.costPrice ? Number(values.costPrice) : null) : existing.cost_price;
@@ -478,6 +464,8 @@ export async function updateProduct(req, res) {
     selling_type: sellingType,
     moq: sellingType === 'wholesale' ? Number(values.moq ?? existing.moq) : null,
     price,
+    original_price: originalPrice,
+    discount_percent: discountPercent,
     wholesale_price: wholesalePrice,
     wholesale_min_quantity: wholesaleMinQuantity,
     unit,
@@ -493,8 +481,19 @@ export async function updateProduct(req, res) {
     expiration_date: values.expirationDate !== undefined ? (values.expirationDate || null) : existing.expiration_date,
   };
 
+  if (row.status === 'active') {
+    const duplicate = await findDuplicateActiveListing(req.profile.id, row, existing.id);
+    if (duplicate) throwDuplicateListingError(duplicate);
+  }
+
   const { data, error } = await supabaseAdmin.from('products').update(row).eq('id', existing.id).select().single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) {
+    if (error.code === '23505') {
+      const duplicate = await findDuplicateActiveListing(req.profile.id, row, existing.id);
+      throwDuplicateListingError(duplicate);
+    }
+    throw new ApiError(error.message, 400);
+  }
   const [serialized] = await withFarmerNames([data]);
   if (priceChanged && serialized.priceReview?.status === 'pending') await notifyAdminsOfPriceReview(serialized);
   res.json(serialized);
@@ -521,12 +520,20 @@ export async function setProductStatus(req, res) {
     if (['declined', 'needs_adjustment'].includes(existing.price_review?.status)) {
       throw new ApiError('DTI declined this price — edit the product with a new price before activating it.', 400);
     }
+    const duplicate = await findDuplicateActiveListing(req.profile.id, existing, existing.id);
+    if (duplicate) throwDuplicateListingError(duplicate);
   }
 
   const statusUpdate = { status };
   if (existing.price_review?.resumeListingStatus) statusUpdate.price_review = { ...existing.price_review, resumeListingStatus: null };
   const { data, error } = await supabaseAdmin.from('products').update(statusUpdate).eq('id', existing.id).select().single();
-  if (error) throw new ApiError(error.message, 400);
+  if (error) {
+    if (error.code === '23505') {
+      const duplicate = await findDuplicateActiveListing(req.profile.id, existing, existing.id);
+      throwDuplicateListingError(duplicate);
+    }
+    throw new ApiError(error.message, 400);
+  }
   const [serialized] = await withFarmerNames([data]);
   res.json(serialized);
 }

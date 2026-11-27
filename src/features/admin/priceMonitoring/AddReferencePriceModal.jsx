@@ -11,11 +11,12 @@ function localDateValue() {
 }
 
 export default function AddReferencePriceModal({
-  open, rows, onClose, onConfirm,
+  open, rows, units = [], onClose, onConfirm,
 }) {
   const [commodityId, setCommodityId] = useState('');
+  const [marketType, setMarketType] = useState('retail');
   const [price, setPrice] = useState('');
-  const [unit, setUnit] = useState('');
+  const [unit, setUnit] = useState('kg');
   const [source, setSource] = useState('admin_entered');
   const [effectiveDate, setEffectiveDate] = useState(localDateValue);
   const [supportingReference, setSupportingReference] = useState('');
@@ -23,6 +24,21 @@ export default function AddReferencePriceModal({
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const commodity = useMemo(() => rows.find((row) => row.id === commodityId) || null, [rows, commodityId]);
+
+  const unitOptions = useMemo(() => {
+    const list = units.map((entry) => ({
+      value: entry.value || entry.abbreviation || entry.name,
+      label: entry.name || entry.value,
+    })).filter((entry) => entry.value);
+    if (unit && !list.some((entry) => entry.value.toLowerCase() === unit.toLowerCase())) {
+      list.unshift({ value: unit, label: unit });
+    }
+    return list.length ? list : [{ value: 'kg', label: 'kg' }];
+  }, [units, unit]);
+
+  const activeOverrideForMarket = commodity
+    ? (marketType === 'wholesale' ? commodity.wholesaleOverride : commodity.retailOverride)
+    : null;
 
   const selectCommodity = (id) => {
     setCommodityId(id);
@@ -38,12 +54,21 @@ export default function AddReferencePriceModal({
       setError('Choose a commodity.');
       return;
     }
+    if (marketType !== 'retail' && marketType !== 'wholesale') {
+      setError('Choose a valid market type (Retail or Wholesale).');
+      return;
+    }
     if (!unit.trim() || unit.trim().length > 30 || !/[\p{L}\p{N}]/u.test(unit)) {
       setError('Enter a valid unit of measurement (up to 30 characters).');
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0 || amount > 999999) {
       setError('Enter a price greater than ₱0 and no more than ₱999,999.');
+      return;
+    }
+    const trimmedSupport = supportingReference.trim();
+    if (trimmedSupport.length < 10 || trimmedSupport.split(/\s+/).filter(Boolean).length < 2) {
+      setError('Supporting reference is required and must include source and location details (e.g. market name and survey date).');
       return;
     }
     if (!reason.trim()) {
@@ -54,17 +79,19 @@ export default function AddReferencePriceModal({
     setError('');
     try {
       await onConfirm(selectedCommodity, amount, {
-        unit: selectedCommodity.unit || unit.trim() || 'kg',
+        marketType,
+        unit: unit.trim() || selectedCommodity.unit || 'kg',
         customUnit: false,
         source,
         effectiveDate,
         referenceYear: Number(effectiveDate.slice(0, 4)),
-        supportingReference,
-        reason,
+        supportingReference: trimmedSupport,
+        reason: reason.trim(),
         commodityLabel: selectedCommodity.label,
-        baselinePrice: selectedCommodity.psaPrice ?? null,
+        baselinePrice: marketType === 'retail' ? (selectedCommodity.psaPrice ?? null) : null,
       });
       setCommodityId('');
+      setMarketType('retail');
       setPrice('');
       setReason('');
       setSupportingReference('');
@@ -99,15 +126,26 @@ export default function AddReferencePriceModal({
           ) : commodity ? (
             <p className="mt-1 text-[12px] text-[var(--muted)]">
               {commodity.psaPrice != null
-                ? `Market Insights (PSA) reference: ${formatCurrency(commodity.psaPrice)}/${commodity.unit || 'kg'}${commodity.psaYear ? ` (${commodity.psaYear})` : ''}`
-                : 'PSA reference: No data available'}
-              {commodity.override?.isActive && commodity.override?.referencePrice != null
-                ? ` · Current admin reference: ${formatCurrency(commodity.override.referencePrice)}/${commodity.override.unit || commodity.unit || 'kg'}`
-                : ''}
+                ? `PSA: ${formatCurrency(commodity.psaPrice)}/${commodity.unit || 'kg'}${commodity.psaYear ? ` (${commodity.psaYear})` : ''}`
+                : 'PSA: No data'}
+              {activeOverrideForMarket?.isActive && activeOverrideForMarket?.referencePrice != null
+                ? ` · Current ${marketType} reference: ${formatCurrency(activeOverrideForMarket.referencePrice)}/${activeOverrideForMarket.unit || commodity.unit || 'kg'}`
+                : ` · Current ${marketType} reference: Not set`}
             </p>
-          ) : (
-            <p className="mt-1 text-[12px] text-[var(--muted)]">Select a Market Insights or admin-added commodity to set its reference price.</p>
-          )}
+          ) : null}
+        </div>
+        <div>
+          <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-market-type">Market Type</label>
+          <select
+            id="reference-market-type"
+            className="pm-reason-choice"
+            value={marketType}
+            onChange={(event) => setMarketType(event.target.value)}
+            required
+          >
+            <option value="retail">Retail</option>
+            <option value="wholesale">Wholesale</option>
+          </select>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -116,13 +154,19 @@ export default function AddReferencePriceModal({
           </div>
           <div>
             <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-unit">Registered commodity unit</label>
-            <Input
+            <select
               id="reference-unit"
+              className="pm-reason-choice"
               value={unit}
               aria-label="Reference price unit"
+              onChange={(event) => setUnit(event.target.value)}
+              disabled={saving}
               required
-              readOnly
-            />
+            >
+              {unitOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -139,14 +183,25 @@ export default function AddReferencePriceModal({
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-support">Supporting reference <span className="text-[var(--muted)]">(optional)</span></label>
-          <Input id="reference-support" value={supportingReference} onChange={(event) => setSupportingReference(event.target.value)} maxLength={500} placeholder="Survey date, location, or source details" />
+          <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-support">
+            Supporting reference <span className="text-[var(--red-700)]">*</span>
+          </label>
+          <Input
+            id="reference-support"
+            value={supportingReference}
+            onChange={(event) => setSupportingReference(event.target.value)}
+            maxLength={500}
+            required
+            placeholder="Market location, source agency, and survey date (e.g. Carbon Public Market, Cebu City)"
+          />
         </div>
         <div>
-          <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-reason">Explanation</label>
+          <label className="mb-1 block text-[13px] font-medium" htmlFor="reference-reason">
+            Explanation <span className="text-[var(--red-700)]">*</span>
+          </label>
           <textarea id="reference-reason" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} maxLength={500} required className="w-full rounded-md border border-[var(--line)] bg-[var(--input-bg)] px-3 py-2 text-[13px] text-[var(--text)]" />
         </div>
-        <p className="text-[12px] text-[var(--muted)]">This reference guides farmer recommendations; it does not change existing listing prices or set a government price ceiling.</p>
+        <p className="text-[12px] text-[var(--muted)]">This reference guides farmer recommendations; it does not change existing listing prices.</p>
         <div className="flex justify-end gap-2 border-t border-[var(--line)] pt-4">
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={saving || !rows.length}>{saving ? 'Saving…' : 'Save reference price'}</Button>

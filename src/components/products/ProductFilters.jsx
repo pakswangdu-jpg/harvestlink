@@ -4,8 +4,15 @@ import { ListFilter, Search } from 'lucide-react';
 
 
 
+const SALES_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Products' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'wholesale', label: 'Wholesale' },
+];
+
 export default function ProductFilters({
-  search, onSearchChange, statusFilter, onStatusFilterChange, statusTabs,
+  search, onSearchChange, salesTypeFilter = 'all', onSalesTypeFilterChange,
+  statusFilter, onStatusFilterChange, statusTabs,
 }) {
   return (
     <div className="product-filters">
@@ -19,6 +26,21 @@ export default function ProductFilters({
             placeholder="Search your products..."
           />
         </label>
+
+        {onSalesTypeFilterChange ? (
+          <label className="product-filter-select product-sales-type-select" htmlFor="product-sales-type">
+            <select
+              id="product-sales-type"
+              aria-label="Filter by sales type"
+              value={salesTypeFilter}
+              onChange={(event) => onSalesTypeFilterChange(event.target.value)}
+            >
+              {SALES_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <label className="product-filter-select product-status-select" htmlFor="product-status">
           <ListFilter size={16} aria-hidden="true" />

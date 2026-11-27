@@ -1,6 +1,8 @@
 import { TriangleAlert } from 'lucide-react';
+import Button from '../common/Button';
 import { formatCurrency } from '../../utils/formatters';
 import WholesalePriceRecommendation from './WholesalePriceRecommendation';
+import { calculateWholesalePricing } from '../../../backend/shared/pricing.js';
 
 function Row({ label, value, emphasize }) {
   return (
@@ -11,15 +13,11 @@ function Row({ label, value, emphasize }) {
   );
 }
 
-
-
-
-
-
-
 export default function CostBasedEstimateCard({
   costPrice, unit, markupPercent, onMarkupChange, isImplausible, costPerKg,
   wholesaleEnabled, availableQuantity, onUseWholesalePrice,
+  sellingType = 'retail', moq = '', handlingCostPerOrder = '', targetProfitMargin = '',
+  currentPrice = '', onUsePrice,
 }) {
   if (isImplausible) {
     return (
@@ -29,6 +27,73 @@ export default function CostBasedEstimateCard({
           {costPerKg != null ? `≈ ${formatCurrency(costPerKg)}/kg. ` : ''}
           Double-check it — an unrealistic cost like this will block saving this listing until it&apos;s corrected.
         </p>
+      </div>
+    );
+  }
+
+  if (sellingType === 'wholesale') {
+    const wholesale = calculateWholesalePricing({
+      productionCost: costPrice,
+      handlingCostPerOrder,
+      moq,
+      availableQuantity,
+      targetProfitMargin,
+      sellingPrice: currentPrice,
+      unit,
+    });
+
+    return (
+      <div className="price-analysis-card tone-cost">
+        <p className="price-analysis-card-title">Cost-Based Wholesale Price Estimate</p>
+        <p className="price-analysis-card-desc">
+          No verified wholesale market data exists for this product — this estimate is calculated from your production cost, handling cost per order, MOQ, and target profit margin.
+        </p>
+
+        <div className="price-breakdown">
+          <Row label="Production cost per unit" value={`${formatCurrency(costPrice)}/${unit}`} />
+          {wholesale.moqExceedsStock ? (
+            <p className="price-analysis-warning-note">
+              MOQ ({wholesale.moq} {unit}) exceeds available stock ({availableQuantity} {unit}). Adjust MOQ or stock to calculate wholesale pricing.
+            </p>
+          ) : null}
+          {wholesale.handlingCostPerUnit != null ? (
+            <Row label={`Handling cost per ${unit}`} value={`${formatCurrency(wholesale.handlingCostPerUnit)}/${unit}`} />
+          ) : null}
+          {wholesale.totalCostPerUnit != null ? (
+            <Row label={`Total cost per ${unit} (break-even)`} value={`${formatCurrency(wholesale.totalCostPerUnit)}/${unit}`} />
+          ) : null}
+          {wholesale.recommendedCostBasedPrice != null ? (
+            <>
+              <Row label="Recommended wholesale price" value={`${formatCurrency(wholesale.recommendedCostBasedPrice)}/${unit}`} emphasize />
+              {wholesale.minimumOrderTotal != null ? (
+                <Row label={`Minimum order total (${wholesale.moq} ${unit} MOQ)`} value={formatCurrency(wholesale.minimumOrderTotal)} />
+              ) : null}
+              {wholesale.totalExpenses != null ? (
+                <Row label={`Total expenses (${wholesale.moq} ${unit} MOQ)`} value={formatCurrency(wholesale.totalExpenses)} />
+              ) : null}
+              {wholesale.estimatedGrossProfit != null ? (
+                <Row label={`Estimated gross profit (${wholesale.moq} ${unit} MOQ)`} value={formatCurrency(wholesale.estimatedGrossProfit)} emphasize />
+              ) : null}
+              {wholesale.estimatedStockValue != null ? (
+                <Row label={`Estimated stock value (${wholesale.availableQuantity} ${unit})`} value={formatCurrency(wholesale.estimatedStockValue)} />
+              ) : null}
+              {onUsePrice ? (
+                <Button type="button" size="sm" variant="secondary" onClick={() => onUsePrice(wholesale.recommendedCostBasedPrice)}>
+                  Use recommended wholesale price
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <p className="price-analysis-prompt">
+              Enter MOQ and target profit margin (0%–99.9%) to calculate a cost-based wholesale price.
+            </p>
+          )}
+          {wholesale.isEnteredPriceBelowBreakEven ? (
+            <p className="price-analysis-warning-note">
+              Warning: Your entered selling price ({formatCurrency(Number(currentPrice))}/{unit}) is below your calculated break-even cost ({formatCurrency(wholesale.breakEvenCost)}/{unit}).
+            </p>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -80,9 +145,6 @@ export default function CostBasedEstimateCard({
         ) : null}
       </div>
 
-      {
-
-                                                                                      }
       <p className="price-analysis-disclaimer">
         This estimate is calculated only from your production cost because no verified market data exists.
       </p>

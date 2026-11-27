@@ -28,7 +28,10 @@ export async function findCommodityById(commodityId) {
   };
 }
 
-export async function resolveEffectiveReference(commodityId) {
+export async function resolveEffectiveReference(commodityId, { marketType = 'retail' } = {}) {
+  const normalizedMarketType = String(marketType || 'retail').trim().toLowerCase() === 'wholesale'
+    ? 'wholesale'
+    : 'retail';
   const commodity = await findCommodityById(commodityId);
   if (commodity.isActive === false) return { commodity, reference: null };
   const dateParts = new Intl.DateTimeFormat('en-CA', {
@@ -45,7 +48,14 @@ export async function resolveEffectiveReference(commodityId) {
     .eq('commodity_id', commodityId)
     .eq('is_active', true);
   if (error) throw new ApiError(error.message, 400);
-  const override = (overrideRows || []).find((row) => !row.effective_date || row.effective_date <= today);
+
+  const effectiveRows = (overrideRows || []).filter((row) => !row.effective_date || row.effective_date <= today);
+
+  // Never substitute a retail reference (or PSA reference) for wholesale.
+  const override = normalizedMarketType === 'wholesale'
+    ? effectiveRows.find((row) => row.market_type === 'wholesale')
+    : (effectiveRows.find((row) => row.market_type === 'retail')
+      || effectiveRows.find((row) => row.market_type == null));
 
   if (override) {
     return {
@@ -53,12 +63,17 @@ export async function resolveEffectiveReference(commodityId) {
       reference: {
         price: Number(override.reference_price),
         unit: override.unit || 'kg',
+        marketType: override.market_type || null,
         source: override.source || 'admin_entered',
         effectiveDate: override.effective_date,
         year: override.reference_year,
         supportingReference: override.supporting_reference || null,
       },
     };
+  }
+
+  if (normalizedMarketType === 'wholesale') {
+    return { commodity, reference: null };
   }
 
   if (commodity.isCustom) return { commodity, reference: null };
@@ -69,6 +84,7 @@ export async function resolveEffectiveReference(commodityId) {
     reference: latest ? {
       price: Number(latest.price),
       unit: 'kg',
+      marketType: 'retail',
       source: 'psa',
       effectiveDate: `${latest.year}-01-01`,
       year: latest.year,
@@ -97,10 +113,12 @@ async function findProductCommodity(name) {
   return null;
 }
 
-export async function getServerPriceReviewReference(name, unit, kgPerUnit) {
+export async function getServerPriceReviewReference(name, unit, kgPerUnit, { sellingType = 'retail' } = {}) {
   const commodityId = await findProductCommodity(name);
   if (!commodityId) return null;
-  const { commodity, reference } = await resolveEffectiveReference(commodityId);
+  const { commodity, reference } = await resolveEffectiveReference(commodityId, {
+    marketType: sellingType === 'wholesale' ? 'wholesale' : 'retail',
+  });
   if (!reference) return null;
 
   let referencePrice = reference.price;

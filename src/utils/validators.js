@@ -262,7 +262,13 @@ export function validateCheckoutForm(values, product, currentUser) {
   }
 
   if (!required(values.paymentMethod)) errors.paymentMethod = 'Choose a payment method.';
-  if (!required(values.deliveryMethod)) errors.deliveryMethod = 'Choose a delivery method.';
+  if (product?.sellingType === 'wholesale') {
+    if (!required(values.deliveryAddress)) errors.deliveryAddress = 'Enter your delivery address.';
+  } else if (!required(values.deliveryMethod)) {
+    errors.deliveryMethod = 'Choose a delivery method.';
+  } else if (values.deliveryMethod === 'courier' && !required(values.deliveryAddress)) {
+    errors.deliveryAddress = 'Enter your delivery address for Lalamove delivery.';
+  }
   if (product && currentUser && product.farmerId === currentUser.id) {
     errors.form = 'You cannot request your own product.';
   }

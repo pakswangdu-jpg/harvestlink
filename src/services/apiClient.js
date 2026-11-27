@@ -99,6 +99,8 @@ async function sendRequest(path, { method, body }, session, cacheKey, requestGen
     if (!response.ok) {
       const error = new Error(payload?.message || payload?.error || `Request failed with status ${response.status}`);
       error.status = response.status;
+      if (payload?.title) error.title = payload.title;
+      if (payload?.existingProductId) error.existingProductId = payload.existingProductId;
       const retryAfterHeader = response.headers.get('Retry-After');
       const retryAfterSeconds = Number(retryAfterHeader);
       if (response.status === 429 && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {

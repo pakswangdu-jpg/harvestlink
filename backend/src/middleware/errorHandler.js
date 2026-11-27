@@ -28,6 +28,8 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line no-un
   if (status >= 500) console.error(err);
   res.status(status).json({
     ...(err.code ? { code: err.code } : {}),
+    ...(err.title ? { title: err.title } : {}),
+    ...(err.existingProductId ? { existingProductId: err.existingProductId } : {}),
     error: err.message || 'Something went wrong.',
   });
 }

@@ -10,7 +10,11 @@ const MIN_HISTORICAL_POINTS = 3;
 
 function formatVolume(value) {
   if (value == null) return '—';
-  return Number(value).toLocaleString('en-PH', { maximumFractionDigits: 1 });
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '—';
+  if (num === 0) return '0';
+  if (Math.abs(num) < 1) return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return num.toLocaleString('en-PH', { maximumFractionDigits: 1 });
 }
 
 function formatAxisDate(dateIso, todayIso) {
@@ -27,9 +31,9 @@ function TodayDot({ cx, cy }) {
   return <circle cx={cx} cy={cy} r={4} fill="var(--amber-700)" stroke="var(--panel)" strokeWidth={2} />;
 }
 
-function EmptyHistoryState() {
+function EmptyHistoryState({ height = CHART_HEIGHT }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center" style={{ height: CHART_HEIGHT }}>
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center" style={{ height }}>
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--text-faint)]">
         <Activity size={26} strokeWidth={1.5} />
       </span>
@@ -49,7 +53,7 @@ function EmptyHistoryState() {
 
 
 
-export default function DemandChart({ historicalChart, forecastCurve, unit = 'unit' }) {
+export default function DemandChart({ historicalChart, forecastCurve, unit = 'unit', height = CHART_HEIGHT }) {
   const todayIso = forecastCurve?.[0]?.date || null;
 
 
@@ -89,31 +93,32 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
   }, [historicalChart, forecastCurve]);
 
   const showEmptyState = (historicalChart?.length || 0) < MIN_HISTORICAL_POINTS && !hasForecastTrend;
-  if (showEmptyState) return <EmptyHistoryState />;
+  if (showEmptyState) return <EmptyHistoryState height={height} />;
 
   const todayRow = data.find((row) => row.date === todayIso);
   const todayValue = todayRow?.forecastVolume ?? todayRow?.historicalVolume ?? null;
 
   return (
-    <div style={{ height: CHART_HEIGHT }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" />
+        <ComposedChart data={data} margin={{ top: 24, right: 16, left: 2, bottom: 2 }}>
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={{ stroke: 'var(--line)' }}
             tickLine={false}
             tickFormatter={(value) => formatAxisDate(value, todayIso)}
-            minTickGap={20}
+            minTickGap={22}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
-            width={48}
+            width={44}
+            tickCount={4}
             tickFormatter={formatVolume}
-            domain={['auto', 'auto']}
+            domain={[0, 'auto']}
           />
           <Tooltip content={<ForecastTooltip data={data} mode="demand" unit={unit} todayIso={todayIso} />} />
 
@@ -171,7 +176,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
               strokeWidth={1}
               label={{
                 value: todayValue != null ? `Today · ${formatVolume(todayValue)} ${unit}/day` : 'Today',
-                position: 'insideTopRight',
+                position: 'top',
                 fontSize: 11,
                 fontWeight: 600,
                 fill: 'var(--muted)',

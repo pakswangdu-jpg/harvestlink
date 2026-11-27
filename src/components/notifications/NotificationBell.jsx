@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Gift, MapPin, MessageCircle, Package, ShieldCheck, TrendingUp, Wallet, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useOptionalToast } from '../../contexts/ToastContext';
 import {
   deleteNotification,
   getNotificationsForUser,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../services/notificationService';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushSubscriptionStatus,
+  sendTestPushNotification,
+} from '../../services/pushNotificationService';
 import { useNotificationsRealtime } from '../../hooks/useNotificationsRealtime';
 import { formatRelativeTime } from '../../utils/formatters';
 import { playNotificationSound } from '../../utils/notificationSound';
@@ -24,32 +31,132 @@ const TYPE_ICONS = {
 };
 
 export default function NotificationBell({ userId }) {
+  const navigate = useNavigate();
+  const { showToast } = useOptionalToast();
   const wrapperRef = useRef(null);
+  const seenNotificationIdsRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [pushStatus, setPushStatus] = useState({ supported: true, permission: 'default', subscribed: false });
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNotice, setPushNotice] = useState('');
 
-  const refresh = () => getNotificationsForUser(userId).then(setNotifications);
+  const showNotificationPopup = (notification) => {
+    if (!notification?.id) return;
+    if (!seenNotificationIdsRef.current) seenNotificationIdsRef.current = new Set();
+    if (seenNotificationIdsRef.current.has(notification.id)) return;
+    seenNotificationIdsRef.current.add(notification.id);
+
+    const title = notificationTitle(notification);
+    const message = notificationMessage(notification);
+    const isDeliveryPriceAlert = /delivery arrangement|exact amount/i.test(`${title} ${message}`);
+    showToast({
+      type: 'info',
+      title,
+      message,
+      duration: isDeliveryPriceAlert ? 7000 : 4500,
+      ...(notification.link ? {
+        actionLabel: 'View',
+        onAction: () => navigate(notification.link),
+      } : {}),
+    });
+  };
+
+  const refresh = () => getNotificationsForUser(userId).then((items) => {
+    setNotifications(items);
+    if (seenNotificationIdsRef.current === null) {
+      seenNotificationIdsRef.current = new Set(items.map((item) => item.id));
+      return;
+    }
+    const newlyArrived = items.filter((item) => !item.read && !seenNotificationIdsRef.current.has(item.id));
+    if (newlyArrived.length) {
+      newlyArrived.slice(0, 2).forEach((item) => {
+        showNotificationPopup(item);
+      });
+    }
+  });
 
   useEffect(() => {
     refresh();
-
-
 
     const interval = setInterval(refresh, 4000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-
-
+  useEffect(() => {
+    let cancelled = false;
+    getPushSubscriptionStatus(userId).then((status) => {
+      if (!cancelled) setPushStatus(status);
+    });
+    return () => { cancelled = true; };
+  }, [userId, isOpen]);
 
   useNotificationsRealtime(userId, (notification) => {
     setNotifications((previous) => (
       previous.some((existing) => existing.id === notification.id) ? previous : [notification, ...previous]
     ));
+    showNotificationPopup(notification);
     playNotificationSound();
-    if (areBrowserNotificationsEnabled(userId)) showBrowserNotification(notification);
+    // Avoid duplicating OS notifications when Web Push is already active on this device.
+    if (!pushStatus.subscribed && areBrowserNotificationsEnabled(userId)) {
+      showBrowserNotification(notification);
+    }
   });
+
+  const handleEnablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushNotice('');
+    try {
+      const result = await enablePushNotifications(userId);
+      const next = await getPushSubscriptionStatus(userId);
+      setPushStatus(next);
+      if (result.enabled) {
+        setPushNotice('Push notifications enabled on this device.');
+      } else if (result.permission === 'denied') {
+        setPushNotice('Notifications are blocked in your browser settings.');
+      }
+    } catch (error) {
+      setPushNotice(error.message || 'Unable to enable push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisablePush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushNotice('');
+    try {
+      await disablePushNotifications();
+      const next = await getPushSubscriptionStatus(userId);
+      setPushStatus(next);
+      setPushNotice('Push notifications disabled on this device.');
+    } catch (error) {
+      setPushNotice(error.message || 'Unable to disable push notifications.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    if (pushBusy) return;
+    setPushBusy(true);
+    setPushNotice('');
+    try {
+      const result = await sendTestPushNotification();
+      setPushNotice(
+        result.sent > 0
+          ? `Test notification sent to ${result.sent} device${result.sent === 1 ? '' : 's'}.`
+          : 'No active device accepted the test notification.',
+      );
+    } catch (error) {
+      setPushNotice(error.message || 'Unable to send test notification.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -105,6 +212,48 @@ export default function NotificationBell({ userId }) {
                 Mark all read
               </button>
             ) : null}
+          </div>
+          <div className="notification-push-bar">
+            {!pushStatus.supported ? (
+              <span className="notification-push-note">Push notifications are not supported in this browser.</span>
+            ) : pushStatus.permission === 'denied' ? (
+              <span className="notification-push-note">Browser notifications are blocked in site settings.</span>
+            ) : pushStatus.subscribed ? (
+              <div className="notification-push-row">
+                <span className="notification-push-status">Push notifications on</span>
+                <div className="notification-push-actions">
+                  <button
+                    type="button"
+                    className="notification-push-btn"
+                    onClick={handleSendTestPush}
+                    disabled={pushBusy}
+                  >
+                    {pushBusy ? 'Sending…' : 'Send test'}
+                  </button>
+                  <button
+                    type="button"
+                    className="notification-push-link"
+                    onClick={handleDisablePush}
+                    disabled={pushBusy}
+                  >
+                    Disable
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="notification-push-row">
+                <span className="notification-push-note">Get alerts even when this tab is closed.</span>
+                <button
+                  type="button"
+                  className="notification-push-btn"
+                  onClick={handleEnablePush}
+                  disabled={pushBusy}
+                >
+                  {pushBusy ? 'Enabling…' : 'Enable Push Notifications'}
+                </button>
+              </div>
+            )}
+            {pushNotice ? <p className="notification-push-feedback">{pushNotice}</p> : null}
           </div>
           {notifications.length ? (
             <ul className="notification-list">

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
-  CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import AppShell from '../../components/layout/AppShell';
 import PageHeader from '../../components/admin/PageHeader';
@@ -66,11 +66,38 @@ function mergeSeries(history, forecast, valueKey, forecastKey) {
     row.forecast = Number(point[forecastKey]);
     points.set(point.date, row);
   });
-  return [...points.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...points.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+  // Connect the last historical point seamlessly into the first forecast point.
+  let lastHistoryIdx = -1;
+  let firstForecastIdx = -1;
+  sorted.forEach((row, idx) => {
+    if (row.history != null) lastHistoryIdx = idx;
+    if (firstForecastIdx === -1 && row.forecast != null) firstForecastIdx = idx;
+  });
+  if (lastHistoryIdx !== -1 && firstForecastIdx !== -1 && lastHistoryIdx < firstForecastIdx) {
+    sorted[lastHistoryIdx] = {
+      ...sorted[lastHistoryIdx],
+      forecast: sorted[lastHistoryIdx].history,
+      isBridge: true,
+    };
+  }
+  return sorted;
+}
+
+function formatDemandTick(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '';
+  if (num === 0) return '0';
+  if (Math.abs(num) < 1) return num.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return num.toFixed(1).replace(/\.0$/, '');
 }
 
 function ForecastLineChart({ title, description, data, unit, listingUnit, historyLabel, forecastLabel }) {
-  const forecastStart = data.find((point) => point.forecast != null)?.date;
+  const gradientId = useId().replace(/:/g, '');
+  const forecastStartRow = data.find((point) => point.forecast != null && !point.isBridge);
+  const forecastStart = forecastStartRow?.date;
+  const forecastStartVal = forecastStartRow?.forecast;
   return (
     <section className="admin-forecast-chart" aria-label={title}>
       <div className="admin-forecast-chart-heading">
@@ -88,7 +115,17 @@ function ForecastLineChart({ title, description, data, unit, listingUnit, histor
           </div>
           <div className="admin-forecast-chart-plot">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 4 }}>
+              <ComposedChart data={data} margin={{ top: 18, right: 16, bottom: 8, left: 4 }}>
+                <defs>
+                  <linearGradient id={`hist-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--blue-700)" stopOpacity={0.18} />
+                    <stop offset="100%" stopColor="var(--blue-700)" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id={`fcst-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--green-700)" stopOpacity={0.16} />
+                    <stop offset="100%" stopColor="var(--green-700)" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="date"
@@ -98,24 +135,85 @@ function ForecastLineChart({ title, description, data, unit, listingUnit, histor
                   axisLine={{ stroke: 'var(--line)' }}
                   minTickGap={28}
                   interval="preserveStartEnd"
-                  height={34}
+                  height={32}
                 />
                 <YAxis
                   tick={{ fill: 'var(--muted)', fontSize: 11 }}
-                  tickFormatter={(value) => unit === 'price' ? `₱${Number(value).toFixed(0)}` : Number(value).toFixed(1).replace(/\.0$/, '')}
+                  tickFormatter={(value) => (unit === 'price' ? `₱${Math.round(Number(value))}` : formatDemandTick(value))}
                   tickLine={false}
                   axisLine={false}
-                  width={64}
+                  tickCount={5}
+                  domain={unit === 'demand' ? [0, 'auto'] : ['auto', 'auto']}
+                  width={56}
                 />
                 <Tooltip
-                  formatter={(value) => [unit === 'price' ? formatCurrency(value) : value, undefined]}
+                  formatter={(value, name, item) => {
+                    if (item?.payload?.isBridge && item?.dataKey === 'forecast') return null;
+                    return [unit === 'price' ? formatCurrency(value) : formatDemandTick(value), name];
+                  }}
                   labelFormatter={(value) => formatDate(`${value}T00:00:00`)}
-                  contentStyle={{ background: 'var(--panel)', borderColor: 'var(--line)', borderRadius: 6 }}
+                  contentStyle={{
+                    background: 'var(--panel)',
+                    borderColor: 'var(--line)',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)',
+                  }}
                 />
-                {forecastStart ? <ReferenceLine x={forecastStart} stroke="var(--muted)" strokeDasharray="3 3" /> : null}
-                <Line type="monotone" dataKey="history" name={historyLabel} stroke="var(--blue-700)" strokeWidth={2} dot={{ r: 2, fill: 'var(--blue-700)' }} activeDot={{ r: 4 }} connectNulls={false} />
-                <Line type="monotone" dataKey="forecast" name={forecastLabel} stroke="var(--green-700)" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls={false} />
-              </LineChart>
+                {forecastStart ? (
+                  <ReferenceLine
+                    x={forecastStart}
+                    stroke="var(--muted)"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: 'Forecast start',
+                      position: 'top',
+                      fill: 'var(--muted)',
+                      fontSize: 10.5,
+                    }}
+                  />
+                ) : null}
+                <Area
+                  type="monotone"
+                  dataKey="history"
+                  stroke="none"
+                  fill={`url(#hist-${gradientId})`}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="forecast"
+                  stroke="none"
+                  fill={`url(#fcst-${gradientId})`}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="history"
+                  name={historyLabel}
+                  stroke="var(--blue-700)"
+                  strokeWidth={2.25}
+                  dot={{ r: 3, fill: 'var(--blue-700)', stroke: 'var(--panel)', strokeWidth: 1.5 }}
+                  activeDot={{ r: 5 }}
+                  connectNulls={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="forecast"
+                  name={forecastLabel}
+                  stroke="var(--green-700)"
+                  strokeWidth={2.25}
+                  strokeDasharray="5 4"
+                  dot={false}
+                  activeDot={{ r: 4.5, fill: 'var(--green-700)', stroke: 'var(--panel)', strokeWidth: 1.5 }}
+                  connectNulls={false}
+                />
+                {forecastStart && forecastStartVal != null ? (
+                  <ReferenceDot x={forecastStart} y={forecastStartVal} r={4} fill="var(--green-700)" stroke="var(--panel)" strokeWidth={2} />
+                ) : null}
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </>

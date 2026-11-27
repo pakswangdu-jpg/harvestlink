@@ -10,6 +10,21 @@ import { buildCheckoutQuote } from '../lib/checkoutQuote.js';
 import { queryAdminOrders } from '../lib/adminOrderQuery.js';
 import { loadOrderReceipt } from '../lib/orderReceipt.js';
 import { normalizeManualLalamoveTrackingUrl, validateManualLalamoveFee, MAX_MANUAL_LALAMOVE_FEE } from '../../shared/lalamove.js';
+import {
+  EXPIRED_PRODUCT_ERROR_CODE,
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  isProductExpired,
+} from '../../shared/expiration.js';
+import {
+  WHOLESALE_DELIVERY_METHOD,
+  WHOLESALE_DELIVERY_METHOD_LABELS,
+  getWholesaleNextDeliveryStatus,
+  isRetailLalamoveOrder,
+  isWholesaleOrder,
+  usesSharedArrangedDelivery,
+  validateWholesaleArrangementInput,
+} from '../../shared/wholesaleDelivery.js';
 
 async function transitionOrder(actor, orderId, action, reason) {
   const { data, error } = await supabaseAdmin.rpc('transition_marketplace_order', {
@@ -32,6 +47,10 @@ export async function getCheckoutQuote(req, res) {
     ...req.body,
     deliveryMunicipality: req.profile.municipality || req.body.deliveryMunicipality,
   });
+  if (product.selling_type === 'wholesale') {
+    res.json({ ...quote, total: null, requiresFarmerArrangement: true });
+    return;
+  }
   res.json(req.body.deliveryMethod === 'courier' ? { ...quote, total: null, requiresDeliveryQuote: true } : quote);
 }
 
@@ -238,6 +257,14 @@ export async function createOrder(req, res) {
     .single();
   if (productError || !product) throw new ApiError('Product was not found.', 404);
   if (product.farmer_id === req.profile.id) throw new ApiError('You cannot order your own product.', 400);
+  if (isProductExpired(product.expiration_date)) {
+    throw new ApiError(
+      EXPIRED_PRODUCT_ERROR_MESSAGE,
+      400,
+      EXPIRED_PRODUCT_ERROR_CODE,
+      EXPIRED_PRODUCT_ERROR_TITLE,
+    );
+  }
   if (Number(product.quantity) <= 0) {
     throw new ApiError(
       'Sorry, this product is no longer available. Another buyer has already reserved the remaining stock.',
@@ -276,7 +303,27 @@ export async function createOrder(req, res) {
     throw new ApiError('This farmer has not finished setting up GCash payments. Please choose COD.', 400);
   }
 
-  const quote = await buildCheckoutQuote(product, values);
+  const isWholesaleListing = product.selling_type === 'wholesale';
+  const resolvedDeliveryMethod = isWholesaleListing ? WHOLESALE_DELIVERY_METHOD : values.deliveryMethod;
+  const isRetailLalamove = !isWholesaleListing && resolvedDeliveryMethod === 'courier';
+  const usesArrangedFlow = isWholesaleListing || isRetailLalamove;
+  const rawDeliveryAddress = values.deliveryAddress !== undefined
+    ? String(values.deliveryAddress || '').trim()
+    : String(req.profile.address || values.deliveryMunicipality || '').trim();
+  if (usesArrangedFlow && values.deliveryAddress !== undefined && !rawDeliveryAddress) {
+    throw new ApiError(
+      isWholesaleListing
+        ? 'Enter your delivery address for this wholesale order.'
+        : 'Enter your delivery address for Lalamove delivery.',
+      400,
+    );
+  }
+  const deliveryAddress = usesArrangedFlow ? (rawDeliveryAddress || null) : null;
+
+  const quote = await buildCheckoutQuote(product, {
+    ...values,
+    deliveryMethod: resolvedDeliveryMethod,
+  });
   const { originMunicipality, deliveryMunicipality, unitPrice } = quote;
   if (values.expectedTotal !== undefined && (!Number.isFinite(Number(values.expectedTotal)) || Math.abs(Number(values.expectedTotal) - quote.total) > 0.001)) {
     throw new ApiError('The price or delivery fee changed. Refresh the order summary and review the updated total before placing your order.', 409);
@@ -310,14 +357,18 @@ export async function createOrder(req, res) {
     buyer_name: req.profile.name,
     buyer_avatar_url: req.profile.avatar_url || null,
     quantity,
-    delivery_fee: deliveryFee,
+    delivery_fee: usesArrangedFlow ? 0 : deliveryFee,
 
 
 
-    delivery_distance_km: deliveryDistanceKm,
-    delivery_duration_minutes: deliveryDurationMinutes,
-    delivery_fee_tier: deliveryFeeTier,
-    total_amount: quote.total,
+    delivery_distance_km: usesArrangedFlow ? null : deliveryDistanceKm,
+    delivery_duration_minutes: usesArrangedFlow ? null : deliveryDurationMinutes,
+    delivery_fee_tier: isWholesaleListing
+      ? 'Farmer-arranged'
+      : isRetailLalamove
+        ? 'Lalamove (Pending farmer confirmation)'
+        : deliveryFeeTier,
+    total_amount: usesArrangedFlow ? quote.subtotal : quote.total,
     ...(checkoutKey ? { checkout_key: checkoutKey, checkout_fingerprint: fingerprint } : {}),
     product_id_snapshot: product.id,
     message: values.message?.trim() || '',
@@ -326,8 +377,11 @@ export async function createOrder(req, res) {
 
 
     payment_status: 'pending',
-    delivery_method: values.deliveryMethod,
+    delivery_method: resolvedDeliveryMethod,
     delivery_status: 'pending',
+    selling_type: isWholesaleListing ? 'wholesale' : 'retail',
+    delivery_arrangement_status: usesArrangedFlow ? 'pending_farmer' : null,
+    delivery_address: deliveryAddress,
     origin_municipality: originMunicipality,
     delivery_municipality: deliveryMunicipality,
     status: 'pending',
@@ -338,7 +392,7 @@ export async function createOrder(req, res) {
   let order;
   let error;
   if (typeof supabaseAdmin.rpc === 'function') {
-    ({ data: order, error } = await supabaseAdmin.rpc(values.deliveryMethod === 'courier' ? 'create_lalamove_quote_order' : 'create_marketplace_order', {
+    ({ data: order, error } = await supabaseAdmin.rpc('create_marketplace_order', {
       p_actor: req.profile.id,
       p_order: row,
     }));
@@ -386,8 +440,16 @@ export async function createOrder(req, res) {
   await createNotification({
     userId: order.farmer_id,
     type: 'order',
-    title: 'New order received',
-    message: `${order.buyer_name} ordered ${order.quantity} ${order.unit} of ${order.product_name}.`,
+    title: isWholesaleListing
+      ? 'New wholesale order'
+      : isRetailLalamove
+        ? 'New Lalamove order'
+        : 'New order received',
+    message: isWholesaleListing
+      ? `${order.buyer_name} placed a wholesale order for ${order.quantity} ${order.unit} of ${order.product_name}. Please review and arrange delivery.`
+      : isRetailLalamove
+        ? `${order.buyer_name} placed a Lalamove order for ${order.quantity} ${order.unit} of ${order.product_name}. Please review and arrange delivery.`
+        : `${order.buyer_name} ordered ${order.quantity} ${order.unit} of ${order.product_name}.`,
     link: `/orders/${order.id}`,
   });
 
@@ -404,6 +466,11 @@ export async function updateOrderStatus(req, res) {
 
   const { status } = req.body;
   if (!['confirmed', 'rejected'].includes(status)) throw new ApiError('Invalid order status.', 400);
+  if (status === 'confirmed' && usesSharedArrangedDelivery(existing)) {
+    if (existing.delivery_arrangement_status !== 'confirmed') {
+      throw new ApiError('The buyer must confirm the delivery arrangement and final total before you confirm this order.', 409);
+    }
+  }
   if (status === 'confirmed' && existing.lalamove_quote_status) {
     if (existing.lalamove_quote_status !== 'accepted') throw new ApiError('The recipient must accept the Lalamove total first.', 409);
     if (existing.payment_method === 'gcash' && existing.payment_status !== 'paid') throw new ApiError('Verify GCash payment before confirming this order.', 409);
@@ -411,22 +478,31 @@ export async function updateOrderStatus(req, res) {
 
   const order = await transitionOrder(req.profile.id, existing.id, status, req.body.reason);
 
+  if (status === 'confirmed' && usesSharedArrangedDelivery(order)) {
+    await supabaseAdmin.from('order_delivery_events').insert({
+      order_id: order.id,
+      status: 'confirmed',
+      title: 'Order Confirmed',
+      description: 'The farmer has confirmed your order and delivery arrangements.',
+      source: 'farmer',
+    });
+  }
+
   await createNotification({
     userId: order.buyer_id,
     type: 'order',
     title: status === 'confirmed' ? 'Order confirmed' : 'Order rejected',
     message: status === 'confirmed'
-      ? `${order.farmer_name} confirmed your order for ${order.product_name}.`
+      ? (isWholesaleOrder(order)
+        ? `${order.farmer_name} confirmed your wholesale order and delivery arrangements for ${order.product_name}.`
+        : isRetailLalamoveOrder(order)
+          ? `${order.farmer_name} confirmed your Lalamove order and delivery arrangements for ${order.product_name}.`
+          : `${order.farmer_name} confirmed your order for ${order.product_name}.`)
       : `${order.farmer_name} rejected your order for ${order.product_name}.${order.rejection_reason ? ` Reason: ${order.rejection_reason}` : ''}`,
     link: `/orders/${order.id}`,
   });
 
-
-
-
-
-
-  if (status === 'confirmed' && order.delivery_method === 'courier') {
+  if (status === 'confirmed' && order.delivery_method === 'courier' && !usesSharedArrangedDelivery(order)) {
     await createNotification({
       userId: order.farmer_id,
       type: 'order',
@@ -604,6 +680,354 @@ export async function advanceDelivery(req, res) {
 
 
 
+
+export async function arrangeWholesaleDelivery(req, res) {
+  const existing = await fetchOrderOr404(req.params.id);
+  if (req.profile.role !== 'farmer' || req.profile.id !== existing.farmer_id) {
+    throw new ApiError('Only the owning farmer can arrange delivery for this order.', 403);
+  }
+  if (!usesSharedArrangedDelivery(existing)) {
+    throw new ApiError('Farmer-arranged delivery is only available for wholesale orders and retail Lalamove orders.', 400);
+  }
+  if (existing.status !== 'pending') {
+    throw new ApiError('Delivery arrangements can only be updated before the order is confirmed.', 409);
+  }
+
+  const isRetailLalamove = isRetailLalamoveOrder(existing);
+  const input = {
+    deliveryMethod: isRetailLalamove ? 'courier' : req.body?.deliveryMethod,
+    deliveryFee: req.body?.deliveryFee,
+    estimatedPickupTime: req.body?.estimatedPickupTime,
+    estimatedDeliveryAt: req.body?.estimatedDeliveryAt,
+    bookingReference: req.body?.bookingReference,
+    vehiclePlateNumber: req.body?.vehiclePlateNumber,
+    deliveryInstructions: req.body?.deliveryInstructions,
+  };
+  if (isRetailLalamove && req.body?.deliveryMethod && req.body.deliveryMethod !== 'courier') {
+    throw new ApiError('Retail Lalamove orders must use Lalamove delivery.', 400);
+  }
+  const validationErrors = validateWholesaleArrangementInput(input);
+  const firstError = Object.values(validationErrors)[0];
+  if (firstError) throw new ApiError(firstError, 400);
+
+  const fee = Number(input.deliveryFee);
+  const estimatedDeliveryIso = input.estimatedDeliveryAt
+    ? new Date(input.estimatedDeliveryAt).toISOString()
+    : null;
+  const normalizedPlate = input.deliveryMethod !== 'buyer_pickup' && String(input.vehiclePlateNumber || '').trim()
+    ? String(input.vehiclePlateNumber).trim().toUpperCase()
+    : null;
+  const subtotal = Math.round((Number(existing.unit_price) * Number(existing.quantity) + Number.EPSILON) * 100) / 100;
+  const revisedTotal = Math.round((subtotal + fee + Number.EPSILON) * 100) / 100;
+
+  let order;
+  if (typeof supabaseAdmin.rpc === 'function') {
+    const { data, error } = await supabaseAdmin.rpc('arrange_wholesale_delivery', {
+      p_actor: req.profile.id,
+      p_order: existing.id,
+      p_delivery_method: input.deliveryMethod,
+      p_delivery_fee: fee,
+      p_estimated_pickup_time: input.estimatedPickupTime?.trim() || null,
+      p_estimated_delivery_at: estimatedDeliveryIso,
+      p_booking_reference: input.bookingReference?.trim() || null,
+      p_delivery_instructions: input.deliveryInstructions?.trim() || null,
+    });
+    if (error) {
+      if (['PGRST202', '42883'].includes(error.code)) {
+        throw new ApiError('Wholesale delivery safeguards are not configured. Please run the latest database migration.', 503);
+      }
+      throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+    }
+    order = data;
+    if (order && (normalizedPlate !== (order.vehicle_plate_number || null))) {
+      const { data: plateUpdated, error: plateError } = await supabaseAdmin
+        .from('orders')
+        .update({ vehicle_plate_number: normalizedPlate })
+        .eq('id', order.id)
+        .select()
+        .single();
+      if (!plateError && plateUpdated) order = plateUpdated;
+    }
+  } else {
+    const arrangedAt = new Date().toISOString();
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .update({
+        delivery_method: input.deliveryMethod,
+        delivery_fee: fee,
+        delivery_fee_tier: input.deliveryMethod === 'courier'
+          ? 'Lalamove (Farmer-arranged)'
+          : input.deliveryMethod === 'buyer_pickup'
+            ? 'Buyer Pickup'
+            : 'Farmer Delivery',
+        total_amount: revisedTotal,
+        estimated_pickup_time: input.estimatedPickupTime?.trim() || null,
+        estimated_delivery_at: estimatedDeliveryIso,
+        courier_booking_reference: input.bookingReference?.trim() || null,
+        vehicle_plate_number: normalizedPlate,
+        delivery_instructions: input.deliveryInstructions?.trim() || null,
+        delivery_arrangement_status: 'pending_buyer_confirmation',
+        delivery_arranged_at: arrangedAt,
+        buyer_confirmed_total_at: null,
+        buyer_confirmed_total: null,
+        updated_at: arrangedAt,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw new ApiError(error.message, 400);
+    order = data;
+  }
+
+  const methodLabel = WHOLESALE_DELIVERY_METHOD_LABELS[order.delivery_method] || order.delivery_method;
+  const isRevised = existing.delivery_arrangement_status === 'pending_buyer_confirmation'
+    || existing.delivery_arrangement_status === 'confirmed';
+  const formatPhp = (value) => Number(value || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const totalFormatted = formatPhp(order.total_amount);
+  const subtotalFormatted = formatPhp(subtotal);
+  const feeFormatted = formatPhp(order.delivery_fee);
+  const paymentReminder = order.payment_method === 'gcash'
+    ? `Please prepare the exact amount of ₱${totalFormatted} (Subtotal: ₱${subtotalFormatted} + Delivery fee: ₱${feeFormatted}) for GCash payment. Review and confirm the final total.`
+    : `Please prepare the exact amount of ₱${totalFormatted} (Subtotal: ₱${subtotalFormatted} + Delivery fee: ₱${feeFormatted}) for Cash on Delivery. Review and confirm the final total.`;
+
+  await createNotification({
+    userId: order.buyer_id,
+    type: 'order',
+    title: isRevised ? 'Updated delivery arrangement' : 'Delivery arrangement submitted',
+    message: `${order.farmer_name} arranged ${methodLabel} for your ${order.product_name} order. ${paymentReminder}`,
+    link: `/orders/${order.id}`,
+  });
+
+  res.json(serializeOrder(order));
+}
+
+export async function confirmWholesaleDelivery(req, res) {
+  const existing = await fetchOrderOr404(req.params.id);
+  if (req.profile.id !== existing.buyer_id) {
+    throw new ApiError('Only the buyer can confirm the delivery total.', 403);
+  }
+  if (!usesSharedArrangedDelivery(existing)) {
+    throw new ApiError('This order does not use farmer-arranged delivery confirmation.', 400);
+  }
+  if (existing.status !== 'pending' || existing.delivery_arrangement_status !== 'pending_buyer_confirmation') {
+    throw new ApiError('This delivery arrangement is not awaiting buyer confirmation.', 409);
+  }
+
+  const arrangedAt = req.body?.arrangedAt;
+  if (!arrangedAt || arrangedAt !== existing.delivery_arranged_at) {
+    throw new ApiError('The delivery fee or arrangement was updated. Please review and confirm the revised total.', 409);
+  }
+
+  let order;
+  if (typeof supabaseAdmin.rpc === 'function') {
+    const { data, error } = await supabaseAdmin.rpc('confirm_wholesale_delivery', {
+      p_actor: req.profile.id,
+      p_order: existing.id,
+      p_arranged_at: arrangedAt,
+    });
+    if (error) {
+      if (['PGRST202', '42883'].includes(error.code)) {
+        throw new ApiError('Wholesale delivery safeguards are not configured. Please run the latest database migration.', 503);
+      }
+      throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+    }
+    order = data;
+  } else {
+    const now = new Date().toISOString();
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .update({
+        delivery_arrangement_status: 'confirmed',
+        buyer_confirmed_total_at: now,
+        buyer_confirmed_total: existing.total_amount,
+        updated_at: now,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw new ApiError(error.message, 400);
+    order = data;
+  }
+
+  await createNotification({
+    userId: order.farmer_id,
+    type: 'order',
+    title: 'Final order amount confirmed',
+    message: `${order.buyer_name} confirmed the delivery arrangement and final total (PHP ${Number(order.total_amount).toFixed(2)}) for ${order.product_name}.`,
+    link: `/orders/${order.id}`,
+  });
+
+  res.json(serializeOrder(order));
+}
+
+const WHOLESALE_EVENT_COPY = {
+  waiting_for_courier: {
+    title: 'Waiting for Courier',
+    description: 'The delivery has been booked and is awaiting courier pickup.',
+    notifyTitle: 'Courier booking confirmed',
+    notifyMessage: (order) => `Your Lalamove delivery for ${order.product_name} has been booked and is awaiting courier pickup.`,
+  },
+  preparing: {
+    title: 'Preparing Order',
+    description: 'The farmer is preparing your wholesale order for delivery.',
+    notifyTitle: 'Order preparing',
+    notifyMessage: (order) => `${order.farmer_name} is preparing your wholesale order for ${order.product_name}.`,
+  },
+  ready_for_pickup: {
+    title: 'Ready for Pickup',
+    description: 'Your wholesale order is ready for collection at the agreed pickup location.',
+    notifyTitle: 'Ready for pickup',
+    notifyMessage: (order) => `Your wholesale order for ${order.product_name} is ready for pickup.`,
+  },
+  in_transit: {
+    title: 'In Transit',
+    description: 'Your order has been collected and is on its way to your delivery address.',
+    notifyTitle: 'Order in transit',
+    notifyMessage: (order) => `Your ${isWholesaleOrder(order) ? 'wholesale' : 'Lalamove'} order for ${order.product_name} has been collected and is now in transit.`,
+  },
+  delivered: {
+    title: 'Order Delivered',
+    description: 'Your order has been delivered. Please confirm receipt of your products.',
+    notifyTitle: 'Order delivered',
+    notifyMessage: (order) => `Your ${isWholesaleOrder(order) ? 'wholesale' : 'Lalamove'} order for ${order.product_name} has been delivered. Please confirm receipt.`,
+  },
+  completed: {
+    title: 'Order Completed',
+    description: 'You have successfully confirmed receipt of your order.',
+    notifyTitle: 'Order completed',
+    notifyMessage: (order) => `${order.buyer_name} confirmed receipt of the ${isWholesaleOrder(order) ? 'wholesale' : 'Lalamove'} order for ${order.product_name}.`,
+  },
+};
+
+export async function advanceWholesaleDelivery(req, res) {
+  const existing = await fetchOrderOr404(req.params.id);
+  const isBuyer = req.profile.id === existing.buyer_id;
+  const isFarmer = req.profile.id === existing.farmer_id;
+  if (!isBuyer && !isFarmer) throw new ApiError('You do not have permission to modify this order.', 403);
+  if (!usesSharedArrangedDelivery(existing)) {
+    throw new ApiError('This delivery status workflow applies only to wholesale and Lalamove orders.', 400);
+  }
+  if (existing.status !== 'confirmed') {
+    throw new ApiError('Only confirmed orders can be updated.', 400);
+  }
+
+  const nextStatus = getWholesaleNextDeliveryStatus(existing);
+  if (!nextStatus) throw new ApiError('This order has already reached its final status.', 400);
+
+  if (req.body?.targetStatus && req.body.targetStatus !== nextStatus) {
+    throw new ApiError('Invalid delivery status transition. Update statuses in sequence.', 409);
+  }
+
+  const isCompletionStep = nextStatus === 'completed';
+  if (isCompletionStep && !isBuyer) {
+    throw new ApiError('Only the buyer can confirm receipt of the order.', 403);
+  }
+  if (!isCompletionStep && !isFarmer) {
+    throw new ApiError('Only the farmer can update delivery progress.', 403);
+  }
+
+  const requiresGcashBeforeDispatch = existing.payment_method === 'gcash'
+    && existing.payment_status !== 'paid'
+    && ['waiting_for_courier', 'preparing', 'ready_for_pickup', 'in_transit'].includes(nextStatus);
+  if (requiresGcashBeforeDispatch) {
+    throw new ApiError('GCash payment must be verified before dispatching this order.', 409);
+  }
+
+  const now = new Date().toISOString();
+  let order;
+
+  if (isCompletionStep) {
+    const finalDeliveryStatus = existing.delivery_method === 'buyer_pickup' ? 'picked_up' : 'delivered';
+    if (typeof supabaseAdmin.rpc === 'function') {
+      const { data, error } = await supabaseAdmin.rpc('complete_marketplace_order', {
+        p_actor: req.profile.id,
+        p_order: existing.id,
+        p_delivery_status: finalDeliveryStatus,
+        p_payment_status: existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
+      });
+      if (error) {
+        if (['PGRST202', '42883'].includes(error.code)) {
+          throw new ApiError('Inventory safeguards are not configured. Please contact support.', 503);
+        }
+        throw new ApiError(error.message, error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : 409);
+      }
+      order = { ...existing, ...data, delivery_status: 'completed', status: 'completed' };
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from('orders')
+        .update({
+          delivery_status: 'completed',
+          status: 'completed',
+          payment_status: existing.payment_method === 'cod' ? 'paid' : existing.payment_status,
+          ...(existing.payment_method === 'cod' && existing.payment_status !== 'paid' ? { paid_at: now } : {}),
+          completed_at: now,
+          updated_at: now,
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw new ApiError(error.message, 400);
+      order = data;
+    }
+  } else {
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .update({
+        delivery_status: nextStatus,
+        ...(nextStatus === 'in_transit' ? { transit_started_at: now } : {}),
+        updated_at: now,
+      })
+      .eq('id', existing.id)
+      .eq('status', existing.status)
+      .eq('delivery_status', existing.delivery_status)
+      .select()
+      .maybeSingle();
+    if (error) throw new ApiError(error.message, 400);
+    if (!data) throw new ApiError('Order progress changed. Refresh before trying again.', 409);
+    order = data;
+  }
+
+  const eventCopy = WHOLESALE_EVENT_COPY[nextStatus];
+  if (eventCopy) {
+    await supabaseAdmin.from('order_delivery_events').insert({
+      order_id: order.id,
+      status: nextStatus,
+      title: eventCopy.title,
+      description: eventCopy.description,
+      source: isCompletionStep ? 'buyer' : 'farmer',
+    });
+
+    if (isCompletionStep) {
+      await createNotification({
+        userId: order.farmer_id,
+        type: 'order',
+        title: 'Order completed',
+        message: eventCopy.notifyMessage(order),
+        link: `/orders/${order.id}`,
+      });
+      await createNotification({
+        userId: order.buyer_id,
+        type: 'order',
+        title: 'Order completed',
+        message: `You have successfully confirmed receipt of your ${isWholesaleOrder(order) ? 'wholesale' : 'Lalamove'} order for ${order.product_name}.`,
+        link: `/orders/${order.id}`,
+      });
+    } else {
+      await createNotification({
+        userId: order.buyer_id,
+        type: 'order',
+        title: eventCopy.notifyTitle,
+        message: eventCopy.notifyMessage(order),
+        link: `/orders/${order.id}`,
+      });
+    }
+  }
+
+  res.json(serializeOrder(order));
+}
 
 export async function updateOrderLocation(req, res) {
   const existing = await fetchOrderOr404(req.params.id);

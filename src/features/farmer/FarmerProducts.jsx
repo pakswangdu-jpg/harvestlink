@@ -28,16 +28,22 @@ import {
 } from '../../services/productService';
 import { createDonation } from '../../services/donationService';
 import { getProductStatusInfo } from '../../utils/constants';
+import {
+  DUPLICATE_PRODUCT_ERROR_CODE,
+  findDuplicateActiveProduct,
+} from '../../../backend/shared/productDuplicate.js';
 import { farmerNavItems } from './farmerNav';
 import { supabase } from '../../lib/supabaseClient';
 
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
+  { value: 'expiring-soon', label: 'Expiring Soon' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'out-of-stock', label: 'Out of Stock' },
+  { value: 'low-stock', label: 'Low Stock' },
   { value: 'pending-approval', label: 'Pending approval' },
   { value: 'needs-adjustment', label: 'Needs price adjustment' },
-  { value: 'low-stock', label: 'Low Stock' },
-  { value: 'out-of-stock', label: 'Out of Stock' },
   { value: 'rejected', label: 'Rejected' },
   { value: 'inactive', label: 'Inactive' },
 ];
@@ -54,8 +60,10 @@ export default function FarmerProducts() {
   const [reviewsProduct, setReviewsProduct] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
+  const [duplicateProduct, setDuplicateProduct] = useState(null);
   const pendingDeletes = useRef(new Map());
   const [search, setSearch] = useState('');
+  const [salesTypeFilter, setSalesTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const isVerified = currentUser.verificationStatus === 'verified';
@@ -101,7 +109,7 @@ export default function FarmerProducts() {
     const counts = { total: products.length, active: 0, lowStock: 0, totalInventory: 0 };
     products.forEach((product) => {
       const status = getProductStatusInfo(product).value;
-      if (status === 'active') counts.active += 1;
+      if (status === 'active' || status === 'expiring-soon') counts.active += 1;
       if (status === 'low-stock') counts.lowStock += 1;
       counts.totalInventory += Number(product.quantity || 0);
     });
@@ -121,14 +129,16 @@ export default function FarmerProducts() {
     const query = search.trim().toLowerCase();
     return products
       .filter((product) => !query || [product.name, product.category, product.location].filter(Boolean).join(' ').toLowerCase().includes(query))
+      .filter((product) => salesTypeFilter === 'all' || (product.sellingType === 'wholesale' ? 'wholesale' : 'retail') === salesTypeFilter)
       .filter((product) => statusFilter === 'all' || getProductStatusInfo(product).value === statusFilter)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [products, search, statusFilter]);
+  }, [products, search, salesTypeFilter, statusFilter]);
 
-  const hasFilters = Boolean(search.trim()) || statusFilter !== 'all';
+  const hasFilters = Boolean(search.trim()) || salesTypeFilter !== 'all' || statusFilter !== 'all';
 
   const clearFilters = () => {
     setSearch('');
+    setSalesTypeFilter('all');
     setStatusFilter('all');
   };
 
@@ -158,9 +168,18 @@ export default function FarmerProducts() {
   const closeDrawer = () => {
     setIsDrawerOpen(false);
     setEditingProduct(null);
+    setDuplicateProduct(null);
   };
 
   const handleSubmit = async (values, { fromConfirmation = false } = {}) => {
+    if (!values.isDonation) {
+      const localDuplicate = findDuplicateActiveProduct(products, values, editingProduct?.id || null);
+      if (localDuplicate) {
+        setDuplicateProduct(localDuplicate);
+        return fromConfirmation ? { success: false, duplicate: true } : false;
+      }
+    }
+
     try {
       if (editingProduct) {
         const updated = await updateProduct(editingProduct.id, values);
@@ -182,9 +201,7 @@ export default function FarmerProducts() {
         const created = await createProduct(createValues);
         showToast({
           type: 'success',
-          message: created.merged
-            ? `Added ${created.addedQuantity} ${created.unit} to your existing ${created.name} listing.`
-            : created.priceReview?.status === 'pending' ? 'Product submitted for Admin price review.' : 'Product added successfully.',
+          message: created.priceReview?.status === 'pending' ? 'Product submitted for Admin price review.' : 'Product added successfully.',
         });
 
         setEditingProduct(created);
@@ -192,6 +209,20 @@ export default function FarmerProducts() {
       reload();
       return true;
     } catch (submitError) {
+      if (submitError?.code === DUPLICATE_PRODUCT_ERROR_CODE) {
+        const matched = products.find((item) => item.id === submitError.existingProductId)
+          || findDuplicateActiveProduct(products, values, editingProduct?.id || null);
+        if (matched) {
+          setDuplicateProduct(matched);
+        } else {
+          const refreshed = await getProductsByFarmer(currentUser.id).catch(() => []);
+          if (refreshed.length) setProducts(refreshed);
+          const refreshedMatch = refreshed.find((item) => item.id === submitError.existingProductId)
+            || findDuplicateActiveProduct(refreshed, values, editingProduct?.id || null);
+          setDuplicateProduct(refreshedMatch || { id: submitError.existingProductId || null });
+        }
+        return fromConfirmation ? { success: false, duplicate: true } : false;
+      }
       const message = submitError.message || 'Something went wrong while saving this product. Please try again.';
       if (fromConfirmation) return { success: false, error: message };
       showToast({ type: 'error', message });
@@ -328,6 +359,8 @@ export default function FarmerProducts() {
             <ProductFilters
               search={search}
               onSearchChange={setSearch}
+              salesTypeFilter={salesTypeFilter}
+              onSalesTypeFilterChange={setSalesTypeFilter}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
               statusTabs={statusTabs}
@@ -436,6 +469,23 @@ export default function FarmerProducts() {
         onClose={closeDrawer}
         onApplyDiscount={handleApplyDiscount}
         onRemoveDiscount={handleRemoveDiscount}
+        onCheckDuplicate={(values) => {
+          const match = findDuplicateActiveProduct(products, values, editingProduct?.id || null);
+          if (!match) return false;
+          setDuplicateProduct(match);
+          return true;
+        }}
+        duplicateProduct={duplicateProduct}
+        onDismissDuplicate={() => setDuplicateProduct(null)}
+        onViewExistingProduct={(target) => {
+          setDuplicateProduct(null);
+          if (target?.name) {
+            openEditDrawer(target);
+          } else if (target?.id) {
+            const found = products.find((item) => item.id === target.id);
+            if (found) openEditDrawer(found);
+          }
+        }}
       />
 
       <ProductReviewsDialog product={reviewsProduct} onClose={closeProductReviews} />

@@ -32,7 +32,7 @@ function SummaryRow({ label, value, tone }) {
 
 
 export default function DiscountCalculator({
-  product, costPrice, onApplyDiscount, onRemoveDiscount,
+  product, currentPrice, costPrice, onApplyDiscount, onRemoveDiscount, onDiscountChange,
 }) {
   const [percent, setPercent] = useState(product.discountPercent != null ? String(product.discountPercent) : '');
 
@@ -70,7 +70,10 @@ export default function DiscountCalculator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [numericPercent, isInRange, isSynced]);
 
-  const basePrice = Number(product.originalPrice ?? product.price);
+  const parsedCurrentPrice = Number(currentPrice);
+  const basePrice = Number.isFinite(parsedCurrentPrice) && parsedCurrentPrice > 0
+    ? parsedCurrentPrice
+    : Number(product.originalPrice ?? product.price);
   const hasDiscount = isInRange && numericPercent > 0;
   const discountAmount = isInRange ? round2(basePrice * (numericPercent / 100)) : 0;
   const finalPrice = isInRange ? round2(basePrice - discountAmount) : basePrice;
@@ -89,7 +92,10 @@ export default function DiscountCalculator({
           max="100"
           step="0.01"
           value={percent}
-          onChange={(event) => setPercent(event.target.value)}
+          onChange={(event) => {
+            setPercent(event.target.value);
+            onDiscountChange?.(event.target.value);
+          }}
           placeholder="0"
           aria-label="Discount percent"
         />

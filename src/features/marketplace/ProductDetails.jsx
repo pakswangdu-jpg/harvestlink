@@ -7,7 +7,13 @@ import Button from '../../components/common/Button';
 import { useAuth } from '../auth/AuthContext';
 import { getProductById } from '../../services/productService';
 import { createOrder } from '../../services/orderService';
-import { ORDERING_ROLES } from '../../utils/constants';
+import {
+  EXPIRED_PRODUCT_ERROR_CODE,
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  ORDERING_ROLES,
+  isProductExpired,
+} from '../../utils/constants';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import { useCart } from '../../contexts/CartContext';
 import { useAdminMarketReferences } from '../../hooks/useAdminMarketReferences';
@@ -18,6 +24,11 @@ import AdminReferenceNotice from '../../components/market/AdminReferenceNotice';
 import ProductReviewsFeed from '../../components/products/ProductReviewsFeed';
 import ProductImageGallery from '../../components/products/ProductImageGallery';
 import { useToast } from '../../contexts/ToastContext';
+import {
+  RETAIL_LALAMOVE_ORDER_PLACED_MESSAGE,
+  WHOLESALE_ORDER_PLACED_MESSAGE,
+  WHOLESALE_ORDER_PLACED_TITLE,
+} from '../../../backend/shared/wholesaleDelivery.js';
 
 const PRODUCT_NOT_LISTED_MESSAGE = "This product isn't listed by this farmer yet.";
 
@@ -50,6 +61,7 @@ export default function ProductDetails() {
   const [storedProduct, setStoredProduct] = useState(() => farmerInquirySnapshot);
   const [loadedId, setLoadedId] = useState(() => (farmerInquirySnapshot ? id : null));
   const [loadError, setLoadError] = useState('');
+  const [loadErrorTitle, setLoadErrorTitle] = useState('');
   const [liveListingUnavailable, setLiveListingUnavailable] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [stockConflict, setStockConflict] = useState(null);
@@ -67,6 +79,7 @@ export default function ProductDetails() {
         setStoredProduct(result);
         setLoadedId(id);
         setLoadError('');
+        setLoadErrorTitle('');
         setLiveListingUnavailable(false);
       }).catch((error) => {
         if (cancelled) return;
@@ -75,13 +88,18 @@ export default function ProductDetails() {
           setLiveListingUnavailable(true);
           setLoadedId(id);
           setLoadError('');
+          setLoadErrorTitle('');
           return;
         }
         setStoredProduct(null);
-        const isMissingProduct = error?.status === 404 || error?.message === 'The product listing could not be found.';
-        setLoadError(isMissingProduct
-          ? PRODUCT_NOT_LISTED_MESSAGE
-          : error instanceof Error ? error.message : 'Unable to load this product listing.');
+        const isExpiredProduct = error?.code === EXPIRED_PRODUCT_ERROR_CODE;
+        const isMissingProduct = !isExpiredProduct && (error?.status === 404 || error?.message === 'The product listing could not be found.');
+        setLoadErrorTitle(isExpiredProduct ? (error?.title || EXPIRED_PRODUCT_ERROR_TITLE) : '');
+        setLoadError(isExpiredProduct
+          ? (error?.message || EXPIRED_PRODUCT_ERROR_MESSAGE)
+          : isMissingProduct
+            ? PRODUCT_NOT_LISTED_MESSAGE
+            : error instanceof Error ? error.message : 'Unable to load this product listing.');
         setLoadedId(id);
         setLiveListingUnavailable(false);
       });
@@ -108,9 +126,11 @@ export default function ProductDetails() {
         .catch((error) => {
           if (cancelled) return;
           if (error?.status === 404) {
+            const isExpiredProduct = error?.code === EXPIRED_PRODUCT_ERROR_CODE;
             setStoredProduct((current) => current?.isInquirySnapshot ? current : null);
             setLiveListingUnavailable(true);
-            setLoadError(PRODUCT_NOT_LISTED_MESSAGE);
+            setLoadErrorTitle(isExpiredProduct ? (error?.title || EXPIRED_PRODUCT_ERROR_TITLE) : '');
+            setLoadError(isExpiredProduct ? (error?.message || EXPIRED_PRODUCT_ERROR_MESSAGE) : PRODUCT_NOT_LISTED_MESSAGE);
             setStockRefreshError('');
             return;
           }
@@ -176,11 +196,17 @@ export default function ProductDetails() {
       <AppShell user={currentUser} navItems={navItems} title="Product listing" subtitle="We couldn’t open this listing." pageClassName="checkout-page">
         <div className="panel">
           <div className="empty-state compact">
-            <h2>{productNotListed ? 'Product not listed yet' : 'Unable to view product'}</h2>
+            <h2>{loadErrorTitle || (productNotListed ? 'Product not listed yet' : 'Unable to view product')}</h2>
             <p role="alert">{loadError || 'This product may have been removed or is temporarily unavailable.'}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button variant="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>
-              <Button variant="ghost" onClick={() => navigate(-1)}>Back to conversation</Button>
+              {loadErrorTitle === EXPIRED_PRODUCT_ERROR_TITLE ? (
+                <Link className="btn btn-secondary btn-md" to="/marketplace">Browse available products</Link>
+              ) : (
+                <>
+                  <Button variant="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button>
+                  <Button variant="ghost" onClick={() => navigate(-1)}>Back to conversation</Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -191,11 +217,13 @@ export default function ProductDetails() {
   const adminReference = references.find((reference) => reference.commodityId === matchCommodity(product.name)?.id);
   const isFarmerOwner = currentUser.role === 'farmer' && currentUser.id === product.farmerId;
   const isPendingReview = product.priceReview?.status === 'pending';
+  const isExpired = isProductExpired(product.expirationDate);
   const isOutOfStock = !(Number(product.quantity) > 0);
   const canRequest = ORDERING_ROLES.includes(currentUser.role)
     && currentUser.id !== product.farmerId
     && product.status === 'active'
     && !isPendingReview
+    && !isExpired
     && !isOutOfStock;
   const canMessageFarmer = ORDERING_ROLES.includes(currentUser.role)
     && currentUser.id !== product.farmerId;
@@ -232,13 +260,19 @@ export default function ProductDetails() {
     try {
       order = await createOrder({ ...values, productId: product.id });
     } catch (error) {
-      if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK'].includes(error.code)) {
+      if (['PRODUCT_OUT_OF_STOCK', 'INSUFFICIENT_STOCK', EXPIRED_PRODUCT_ERROR_CODE].includes(error.code)) {
         setStockConflict(error);
         if (error.code === 'PRODUCT_OUT_OF_STOCK') {
           showToast({
             type: 'error',
             title: 'Product Out of Stock',
             message: error.message,
+          });
+        } else if (error.code === EXPIRED_PRODUCT_ERROR_CODE) {
+          showToast({
+            type: 'error',
+            title: error.title || EXPIRED_PRODUCT_ERROR_TITLE,
+            message: error.message || EXPIRED_PRODUCT_ERROR_MESSAGE,
           });
         }
       }
@@ -247,7 +281,27 @@ export default function ProductDetails() {
 
 
     removeItem(product.id);
-    navigate(order.deliveryMethod === 'courier' ? `/orders/${order.id}` : order.paymentMethod === 'gcash'
+    if (order.sellingType === 'wholesale' || product.sellingType === 'wholesale') {
+      navigate(`/orders/${order.id}`, {
+        state: {
+          checkoutPath: `/products/${product.id}`,
+          noticeTitle: WHOLESALE_ORDER_PLACED_TITLE,
+          notice: WHOLESALE_ORDER_PLACED_MESSAGE,
+        },
+      });
+      return;
+    }
+    if (order.deliveryMethod === 'courier') {
+      navigate(`/orders/${order.id}`, {
+        state: {
+          checkoutPath: `/products/${product.id}`,
+          noticeTitle: WHOLESALE_ORDER_PLACED_TITLE,
+          notice: RETAIL_LALAMOVE_ORDER_PLACED_MESSAGE,
+        },
+      });
+      return;
+    }
+    navigate(order.paymentMethod === 'gcash'
       ? `/orders/${order.id}/pay/gcash`
       : `/orders/${order.id}/pay/cod`, {
         state: { checkoutPath: `/products/${product.id}` },
@@ -310,6 +364,14 @@ export default function ProductDetails() {
                   <dt className="text-[var(--muted)]">Available quantity</dt>
                   <dd className="mt-0.5 font-medium text-[var(--text)]">{product.quantity} {product.unit || 'units'}</dd>
                 </div>
+                <div>
+                  <dt className="text-[var(--muted)]">Grade</dt>
+                  <dd className="mt-0.5 font-medium text-[var(--text)]">Grade {product.grade || 'A'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--muted)]">Sales type</dt>
+                  <dd className="mt-0.5 font-medium text-[var(--text)]">{product.sellingType === 'wholesale' ? 'Wholesale' : 'Retail'}</dd>
+                </div>
                 {product.category ? (
                   <div>
                     <dt className="text-[var(--muted)]">Category</dt>
@@ -338,15 +400,17 @@ export default function ProductDetails() {
       ) : (
         <div className="panel">
           <div className="empty-state compact">
-            <h3>Order unavailable</h3>
+            <h3>{isExpired ? EXPIRED_PRODUCT_ERROR_TITLE : 'Order unavailable'}</h3>
             <p>
-              {!ORDERING_ROLES.includes(currentUser.role)
-                ? 'Only buyer or partner organization accounts can place orders.'
-                : isPendingReview
-                  ? 'This listing’s price is still awaiting DTI review and can’t be ordered yet.'
-                  : isOutOfStock
-                    ? 'This listing is currently out of stock.'
-                    : 'You cannot order your own product or an inactive listing.'}
+              {isExpired
+                ? EXPIRED_PRODUCT_ERROR_MESSAGE
+                : !ORDERING_ROLES.includes(currentUser.role)
+                  ? 'Only buyer or partner organization accounts can place orders.'
+                  : isPendingReview
+                    ? 'This listing’s price is still awaiting DTI review and can’t be ordered yet.'
+                    : isOutOfStock
+                      ? 'This listing is currently out of stock.'
+                      : 'You cannot order your own product or an inactive listing.'}
             </p>
             <Link className="btn btn-secondary btn-md" to="/marketplace">Back to marketplace</Link>
           </div>

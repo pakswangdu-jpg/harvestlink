@@ -13,12 +13,15 @@ export const createDonation = (product, expirationAt, quantity) => apiClient.pos
 });
 
 const act = (id, action, values = {}) => apiClient.post(`/donations/${encodeURIComponent(id)}/${action}`, values);
-export const requestDonation = (id, quantity) => {
+export const requestDonation = (id, quantity, claimKey = null) => {
   const amount = Number(quantity);
   if (quantity == null || (typeof quantity === 'string' && !quantity.trim()) || !Number.isFinite(amount) || amount <= 0) {
     throw new Error('Enter a positive donation quantity.');
   }
-  return apiClient.post(`/donations/${encodeURIComponent(id)}/claims`, { quantity: amount });
+  return apiClient.post(`/donations/${encodeURIComponent(id)}/claims`, {
+    quantity: amount,
+    ...(claimKey ? { claimKey } : {}),
+  });
 };
 export const declineDonationRequest = (id) => act(id, 'decline');
 export const acceptDonationRequest = (id, pickupDate) => act(id, 'schedule', { pickupDate });

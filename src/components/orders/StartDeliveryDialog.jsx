@@ -5,13 +5,14 @@ import Button from '../common/Button';
 import { requireDeliveryLocation } from '../../services/locationPermissionService';
 import './StartDeliveryDialog.css';
 
-export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmitting = false }) {
-  const [plateNumber, setPlateNumber] = useState('');
+export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmitting = false, initialPlateNumber = '' }) {
+  const [plateNumber, setPlateNumber] = useState(null);
   const [requestingLocation, setRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
   const inFlightRef = useRef(false);
   const attemptRef = useRef(0);
   const busy = isSubmitting || requestingLocation;
+  const displayedPlate = plateNumber ?? initialPlateNumber ?? '';
   useEffect(() => () => { attemptRef.current += 1; }, []);
   const titleId = useId();
   const descriptionId = useId();
@@ -20,7 +21,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const normalizedPlate = plateNumber.trim().toUpperCase();
+    const normalizedPlate = displayedPlate.trim().toUpperCase();
     if (!normalizedPlate || busy || inFlightRef.current) return;
     const attempt = attemptRef.current;
     inFlightRef.current = true;
@@ -30,7 +31,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
       await requireDeliveryLocation();
       if (attempt !== attemptRef.current) return;
       await onConfirm(normalizedPlate);
-      if (attempt === attemptRef.current) setPlateNumber('');
+      if (attempt === attemptRef.current) setPlateNumber(null);
     } catch (error) {
       if (attempt === attemptRef.current) setLocationError(error.message);
     } finally {
@@ -41,7 +42,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
 
   const handleCancel = () => {
     if (busy || inFlightRef.current) return;
-    setPlateNumber('');
+    setPlateNumber(null);
     setLocationError('');
     onCancel();
   };
@@ -106,7 +107,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
               id={plateId}
               className="start-delivery-plate"
               aria-describedby={hintId}
-              value={plateNumber}
+              value={displayedPlate}
               onChange={(event) => setPlateNumber(event.target.value)}
               placeholder="e.g. ABC 1234"
               autoComplete="off"
@@ -123,7 +124,7 @@ export default function StartDeliveryDialog({ open, onCancel, onConfirm, isSubmi
             {locationError ? <p className="start-delivery-error" role="alert">{locationError}</p> : null}
             <div className="start-delivery-actions">
               <Button type="button" variant="secondary" onClick={handleCancel} disabled={busy}>Cancel</Button>
-              <Button type="submit" disabled={!plateNumber.trim() || busy}>
+              <Button type="submit" disabled={!displayedPlate.trim() || busy}>
                 {requestingLocation ? 'Checking location...' : isSubmitting ? 'Starting…' : 'Start delivery'}
               </Button>
             </div>

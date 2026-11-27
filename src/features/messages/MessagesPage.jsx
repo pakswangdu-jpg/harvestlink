@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Forward, Loader2, X } from 'lucide-react';
@@ -184,7 +184,10 @@ export default function MessagesPage() {
   const messageListRef = useRef(null);
   const bottomRef = useRef(null);
   const isNearBottomRef = useRef(true);
-  const prevScrollHeightRef = useRef(0);
+  const loadingOlderRef = useRef(false);
+  const pendingScrollRestoreRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
+  const needsInitialScrollRef = useRef(true);
 
 
   useEffect(() => {
@@ -263,6 +266,10 @@ export default function MessagesPage() {
     if (!otherPartyId || threadNotFound) return undefined;
     let cancelled = false;
     isNearBottomRef.current = true;
+    needsInitialScrollRef.current = true;
+    lastMessageIdRef.current = null;
+    pendingScrollRestoreRef.current = null;
+    loadingOlderRef.current = false;
 
     const reload = async (isFirstLoad) => {
       if (isFirstLoad) {
@@ -302,8 +309,31 @@ export default function MessagesPage() {
   }, [otherPartyId, messagesScopeKey, threadNotFound]);
 
 
-  useEffect(() => {
-    if (isNearBottomRef.current) bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  useLayoutEffect(() => {
+    const container = messageListRef.current;
+    if (!container) return;
+
+    if (pendingScrollRestoreRef.current) {
+      const { prevScrollHeight, prevScrollTop } = pendingScrollRestoreRef.current;
+      pendingScrollRestoreRef.current = null;
+      container.scrollTop = Math.max(0, container.scrollHeight - prevScrollHeight + prevScrollTop);
+      return;
+    }
+
+    const latestId = messages.length ? messages[messages.length - 1].id : null;
+    if (needsInitialScrollRef.current && latestId) {
+      needsInitialScrollRef.current = false;
+      lastMessageIdRef.current = latestId;
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
+
+    if (latestId && latestId !== lastMessageIdRef.current) {
+      lastMessageIdRef.current = latestId;
+      if (isNearBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   }, [messages]);
 
   const handleScroll = async () => {
@@ -311,19 +341,24 @@ export default function MessagesPage() {
     if (!container) return;
     isNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
 
-    if (container.scrollTop < 80 && hasMoreOlder && !isLoadingOlder && messages.length) {
+    if (container.scrollTop < 80 && hasMoreOlder && !loadingOlderRef.current && messages.length) {
+      loadingOlderRef.current = true;
       setIsLoadingOlder(true);
-      prevScrollHeightRef.current = container.scrollHeight;
       const before = messages[0].createdAt;
-      const result = await getDirectMessages(otherPartyId, { before, limit: PAGE_SIZE });
-      setMessages((current) => mergeMessages(current, result.messages));
-      setHasMoreOlder(result.hasMore);
-      setIsLoadingOlder(false);
-
-
-      requestAnimationFrame(() => {
-        if (container) container.scrollTop = container.scrollHeight - prevScrollHeightRef.current;
-      });
+      try {
+        const result = await getDirectMessages(otherPartyId, { before, limit: PAGE_SIZE });
+        if (result.messages.length && messageListRef.current) {
+          pendingScrollRestoreRef.current = {
+            prevScrollHeight: messageListRef.current.scrollHeight,
+            prevScrollTop: messageListRef.current.scrollTop,
+          };
+          setMessages((current) => mergeMessages(current, result.messages));
+        }
+        setHasMoreOlder(result.hasMore);
+      } finally {
+        loadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      }
     }
   };
 

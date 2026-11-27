@@ -116,21 +116,15 @@ export function getRecommendedPrice(referencePrice) {
 let overridesCache = null;
 let overridesCacheAt = 0;
 
-
-
-
-
-
-
-async function getOverridesMap({ force = false } = {}) {
+async function getOverridesList({ force = false } = {}) {
   if (!force && overridesCache && Date.now() - overridesCacheAt < OVERRIDES_CACHE_TTL_MS) return overridesCache;
   try {
     const rows = await apiClient.get('/market-price-overrides');
-    overridesCache = Object.fromEntries(rows.map((row) => [row.commodityId, row]));
+    overridesCache = Array.isArray(rows) ? rows : [];
     overridesCacheAt = Date.now();
   } catch (error) {
     if (force) throw error;
-    return overridesCache || {};
+    return overridesCache || [];
   }
   return overridesCache;
 }
@@ -143,33 +137,25 @@ export function isPriceOverrideEffective(override) {
   return Boolean(override?.isActive && (!override.effectiveDate || override.effectiveDate <= todayInManila()));
 }
 
-
-
-
-
-
-
 export async function getAllPriceOverrides(options) {
-  const overrides = await getOverridesMap(options);
-  return Object.values(overrides);
+  return getOverridesList(options);
 }
 
-export async function getPriceOverride(commodityId) {
-  const overrides = await getOverridesMap();
-  return overrides[commodityId] || null;
+export async function getCommodityOverrides(commodityId) {
+  const rows = await getOverridesList();
+  const matching = rows.filter((row) => String(row.commodityId) === String(commodityId));
+  return {
+    retail: matching.find((row) => row.marketType === 'retail') || null,
+    wholesale: matching.find((row) => row.marketType === 'wholesale') || null,
+    legacy: matching.find((row) => !row.marketType) || null,
+  };
 }
 
-
-
-
-
-
-
-
-
-
-
-
+export async function getPriceOverride(commodityId, marketType = 'retail') {
+  const { retail, wholesale, legacy } = await getCommodityOverrides(commodityId);
+  if (marketType === 'wholesale') return wholesale;
+  return retail || legacy || null;
+}
 
 export async function setPriceOverride(commodityId, referencePrice, baseline = {}) {
   const commodity = MARKET_COMMODITIES.find((item) => item.id === commodityId);
@@ -177,6 +163,7 @@ export async function setPriceOverride(commodityId, referencePrice, baseline = {
   if (!commodityLabel) throw new Error('Commodity details are required to set a reference price.');
   const override = await apiClient.patch(`/market-price-overrides/${commodityId}`, {
     commodityLabel,
+    marketType: baseline.marketType || 'retail',
     referencePrice: Number(referencePrice),
     referenceYear: baseline.referenceYear ?? Number(String(baseline.effectiveDate || new Date().toISOString()).slice(0, 4)),
     baselinePrice: baseline.baselinePrice ?? null,
@@ -191,16 +178,44 @@ export async function setPriceOverride(commodityId, referencePrice, baseline = {
   return override;
 }
 
-export async function clearPriceOverride(commodityId) {
-  await apiClient.delete(`/market-price-overrides/${commodityId}`);
+export async function clearPriceOverride(commodityId, marketType = 'retail') {
+  await apiClient.delete(`/market-price-overrides/${encodeURIComponent(commodityId)}?marketType=${encodeURIComponent(marketType)}`);
   invalidatePriceOverridesCache();
 }
 
-export async function getPriceRecommendation(commodityId, { unit, kgPerUnit, quantity }) {
+export async function getPriceRecommendation(commodityId, {
+  unit,
+  kgPerUnit,
+  quantity,
+  costPrice = null,
+  productName = '',
+  sellingType = 'retail',
+  moq = null,
+  handlingCostPerOrder = null,
+  targetProfitMargin = null,
+  sellingPrice = null,
+  historicalAverage = null,
+  historicalLowest = null,
+  historicalHighest = null,
+  historicalTrend = null,
+  orderCount = 0,
+}) {
   return apiClient.post(`/market-price-overrides/${encodeURIComponent(commodityId)}/recommendation`, {
     unit,
     kgPerUnit,
     quantity,
+    costPrice,
+    productName,
+    sellingType,
+    moq,
+    handlingCostPerOrder,
+    targetProfitMargin,
+    sellingPrice,
+    historicalAverage,
+    historicalLowest,
+    historicalHighest,
+    historicalTrend,
+    orderCount,
   });
 }
 
@@ -208,8 +223,9 @@ export async function createCommodity(values) {
   return apiClient.post('/catalog/commodities', values);
 }
 
-export async function getOverrideHistory(commodityId) {
-  return apiClient.get(`/market-price-overrides/${commodityId}/history`);
+export async function getOverrideHistory(commodityId, marketType = '') {
+  const query = marketType ? `?marketType=${encodeURIComponent(marketType)}` : '';
+  return apiClient.get(`/market-price-overrides/${encodeURIComponent(commodityId)}/history${query}`);
 }
 
 function readCache(key) {

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import {
   Activity, Bot, Check, ClipboardList, Gauge, Lightbulb, Minus, Sprout, TrendingDown, TrendingUp, Waves,
 } from 'lucide-react';
@@ -9,13 +8,6 @@ import {
 
 const SECTION_CLASS = 'rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-7';
 const SECTION_TITLE_CLASS = 'text-[22px] font-semibold leading-tight text-[var(--text)]';
-
-const fadeIn = {
-  initial: { opacity: 0, y: 8 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: '-40px' },
-  transition: { duration: 0.25 },
-};
 
 
 
@@ -182,7 +174,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
   return (
     <div className="forecast-report flex flex-col gap-5 sm:gap-6">
       {                }
-      <motion.section {...fadeIn} className={SECTION_CLASS}>
+      <section className={SECTION_CLASS}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
@@ -203,10 +195,10 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             <p key={line} className="text-[16px] leading-relaxed text-[var(--text-secondary)]">{line}</p>
           ))}
         </div>
-      </motion.section>
+      </section>
 
       {                 }
-      <motion.section {...fadeIn} className={SECTION_CLASS}>
+      <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>Key metrics</h2>
         <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
           <MetricTile icon={trendMeta.icon} label="Market Trend" value={trendMeta.label} tone={trendMeta.tone} supporting={changeLabel} />
@@ -220,11 +212,11 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             supporting={`${RISK_NOTE[riskLevel] || ''}${priceVolatilityPercent != null ? ` (${priceVolatilityPercent}% volatility)` : ''}`}
           />
         </div>
-      </motion.section>
+      </section>
 
 
       {                       }
-      <motion.section {...fadeIn} className={SECTION_CLASS}>
+      <section className={SECTION_CLASS}>
         <div className="flex items-start gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--green-50)] text-[var(--green-700)]">
             <Lightbulb size={16} strokeWidth={2} />
@@ -269,10 +261,10 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             <p className="mt-1 text-[16px] leading-relaxed text-[var(--text-secondary)]">{recDetails.when}</p>
           </div>
         </div>
-      </motion.section>
+      </section>
 
       {                            }
-      <motion.section {...fadeIn} className={SECTION_CLASS}>
+      <section className={SECTION_CLASS}>
         <h2 className={SECTION_TITLE_CLASS}>Supporting information</h2>
         <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
@@ -299,7 +291,7 @@ export default function MarketAnalysisReport({ detail, municipality, periodLabel
             </dl>
           </div>
         </div>
-      </motion.section>
+      </section>
     </div>
   );
 }

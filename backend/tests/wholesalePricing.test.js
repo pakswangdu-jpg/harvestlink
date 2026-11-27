@@ -144,16 +144,17 @@ test('Pending and adjustment-required reviews cannot be ordered through direct c
   assert.equal(writes.length, 0);
 });
 
-test('creating and merging listings persist and serialize the farmer-approved tier', async () => {
+test('creating listings persists the farmer-approved tier and blocks duplicate active listings without auto-merging', async () => {
   const created = await invoke(createProduct, listing());
   assert.equal(created.statusCode, 201);
   assert.equal(created.body.wholesalePrice, 48);
   assert.equal(created.body.wholesaleMinQuantity, 10);
   assert.equal(writes[0].row.wholesale_price, 48);
-  const merged = await invoke(createProduct, listing({ allowDuplicate: false, wholesalePrice: 45 }));
-  assert.equal(merged.body.merged, true);
-  assert.equal(merged.body.quantity, 200);
-  assert.equal(merged.body.wholesalePrice, 45);
+  await assert.rejects(
+    invoke(createProduct, listing({ allowDuplicate: false, wholesalePrice: 45 })),
+    { status: 409, code: 'DUPLICATE_PRODUCT_LISTING' },
+  );
+  assert.equal(writes.length, 1);
 });
 
 test('prohibited terms in new or edited listing text deactivate the farmer before writing', async () => {
@@ -262,5 +263,6 @@ test('legacy wholesale orders retain their price while enforcing MOQ and availab
   assert.equal(writes.length, 0);
   const response = await invoke(createOrder, order, buyer);
   assert.equal(response.body.unitPrice, 32);
-  assert.equal(response.body.totalAmount, 5 * 32 + 40);
+  assert.equal(response.body.deliveryMethod, 'farmer_arranged');
+  assert.equal(response.body.totalAmount, 5 * 32);
 });

@@ -19,6 +19,7 @@ function Row({ label, value, tone }) {
 
 export default function SellingBelowCostWarning({
   costPrice, unit, marketPriceLabel, marketPriceValue, marketPriceUnit, recommendedPrice, currentPrice,
+  costLabel = 'Break-even cost per unit',
 }) {
   const loss = recommendedPrice.price - costPrice;
 
@@ -28,14 +29,14 @@ export default function SellingBelowCostWarning({
 
   return (
     <div className="price-analysis-card tone-danger">
-      <p className="price-analysis-card-title"><TriangleAlert size={16} /> <span>Selling Below Cost</span></p>
+      <p className="price-analysis-card-title"><TriangleAlert size={16} /> <span>Selling Below Break-Even Cost</span></p>
       <p className="price-analysis-card-desc">
-        The current {marketPriceLabel.toLowerCase()} is lower than your production cost. Selling at the recommended
+        The current {marketPriceLabel.toLowerCase()} is lower than your calculated break-even cost. Selling at the recommended
         market price would result in a financial loss.
       </p>
 
       <div className="price-breakdown">
-        <Row label="Cost per Unit" value={`${formatCurrency(costPrice)}/${unit}`} />
+        <Row label={costLabel} value={`${formatCurrency(costPrice)}/${unit}`} />
         <Row label={marketPriceLabel} value={`${formatCurrency(marketPriceValue)}/${marketPriceUnit}`} />
         <Row label="AI Recommended Price" value={`${formatCurrency(recommendedPrice.price)}/${unit}`} />
         <Row label="Expected Loss" value={formatCurrency(loss)} tone="loss" />

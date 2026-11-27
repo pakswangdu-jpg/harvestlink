@@ -8,12 +8,39 @@
   overscroll-behavior: contain;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--panel);
+  background: var(--surface-elevated, var(--panel));
   color: var(--text);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 24%);
+  animation: required-feedback-enter 180ms ease-out both;
 }
 
 .required-feedback-dialog::backdrop {
-  background: rgb(0 0 0 / 65%);
+  background: rgb(13 21 16 / 56%);
+  animation: required-feedback-backdrop-enter 180ms ease-out both;
+}
+
+@keyframes required-feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes required-feedback-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .required-feedback-dialog,
+  .required-feedback-dialog::backdrop {
+    animation: none;
+  }
 }
 
 .required-feedback-dialog > h2 {

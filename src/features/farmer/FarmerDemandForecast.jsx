@@ -311,6 +311,10 @@ export default function FarmerDemandForecast() {
                 categoryOptions={categoryOptions}
                 demandLevel={demandLevel}
                 onDemandLevelChange={setDemandLevel}
+                period={period}
+                municipality={municipality}
+                customDate={customDate}
+                refreshToken={refreshToken}
               />
             </div>
 

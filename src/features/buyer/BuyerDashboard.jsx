@@ -22,7 +22,12 @@ import { getOrdersByBuyer } from '../../services/orderService';
 import { matchCommodity } from '../../services/marketPriceService';
 import { getReportRevenue, getSevenDayOrderCounts, getTotalRevenue } from '../../services/reportService';
 import { formatCurrency, formatDate, getFirstName, getInitials, shortOrderId } from '../../utils/formatters';
-import { formatNearbyDistance, getRegisteredCoordinates, sortByRegisteredDistance } from '../../utils/geo';
+import {
+  NEARBY_FARMERS_RADIUS_KM,
+  filterNearbyByRegisteredDistance,
+  formatNearbyDistance,
+  getRegisteredCoordinates,
+} from '../../utils/geo';
 import { buyerNavItems } from './buyerNav';
 import { isNewFarmer } from '../../utils/farmerAge';
 import freshListingsLeaf from '../../assets/icons/fresh-listings-leaf.png';
@@ -233,18 +238,33 @@ export default function BuyerDashboard() {
   const onlinePaidOrders = orders.filter((order) => order.paymentMethod === 'gcash' && order.paymentStatus === 'paid');
   const onlinePaymentTotal = getTotalRevenue(onlinePaidOrders);
   const onlinePaymentTrend = getReportRevenue(onlinePaidOrders, '7d');
-  const sortedNearbyFarmers = sortByRegisteredDistance(nearbyOrigin, verifiedFarmers);
-  const nearbyFarmersWithDistance = sortedNearbyFarmers
-    .slice(0, NEARBY_FARMERS_LIMIT)
-    .map((farmer) => ({ farmer, distanceKm: farmer.distanceKm, listingCount: productsByFarmer.get(farmer.id)?.length || 0 }));
+  const eligibleNearbyFarmers = useMemo(
+    () => filterNearbyByRegisteredDistance(nearbyOrigin, verifiedFarmers, NEARBY_FARMERS_RADIUS_KM),
+    [nearbyOrigin, verifiedFarmers],
+  );
+  const nearbyFarmersWithDistance = useMemo(
+    () => eligibleNearbyFarmers
+      .map((farmer) => ({
+        farmer,
+        distanceKm: farmer.distanceKm,
+        listingCount: productsByFarmer.get(farmer.id)?.length || 0,
+      }))
+      .filter((entry) => entry.listingCount > 0)
+      .slice(0, NEARBY_FARMERS_LIMIT),
+    [eligibleNearbyFarmers, productsByFarmer],
+  );
   const nearbyFarmers = useMemo(() => {
-    const mapFarmers = nearbyMapProfiles.filter((profile) => profile.role === 'farmer');
-    const mappedFarmerIds = new Set(mapFarmers.map((farmer) => farmer.id));
-    const verifiedFarmersWithoutMapCoordinates = verifiedFarmers
-      .filter((farmer) => !mappedFarmerIds.has(farmer.id))
-      .map((farmer) => ({ ...farmer, role: 'farmer' }));
-    return [...mapFarmers, ...verifiedFarmersWithoutMapCoordinates];
-  }, [nearbyMapProfiles, verifiedFarmers]);
+    const mapFarmerById = new Map(
+      nearbyMapProfiles
+        .filter((profile) => profile.role === 'farmer')
+        .map((profile) => [profile.id, profile]),
+    );
+    return eligibleNearbyFarmers.map((farmer) => ({
+      ...(mapFarmerById.get(farmer.id) || farmer),
+      role: 'farmer',
+      distanceKm: farmer.distanceKm,
+    }));
+  }, [eligibleNearbyFarmers, nearbyMapProfiles]);
   const nearbyBuyers = nearbyMapProfiles.filter((profile) => profile.role === 'buyer');
   const nearbyStakeholders = nearbyMapProfiles.filter((profile) => profile.role === 'stakeholder');
 
@@ -355,7 +375,7 @@ export default function BuyerDashboard() {
               <div className="nearby-list-header">
                 <div>
                   <span className="nearby-list-kicker">{nearbyOrigin ? 'Closest marketplace sellers' : 'Marketplace sellers'}</span>
-                  <strong>{nearbyFarmersWithDistance.length} {nearbyOrigin ? 'farmers' : 'sellers'}</strong>
+                  <strong>{nearbyFarmersWithDistance.length} {nearbyFarmersWithDistance.length === 1 ? 'farmer' : 'farmers'}</strong>
                 </div>
                 <Link to="/marketplace">Marketplace <ArrowRight size={14} aria-hidden="true" /></Link>
               </div>
@@ -388,7 +408,7 @@ export default function BuyerDashboard() {
           ) : (
             <div className="buyer-inline-empty">
               <MapPin size={18} aria-hidden="true" />
-              <span><strong>No nearby farmers found</strong> Try browsing all verified sellers in the marketplace.</span>
+              <span><strong>No nearby farmers found within 10 km of your location.</strong> Try browsing all verified sellers in the marketplace.</span>
               <Link to="/marketplace">Browse marketplace</Link>
             </div>
           )}

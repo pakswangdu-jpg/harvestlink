@@ -1,3 +1,159 @@
+export function roundMoney(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return Math.round((numeric + Number.EPSILON) * 100) / 100;
+}
+
+export function parseOptionalPositiveNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+export function parseOptionalNonNegativeNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+}
+
+export function calculateEstimatedTotal(unitPrice, quantity) {
+  const price = parseOptionalPositiveNumber(unitPrice);
+  const qty = parseOptionalPositiveNumber(quantity);
+  if (price == null || qty == null) return null;
+  return roundMoney(price * qty);
+}
+
+/**
+ * Shared Wholesale Pricing Calculator (used identically by frontend and backend).
+ *
+ * Formulas:
+ * - Handling Cost per Unit = Handling Cost per Order / MOQ
+ * - Total Cost per Unit = Production Cost + Handling Cost per Unit
+ * - Recommended Cost-Based Price = Total Cost per Unit / (1 - Target Profit Margin / 100)
+ * - Minimum Order Total = Selling Price * MOQ
+ * - Estimated Stock Value = Selling Price * Available Quantity
+ * - Total Expenses (MOQ order) = Total Cost per Unit * MOQ
+ * - Estimated Gross Profit (MOQ order) = Minimum Order Total - Total Expenses
+ */
+export function calculateWholesalePricing({
+  productionCost = null,
+  handlingCostPerOrder = null,
+  moq = null,
+  availableQuantity = null,
+  targetProfitMargin = null,
+  sellingPrice = null,
+  wholesaleReferencePrice = null,
+  wholesaleMarketPrice = null,
+  unit = 'kg',
+} = {}) {
+  const cost = parseOptionalPositiveNumber(productionCost);
+  const parsedHandling = parseOptionalNonNegativeNumber(handlingCostPerOrder);
+  const handlingPerOrder = parsedHandling ?? 0;
+  const parsedMoq = parseOptionalPositiveNumber(moq);
+  const parsedStock = parseOptionalPositiveNumber(availableQuantity);
+  const parsedMargin = parseOptionalNonNegativeNumber(targetProfitMargin);
+  const hasValidMargin = parsedMargin != null && parsedMargin < 100;
+  const parsedSellingPrice = parseOptionalPositiveNumber(sellingPrice);
+  const parsedWholesaleRef = parseOptionalPositiveNumber(wholesaleReferencePrice);
+  const parsedWholesaleMarket = parseOptionalPositiveNumber(wholesaleMarketPrice);
+
+  const moqExceedsStock = parsedMoq != null && parsedStock != null && parsedMoq > parsedStock;
+
+  const handlingCostPerUnit = parsedMoq != null && !moqExceedsStock
+    ? roundMoney(handlingPerOrder / parsedMoq)
+    : null;
+
+  const totalCostPerUnit = cost != null && handlingCostPerUnit != null
+    ? roundMoney(cost + handlingCostPerUnit)
+    : cost != null
+      ? roundMoney(cost)
+      : null;
+
+  const recommendedCostBasedPrice = totalCostPerUnit != null && parsedMoq != null && !moqExceedsStock && hasValidMargin
+    ? roundMoney(totalCostPerUnit / (1 - parsedMargin / 100))
+    : null;
+
+  const wholesaleMarketDataAvailable = parsedWholesaleRef != null || parsedWholesaleMarket != null;
+
+  // Never substitute a retail reference price for wholesale.
+  let recommendedPrice = null;
+  let pricingBasis = 'insufficient_data';
+  if (parsedWholesaleRef != null) {
+    recommendedPrice = roundMoney(parsedWholesaleRef);
+    pricingBasis = 'wholesale_reference';
+  } else if (parsedWholesaleMarket != null) {
+    recommendedPrice = roundMoney(parsedWholesaleMarket);
+    pricingBasis = 'wholesale_market_data';
+  } else if (recommendedCostBasedPrice != null) {
+    recommendedPrice = recommendedCostBasedPrice;
+    pricingBasis = 'cost_based_wholesale';
+  }
+
+  const calculationPrice = recommendedPrice ?? parsedSellingPrice;
+
+  const minimumOrderTotal = calculationPrice != null && parsedMoq != null && !moqExceedsStock
+    ? roundMoney(calculationPrice * parsedMoq)
+    : null;
+
+  const estimatedStockValue = calculationPrice != null && parsedStock != null
+    ? roundMoney(calculationPrice * parsedStock)
+    : null;
+
+  const totalExpenses = totalCostPerUnit != null && parsedMoq != null && !moqExceedsStock
+    ? roundMoney((cost * parsedMoq) + handlingPerOrder)
+    : null;
+
+  const estimatedGrossProfit = minimumOrderTotal != null && totalExpenses != null
+    ? roundMoney(minimumOrderTotal - totalExpenses)
+    : null;
+
+  const estimatedProfitPerUnit = calculationPrice != null && totalCostPerUnit != null
+    ? roundMoney(calculationPrice - totalCostPerUnit)
+    : null;
+
+  const achievedProfitMargin = calculationPrice != null && calculationPrice > 0 && estimatedProfitPerUnit != null
+    ? roundMoney((estimatedProfitPerUnit / calculationPrice) * 100)
+    : null;
+
+  const breakEvenCost = totalCostPerUnit;
+  const isRecommendedBelowBreakEven = recommendedPrice != null && breakEvenCost != null && recommendedPrice < breakEvenCost;
+  const isEnteredPriceBelowBreakEven = parsedSellingPrice != null && breakEvenCost != null && parsedSellingPrice < breakEvenCost;
+
+  const missingInputs = [];
+  if (cost == null) missingInputs.push('production cost');
+  if (parsedMoq == null) missingInputs.push('MOQ');
+  if (!hasValidMargin) missingInputs.push('target profit margin (0%–99.9%)');
+
+  return {
+    salesType: 'wholesale',
+    unit,
+    productionCost: cost,
+    handlingCostPerOrder: parsedHandling,
+    effectiveHandlingCostPerOrder: handlingPerOrder,
+    moq: parsedMoq,
+    availableQuantity: parsedStock,
+    targetProfitMargin: hasValidMargin ? parsedMargin : null,
+    moqExceedsStock,
+    handlingCostPerUnit,
+    totalCostPerUnit,
+    breakEvenCost,
+    recommendedCostBasedPrice,
+    wholesaleMarketPrice: parsedWholesaleMarket,
+    wholesaleMarketDataAvailable,
+    recommendedPrice,
+    pricingBasis,
+    minimumOrderTotal,
+    estimatedStockValue,
+    totalExpenses,
+    estimatedGrossProfit,
+    estimatedProfitPerUnit,
+    achievedProfitMargin,
+    isRecommendedBelowBreakEven,
+    isEnteredPriceBelowBreakEven,
+    missingInputs,
+  };
+}
+
 export function hasWholesalePricing(product) {
   const retailPrice = Number(product?.price);
   const wholesalePrice = Number(product?.wholesalePrice);

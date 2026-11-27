@@ -3,17 +3,21 @@ import { ArrowRight, MapPin, Sprout, Trash2, User } from 'lucide-react';
 import QuantityStepper from '../checkout/QuantityStepper';
 import { formatCurrency, formatQuantity, titleCase } from '../../utils/formatters';
 import { getApplicableUnitPrice, isWholesaleQuantity, hasWholesalePricing } from '../../../backend/shared/pricing.js';
+import {
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  isProductExpired,
+} from '../../utils/constants';
 
+export default function CartItemRow({ quantity, product, isExpired = false, onUpdateQuantity, onRemove }) {
+  const productExpired = isExpired || Boolean(product && isProductExpired(product.expirationDate));
 
-
-
-export default function CartItemRow({ quantity, product, onUpdateQuantity, onRemove }) {
   if (!product) {
     return (
       <div className="cart-item-row cart-item-unavailable">
         <div className="cart-item-unavailable-info">
-          <strong>This listing is no longer available.</strong>
-          <p>The farmer may have removed or deactivated it.</p>
+          <strong>{productExpired ? EXPIRED_PRODUCT_ERROR_TITLE : 'This listing is no longer available.'}</strong>
+          <p>{productExpired ? EXPIRED_PRODUCT_ERROR_MESSAGE : 'The farmer may have removed or deactivated it.'}</p>
         </div>
         <button type="button" className="cart-item-remove" onClick={onRemove} aria-label="Remove from cart">
           <Trash2 size={16} />
@@ -22,7 +26,7 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
     );
   }
 
-  const inStock = product.quantity > 0 && product.status === 'active';
+  const inStock = product.quantity > 0 && product.status === 'active' && !productExpired;
   const minimumQuantity = product.sellingType === 'wholesale' && product.moq ? Number(product.moq) : 1;
   const unitPrice = getApplicableUnitPrice(product, quantity);
   const subtotal = unitPrice * quantity;
@@ -51,7 +55,11 @@ export default function CartItemRow({ quantity, product, onUpdateQuantity, onRem
           </span>
         ) : null}
         <span className="cart-item-tags">Grade {product.grade || 'A'} · {product.sellingType === 'wholesale' ? 'Wholesale' : 'Retail'}</span>
-        {!inStock ? (
+        {productExpired ? (
+          <p className="cart-item-warning">
+            <strong>{EXPIRED_PRODUCT_ERROR_TITLE}:</strong> {EXPIRED_PRODUCT_ERROR_MESSAGE}
+          </p>
+        ) : !inStock ? (
           <p className="cart-item-warning">This listing is currently out of stock or inactive.</p>
         ) : null}
       </div>

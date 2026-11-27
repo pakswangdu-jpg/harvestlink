@@ -5,4 +5,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    watch: {
+      awaitWriteFinish: {
+        stabilityThreshold: 150,
+        pollInterval: 50,
+      },
+    },
+  },
 })

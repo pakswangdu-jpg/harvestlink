@@ -120,37 +120,55 @@ function PriceTrendChart({ points }) {
 
 export default function CommodityDetailPanel({ row, onOpenOverride, onResetOverride }) {
   const [history, setHistory] = useState(null);
+  const [historyMarketType, setHistoryMarketType] = useState('');
   const [historyError, setHistoryError] = useState('');
   const psaTrendPoints = row.trendPoints.filter((point) => point.price != null && !point.isOverride);
   const hasPsaTrend = psaTrendPoints.length >= 2;
 
   useEffect(() => {
     let cancelled = false;
-    getOverrideHistory(row.id).then((data) => { if (!cancelled) setHistory(data); }).catch((error) => { if (!cancelled) setHistoryError(error.message || 'Could not load override history.'); });
+    getOverrideHistory(row.id, historyMarketType)
+      .then((data) => { if (!cancelled) { setHistory(data); setHistoryError(''); } })
+      .catch((error) => { if (!cancelled) setHistoryError(error.message || 'Could not load override history.'); });
     return () => { cancelled = true; };
-  }, [row.id]);
+  }, [row.id, historyMarketType, row.retailOverride?.updatedAt, row.wholesaleOverride?.updatedAt]);
+
+  const formatMarketTypeLabel = (value) => (
+    value === 'wholesale' ? 'Wholesale' : value === 'retail' ? 'Retail' : 'Unspecified (legacy)'
+  );
 
   return (
     <div className="pm-details">
       <dl className="pm-detail-prices">
         {[
           ['PSA reference', row.loading ? 'Loading...' : row.psaPrice == null ? 'No PSA data' : `${formatCurrency(row.psaPrice)}/kg (PSA ${row.psaYear})`],
-          ['Admin reference', row.isOverride ? `${formatCurrency(row.override?.referencePrice ?? row.referencePrice)}/${row.override?.unit || row.unit} · ${row.override?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered'}` : 'Not set'],
-          ['Effective reference', row.referencePrice == null ? 'Unavailable' : `${formatCurrency(row.referencePrice)}/${row.unit} · ${row.isOverride ? 'Admin source' : `PSA ${row.referenceYear || ''}`}`],
+          ['Retail admin reference', row.isRetailOverride ? `${formatCurrency(row.retailOverride?.referencePrice ?? row.retailReferencePrice)}/${row.retailOverride?.unit || row.unit} · ${row.retailOverride?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered'}` : 'Not set'],
+          ['Wholesale admin reference', row.isWholesaleOverride ? `${formatCurrency(row.wholesaleOverride?.referencePrice ?? row.wholesaleReferencePrice)}/${row.wholesaleOverride?.unit || row.unit} · ${row.wholesaleOverride?.source === 'verified_local_market' ? 'Verified local survey' : 'Admin-entered'}` : 'Not set'],
+          ['Effective retail reference', row.referencePrice == null ? 'Unavailable' : `${formatCurrency(row.referencePrice)}/${row.unit} · ${row.isRetailOverride ? 'Admin source' : `PSA ${row.referenceYear || ''}`}`],
           ['Average Farmer price', row.avgFarmerPrice == null ? '-' : `${formatCurrency(row.avgFarmerPrice)}/kg`],
           ['Lowest Farmer price', row.lowFarmerPrice == null ? '-' : `${formatCurrency(row.lowFarmerPrice)}/kg`],
           ['Highest Farmer price', row.highFarmerPrice == null ? '-' : `${formatCurrency(row.highFarmerPrice)}/kg`],
           ['Active listings', row.listingsCount],
-          ['Difference vs effective reference', row.loading || row.unit !== 'kg' ? '-' : priceDifference(row.avgFarmerPrice, row.referencePrice)?.label || '-'],
+          ['Difference vs retail reference', row.loading || row.unit !== 'kg' ? '-' : priceDifference(row.avgFarmerPrice, row.referencePrice)?.label || '-'],
         ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
       <div className="pm-detail-actions">
-        {row.isCustom ? (
-          <>
-            <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row)}>{row.isOverride ? 'Edit override' : 'Set manual reference'}</Button>
-            {row.isOverride && <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row)}>Deactivate admin price</Button>}
-          </>
-        ) : <span className="pm-secondary">Admin references are available for commodities added to the catalog.</span>}
+        <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row, 'retail')}>
+          {row.isRetailOverride ? 'Edit retail reference' : 'Set retail reference'}
+        </Button>
+        {row.isRetailOverride && (
+          <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row, 'retail')}>
+            Deactivate retail price
+          </Button>
+        )}
+        <Button variant="secondary" disabled={row.loading} onClick={() => onOpenOverride(row, 'wholesale')}>
+          {row.isWholesaleOverride ? 'Edit wholesale reference' : 'Set wholesale reference'}
+        </Button>
+        {row.isWholesaleOverride && (
+          <Button variant="secondary" disabled={row.loading} onClick={() => onResetOverride(row, 'wholesale')}>
+            Deactivate wholesale price
+          </Button>
+        )}
         <a href={`#override-history-${row.id}`} className="pm-link">View history</a>
       </div>
       <h3>Related Farmer listings</h3>
@@ -175,25 +193,43 @@ export default function CommodityDetailPanel({ row, onOpenOverride, onResetOverr
       </div>
 
       <div className="pm-history-section" id={`override-history-${row.id}`}>
-        <h3>Override history</h3>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3>Reference price history</h3>
+          <select
+            aria-label="Filter history by market type"
+            className="pm-reason-choice"
+            style={{ width: 'auto', minWidth: 160 }}
+            value={historyMarketType}
+            onChange={(event) => {
+              setHistory(null);
+              setHistoryMarketType(event.target.value);
+            }}
+          >
+            <option value="">All market types</option>
+            <option value="retail">Retail</option>
+            <option value="wholesale">Wholesale</option>
+          </select>
+        </div>
         {historyError ? <p role="alert">{historyError}</p> : history === null ? (
           <LoadingState rows={2} />
         ) : !history.length ? (
-          <p className="pm-empty">No override changes recorded for this commodity yet.</p>
+          <p className="pm-empty">No reference price changes recorded for this selection yet.</p>
         ) : (
           <>
             <PriceHistoryChart history={history} unit={row.unit} />
             <Table
               columns={[
                 { key: 'createdAt', label: 'Date / time', render: (entry) => entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '-' },
+                { key: 'marketType', label: 'Market type', render: (entry) => formatMarketTypeLabel(entry.marketType) },
                 { key: 'previousPrice', label: 'Previous Price', render: (entry) => (entry.previousPrice == null ? '—' : `${formatCurrency(entry.previousPrice)}/${entry.previousUnit || row.unit}`) },
                 { key: 'newPrice', label: 'New Price', render: (entry) => (entry.newPrice == null ? 'Deactivated' : `${formatCurrency(entry.newPrice)}/${entry.newUnit || row.unit}`) },
                 { key: 'newSource', label: 'Source', render: (entry) => entry.newSource === 'verified_local_market' ? 'Verified local survey' : entry.newSource === 'admin_entered' ? 'Admin-entered' : '—' },
+                { key: 'supportingReference', label: 'Supporting reference', render: (entry) => <span className="whitespace-normal">{entry.supportingReference || '—'}</span> },
                 { key: 'updatedByName', label: 'Updated By', render: (entry) => entry.updatedByName || '—' },
                 { key: 'reason', label: 'Reason', render: (entry) => <span className="whitespace-normal">{entry.reason || '—'}</span> },
               ]}
               rows={history}
-              emptyMessage="No override changes recorded for this commodity yet."
+              emptyMessage="No reference price changes recorded for this selection yet."
             />
           </>
         )}

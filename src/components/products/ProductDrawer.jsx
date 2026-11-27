@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LoaderCircle, PackageOpen, Plus, X } from 'lucide-react';
+import { AlertTriangle, LoaderCircle, PackageOpen, Plus, X } from 'lucide-react';
 import ProductForm from '../forms/ProductForm';
 import Button from '../common/Button';
 import { removeStorage } from '../../services/storageService';
 import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatQuantity } from '../../utils/formatters';
+import {
+  DUPLICATE_PRODUCT_ERROR_MESSAGE,
+  DUPLICATE_PRODUCT_ERROR_TITLE,
+} from '../../../backend/shared/productDuplicate.js';
 
 const FORM_ID = 'product-drawer-form';
 
@@ -14,6 +18,7 @@ const FORM_ID = 'product-drawer-form';
 
 export default function ProductDrawer({
   open, product, currentUser, onSubmit, onClose, onApplyDiscount, onRemoveDiscount,
+  onCheckDuplicate, duplicateProduct, onDismissDuplicate, onViewExistingProduct,
 }) {
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +50,9 @@ export default function ProductDrawer({
       onSubmit(values);
       return;
     }
+    if (!values.isDonation && onCheckDuplicate?.(values)) {
+      return;
+    }
     returnFocusRef.current = document.activeElement;
     setConfirmationError('');
     setPendingValues(values);
@@ -64,6 +72,12 @@ export default function ProductDrawer({
     setIsSaving(true);
     try {
       const result = await onSubmit(pendingValues, { fromConfirmation: true });
+      if (result?.duplicate) {
+        setIsConfirmationOpen(false);
+        setPendingValues(null);
+        setConfirmationError('');
+        return;
+      }
       if (result !== true) {
         setConfirmationError(
           result?.success === false
@@ -148,7 +162,7 @@ export default function ProductDrawer({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           onClick={() => {
-            if (!isConfirmationOpen && !isSaving) onClose();
+            if (!isConfirmationOpen && !duplicateProduct && !isSaving) onClose();
           }}
         >
           <motion.div
@@ -285,6 +299,50 @@ export default function ProductDrawer({
                 ) : (
                   <><Plus size={16} strokeWidth={2.2} aria-hidden="true" />{confirmationActionLabel}</>
                 )}
+              </Button>
+            </div>
+          </motion.section>
+        </motion.div>
+      ) : null}
+      {duplicateProduct ? (
+        <motion.div
+          className="product-save-confirmation-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onDismissDuplicate}
+        >
+          <motion.section
+            className="product-save-confirmation product-duplicate-alert"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="duplicate-product-title"
+            aria-describedby="duplicate-product-message"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="product-save-confirmation-heading">
+              <div className="product-duplicate-alert-icon" aria-hidden="true">
+                <AlertTriangle size={20} strokeWidth={2} />
+              </div>
+              <div>
+                <p className="product-duplicate-alert-eyebrow">Duplicate listing</p>
+                <h2 id="duplicate-product-title">{DUPLICATE_PRODUCT_ERROR_TITLE}</h2>
+              </div>
+            </div>
+            <p id="duplicate-product-message">{DUPLICATE_PRODUCT_ERROR_MESSAGE}</p>
+            <div className="product-save-confirmation-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={onDismissDuplicate}
+              >
+                Cancel
+              </button>
+              <Button variant="danger" onClick={() => onViewExistingProduct?.(duplicateProduct)}>
+                View Existing Product
               </Button>
             </div>
           </motion.section>

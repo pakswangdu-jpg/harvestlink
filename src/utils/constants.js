@@ -1,3 +1,29 @@
+import {
+  EXPIRING_SOON_DAYS,
+  EXPIRED_PRODUCT_ERROR_CODE,
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  formatExpirationDate,
+  getDaysUntilExpiration,
+  getProductExpirationInfo,
+  getTodayInPhilippines,
+  isProductExpired,
+  isProductExpiringSoon,
+} from '../../backend/shared/expiration.js';
+
+export {
+  EXPIRING_SOON_DAYS,
+  EXPIRED_PRODUCT_ERROR_CODE,
+  EXPIRED_PRODUCT_ERROR_MESSAGE,
+  EXPIRED_PRODUCT_ERROR_TITLE,
+  formatExpirationDate,
+  getDaysUntilExpiration,
+  getProductExpirationInfo,
+  getTodayInPhilippines,
+  isProductExpired,
+  isProductExpiringSoon,
+};
+
 export const STORAGE_KEYS = {
   users: 'harvestlink_users',
   products: 'harvestlink_products',
@@ -33,32 +59,29 @@ export function getProductApprovalStatus(product) {
   return 'approved';
 }
 
-export function getProductListingStatusInfo(product) {
+export function getProductListingStatusInfo(product, now = new Date()) {
+  const expirationDate = product.expirationDate ?? product.expiration_date ?? null;
+  if (isProductExpired(expirationDate, now)) return { value: 'expired', label: 'Expired' };
   if (product.status === 'inactive') return { value: 'inactive', label: 'Inactive' };
   const quantity = Number(product.quantity);
   if (quantity <= 0) return { value: 'out-of-stock', label: 'Out of stock' };
+  if (isProductExpiringSoon(expirationDate, now)) return { value: 'expiring-soon', label: 'Expiring Soon' };
   if (isLowStock(quantity)) return { value: 'low-stock', label: 'Low stock' };
   return { value: 'active', label: 'Active' };
 }
 
-export function getProductStatusInfo(product) {
+export function getProductStatusInfo(product, now = new Date()) {
   const approval = getProductApprovalStatus(product);
   if (approval === 'pending') return { value: 'pending-approval', label: 'Pending approval' };
   if (approval === 'needs-adjustment') return { value: 'needs-adjustment', label: 'Needs price adjustment' };
   if (approval === 'rejected') return { value: 'rejected', label: 'Rejected' };
-  return getProductListingStatusInfo(product);
+  return getProductListingStatusInfo(product, now);
 }
 
-export const EXPIRING_SOON_DAYS = 3;
-
-export function getExpiryStatus(expirationDate) {
-  if (!expirationDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const expiry = new Date(expirationDate);
-  const diffDays = Math.round((expiry - today) / 86400000);
-  if (diffDays < 0) return 'expired';
-  if (diffDays <= EXPIRING_SOON_DAYS) return 'expiring_soon';
+export function getExpiryStatus(expirationDate, now = new Date()) {
+  const info = getProductExpirationInfo(expirationDate, now);
+  if (info.isExpired) return 'expired';
+  if (info.isExpiringSoon) return 'expiring_soon';
   return null;
 }
 

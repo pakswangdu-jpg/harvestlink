@@ -29,11 +29,11 @@ export function ToastProvider({ children }) {
     }
   }, []);
 
-  const showToast = useCallback(({ type = 'success', title, message, actionLabel, onAction }) => {
+  const showToast = useCallback(({ type = 'success', title, message, actionLabel, onAction, duration = TOAST_DURATION_MS, centered = false }) => {
     nextId += 1;
     const id = nextId;
-    setToasts((previous) => [...previous, { id, type, title, message, actionLabel, onAction }]);
-    timers.current[id] = setTimeout(() => dismissToast(id), TOAST_DURATION_MS);
+    setToasts((previous) => [...previous, { id, type, title, message, actionLabel, onAction, centered }]);
+    timers.current[id] = setTimeout(() => dismissToast(id), duration);
     return id;
   }, [dismissToast]);
 

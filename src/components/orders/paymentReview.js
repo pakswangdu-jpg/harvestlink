@@ -1,8 +1,6 @@
 export const PAYMENT_REVIEW_CHECKS = [
   'Receipt amount matches order amount',
   'Reference number is readable',
-  'Sender/payment information is valid',
-  'Receipt does not appear duplicated',
 ];
 
 export const PAYMENT_REVIEW_MIN_CHECKS = 2;

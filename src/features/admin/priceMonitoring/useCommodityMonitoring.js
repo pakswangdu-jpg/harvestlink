@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, fetchRawAnnualPriceTrend, getPriceOverride, invalidatePriceOverridesCache, isPriceOverrideEffective, matchCommodity, setPriceOverride,
+  MARKET_COMMODITIES, clearPriceOverride, fetchAnnualPriceTrend, fetchRawAnnualPriceTrend, getCommodityOverrides, invalidatePriceOverridesCache, isPriceOverrideEffective, matchCommodity, setPriceOverride,
 } from '../../../services/marketPriceService';
 import { getFixedKgPerUnit } from '../../../utils/unitConversion';
 import { getProducts, getPendingPriceReviews } from '../../../services/productService';
@@ -48,36 +48,54 @@ export function useCommodityMonitoring() {
       const rawPoints = commodity.isCustom ? [] : await fetchRawAnnualPriceTrend(commodity.id, 5);
       const psa = [...rawPoints].reverse().find((point) => point.price != null);
       const latest = [...points].reverse().find((point) => point.price != null);
-      const override = await getPriceOverride(commodity.id);
-      const hasEffectiveOverride = isPriceOverrideEffective(override);
+      const { retail, wholesale, legacy } = await getCommodityOverrides(commodity.id);
+      const retailOverride = retail || legacy || null;
+      const hasRetailOverride = isPriceOverrideEffective(retailOverride);
+      const hasWholesaleOverride = isPriceOverrideEffective(wholesale);
+      const hasAnyOverride = hasRetailOverride || hasWholesaleOverride;
+      const primaryOverride = hasRetailOverride ? retailOverride : hasWholesaleOverride ? wholesale : null;
       setPriceData((previous) => ({
         ...previous,
         [commodity.id]: {
-          referencePrice: hasEffectiveOverride ? override.referencePrice : latest?.price ?? null,
+          referencePrice: hasRetailOverride ? retailOverride.referencePrice : latest?.price ?? null,
+          retailReferencePrice: hasRetailOverride ? retailOverride.referencePrice : null,
+          wholesaleReferencePrice: hasWholesaleOverride ? wholesale.referencePrice : null,
           psaPrice: psa?.price ?? null,
           psaYear: psa?.year ?? null,
-          referenceYear: hasEffectiveOverride ? override.referenceYear : latest?.year ?? null,
-          isOverride: hasEffectiveOverride,
-          source: hasEffectiveOverride ? override.source : 'psa',
-          override,
+          referenceYear: primaryOverride ? primaryOverride.referenceYear : latest?.year ?? null,
+          isOverride: hasAnyOverride,
+          isRetailOverride: hasRetailOverride,
+          isWholesaleOverride: hasWholesaleOverride,
+          source: primaryOverride ? primaryOverride.source : 'psa',
+          override: primaryOverride,
+          retailOverride,
+          wholesaleOverride: wholesale,
           trendPoints: points,
         },
       }));
     } catch {
-
-
-      const override = await getPriceOverride(commodity.id);
-      const hasEffectiveOverride = isPriceOverrideEffective(override);
+      const { retail, wholesale, legacy } = await getCommodityOverrides(commodity.id);
+      const retailOverride = retail || legacy || null;
+      const hasRetailOverride = isPriceOverrideEffective(retailOverride);
+      const hasWholesaleOverride = isPriceOverrideEffective(wholesale);
+      const hasAnyOverride = hasRetailOverride || hasWholesaleOverride;
+      const primaryOverride = hasRetailOverride ? retailOverride : hasWholesaleOverride ? wholesale : null;
       setPriceData((previous) => ({
         ...previous,
         [commodity.id]: {
-          referencePrice: hasEffectiveOverride ? override.referencePrice : null,
+          referencePrice: hasRetailOverride ? retailOverride.referencePrice : null,
+          retailReferencePrice: hasRetailOverride ? retailOverride.referencePrice : null,
+          wholesaleReferencePrice: hasWholesaleOverride ? wholesale.referencePrice : null,
           psaPrice: null,
           psaYear: null,
-          referenceYear: hasEffectiveOverride ? override.referenceYear : null,
-          isOverride: hasEffectiveOverride,
-          source: hasEffectiveOverride ? override.source : null,
-          override,
+          referenceYear: primaryOverride ? primaryOverride.referenceYear : null,
+          isOverride: hasAnyOverride,
+          isRetailOverride: hasRetailOverride,
+          isWholesaleOverride: hasWholesaleOverride,
+          source: primaryOverride ? primaryOverride.source : null,
+          override: primaryOverride,
+          retailOverride,
+          wholesaleOverride: wholesale,
           trendPoints: [],
         },
       }));
@@ -195,14 +213,20 @@ export function useCommodityMonitoring() {
         isCustom: Boolean(commodity.isCustom),
         category: commodity.isCustom ? commodity.category : getCommodityCategory(commodity.id),
         referencePrice,
+        retailReferencePrice: info?.retailReferencePrice ?? null,
+        wholesaleReferencePrice: info?.wholesaleReferencePrice ?? null,
         psaPrice: info?.psaPrice ?? null,
         psaYear: info?.psaYear ?? null,
-        relatedListings: (products || [])        .filter((product) => matchCommodity(product.name, commodities)?.id === commodity.id),
+        relatedListings: (products || []).filter((product) => matchCommodity(product.name, commodities)?.id === commodity.id),
         referenceYear: info?.referenceYear ?? null,
         isOverride: Boolean(info?.isOverride),
+        isRetailOverride: Boolean(info?.isRetailOverride),
+        isWholesaleOverride: Boolean(info?.isWholesaleOverride),
         source: info?.source || null,
         unit: info?.override?.unit || commodity.unit || 'kg',
         override: info?.override ?? null,
+        retailOverride: info?.retailOverride ?? null,
+        wholesaleOverride: info?.wholesaleOverride ?? null,
         trendPoints: info?.trendPoints ?? [],
         avgFarmerPrice,
         highFarmerPrice,
@@ -222,8 +246,8 @@ export function useCommodityMonitoring() {
     reloadCommodityPrice(commodityId);
   }, [reloadCommodityPrice]);
 
-  const resetOverride = useCallback(async (commodityId) => {
-    await clearPriceOverride(commodityId);
+  const resetOverride = useCallback(async (commodityId, marketType = 'retail') => {
+    await clearPriceOverride(commodityId, marketType);
     reloadCommodityPrice(commodityId);
   }, [reloadCommodityPrice]);
 

@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { ApiError } from '../lib/ApiError.js';
 import { getWeatherForMunicipality } from '../lib/weatherService.js';
 import { matchCommodity } from '../lib/marketCommodities.js';
+import { containsProhibitedListingText } from '../lib/prohibitedListingText.js';
 import { fetchAnnualPriceTrend } from '../lib/psaPriceService.js';
 import { generateForecastInsights } from '../lib/geminiService.js';
 import {
@@ -278,6 +279,7 @@ async function computeCropForecast(entry, {
 
 
 function buildCropMap(products, orders, { hasFilter, productIdSet, productById }) {
+  const safeProducts = products.filter((product) => !containsProhibitedListingText(product.name, product.category));
   const cropMap = new Map();
   const ensureCrop = (key, displayName, categoryName, unit) => {
     if (!cropMap.has(key)) {
@@ -300,7 +302,7 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
     return cropMap.get(key);
   };
 
-  products.filter((product) => product.status === 'active').forEach((product) => {
+  safeProducts.filter((product) => product.status === 'active').forEach((product) => {
     const entry = ensureCrop(cropUnitKey(product.name, product.unit), titleCaseCropName(product.name), product.category, product.unit);
     entry.activeListings += 1;
     entry.priceSampleTotal += Number(product.price) || 0;
@@ -312,7 +314,7 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
   });
 
   const unitsByCrop = new Map();
-  products.forEach((product) => {
+  safeProducts.forEach((product) => {
     const cropKey = normalizeCropKey(product.name);
     if (!unitsByCrop.has(cropKey)) unitsByCrop.set(cropKey, new Map());
     if (product.unit) unitsByCrop.get(cropKey).set(normalizeCropKey(product.unit), product.unit);
@@ -323,7 +325,7 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
 
 
 
-  products.forEach((product) => {
+  safeProducts.forEach((product) => {
     const price = Number(product.price);
     if (!price) return;
     const key = cropUnitKey(product.name, product.unit);
@@ -340,6 +342,7 @@ function buildCropMap(products, orders, { hasFilter, productIdSet, productById }
   )).forEach((order) => {
     const product = productById.get(order.product_id);
     const cropName = product?.name || order.product_name;
+    if (containsProhibitedListingText(cropName, product?.category)) return;
     const cropKey = normalizeCropKey(cropName);
     const availableUnits = [...(unitsByCrop.get(cropKey)?.values() || [])];
     const unit = product?.unit || (availableUnits.length === 1 ? availableUnits[0] : null);
@@ -439,6 +442,7 @@ export async function getDemandForecast(req, res) {
 export async function getCropForecastDetail(req, res) {
   const cropName = String(req.params.cropName || '').trim();
   if (!cropName) throw new ApiError('Crop name is required.', 400);
+  if (containsProhibitedListingText(cropName)) throw new ApiError('Forecast not available for this crop.', 404);
   const requestedUnit = String(req.query.unit || '').trim();
   const period = String(req.query.period || '7_days');
   validatePeriod(period);

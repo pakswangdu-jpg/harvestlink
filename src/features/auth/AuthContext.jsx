@@ -10,6 +10,10 @@ import {
   resendRegistrationOtp,
   verifyRegistrationOtp,
 } from '../../services/authService';
+import {
+  disablePushNotifications,
+  syncPushSubscriptionForUser,
+} from '../../services/pushNotificationService';
 
 const AuthContext = createContext(null);
 
@@ -91,6 +95,7 @@ export function AuthProvider({ children }) {
       await resendRegistrationOtp(email);
     },
     async logout() {
+      await disablePushNotifications().catch(() => {});
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setCurrentUserState(null);
@@ -104,6 +109,11 @@ export function AuthProvider({ children }) {
     },
   }), [currentUser, loading]);
 
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    syncPushSubscriptionForUser(currentUser.id);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (!currentUser || currentUser.role === 'admin') return undefined;

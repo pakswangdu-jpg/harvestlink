@@ -1,0 +1,113 @@
+.wholesale-timeline {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wholesale-timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  padding-bottom: 18px;
+}
+
+.wholesale-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.wholesale-timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--line);
+}
+
+.wholesale-timeline-item.is-completed:not(:last-child)::before {
+  background: #2f6b3e;
+}
+
+.wholesale-timeline-marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--text-faint);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.wholesale-timeline-item.is-completed .wholesale-timeline-marker,
+.wholesale-timeline-item.is-current .wholesale-timeline-marker {
+  border-color: #2f6b3e;
+  background: #edf5ef;
+  color: #2f6b3e;
+}
+
+.wholesale-timeline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.wholesale-timeline-content {
+  min-width: 0;
+}
+
+.wholesale-timeline-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.wholesale-timeline-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.wholesale-timeline-item.is-pending .wholesale-timeline-title {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.wholesale-timeline-time {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.wholesale-timeline-description {
+  margin: 3px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.wholesale-timeline-item.is-pending .wholesale-timeline-description {
+  color: var(--text-faint);
+}
+
+[data-theme='dark'] .wholesale-timeline-item.is-completed:not(:last-child)::before {
+  background: #4f9a65;
+}
+
+[data-theme='dark'] .wholesale-timeline-item.is-completed .wholesale-timeline-marker,
+[data-theme='dark'] .wholesale-timeline-item.is-current .wholesale-timeline-marker {
+  border-color: #4f9a65;
+  background: #1f3325;
+  color: #86c997;
+}

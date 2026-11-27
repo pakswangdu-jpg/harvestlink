@@ -22,6 +22,7 @@ import LalamoveDeliveryQuote from '../../components/orders/LalamoveDeliveryQuote
 import { updateDeliveryStatus } from '../../services/deliveryService';
 import { approvePaymentVerification, rejectPaymentVerification } from '../../services/paymentService';
 import { formatCurrency, formatDate, formatTime, deliveryMethodLabel, getInitials, shortOrderId } from '../../utils/formatters';
+import { usesSharedArrangedDelivery } from '../../../backend/shared/wholesaleDelivery.js';
 import { farmerNavItems } from './farmerNav';
 import './FarmerOrders.css';
 
@@ -114,6 +115,18 @@ function isWithinDateFilter(order, dateFilter, exactDateTime) {
 
 
 function getPrimaryAction(order) {
+  if (usesSharedArrangedDelivery(order)) {
+    if (order.status === 'pending' && order.deliveryArrangementStatus === 'pending_farmer') {
+      return { kind: 'arrange-delivery' };
+    }
+    if (order.status === 'pending' && order.deliveryArrangementStatus === 'pending_buyer_confirmation') {
+      return { kind: 'awaiting-buyer' };
+    }
+    if (order.status === 'pending') return { kind: 'confirm' };
+    if (!['farmer_delivery', 'buyer_pickup'].includes(order.deliveryMethod)) {
+      return { kind: 'view' };
+    }
+  }
   if (order.status === 'pending') return { kind: 'confirm' };
   if (order.status !== 'confirmed') return { kind: 'view' };
 
@@ -261,6 +274,17 @@ function OrderActions({ order, onAction, onReviewPayment }) {
           <Check size={16} aria-hidden="true" /> Confirm order
         </Button>
         ) : null}
+      </div>
+    );
+  }
+
+  if (action.kind === 'arrange-delivery') {
+    return (
+      <div className="farmer-order-actions">
+        {paymentAction}
+        <Link className="farmer-order-action farmer-order-action-primary" to={`/orders/${order.id}`}>
+          <Truck size={14} aria-hidden="true" /> Arrange Delivery
+        </Link>
       </div>
     );
   }
@@ -753,14 +777,16 @@ export default function FarmerOrders() {
                             setOrders((previous) => previous.map((item) => item.id === order.id ? { ...item, ...updated } : item));
                           }} />
                         ) : null}
-                        {order.deliveryMethod === 'courier' && (!order.lalamoveQuoteStatus || ['packed', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus)) ? (
+                        {!usesSharedArrangedDelivery(order) && order.deliveryMethod === 'courier' && (!order.lalamoveQuoteStatus || ['packed', 'out_for_delivery', 'delivered'].includes(order.deliveryStatus)) ? (
                           <ManageManualLalamoveTracking order={order} onSaved={(trackingUrl) => {
                             setOrders((previous) => previous.map((item) => item.id === order.id
                               ? { ...item, manualLalamoveTrackingUrl: trackingUrl }
                               : item));
                           }} />
                         ) : null}
-                        {order.status === 'pending' ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link> : null}
+                        {order.status === 'pending' && !['view', 'awaiting-buyer', 'arrange-delivery'].includes(getPrimaryAction(order).kind)
+                          ? <Link className="farmer-purchase-details" to={`/orders/${order.id}`}>View details <ChevronRight size={14} aria-hidden="true" /></Link>
+                          : null}
                       </div>
                     </article>
                   ))}

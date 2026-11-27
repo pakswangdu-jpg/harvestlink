@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../lib/supabaseClient.js';
 import { ApiError } from '../lib/ApiError.js';
 import { createNotification } from '../lib/notify.js';
+import { sendPushToUser } from '../lib/webPushService.js';
 import {
   DONATION_ARRIVAL_POKE_COOLDOWN_MS,
   evaluateDonationArrival,
@@ -305,16 +306,99 @@ export async function createDonation(req, res) {
   res.status(201).json(serializeDonation(data));
 }
 
+function throwClaimError(error) {
+  if (!error) return;
+  const rawMessage = String(error.message || '');
+  if (rawMessage.includes('DONATION_NO_LONGER_AVAILABLE') || rawMessage.includes('no longer available')) {
+    const apiErr = new ApiError(
+      'This donation has already been claimed by another stakeholder. Please explore other available donations.',
+      409,
+      'DONATION_NO_LONGER_AVAILABLE',
+    );
+    apiErr.title = 'Donation No Longer Available';
+    throw apiErr;
+  }
+  if (rawMessage.includes('INSUFFICIENT_DONATION_STOCK') || rawMessage.includes('remains available')) {
+    const apiErr = new ApiError(
+      'The requested quantity exceeds the remaining available stock. Please adjust your requested quantity and try again.',
+      409,
+      'INSUFFICIENT_DONATION_STOCK',
+    );
+    apiErr.title = 'Insufficient Donation Stock';
+    throw apiErr;
+  }
+  if (rawMessage.includes('DONATION_EXPIRED') || rawMessage.includes('expired')) {
+    const apiErr = new ApiError(
+      'This donation has expired and is no longer available.',
+      409,
+      'DONATION_EXPIRED',
+    );
+    apiErr.title = 'Donation No Longer Available';
+    throw apiErr;
+  }
+  if (rawMessage.includes('DUPLICATE_DONATION_CLAIM') || error.code === '23505') {
+    const apiErr = new ApiError(
+      'You already have an active claim for this donation.',
+      409,
+      'DUPLICATE_DONATION_CLAIM',
+    );
+    apiErr.title = 'Claim Already Submitted';
+    throw apiErr;
+  }
+  checkError(error);
+}
+
 export async function createDonationClaim(req, res) {
   const quantity = Number(req.body?.quantity);
-  if (!Number.isFinite(quantity) || quantity <= 0) throw new ApiError('Enter a positive donation quantity.', 400);
-  const { data, error } = await supabaseAdmin.rpc('claim_surplus_donation', {
+  if (!Number.isFinite(quantity) || quantity <= 0 || Number(quantity.toFixed(2)) !== quantity) {
+    throw new ApiError('Enter a positive donation quantity with up to two decimal places.', 400);
+  }
+  const targetDonationId = requireId(req.params.id);
+  const rawClaimKey = typeof req.body?.claimKey === 'string' ? req.body.claimKey.trim() : '';
+  if (rawClaimKey && rawClaimKey.length > 128) {
+    throw new ApiError('Invalid claim request key.', 400);
+  }
+
+  const rpcArgs = {
     actor_id: req.profile.id,
-    target_donation_id: requireId(req.params.id),
+    target_donation_id: targetDonationId,
     requested_quantity: quantity,
-  });
-  checkError(error);
-  res.status(201).json(serializeClaim(data));
+  };
+  if (rawClaimKey) rpcArgs.p_claim_key = rawClaimKey;
+
+  const { data, error } = await supabaseAdmin.rpc('claim_surplus_donation', rpcArgs);
+  throwClaimError(error);
+
+  const serialized = serializeClaim(data);
+
+  // Push notifications fire only after the atomic database transaction commits.
+  if (data?.donation_id) {
+    supabaseAdmin
+      .from('donations')
+      .select('farmer_id, product_name, unit')
+      .eq('id', data.donation_id)
+      .maybeSingle()
+      .then(({ data: donationRow }) => {
+        if (!donationRow) return;
+        sendPushToUser(donationRow.farmer_id, {
+          id: data.id ? `${data.id}-farmer` : null,
+          type: 'donation',
+          title: 'Donation claim received',
+          message: `${serialized.stakeholderName || 'A stakeholder'} claimed ${serialized.quantity} ${donationRow.unit} of ${donationRow.product_name}.`,
+          link: '/farmer-donations',
+        }).catch(() => {});
+        sendPushToUser(req.profile.id, {
+          id: data.id ? `${data.id}-stakeholder` : null,
+          type: 'donation',
+          title: 'Donation Claimed Successfully',
+          message: 'Your donation claim has been successfully submitted. Please check your donation details for further instructions.',
+          link: '/stakeholder-requests',
+        }).catch(() => {});
+      })
+      .catch(() => {});
+  }
+
+  res.status(201).json(serialized);
 }
 
 export async function transitionDonationClaim(req, res) {

@@ -253,6 +253,18 @@ export async function advanceDelivery(id, plateNumber) {
   return apiClient.patch(`/orders/${id}/advance-delivery`, plateNumber ? { plateNumber } : {});
 }
 
+export async function arrangeWholesaleDelivery(id, details) {
+  return apiClient.patch(`/orders/${id}/wholesale-arrangement`, details);
+}
+
+export async function confirmWholesaleDelivery(id, arrangedAt) {
+  return apiClient.patch(`/orders/${id}/wholesale-confirm`, { arrangedAt });
+}
+
+export async function advanceWholesaleDelivery(id, targetStatus) {
+  return apiClient.patch(`/orders/${id}/wholesale-status`, targetStatus ? { targetStatus } : {});
+}
+
 export async function updateOrderLocation(id, { lat, lng }) {
   return apiClient.patch(`/orders/${id}/location`, { lat, lng });
 }
@@ -288,6 +300,16 @@ export function mapOrderRealtimeRow(row) {
     paymentStatus: row.payment_status,
     deliveryMethod: row.delivery_method,
     deliveryStatus: row.delivery_status,
+    sellingType: row.selling_type || 'retail',
+    deliveryArrangementStatus: row.delivery_arrangement_status || null,
+    deliveryAddress: row.delivery_address || null,
+    estimatedPickupTime: row.estimated_pickup_time || null,
+    estimatedDeliveryAt: row.estimated_delivery_at || null,
+    courierBookingReference: row.courier_booking_reference || null,
+    deliveryInstructions: row.delivery_instructions || null,
+    deliveryArrangedAt: row.delivery_arranged_at || null,
+    buyerConfirmedTotalAt: row.buyer_confirmed_total_at || null,
+    buyerConfirmedTotal: row.buyer_confirmed_total == null ? null : Number(row.buyer_confirmed_total),
     originMunicipality: row.origin_municipality,
     deliveryMunicipality: row.delivery_municipality,
     status: row.status,

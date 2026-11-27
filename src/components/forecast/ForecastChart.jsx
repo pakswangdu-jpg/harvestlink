@@ -26,9 +26,9 @@ function TodayDot({ cx, cy }) {
   return <circle cx={cx} cy={cy} r={4} fill="var(--amber-700)" stroke="var(--panel)" strokeWidth={2} />;
 }
 
-function EmptyHistoryState() {
+function EmptyHistoryState({ height = CHART_HEIGHT }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center" style={{ height: CHART_HEIGHT }}>
+    <div className="flex flex-col items-center justify-center gap-3 py-8 text-center" style={{ height }}>
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--soft)] text-[var(--text-faint)]">
         <LineChartIcon size={26} strokeWidth={1.5} />
       </span>
@@ -51,7 +51,7 @@ function EmptyHistoryState() {
 
 
 
-export default function ForecastChart({ historicalChart, forecastCurve, unit }) {
+export default function ForecastChart({ historicalChart, forecastCurve, unit, height = CHART_HEIGHT }) {
   const todayIso = forecastCurve?.[0]?.date || null;
 
 
@@ -113,7 +113,7 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
 
   const showEmptyState = (historicalChart?.length || 0) < MIN_HISTORICAL_POINTS && !hasForecastTrend;
 
-  if (showEmptyState) return <EmptyHistoryState />;
+  if (showEmptyState) return <EmptyHistoryState height={height} />;
 
   const todayRow = data.find((row) => row.date === todayIso);
 
@@ -123,23 +123,24 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
   const todayValue = todayRow?.forecastPrice ?? todayRow?.historicalPrice ?? null;
 
   return (
-    <div style={{ height: CHART_HEIGHT }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={data} margin={{ top: 16, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" />
+        <ComposedChart data={data} margin={{ top: 24, right: 16, left: 2, bottom: 2 }}>
+          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={{ stroke: 'var(--line)' }}
             tickLine={false}
             tickFormatter={(value) => formatAxisDate(value, todayIso)}
-            minTickGap={20}
+            minTickGap={22}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: 'var(--muted)' }}
+            tick={{ fontSize: 11, fill: 'var(--muted)' }}
             axisLine={false}
             tickLine={false}
-            width={56}
+            width={54}
+            tickCount={4}
             tickFormatter={(value) => `₱${Math.round(value)}`}
             domain={['auto', 'auto']}
           />
@@ -199,7 +200,7 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit }) 
               strokeWidth={1}
               label={{
                 value: todayValue != null ? `Today · ${formatCurrency(todayValue)}` : 'Today',
-                position: 'insideTopRight',
+                position: 'top',
                 fontSize: 11,
                 fontWeight: 600,
                 fill: 'var(--muted)',

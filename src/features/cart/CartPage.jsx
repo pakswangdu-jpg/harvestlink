@@ -10,6 +10,7 @@ import { getProductById } from '../../services/productService';
 import { formatCurrency } from '../../utils/formatters';
 import { getNavItemsForRole } from '../../utils/navItemsByRole';
 import { getApplicableUnitPrice } from '../../../backend/shared/pricing.js';
+import { EXPIRED_PRODUCT_ERROR_CODE, isProductExpired } from '../../utils/constants';
 
 
 
@@ -22,6 +23,7 @@ export default function CartPage() {
   const navigate = useNavigate();
   const navItems = getNavItemsForRole(currentUser.role);
   const [productsById, setProductsById] = useState({});
+  const [expiredById, setExpiredById] = useState({});
 
 
 
@@ -36,12 +38,13 @@ export default function CartPage() {
       refreshing = true;
       Promise.all(items.map((item) => (
         getProductById(item.productId, { fresh: true })
-          .then((product) => [item.productId, product])
-          .catch(() => [item.productId, null])
-      ))).then((pairs) => {
+          .then((product) => [item.productId, product, Boolean(product && isProductExpired(product.expirationDate))])
+          .catch((error) => [item.productId, null, error?.code === EXPIRED_PRODUCT_ERROR_CODE])
+      ))).then((entries) => {
         refreshing = false;
         if (cancelled) return;
-        setProductsById(Object.fromEntries(pairs));
+        setProductsById(Object.fromEntries(entries.map(([id, product]) => [id, product])));
+        setExpiredById(Object.fromEntries(entries.map(([id, , isExpired]) => [id, isExpired])));
       });
     };
     loadProducts();
@@ -67,7 +70,7 @@ export default function CartPage() {
 
   const availableItems = items.filter((item) => {
     const product = productsById[item.productId];
-    return product && product.quantity > 0 && product.status === 'active';
+    return product && product.quantity > 0 && product.status === 'active' && !expiredById[item.productId] && !isProductExpired(product.expirationDate);
   });
   const total = availableItems.reduce((sum, item) => {
     const product = productsById[item.productId];
@@ -107,6 +110,7 @@ export default function CartPage() {
                   key={item.productId}
                   quantity={item.quantity}
                   product={productsById[item.productId] || null}
+                  isExpired={Boolean(expiredById[item.productId])}
                   onUpdateQuantity={(nextQuantity) => {
                     const product = productsById[item.productId];
                     updateQuantity(item.productId, nextQuantity, product?.quantity);
