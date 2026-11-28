@@ -97,3 +97,25 @@ test('scheduled receipt processing starts immediately, does not overlap and stop
   t.mock.timers.tick(30000);
   assert.equal(calls, 2);
 });
+
+test('distinguishes missing migration RPC errors from transient Supabase network failures', async () => {
+  const networkDb = {
+    async rpc() {
+      return { data: null, error: { code: '', message: 'TypeError: fetch failed' } };
+    },
+  };
+  await assert.rejects(
+    processReceiptEmails({ db: networkDb, logger }),
+    /Receipt email check failed: TypeError: fetch failed/,
+  );
+
+  const missingMigrationDb = {
+    async rpc() {
+      return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.claim_final_receipt_emails' } };
+    },
+  };
+  await assert.rejects(
+    processReceiptEmails({ db: missingMigrationDb, logger }),
+    /Apply the final-transaction-receipts migration/,
+  );
+});

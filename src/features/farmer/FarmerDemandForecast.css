@@ -6,6 +6,23 @@
   min-width: 0;
 }
 
+.forecast-comparison-table th,
+.forecast-comparison-table td {
+  padding: 10px 8px;
+}
+
+.forecast-comparison-table th {
+  white-space: normal;
+  letter-spacing: 0.02em;
+}
+
+@media (min-width: 1280px) {
+  .forecast-comparison-table th,
+  .forecast-comparison-table td {
+    padding: 10px 12px;
+  }
+}
+
 .price-analysis-explanation {
   margin-top: 12px;
   padding: 12px;
@@ -40,6 +57,8 @@
   position: fixed;
   z-index: 80;
   width: min(540px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   pointer-events: auto;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -137,10 +156,12 @@
   font-size: 13px;
   font-weight: 650;
   line-height: 1.35;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .forecast-crop-hover-chart {
+  width: 100%;
+  min-width: 0;
   margin-top: 4px;
 }
 
@@ -185,6 +206,13 @@
   inset: 0;
   z-index: 79;
   background: rgba(15, 23, 18, 0.52);
+}
+
+@media (min-width: 768px) {
+  .forecast-hover-close,
+  .forecast-crop-hover-backdrop {
+    display: none;
+  }
 }
 
 @media (max-width: 767px) {

@@ -4,9 +4,22 @@ import { loadOrderReceipt } from './orderReceipt.js';
 import { isFinalReceiptReady } from '../../shared/receipt.js';
 import { serializeOrder } from './serialize.js';
 
+const MISSING_MIGRATION_CODES = new Set(['PGRST202', '42883', '42P01']);
+
+function isMissingReceiptMigration(error) {
+  if (!error) return false;
+  if (MISSING_MIGRATION_CODES.has(error.code)) return true;
+  return /could not find the function|claim_final_receipt_emails/i.test(error.message || '');
+}
+
 export async function processReceiptEmails({ db = supabaseAdmin, send = sendFinalReceiptEmail, load = loadOrderReceipt, logger = console } = {}) {
   const { data: jobs, error } = await db.rpc('claim_final_receipt_emails', { p_limit: 10 });
-  if (error) throw new Error('Receipt email queue unavailable. Apply the final-transaction-receipts migration.');
+  if (error) {
+    if (isMissingReceiptMigration(error)) {
+      throw new Error('Receipt email queue unavailable. Apply the final-transaction-receipts migration.');
+    }
+    throw new Error(`Receipt email check failed: ${error.message || 'temporary connection error'}`);
+  }
   for (const job of jobs || []) {
     const save = async patch => {
       const result = await db.from('order_receipt_emails').update(patch)

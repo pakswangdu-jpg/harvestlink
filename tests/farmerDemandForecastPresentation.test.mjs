@@ -22,7 +22,10 @@ async function getForecastTable(sortBy) {
   let stateIndex = 0;
   const scope = {
     React: { createElement: element, Fragment: 'fragment' },
+    useCallback: (callback) => callback,
+    useEffect: () => {},
     useMemo: (callback) => callback(),
+    useRef: (initial) => ({ current: initial }),
     useState: (initial) => {
       const index = stateIndex++;
       if (index === 0) return ['', () => {}];
@@ -30,7 +33,12 @@ async function getForecastTable(sortBy) {
       return [initial, () => {}];
     },
     Search: 'Search',
+    X: 'X',
     TrendIndicator: 'TrendIndicator',
+    ForecastChart: 'ForecastChart',
+    DemandChart: 'DemandChart',
+    ForecastLegend: 'ForecastLegend',
+    getCropForecastDetail: async () => ({}),
     cropActionRecommendation: () => 'Sell',
     formatCurrency: (value) => `PHP ${value}`,
   };
@@ -111,10 +119,23 @@ test('forecast labels distinguish price differences from profit and avoid invent
   assert.match(table, /entry\.forecastKey === selectedCrop/);
   assert.match(table, /onSelectCrop\(entry\)/);
   assert.match(table, /forecast-crop-hover-card/);
-  assert.match(table, /onMouseMove/);
+  assert.match(table, /onMouseEnter/);
   assert.match(table, /onPointerDown/);
+  assert.match(table, /event\.key === 'Escape'/);
   assert.match(activityChart, /layout=\{isWide \? 'horizontal' : 'vertical'\}/);
   assert.match(page, /grid min-w-0 grid-cols-1 items-stretch gap-4 xl:grid-cols-2/);
+
+  const [forecastChart, demandChart, forecastCss] = await Promise.all([
+    readFile(new URL('../src/components/forecast/ForecastChart.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/components/forecast/DemandChart.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/features/farmer/FarmerDemandForecast.css', import.meta.url), 'utf8'),
+  ]);
+  for (const chartSource of [forecastChart, demandChart]) {
+    assert.match(chartSource, /minWidth=\{0\}/);
+    assert.match(chartSource, /initialDimension=\{\{ width: 480, height \}\}/);
+    assert.match(chartSource, /isAnimationActive=\{false\}/);
+  }
+  assert.match(forecastCss, /@media \(min-width: 768px\)\s*\{\s*\.forecast-hover-close,\s*\.forecast-crop-hover-backdrop\s*\{\s*display:\s*none;/);
 
   const filters = await readFile(new URL('../src/components/forecast/ForecastFilters.jsx', import.meta.url), 'utf8');
   assert.match(filters, /aria-busy=\{isRefreshing\}/);

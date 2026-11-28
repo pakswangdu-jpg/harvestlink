@@ -9,10 +9,8 @@ import {
   markNotificationRead,
 } from '../../services/notificationService';
 import {
-  disablePushNotifications,
   enablePushNotifications,
   getPushSubscriptionStatus,
-  sendTestPushNotification,
 } from '../../services/pushNotificationService';
 import { useNotificationsRealtime } from '../../hooks/useNotificationsRealtime';
 import { formatRelativeTime } from '../../utils/formatters';
@@ -37,7 +35,14 @@ export default function NotificationBell({ userId }) {
   const seenNotificationIdsRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [pushStatus, setPushStatus] = useState({ supported: true, permission: 'default', subscribed: false });
+  const [pushStatus, setPushStatus] = useState({
+    checked: false,
+    supported: true,
+    needsHomeScreenInstall: false,
+    permission: 'default',
+    subscribed: false,
+    browserEnabled: false,
+  });
   const [pushBusy, setPushBusy] = useState(false);
   const [pushNotice, setPushNotice] = useState('');
 
@@ -87,7 +92,7 @@ export default function NotificationBell({ userId }) {
   useEffect(() => {
     let cancelled = false;
     getPushSubscriptionStatus(userId).then((status) => {
-      if (!cancelled) setPushStatus(status);
+      if (!cancelled) setPushStatus({ ...status, checked: true });
     });
     return () => { cancelled = true; };
   }, [userId, isOpen]);
@@ -111,48 +116,21 @@ export default function NotificationBell({ userId }) {
     try {
       const result = await enablePushNotifications(userId);
       const next = await getPushSubscriptionStatus(userId);
-      setPushStatus(next);
+      setPushStatus({ ...next, checked: true });
       if (result.enabled) {
-        setPushNotice('Push notifications enabled on this device.');
+        showToast({
+          type: 'success',
+          title: 'Notifications enabled',
+          message: result.mode === 'push'
+            ? 'Push notifications are active on this device.'
+            : 'Browser notifications are active on this device.',
+          duration: 3500,
+        });
       } else if (result.permission === 'denied') {
         setPushNotice('Notifications are blocked in your browser settings.');
       }
     } catch (error) {
       setPushNotice(error.message || 'Unable to enable push notifications.');
-    } finally {
-      setPushBusy(false);
-    }
-  };
-
-  const handleDisablePush = async () => {
-    if (pushBusy) return;
-    setPushBusy(true);
-    setPushNotice('');
-    try {
-      await disablePushNotifications();
-      const next = await getPushSubscriptionStatus(userId);
-      setPushStatus(next);
-      setPushNotice('Push notifications disabled on this device.');
-    } catch (error) {
-      setPushNotice(error.message || 'Unable to disable push notifications.');
-    } finally {
-      setPushBusy(false);
-    }
-  };
-
-  const handleSendTestPush = async () => {
-    if (pushBusy) return;
-    setPushBusy(true);
-    setPushNotice('');
-    try {
-      const result = await sendTestPushNotification();
-      setPushNotice(
-        result.sent > 0
-          ? `Test notification sent to ${result.sent} device${result.sent === 1 ? '' : 's'}.`
-          : 'No active device accepted the test notification.',
-      );
-    } catch (error) {
-      setPushNotice(error.message || 'Unable to send test notification.');
     } finally {
       setPushBusy(false);
     }
@@ -168,6 +146,7 @@ export default function NotificationBell({ userId }) {
   }, [isOpen]);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
+  const isNotificationsEnabled = pushStatus.subscribed || pushStatus.browserEnabled;
 
   const handleNotificationClick = async (notification) => {
     if (!notification.read) {
@@ -213,48 +192,32 @@ export default function NotificationBell({ userId }) {
               </button>
             ) : null}
           </div>
-          <div className="notification-push-bar">
-            {!pushStatus.supported ? (
-              <span className="notification-push-note">Push notifications are not supported in this browser.</span>
-            ) : pushStatus.permission === 'denied' ? (
-              <span className="notification-push-note">Browser notifications are blocked in site settings.</span>
-            ) : pushStatus.subscribed ? (
-              <div className="notification-push-row">
-                <span className="notification-push-status">Push notifications on</span>
-                <div className="notification-push-actions">
+          {pushStatus.checked && !isNotificationsEnabled ? (
+            <div className="notification-push-bar">
+              {!pushStatus.supported ? (
+                <span className="notification-push-note">
+                  {pushStatus.needsHomeScreenInstall
+                    ? 'On iPhone/iPad, tap Share → Add to Home Screen, then open HarvestLink from your Home Screen to enable notifications.'
+                    : 'Push notifications are not supported in this browser.'}
+                </span>
+              ) : pushStatus.permission === 'denied' ? (
+                <span className="notification-push-note">Browser notifications are blocked in site settings.</span>
+              ) : (
+                <div className="notification-push-row">
+                  <span className="notification-push-note">Get alerts even when this tab is closed.</span>
                   <button
                     type="button"
                     className="notification-push-btn"
-                    onClick={handleSendTestPush}
+                    onClick={handleEnablePush}
                     disabled={pushBusy}
                   >
-                    {pushBusy ? 'Sending…' : 'Send test'}
-                  </button>
-                  <button
-                    type="button"
-                    className="notification-push-link"
-                    onClick={handleDisablePush}
-                    disabled={pushBusy}
-                  >
-                    Disable
+                    {pushBusy ? 'Enabling…' : 'Enable Push Notifications'}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="notification-push-row">
-                <span className="notification-push-note">Get alerts even when this tab is closed.</span>
-                <button
-                  type="button"
-                  className="notification-push-btn"
-                  onClick={handleEnablePush}
-                  disabled={pushBusy}
-                >
-                  {pushBusy ? 'Enabling…' : 'Enable Push Notifications'}
-                </button>
-              </div>
-            )}
-            {pushNotice ? <p className="notification-push-feedback">{pushNotice}</p> : null}
-          </div>
+              )}
+              {pushNotice ? <p className="notification-push-feedback">{pushNotice}</p> : null}
+            </div>
+          ) : null}
           {notifications.length ? (
             <ul className="notification-list">
               {notifications.slice(0, 20).map((notification) => {

@@ -22,12 +22,13 @@ export async function getDemandForecast({
 
 
 export function getCropForecastDetail(cropName, {
-  period = '', municipality = '', customDate = '', refreshKey = 0, unit = '',
+  period = '', municipality = '', customDate = '', refreshKey = 0, unit, preview = false,
 } = {}) {
   const params = new URLSearchParams();
   if (period) params.set('period', period);
   if (municipality) params.set('municipality', municipality);
-  if (unit) params.set('unit', unit);
+  if (unit !== undefined && unit !== null) params.set('unit', String(unit));
+  if (preview) params.set('preview', '1');
   if (period === 'custom' && customDate) params.set('customDate', customDate);
   if (refreshKey > 0) params.set('refresh', String(refreshKey));
   const query = params.toString();

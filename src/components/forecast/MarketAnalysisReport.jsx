@@ -6,7 +6,7 @@ import {
   cropActionRecommendation, formatCurrency, formatDate, formatRelativeTime, harvestActionLabel, sellWindowLabel,
 } from '../../utils/formatters';
 
-const SECTION_CLASS = 'rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5 sm:p-7';
+const SECTION_CLASS = 'min-w-0 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-4 sm:p-6';
 const SECTION_TITLE_CLASS = 'text-[22px] font-semibold leading-tight text-[var(--text)]';
 
 
@@ -136,7 +136,7 @@ function MetricTile({
         <Icon size={14} strokeWidth={2} />
         <span className="text-[14px] font-medium text-[var(--text-secondary)]">{label}</span>
       </div>
-        <p className={`text-[26px] font-semibold leading-tight ${tone}`}>{value}</p>
+        <p className={`text-[22px] font-semibold leading-tight sm:text-[26px] ${tone}`}>{value}</p>
         {supporting ? <p className="text-[14px] leading-snug text-[var(--text-secondary)]">{supporting}</p> : null}
     </div>
   );

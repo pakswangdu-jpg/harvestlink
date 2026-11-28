@@ -91,7 +91,7 @@ function Recommendation({ entry }) {
   const action = cropActionRecommendation(entry);
   const label = recommendationLabel(entry);
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold ${ACTION_STYLE[action]}`}>
+    <span className={`inline-flex max-w-[140px] items-center justify-center rounded-full px-2.5 py-1 text-center text-[11.5px] font-semibold leading-tight ${ACTION_STYLE[action]}`}>
       {label || ACTION_LABEL[action]}
     </span>
   );
@@ -112,7 +112,8 @@ function CropDetailsButton({ entry, selected, onSelectCrop }) {
         fontFamily: 'inherit',
         fontSize: '15px',
         fontWeight: 600,
-        lineHeight: 1.5,
+        lineHeight: 1.4,
+        whiteSpace: 'normal',
       }}
       className={`min-h-11 text-left underline-offset-2 hover:underline focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green-600)] ${
         selected ? 'text-[var(--text)]' : 'text-[var(--green-700)]'
@@ -207,6 +208,15 @@ export default function ForecastTable({
 
   useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
 
+  useEffect(() => {
+    if (!hoveredForecast) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setHoveredForecast(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hoveredForecast]);
+
   const hoveredEntry = hoveredForecast?.entry || null;
   const hoverKey = hoveredEntry
     ? `${hoveredEntry.crop}|${hoveredEntry.unit || ''}|${period}|${municipality}|${customDate}|${refreshToken}`
@@ -227,23 +237,27 @@ export default function ForecastTable({
     if (detailCacheRef.current.has(hoverKey)) return undefined;
 
     let cancelled = false;
-    getCropForecastDetail(hoveredEntry.crop, {
-      period,
-      municipality,
-      customDate,
-      refreshKey: refreshToken,
-      unit: hoveredEntry.unit || '',
-    })
-      .then((result) => {
-        detailCacheRef.current.set(hoverKey, result);
-        if (!cancelled) setHoverDetailState({ key: hoverKey, detail: result, error: '' });
+    const timer = window.setTimeout(() => {
+      getCropForecastDetail(hoveredEntry.crop, {
+        period,
+        municipality,
+        customDate,
+        refreshKey: refreshToken,
+        unit: hoveredEntry.unit || '',
+        preview: true,
       })
-      .catch(() => {
-        if (!cancelled) setHoverDetailState({ key: hoverKey, detail: null, error: 'Unable to load chart preview.' });
-      });
+        .then((result) => {
+          detailCacheRef.current.set(hoverKey, result);
+          if (!cancelled) setHoverDetailState({ key: hoverKey, detail: result, error: '' });
+        })
+        .catch((error) => {
+          if (!cancelled) setHoverDetailState({ key: hoverKey, detail: null, error: error?.message || 'Unable to load chart preview.' });
+        });
+    }, 120);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [hoveredEntry, hoverKey, period, municipality, customDate, refreshToken]);
 
@@ -259,10 +273,12 @@ export default function ForecastTable({
     const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1024;
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : 768;
     const cardW = Math.min(540, viewportW - 24);
-    const cardH = 390;
+    const cardH = Math.min(390, viewportH - 24);
     const left = Math.min(Math.max(12, hoveredForecast.x + 16), Math.max(12, viewportW - cardW - 12));
-    const preferAbove = hoveredForecast.y > cardH + 24;
-    const top = preferAbove
+    const spaceBelow = viewportH - hoveredForecast.y - 16;
+    const spaceAbove = hoveredForecast.y - 12;
+    const placeAbove = spaceBelow < cardH && spaceAbove > spaceBelow;
+    const top = placeAbove
       ? Math.max(12, hoveredForecast.y - cardH - 12)
       : Math.min(Math.max(12, hoveredForecast.y + 16), Math.max(12, viewportH - cardH - 12));
     return { left: `${left}px`, top: `${top}px` };
@@ -313,23 +329,32 @@ export default function ForecastTable({
         </p>
       ) : (
         <>
-          <div className="mt-5 hidden max-h-[520px] min-w-0 overflow-auto rounded-lg border border-[var(--line)] md:block">
-            <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left">
+          <div className="mt-5 hidden max-h-[520px] min-w-0 overflow-x-auto overflow-y-auto rounded-lg border border-[var(--line)] md:block">
+            <table className="forecast-comparison-table w-full min-w-[660px] border-separate border-spacing-0 text-left lg:min-w-0 lg:table-fixed">
               <caption className="sr-only">Crop price, demand, trend, and recommendation forecasts</caption>
+              <colgroup>
+                <col className="w-[17%]" />
+                <col className="w-[14%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[15%]" />
+                <col className="w-[18%]" />
+              </colgroup>
               <thead className="sticky top-0 z-10 bg-[var(--soft)]">
                 <tr>
                   {['Crop', 'Current reference', 'Forecast reference', 'Expected change', 'Demand', 'Market trend', 'Recommendation'].map((label) => (
-                    <th key={label} scope="col" className="whitespace-nowrap px-4 py-3 text-[14px] font-semibold text-[var(--text)]">{label}</th>
+                    <th key={label} scope="col" className="px-2 py-2.5 text-[11.5px] font-semibold leading-snug text-[var(--text)] lg:px-2.5 lg:text-[12px]">{label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((entry) => {
-                const selected = entry.forecastKey === selectedCrop;
+                  const selected = entry.forecastKey === selectedCrop;
                   return (
                   <tr
                     key={entry.forecastKey || `${entry.crop}|${entry.unit || ''}`}
-                    className={`border-t border-[var(--line)] ${selected ? 'bg-[var(--green-50)]/50' : ''}`}
+                    className={`border-t border-[var(--line)] transition-colors hover:bg-[var(--soft)]/60 ${selected ? 'bg-[var(--green-50)]/50' : ''}`}
                     onMouseEnter={(event) => openHoverForecast(entry, event.clientX, event.clientY)}
                     onMouseLeave={scheduleClose}
                     onFocusCapture={(event) => {
@@ -338,17 +363,17 @@ export default function ForecastTable({
                     }}
                     onBlurCapture={scheduleClose}
                   >
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-2 text-[15px] text-[var(--text)]">
+                      <td className="border-t border-[var(--line)] px-2 py-2 text-[14px] text-[var(--text)] lg:px-2.5">
                         <CropDetailsButton entry={entry} selected={selected} onSelectCrop={onSelectCrop} />
                       </td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3 text-[15px] text-[var(--text)]"><PriceReference entry={entry} /></td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3 text-[15px] font-medium text-[var(--text)]">
+                      <td className="whitespace-nowrap border-t border-[var(--line)] px-2 py-2.5 text-[13px] tabular-nums text-[var(--text)] lg:px-2.5 lg:text-[14px]"><PriceReference entry={entry} /></td>
+                      <td className="whitespace-nowrap border-t border-[var(--line)] px-2 py-2.5 text-[13px] font-medium tabular-nums text-[var(--text)] lg:px-2.5 lg:text-[14px]">
                         {entry.forecastPrice != null ? `${formatCurrency(entry.forecastPrice)}${entry.unit ? `/${entry.unit}` : ''}` : <span className="text-[var(--muted)]">Not available</span>}
                       </td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3 text-[15px] font-semibold">{priceChangeCell(entry.expectedChangePercent)}</td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3 text-[15px] text-[var(--text)]">{entry.currentDemand || DEMAND_LABEL[entry.signal] || 'Not available'}</td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3"><TrendIndicator trend={entry.marketTrend} /></td>
-                      <td className="whitespace-nowrap border-t border-[var(--line)] px-4 py-3"><Recommendation entry={entry} /></td>
+                      <td className="whitespace-nowrap border-t border-[var(--line)] px-2 py-2.5 text-[13px] font-semibold tabular-nums lg:px-2.5 lg:text-[14px]">{priceChangeCell(entry.expectedChangePercent)}</td>
+                      <td className="border-t border-[var(--line)] px-2 py-2.5 text-[13px] text-[var(--text)] lg:px-2.5 lg:text-[14px]">{entry.currentDemand || DEMAND_LABEL[entry.signal] || 'Not available'}</td>
+                      <td className="whitespace-nowrap border-t border-[var(--line)] px-2 py-2.5 lg:px-2.5"><TrendIndicator trend={entry.marketTrend} /></td>
+                      <td className="border-t border-[var(--line)] px-2 py-2.5 lg:px-2.5"><Recommendation entry={entry} /></td>
                     </tr>
                   );
                 })}

@@ -66,8 +66,10 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
 
     const historicalByDate = new Map();
     (historicalChart || []).forEach((point) => {
+      const price = Number(point?.price);
+      if (!point?.date || !Number.isFinite(price)) return;
       const bucket = historicalByDate.get(point.date) || { prices: [], source: point.source };
-      bucket.prices.push(point.price);
+      bucket.prices.push(price);
       historicalByDate.set(point.date, bucket);
     });
     historicalByDate.forEach(({ prices, source }, date) => {
@@ -76,15 +78,21 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
     });
 
     (forecastCurve || []).forEach((point) => {
+      if (!point?.date) return;
       const existing = byDate.get(point.date) || { date: point.date };
-      existing.forecastPrice = point.price;
+      const price = point.price != null ? Number(point.price) : null;
+      existing.forecastPrice = Number.isFinite(price) ? price : null;
       existing.upper = point.upper;
       existing.lower = point.lower;
       existing.confidence = point.confidence;
       existing.reason = point.reason;
       if (point.upper != null && point.lower != null) {
-        existing.bandBase = point.lower;
-        existing.bandWidth = point.upper - point.lower;
+        const upper = Number(point.upper);
+        const lower = Number(point.lower);
+        if (Number.isFinite(upper) && Number.isFinite(lower)) {
+          existing.bandBase = lower;
+          existing.bandWidth = Math.max(0, upper - lower);
+        }
       }
       byDate.set(point.date, existing);
     });
@@ -123,8 +131,8 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
   const todayValue = todayRow?.forecastPrice ?? todayRow?.historicalPrice ?? null;
 
   return (
-    <div style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: '100%', height }}>
+      <ResponsiveContainer width="100%" height={height} minWidth={0} initialDimension={{ width: 480, height }}>
         <ComposedChart data={data} margin={{ top: 24, right: 16, left: 2, bottom: 2 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
           <XAxis
@@ -156,8 +164,7 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
                 stroke="none"
                 fill="var(--green-600)"
                 fillOpacity={0.08}
-                isAnimationActive
-                animationDuration={700}
+                isAnimationActive={false}
                 connectNulls
               />
             </>
@@ -172,8 +179,7 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
             dot={{ r: 3, fill: 'var(--green-600)', strokeWidth: 0 }}
             activeDot={{ r: 5 }}
             connectNulls
-            isAnimationActive
-            animationDuration={700}
+            isAnimationActive={false}
           />
 
           {hasForecastTrend ? (
@@ -187,8 +193,7 @@ export default function ForecastChart({ historicalChart, forecastCurve, unit, he
               dot={{ r: 3, fill: 'var(--blue-700)', strokeWidth: 0 }}
               activeDot={{ r: 5 }}
               connectNulls
-              isAnimationActive
-              animationDuration={700}
+              isAnimationActive={false}
             />
           ) : null}
 

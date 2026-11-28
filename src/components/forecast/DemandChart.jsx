@@ -64,17 +64,25 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
     const byDate = new Map();
 
     (historicalChart || []).forEach((point) => {
-      byDate.set(point.date, { date: point.date, historicalVolume: point.volume });
+      const volume = Number(point?.volume);
+      if (!point?.date || !Number.isFinite(volume)) return;
+      byDate.set(point.date, { date: point.date, historicalVolume: volume });
     });
 
     (forecastCurve || []).forEach((point) => {
+      if (!point?.date) return;
       const existing = byDate.get(point.date) || { date: point.date };
-      existing.forecastVolume = point.volume;
+      const volume = point.volume != null ? Number(point.volume) : null;
+      existing.forecastVolume = Number.isFinite(volume) ? volume : null;
       existing.confidence = point.confidence;
       existing.reason = point.reason;
       if (point.upper != null && point.lower != null) {
-        existing.bandBase = point.lower;
-        existing.bandWidth = point.upper - point.lower;
+        const upper = Number(point.upper);
+        const lower = Number(point.lower);
+        if (Number.isFinite(upper) && Number.isFinite(lower)) {
+          existing.bandBase = lower;
+          existing.bandWidth = Math.max(0, upper - lower);
+        }
       }
       byDate.set(point.date, existing);
     });
@@ -99,8 +107,8 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
   const todayValue = todayRow?.forecastVolume ?? todayRow?.historicalVolume ?? null;
 
   return (
-    <div style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: '100%', height }}>
+      <ResponsiveContainer width="100%" height={height} minWidth={0} initialDimension={{ width: 480, height }}>
         <ComposedChart data={data} margin={{ top: 24, right: 16, left: 2, bottom: 2 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
           <XAxis
@@ -132,8 +140,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
                 stroke="none"
                 fill="var(--green-600)"
                 fillOpacity={0.08}
-                isAnimationActive
-                animationDuration={700}
+                isAnimationActive={false}
                 connectNulls
               />
             </>
@@ -148,8 +155,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
             dot={{ r: 3, fill: 'var(--green-600)', strokeWidth: 0 }}
             activeDot={{ r: 5 }}
             connectNulls
-            isAnimationActive
-            animationDuration={700}
+            isAnimationActive={false}
           />
 
           {hasForecastTrend ? (
@@ -163,8 +169,7 @@ export default function DemandChart({ historicalChart, forecastCurve, unit = 'un
               dot={{ r: 3, fill: 'var(--blue-700)', strokeWidth: 0 }}
               activeDot={{ r: 5 }}
               connectNulls
-              isAnimationActive
-              animationDuration={700}
+              isAnimationActive={false}
             />
           ) : null}
 

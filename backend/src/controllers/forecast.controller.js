@@ -443,7 +443,9 @@ export async function getCropForecastDetail(req, res) {
   const cropName = String(req.params.cropName || '').trim();
   if (!cropName) throw new ApiError('Crop name is required.', 400);
   if (containsProhibitedListingText(cropName)) throw new ApiError('Forecast not available for this crop.', 404);
+  const hasExplicitUnit = Object.prototype.hasOwnProperty.call(req.query, 'unit');
   const requestedUnit = String(req.query.unit || '').trim();
+  const isPreview = String(req.query.preview || '') === '1';
   const period = String(req.query.period || '7_days');
   validatePeriod(period);
   const customDate = period === 'custom' ? String(req.query.customDate || '') : null;
@@ -451,14 +453,21 @@ export async function getCropForecastDetail(req, res) {
   const weatherMunicipality = municipality || req.profile.municipality || '';
   const daysBack = DEFAULT_HISTORY_DAYS_BACK;
 
-  const cacheKey = `${normalizeCropKey(cropName)}|${normalizeCropKey(requestedUnit)}|${period}|${municipality}|${customDate}`;
+  const baseCacheKey = `${normalizeCropKey(cropName)}|${normalizeCropKey(requestedUnit)}|${period}|${municipality}|${customDate}`;
+  const cacheKey = isPreview ? `${baseCacheKey}|preview` : baseCacheKey;
   const forceRefresh = req.query.refresh !== undefined;
-  const cached = forceRefresh ? null : getCached(detailCache, cacheKey, DETAIL_CACHE_TTL_MS);
+  const cached = forceRefresh
+    ? null
+    : (getCached(detailCache, baseCacheKey, DETAIL_CACHE_TTL_MS)
+      || (isPreview ? getCached(detailCache, cacheKey, DETAIL_FALLBACK_CACHE_TTL_MS) : null));
   if (cached) {
     res.json(cached);
     return;
   }
-  if (forceRefresh) detailCache.delete(cacheKey);
+  if (forceRefresh) {
+    detailCache.delete(baseCacheKey);
+    detailCache.delete(`${baseCacheKey}|preview`);
+  }
 
   let productsQuery = supabaseAdmin.from('products').select('id, name, category, price, unit, location, status, image_url, created_at, updated_at');
   if (municipality) productsQuery = productsQuery.eq('location', municipality);
@@ -482,13 +491,15 @@ export async function getCropForecastDetail(req, res) {
   ));
 
   const cropMap = buildCropMap(matchingProducts, relevantOrders, {
-    hasFilter: true, productIdSet: matchingIds, productById,
+    hasFilter: Boolean(municipality), productIdSet: matchingIds, productById,
   });
   const matchingEntries = [...cropMap.values()].filter((item) => normalizeCropKey(item.crop) === targetKey);
   const entry = requestedUnit
     ? matchingEntries.find((item) => normalizeCropKey(item.unit) === normalizeCropKey(requestedUnit))
-    : matchingEntries.length === 1 ? matchingEntries[0] : null;
-  if (!entry && matchingEntries.length > 1 && !requestedUnit) {
+    : hasExplicitUnit
+      ? matchingEntries.find((item) => !item.unit)
+      : matchingEntries.length === 1 ? matchingEntries[0] : null;
+  if (!entry && matchingEntries.length > 1 && !requestedUnit && !hasExplicitUnit) {
     throw new ApiError('A listing unit is required when this crop has listings in multiple units.', 400);
   }
   if (!entry) throw new ApiError('Crop not found for the selected listing unit.', 404);
@@ -563,7 +574,7 @@ export async function getCropForecastDetail(req, res) {
     .map(([date, total]) => ({ date, volume: Math.round((total / 7) * 100) / 100 }))
     .sort((a, b) => (a.date < b.date ? -1 : 1));
 
-  const insights = await generateForecastInsights({
+  const insights = isPreview ? null : await generateForecastInsights({
     cropName: entry.crop,
     municipality: weatherMunicipality,
     periodLabel: FORECAST_PERIOD_LABELS[period],
