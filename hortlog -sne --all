@@ -1,0 +1,222 @@
+5c7ae9b John Dominique Zanoria <johnzanoria9@gmail.com>
+Fix Render health endpoint deployment config
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+b6a5077 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Scope login failures per client and account
+
+Separate CAPTCHA failures from credential attempts, exempt login from the generic anonymous API cap, and return actionable auth error codes.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+2afdea2 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Wait for delayed reCAPTCHA API readiness
+
+Avoid treating a script load/API initialization timing gap as an immediate CAPTCHA failure.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+9c053d0 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Stabilize production reCAPTCHA loading
+
+Use a shared legacy checkbox loader, wait for API readiness, provide recovery states, and document production key and hostname setup.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+2cc114a john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Improve CAPTCHA loading recovery
+
+Add a timeout, retry control, and actionable guidance for reCAPTCHA load failures.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+037c284 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Add reCAPTCHA protection to login
+
+Include the login CAPTCHA flow, backend verification, deployment configuration, and related UI readability improvements.
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+b781552 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Refine Admin access denied 404 screen
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+d09a5c2 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Save today's HarvestLink updates
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+0945f28 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Show pending price listings in marketplace
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+731edf7 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Document marketplace product persistence findings
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+f92fa47 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Improve checkout messaging and order tracking
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+9835331 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Improve buyer and farmer dashboard workflows
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+8ece383 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Polish buyer and farmer dashboards
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+53c1382 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Polish landing and stakeholder navigation
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+7b0c520 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Polish mobile hero and admin logout
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+6b0afcc john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Fix responsive landing and admin layouts
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+b25672f john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Polish Admin login portal appearance
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+a479f6a john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Route landing actions to role-specific destinations
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+97a6473 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Improve admin reports and sidebar controls
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+8d32589 john dominique zanoria <295390150+pakswangdu-jpg@users.noreply.github.com>
+Polish HarvestLink marketplace and dashboard experience
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+c2536e4 john dominique zanoria <pakswangdu@gmail.com>
+Show exact order times to farmers
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+11caef3 john dominique zanoria <pakswangdu@gmail.com>
+Improve delivery tracking and checkout UX
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+f390b2c john dominique zanoria <pakswangdu@gmail.com>
+Improve marketplace UI and map interactions
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+f63a2a5 john dominique zanoria <pakswangdu@gmail.com>
+Confirm product saves and preserve drafts
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+a8d044b john dominique zanoria <pakswangdu@gmail.com>
+Make farmer add product action responsive
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+b909d51 john dominique zanoria <pakswangdu@gmail.com>
+Save backend and frontend updates
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+a132561 john dominique zanoria <pakswangdu@gmail.com>
+Trigger frontend and backend deployment
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+7ad3115 john dominique zanoria <pakswangdu@gmail.com>
+Remove desktop notification preference from profile
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+bbc00fe john dominique zanoria <pakswangdu@gmail.com>
+Add single-click light and dark mode toggle
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+427d462 john dominique zanoria <pakswangdu@gmail.com>
+Show only settings in sidebar general section
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+ea0f3b0 john dominique zanoria <pakswangdu@gmail.com>
+Restore settings navigation entry
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+b9d1ec9 john dominique zanoria <pakswangdu@gmail.com>
+Separate role data and restore profile settings controls
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+3699b0d john dominique zanoria <pakswangdu@gmail.com>
+Prevent blank screen during auth startup failures
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+442faa6 john dominique zanoria <pakswangdu@gmail.com>
+Prevent logout on transient profile refresh failures
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+18e13e2 john dominique zanoria <pakswangdu@gmail.com>
+Ensure login card expands on mobile
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+0d6dd55 john dominique zanoria <pakswangdu@gmail.com>
+Fix responsive login layout
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+9519459 john dominique zanoria <pakswangdu@gmail.com>
+Refine login page visual hierarchy
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+3fb447a john dominique zanoria <pakswangdu@gmail.com>
+Make sidebar and remember me persistence reliable
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+d2eb1f9 john dominique zanoria <pakswangdu@gmail.com>
+Make navbar scrollable under browser zoom
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+f7968f9 john dominique zanoria <pakswangdu@gmail.com>
+Allow sidebar scrolling at extreme zoom
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+dca4b15 john dominique zanoria <pakswangdu@gmail.com>
+Add breathing room to responsive sidebar
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+bcae37a john dominique zanoria <pakswangdu@gmail.com>
+Organize responsive sidebar spacing
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+fd70626 john dominique zanoria <pakswangdu@gmail.com>
+Keep
