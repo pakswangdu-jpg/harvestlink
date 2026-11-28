@@ -5,6 +5,7 @@ import RegisteredLocationNotice from '../../components/map/RegisteredLocationNot
 import { getRegisteredCoordinates, sortByRegisteredDistance, formatNearbyDistance } from '../../utils/geo';
 import FarmerMap from '../../components/map/FarmerMap';
 import { getMapProfilesForRole } from '../../components/map/mapDirectoryProfiles';
+import { formatFullAddress } from '../../components/map/mapPopupMarkup';
 import EmptyState from '../../components/common/EmptyState';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -327,8 +328,8 @@ export default function FarmerMapPage() {
 
                 <div className="selected-location-facts">
                   <div className="selected-location-fact">
-                    <span>Municipality</span>
-                    <strong><MapPin size={14} /> {selected.municipality}</strong>
+                    <span>Registered address</span>
+                    <strong><MapPin size={14} /> {formatFullAddress(selected.address, selected.barangay, selected.municipality, selected.zipCode)}</strong>
                   </div>
                   {selected.role === 'stakeholder' && selected.contactPerson ? (
                     <div className="selected-location-fact">

@@ -1,5 +1,8 @@
 
+import { createResilientFetch } from './resilientFetch.js';
+
 const PSA_TABLE_URL = 'https://openstat.psa.gov.ph/PXWeb/api/v1/en/DB/2M/NFG/0142M4EFGP0.px';
+const psaFetch = createResilientFetch({ retries: 2, retryDelayMs: 250, retryPostPathPatterns: ['/0142M4EFGP0.px'] });
 const CENTRAL_VISAYAS_CODE = '10';
 const ANNUAL_PERIOD_CODE = '12';
 const TABLE_MIN_YEAR = 2010;
@@ -91,7 +94,7 @@ export async function fetchAnnualPriceTrend(commodityId, yearsBack = 5) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-      return await fetch(PSA_TABLE_URL, {
+      return await psaFetch(PSA_TABLE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
         body: JSON.stringify(query),

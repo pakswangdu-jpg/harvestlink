@@ -260,7 +260,8 @@ export default function BuyerDashboard() {
         .map((profile) => [profile.id, profile]),
     );
     return eligibleNearbyFarmers.map((farmer) => ({
-      ...(mapFarmerById.get(farmer.id) || farmer),
+      ...farmer,
+      ...(mapFarmerById.get(farmer.id) || {}),
       role: 'farmer',
       distanceKm: farmer.distanceKm,
     }));

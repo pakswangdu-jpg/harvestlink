@@ -4,6 +4,8 @@
 
 
 
+import { resilientFetch } from './resilientFetch.js';
+
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving';
 const FETCH_TIMEOUT_MS = 6000;
 
@@ -30,7 +32,7 @@ export async function fetchRoadRoute(origin, destination) {
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await resilientFetch(url, { signal: controller.signal });
     if (!response.ok) return null;
 
     const data = await response.json();

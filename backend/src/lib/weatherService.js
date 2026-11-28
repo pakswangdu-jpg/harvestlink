@@ -1,4 +1,5 @@
 import { CEBU_MUNICIPALITY_COORDS, DEFAULT_MUNICIPALITY } from '../utils/constants.js';
+import { resilientFetch } from './resilientFetch.js';
 
 
 
@@ -41,8 +42,8 @@ export async function getWeatherForMunicipality(municipality) {
   let forecastJson = null;
   try {
     const [currentRes, forecastRes] = await Promise.all([
-      fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}`),
-      fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}&cnt=8`),
+      resilientFetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}`),
+      resilientFetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&units=metric&appid=${apiKey}&cnt=8`),
     ]);
     if (!currentRes.ok) return null;
     current = await currentRes.json();

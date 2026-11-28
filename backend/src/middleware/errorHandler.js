@@ -1,5 +1,7 @@
 
 
+import { isTransientNetworkError } from '../lib/resilientFetch.js';
+
 const AUTH_EVENT_CODES = new Set([
   'CAPTCHA_REQUIRED',
   'CAPTCHA_FAILED',
@@ -24,6 +26,13 @@ export function errorHandler(err, req, res, next) { // eslint-disable-line no-un
   if (err.code === 'ADMIN_NETWORK_NOT_ALLOWED') {
     res.setHeader('Cache-Control', 'no-store');
     return res.status(403).json({ error: err.code, message: 'Admin access is not allowed from this network.' });
+  }
+  if (isTransientNetworkError(err)) {
+    console.warn('Temporary upstream connection reset:', err.cause?.code || err.message);
+    return res.status(503).json({
+      code: 'UPSTREAM_UNAVAILABLE',
+      error: 'Temporary connection reset. Please try again.',
+    });
   }
   if (status >= 500) console.error(err);
   res.status(status).json({

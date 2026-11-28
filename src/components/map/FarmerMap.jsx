@@ -3,7 +3,8 @@ import { Maximize, Minimize } from 'lucide-react';
 import { DARK_MAP_STYLE, loadGoogleMaps } from '../../lib/googleMapsLoader';
 import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { useTheme } from '../../contexts/ThemeContext';
-import { buildMapPopup, buildPresenceMarkup } from './mapPopupMarkup';
+import { buildMapPopup, buildPresenceMarkup, buildRoleMapPopup } from './mapPopupMarkup';
+import MapUserDetailsDrawer from './MapUserDetailsDrawer';
 
 import { buildViewerIcon, buildViewerPopup } from './userLocationMarker';
 import { validateCoordinates, nearbyMapPoints } from '../../utils/geo';
@@ -58,6 +59,8 @@ export default function FarmerMap({
   const fittedSignatureRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const onSeeDetailsRef = useRef(null);
   const { effectiveTheme } = useTheme();
   const uniqueFarmers = useMemo(() => uniqueProfilesById(farmers), [farmers]);
   const uniqueBuyers = useMemo(() => uniqueProfilesById(buyers), [buyers]);
@@ -67,6 +70,23 @@ export default function FarmerMap({
   const buyerCoordsById = useMapCoordinates(uniqueBuyers, { registeredOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(uniqueStakeholders, { registeredOnly: nearbyView });
   const donationFarmerCoordsById = useMapCoordinates(uniqueDonationFarmers, { registeredOnly: true });
+
+  useEffect(() => {
+    onSeeDetailsRef.current = (entry) => {
+      if (!entry?.profile) return;
+      if (document.fullscreenElement && document.fullscreenElement === wrapperRef.current) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      setSelectedDetail({
+        role: entry.role,
+        userId: entry.userId,
+        profile: entry.profile,
+        coords: entry.position,
+        precisionLabel: entry.precisionLabel || '',
+        isYou: Boolean(entry.isCurrentUser),
+      });
+    };
+  });
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === wrapperRef.current);
@@ -162,7 +182,20 @@ export default function FarmerMap({
     const seenIds = new Set();
     let allPoints = [];
 
-    function upsertMarker(role, userId, coords, buildIcon, popupHtml, onClick, title, donationAlert = false, animateGoogleMarker = donationAlert) {
+    function upsertMarker(
+      role,
+      userId,
+      coords,
+      buildIcon,
+      popupHtml,
+      onClick,
+      title,
+      donationAlert = false,
+      animateGoogleMarker = donationAlert,
+      profile = null,
+      precisionLabel = '',
+      isCurrentUser = false,
+    ) {
       const id = getRoleMarkerKey(role, userId);
       seenIds.add(id);
       allPoints.push(coords);
@@ -208,6 +241,9 @@ export default function FarmerMap({
         existing.role = role;
         existing.userId = String(userId);
         existing.position = coords;
+        existing.profile = profile;
+        existing.precisionLabel = precisionLabel;
+        existing.isCurrentUser = isCurrentUser;
         return;
       }
       const marker = new mapsApi.Marker({
@@ -222,13 +258,14 @@ export default function FarmerMap({
       const entry = {
         key: id, role, userId: String(userId), title, marker, infoWindow, position: coords,
         popupHtml, donationAlert, animateGoogleMarker, icon, zIndex, onClick,
+        profile, precisionLabel, isCurrentUser,
       };
       entry.markerClickListener = marker.addListener('click', () => {
         showProfileMarkerInfo(map, mapsApi, entry, { current: markersRef.current }, openInfoWindowRef);
         if (entry.onClick) entry.onClick();
       });
       infoWindow.mapMarkerKey = id;
-      entry.overlapDomReadyListener = bindOverlappingMarkerSelection(infoWindow, { current: markersRef.current }, mapsApi);
+      entry.overlapDomReadyListener = bindOverlappingMarkerSelection(infoWindow, { current: markersRef.current }, mapsApi, onSeeDetailsRef);
       markersRef.current[id] = entry;
     }
 
@@ -242,25 +279,20 @@ export default function FarmerMap({
       const displayName = isYou ? `${realDisplayName} (You)` : realDisplayName;
       const hasProducts = farmersWithProducts.has(farmer.id);
       const productsLine = hasProducts
-        ? `<br/><a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}">View products</a>`
-        : `<br/><small class="muted">No products available</small>`;
-
-
-
-      const popupHtml = buildMapPopup({
-        name: displayName,
-        person: farmer.name,
-        municipality: farmer.municipality,
-        address: farmer.address,
-        barangay: farmer.barangay,
+        ? `<a href="/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}">View products</a>`
+        : '<small class="muted">No products available</small>';
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: farmer,
+        role: 'farmer',
         coords,
-        contactNumber: farmer.contactNumber,
-        presence: buildPresenceMarkup(farmer),
-        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-        products: `${donationAlert ? '<strong>Surplus donation available</strong><br/>' : ''}${productsLine.replace('<br/>', '')}`,
-        links: isYou ? [] : [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
+        precision: precisionLabel,
+        isYou,
+        markerKey: getRoleMarkerKey('farmer', farmer.id),
+        productsHtml: `${donationAlert ? '<strong>Surplus donation available</strong><br/>' : ''}${productsLine}`,
+        links: isYou ? [] : [{ href: `/messages/direct/${farmer.id}`, label: 'Contact farmer', icon: 'message' }],
       });
-      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert, alert: donationAlert, isYou }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), donationAlert ? `${realDisplayName}: surplus donation available` : realDisplayName, donationAlert, donationAlert && animateDonationAlerts && !nearbyView);
+      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert, alert: donationAlert, isYou }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), donationAlert ? `${displayName}: surplus donation available` : displayName, donationAlert, donationAlert && animateDonationAlerts && !nearbyView, farmer, precisionLabel, isYou);
     });
 
     uniqueBuyers.forEach((buyer) => {
@@ -269,18 +301,17 @@ export default function FarmerMap({
 
       const isYou = Boolean(currentUserId && String(buyer.id) === String(currentUserId));
       const displayName = isYou ? `${buyer.name} (You)` : buyer.name;
-      const popupHtml = buildMapPopup({
-        name: displayName,
-        municipality: buyer.municipality,
-        address: buyer.address,
-        barangay: buyer.barangay,
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: buyer,
+        role: 'buyer',
         coords,
-        contactNumber: buyer.contactNumber,
-        presence: buildPresenceMarkup(buyer),
-        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-        links: isYou ? [] : [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer' }],
+        precision: precisionLabel,
+        isYou,
+        markerKey: getRoleMarkerKey('buyer', buyer.id),
+        links: isYou ? [] : [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer', icon: 'message' }],
       });
-      upsertMarker('buyer', buyer.id, coords, () => buildBuyerMapMarkerIcon(mapsApi, { isYou }), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)), displayName);
+      upsertMarker('buyer', buyer.id, coords, () => buildBuyerMapMarkerIcon(mapsApi, { isYou }), popupHtml, onSelectPin && (() => onSelectPin(buyer.id)), displayName, false, false, buyer, precisionLabel, isYou);
     });
 
     uniqueStakeholders.forEach((stakeholder) => {
@@ -290,19 +321,17 @@ export default function FarmerMap({
       const isYou = Boolean(currentUserId && String(stakeholder.id) === String(currentUserId));
       const baseName = stakeholder.organizationName || stakeholder.name;
       const displayName = isYou ? `${baseName} (You)` : baseName;
-      const popupHtml = buildMapPopup({
-        name: displayName,
-        person: stakeholder.contactPerson,
-        municipality: stakeholder.municipality,
-        address: stakeholder.address,
-        barangay: stakeholder.barangay,
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: stakeholder,
+        role: 'stakeholder',
         coords,
-        contactNumber: stakeholder.contactNumber,
-        presence: buildPresenceMarkup(stakeholder),
-        precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-        links: isYou ? [] : [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder' }],
+        precision: precisionLabel,
+        isYou,
+        markerKey: getRoleMarkerKey('stakeholder', stakeholder.id),
+        links: isYou ? [] : [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder', icon: 'message' }],
       });
-      upsertMarker('stakeholder', stakeholder.id, coords, () => buildStakeholderMapMarkerIcon(mapsApi, { isYou }), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)), displayName);
+      upsertMarker('stakeholder', stakeholder.id, coords, () => buildStakeholderMapMarkerIcon(mapsApi, { isYou }), popupHtml, onSelectPin && (() => onSelectPin(stakeholder.id)), displayName, false, false, stakeholder, precisionLabel, isYou);
     });
 
     uniqueDonationFarmers.forEach((farmer) => {
@@ -312,9 +341,13 @@ export default function FarmerMap({
       const donationList = farmer.donations
         .map((donation) => `${donation.productName} — ${donation.quantity} ${donation.unit}`)
         .join('<br/>');
+      const precisionLabel = [PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback, farmer.distanceLabel ? `Approx. ${farmer.distanceLabel}` : ''].filter(Boolean).join(' / ');
       const popupHtml = buildMapPopup({
         name: displayName,
         person: farmer.name,
+        roleLabel: 'Farmer',
+        roleTone: 'farmer',
+        verificationLabel: farmer.verificationStatus === 'verified' ? 'Verified' : '',
         municipality: farmer.municipality,
         address: farmer.address,
         barangay: farmer.barangay,
@@ -322,11 +355,13 @@ export default function FarmerMap({
         coords,
         contactNumber: farmer.contactNumber,
         presence: buildPresenceMarkup(farmer),
-        precision: [PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback, farmer.distanceLabel ? `Approx. ${farmer.distanceLabel}` : ''].filter(Boolean).join(' / '),
+        precision: precisionLabel,
         products: `<strong>Available donations</strong><br/>${donationList}`,
+        detailsMarkerKey: getRoleMarkerKey('farmer', farmer.id),
+        detailsLabel: 'See details',
         links: [...(farmer.donationDetailsHref === '/stakeholder-donations' ? [{ href: '/stakeholder-donations', label: 'View donation' }] : []), { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' }],
       });
-      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert: true, alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), `${displayName}: surplus donation available`, true, animateDonationAlerts && !nearbyView);
+      upsertMarker('farmer', farmer.id, coords, () => buildFarmerMapMarkerIcon(mapsApi, { donationAlert: true, alert: true }), popupHtml, onSelectPin && (() => onSelectPin(farmer.id)), `${displayName}: surplus donation available`, true, animateDonationAlerts && !nearbyView, farmer, precisionLabel, false);
     });
 
 
@@ -428,19 +463,40 @@ export default function FarmerMap({
     showProfileMarkerInfo(map, mapsApi, entry, { current: markersRef.current }, openInfoWindowRef);
   }, [selectedId, mapReady, currentUserId, viewerCoords?.lat, viewerCoords?.lng]);
 
+  const activeDetail = useMemo(() => {
+    if (!selectedDetail) return null;
+    const pool = selectedDetail.role === 'farmer'
+      ? [...uniqueDonationFarmers, ...uniqueFarmers]
+      : selectedDetail.role === 'buyer'
+        ? uniqueBuyers
+        : uniqueStakeholders;
+    const liveProfile = pool.find((item) => String(item.id) === String(selectedDetail.userId));
+    return {
+      ...selectedDetail,
+      profile: liveProfile || selectedDetail.profile,
+    };
+  }, [selectedDetail, uniqueDonationFarmers, uniqueFarmers, uniqueBuyers, uniqueStakeholders]);
+
   return (
-    <div ref={wrapperRef} className={`farmer-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
-      <button
-        type="button"
-        className="map-fullscreen-toggle"
-        onClick={toggleFullscreen}
-        aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
-        title={isFullscreen ? 'Exit full view' : 'View map fully'}
-        aria-pressed={isFullscreen}
-      >
-        {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-      </button>
-      <div ref={containerRef} className="farmer-map" />
-    </div>
+    <>
+      <div ref={wrapperRef} className={`farmer-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
+        <button
+          type="button"
+          className="map-fullscreen-toggle"
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
+          title={isFullscreen ? 'Exit full view' : 'View map fully'}
+          aria-pressed={isFullscreen}
+        >
+          {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+        </button>
+        <div ref={containerRef} className="farmer-map" />
+      </div>
+      <MapUserDetailsDrawer
+        detail={activeDetail}
+        viewerCoords={viewerCoords}
+        onClose={() => setSelectedDetail(null)}
+      />
+    </>
   );
 }

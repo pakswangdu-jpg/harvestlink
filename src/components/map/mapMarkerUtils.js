@@ -114,30 +114,61 @@ export function buildOverlappingPopupMarkup(popupHtml, entry, peers) {
   return `${popupHtml}<div class="map-popup-overlap" data-owner-key="${escapeHtml(entry.key)}" role="group" aria-label="Other accounts at this location"><small>${peers.length} other ${peers.length === 1 ? 'account shares' : 'accounts share'} this location</small>${accounts}</div>`;
 }
 
-export function bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi) {
-  const boundLists = new WeakSet();
+export function bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi, onSeeDetailsRef = null) {
+  const boundContainers = new WeakSet();
   return infoWindow.addListener('domready', () => {
-    const list = [...document.querySelectorAll('.gm-style-iw .map-popup-overlap')]
+    const overlapList = [...document.querySelectorAll('.gm-style-iw .map-popup-overlap')]
       .find((element) => element.dataset.ownerKey === infoWindow.mapMarkerKey);
-    if (!list || boundLists.has(list)) return;
-    boundLists.add(list);
-    list.addEventListener('click', (event) => {
-      const button = event.target instanceof Element
-        ? event.target.closest('button[data-marker-key]')
-        : null;
-      if (!button) return;
+    const popupRoot = [...document.querySelectorAll('.gm-style-iw')]
+      .find((container) => {
+        const key = infoWindow.mapMarkerKey;
+        return container.querySelector(`.map-popup-details-btn[data-details-marker-key="${CSS?.escape ? CSS.escape(key) : key}"]`)
+          || container.querySelector(`.map-popup-overlap[data-owner-key="${CSS?.escape ? CSS.escape(key) : key}"]`);
+      }) || overlapList;
+
+    if (!popupRoot || boundContainers.has(popupRoot)) return;
+    boundContainers.add(popupRoot);
+    popupRoot.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element)) return;
+
+      const detailsButton = event.target.closest('button[data-details-marker-key]');
+      if (detailsButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        const entries = entriesRef.current;
+        const target = entries instanceof Map
+          ? entries.get(detailsButton.dataset.detailsMarkerKey)
+          : entries[detailsButton.dataset.detailsMarkerKey];
+        if (target && onSeeDetailsRef?.current) onSeeDetailsRef.current(target);
+        return;
+      }
+
+      const overlapButton = event.target.closest('.map-popup-overlap button[data-marker-key]');
+      if (!overlapButton) return;
       event.preventDefault();
       event.stopPropagation();
       const entries = entriesRef.current;
-      const target = entries instanceof Map ? entries.get(button.dataset.markerKey) : entries[button.dataset.markerKey];
+      const target = entries instanceof Map
+        ? entries.get(overlapButton.dataset.markerKey)
+        : entries[overlapButton.dataset.markerKey];
       if (target) mapsApi.event.trigger(target.marker, 'click');
     });
   });
 }
 
 export function createProfileMarkerEntry({
-  role, userId, title, marker, infoWindow, popupHtml, position, icon, isCurrentUser = false,
-}, map, mapsApi, entriesRef, openInfoWindowRef) {
+  role,
+  userId,
+  title,
+  marker,
+  infoWindow,
+  popupHtml,
+  position,
+  icon,
+  isCurrentUser = false,
+  profile = null,
+  precisionLabel = '',
+}, map, mapsApi, entriesRef, openInfoWindowRef, onSeeDetailsRef = null) {
   const entry = {
     key: getRoleMarkerKey(role, userId),
     role,
@@ -149,13 +180,15 @@ export function createProfileMarkerEntry({
     position,
     icon,
     isCurrentUser,
+    profile,
+    precisionLabel,
     baseZIndex: marker.getZIndex?.() ?? null,
   };
   infoWindow.mapMarkerKey = entry.key;
   entry.clickListener = marker.addListener('click', () => {
     showProfileMarkerInfo(map, mapsApi, entry, entriesRef, openInfoWindowRef);
   });
-  entry.overlapDomReadyListener = bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi);
+  entry.overlapDomReadyListener = bindOverlappingMarkerSelection(infoWindow, entriesRef, mapsApi, onSeeDetailsRef);
   entriesRef.current.set(entry.key, entry);
   return entry;
 }

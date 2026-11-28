@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './supabaseClient.js';
+import { isTransientNetworkError } from './resilientFetch.js';
 
 const MISSING_MIGRATION_CODES = new Set(['42P01', '42883', 'PGRST202', 'PGRST205']);
 
@@ -22,7 +23,10 @@ export function startDonationExpiryJob({ run = expireDonations, intervalMs = 60_
         migrationWarningShown = true;
         logger.warn('Donation expiration job is waiting for the inventory/donations migration.');
       } else if (!MISSING_MIGRATION_CODES.has(error?.code)) {
-        logger.error('Donation expiration job failed:', error);
+        const message = isTransientNetworkError(error)
+          ? (error.cause?.code || 'temporary network error')
+          : (error?.message || error);
+        logger.error('Donation expiration job failed:', message);
       }
     }
   };

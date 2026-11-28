@@ -7,7 +7,8 @@ import { useMapCoordinates } from '../../hooks/useMapCoordinates';
 import { distanceToPolylineKm, fetchRoadRoute, pointAlongRoute } from '../../services/routingService';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MAP_COLORS } from '../../lib/mapMarkerColors';
-import { buildMapPopup, buildPresenceMarkup } from '../map/mapPopupMarkup';
+import { buildRoleMapPopup } from '../map/mapPopupMarkup';
+import MapUserDetailsDrawer from '../map/MapUserDetailsDrawer';
 
 import { buildViewerIcon, buildViewerPopup } from '../map/userLocationMarker';
 import { isDonationAlert } from '../map/donationMarker';
@@ -166,6 +167,8 @@ export default function DeliveryMap({
   const pendingLiveFetchRef = useRef(new Set());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const onSeeDetailsRef = useRef(null);
   const { effectiveTheme } = useTheme();
   const [roadGeometries, setRoadGeometries] = useState({});
   const [liveRouteGeometries, setLiveRouteGeometries] = useState({});
@@ -175,6 +178,23 @@ export default function DeliveryMap({
   const farmerCoordsById = useMapCoordinates(farmers, { municipalityOnly: nearbyView });
   const buyerCoordsById = useMapCoordinates(buyers, { municipalityOnly: nearbyView });
   const stakeholderCoordsById = useMapCoordinates(stakeholders, { municipalityOnly: nearbyView });
+
+  useEffect(() => {
+    onSeeDetailsRef.current = (entry) => {
+      if (!entry?.profile) return;
+      if (document.fullscreenElement && document.fullscreenElement === wrapperRef.current) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      setSelectedDetail({
+        role: entry.role,
+        userId: entry.userId,
+        profile: entry.profile,
+        coords: entry.position,
+        precisionLabel: entry.precisionLabel || '',
+        isYou: Boolean(entry.isCurrentUser),
+      });
+    };
+  });
 
 
 
@@ -308,24 +328,22 @@ export default function DeliveryMap({
       const displayName = isYou ? `${realDisplayName} (You)` : realDisplayName;
       const donationAlert = showDonationAlerts && isDonationAlert(farmer, coords);
       const title = donationAlert ? `${displayName}: surplus donation available` : displayName;
-      const popupHtml = buildMapPopup({
-          name: displayName,
-          person: farmer.name,
-          municipality: farmer.municipality,
-          address: farmer.address,
-          barangay: farmer.barangay,
-          coords,
-          contactNumber: farmer.contactNumber,
-          presence: buildPresenceMarkup(farmer),
-          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-          products: donationAlert ? '<strong>Surplus donation available</strong>' : '',
-          links: isYou
-            ? [{ href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}`, label: 'View your products' }]
-            : [
-                { href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}`, label: 'View products' },
-                { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer' },
-              ],
-        });
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: farmer,
+        role: 'farmer',
+        coords,
+        precision: precisionLabel,
+        isYou,
+        productsHtml: donationAlert ? '<strong>Surplus donation available</strong>' : '',
+        markerKey: getRoleMarkerKey('farmer', farmer.id),
+        links: isYou
+          ? [{ href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}`, label: 'View your products', icon: 'package' }]
+          : [
+              { href: `/marketplace?farmerId=${farmer.id}&farmerName=${encodeURIComponent(realDisplayName)}`, label: 'View products', icon: 'package' },
+              { href: `/messages/direct/${farmer.id}`, label: 'Contact farmer', icon: 'message' },
+            ],
+      });
       const icon = buildFarmerMapMarkerIcon(mapsApi, { donationAlert, isYou, currentUserGreen, farmerMarkersGreen });
       const zIndex = isYou && currentUserGreen ? 1000 : donationAlert ? 750 : null;
       const existing = remainingEntries.get(String(farmer.id));
@@ -339,6 +357,8 @@ export default function DeliveryMap({
         existing.icon = icon;
         existing.layoutAnchor = null;
         existing.isCurrentUser = isYou;
+        existing.profile = farmer;
+        existing.precisionLabel = precisionLabel;
         existing.infoWindow.setContent(popupHtml);
         existing.position = coords;
         existing.title = title;
@@ -364,7 +384,9 @@ export default function DeliveryMap({
           position: coords,
           icon,
           isCurrentUser: isYou,
-        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+          profile: farmer,
+          precisionLabel,
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef, onSeeDetailsRef));
       }
     });
     remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
@@ -454,17 +476,16 @@ export default function DeliveryMap({
       const isYou = Boolean(currentUserId && String(buyer.id) === String(currentUserId));
       const zIndex = isYou && currentUserGreen ? 1000 : undefined;
       const displayName = isYou ? `${buyer.name} (You)` : buyer.name;
-      const popupHtml = buildMapPopup({
-          name: displayName,
-          municipality: buyer.municipality,
-          address: buyer.address,
-          barangay: buyer.barangay,
-          coords,
-          contactNumber: buyer.contactNumber,
-          presence: buildPresenceMarkup(buyer),
-          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-          links: isYou ? [] : [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer' }],
-        });
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: buyer,
+        role: 'buyer',
+        coords,
+        precision: precisionLabel,
+        isYou,
+        markerKey: getRoleMarkerKey('buyer', buyer.id),
+        links: isYou ? [] : [{ href: `/messages/direct/${buyer.id}`, label: 'Contact buyer', icon: 'message' }],
+      });
       const existing = remainingEntries.get(String(buyer.id));
       if (existing) {
         existing.marker.setPosition(coords);
@@ -476,6 +497,8 @@ export default function DeliveryMap({
         existing.icon = buildBuyerMapMarkerIcon(mapsApi, { isYou, currentUserGreen });
         existing.layoutAnchor = null;
         existing.isCurrentUser = isYou;
+        existing.profile = buyer;
+        existing.precisionLabel = precisionLabel;
         existing.infoWindow.setContent(popupHtml);
         existing.position = coords;
         existing.title = displayName;
@@ -502,7 +525,9 @@ export default function DeliveryMap({
           position: coords,
           icon: buildBuyerMapMarkerIcon(mapsApi, { isYou, currentUserGreen }),
           isCurrentUser: isYou,
-        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+          profile: buyer,
+          precisionLabel,
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef, onSeeDetailsRef));
       }
     });
     remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
@@ -532,18 +557,16 @@ export default function DeliveryMap({
       const zIndex = isYou && currentUserGreen ? 1000 : undefined;
       const orgName = stakeholder.organizationName || stakeholder.name;
       const displayName = isYou ? `${orgName} (You)` : orgName;
-      const popupHtml = buildMapPopup({
-          name: displayName,
-          person: stakeholder.contactPerson,
-          municipality: stakeholder.municipality,
-          address: stakeholder.address,
-          barangay: stakeholder.barangay,
-          coords,
-          contactNumber: stakeholder.contactNumber,
-          presence: buildPresenceMarkup(stakeholder),
-          precision: PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback,
-          links: isYou ? [] : [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder' }],
-        });
+      const precisionLabel = PRECISION_LABELS[coords.precision] || PRECISION_LABELS.fallback;
+      const popupHtml = buildRoleMapPopup({
+        profile: stakeholder,
+        role: 'stakeholder',
+        coords,
+        precision: precisionLabel,
+        isYou,
+        markerKey: getRoleMarkerKey('stakeholder', stakeholder.id),
+        links: isYou ? [] : [{ href: `/messages/direct/${stakeholder.id}`, label: 'Contact stakeholder', icon: 'message' }],
+      });
       const existing = remainingEntries.get(String(stakeholder.id));
       if (existing) {
         existing.marker.setPosition(coords);
@@ -555,6 +578,8 @@ export default function DeliveryMap({
         existing.icon = buildStakeholderMapMarkerIcon(mapsApi, { isYou, currentUserGreen });
         existing.layoutAnchor = null;
         existing.isCurrentUser = isYou;
+        existing.profile = stakeholder;
+        existing.precisionLabel = precisionLabel;
         existing.infoWindow.setContent(popupHtml);
         existing.position = coords;
         existing.title = displayName;
@@ -580,7 +605,9 @@ export default function DeliveryMap({
           position: coords,
           icon: buildStakeholderMapMarkerIcon(mapsApi, { isYou, currentUserGreen }),
           isCurrentUser: isYou,
-        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef));
+          profile: stakeholder,
+          precisionLabel,
+        }, map, mapsApi, profileMarkerEntriesRef, openProfileInfoWindowRef, onSeeDetailsRef));
       }
     });
     remainingEntries.forEach((entry) => removeProfileMarkerEntry(entry, profileMarkerEntriesRef));
@@ -808,19 +835,40 @@ export default function DeliveryMap({
     viewerCoords?.lng,
   ]);
 
+  const activeDetail = useMemo(() => {
+    if (!selectedDetail) return null;
+    const pool = selectedDetail.role === 'farmer'
+      ? uniqueFarmers
+      : selectedDetail.role === 'buyer'
+        ? uniqueBuyers
+        : uniqueStakeholders;
+    const liveProfile = pool.find((item) => String(item.id) === String(selectedDetail.userId));
+    return {
+      ...selectedDetail,
+      profile: liveProfile || selectedDetail.profile,
+    };
+  }, [selectedDetail, uniqueFarmers, uniqueBuyers, uniqueStakeholders]);
+
   return (
-    <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
-      <button
-        type="button"
-        className="map-fullscreen-toggle"
-        onClick={toggleFullscreen}
-        aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
-        title={isFullscreen ? 'Exit full view' : 'View map fully'}
-        aria-pressed={isFullscreen}
-      >
-        {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-      </button>
-      <div ref={containerRef} className="delivery-map" />
-    </div>
+    <>
+      <div ref={wrapperRef} className={`delivery-map-wrapper ${isFullscreen ? 'fullscreen' : ''}`}>
+        <button
+          type="button"
+          className="map-fullscreen-toggle"
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? 'Exit full view' : 'View map fully'}
+          title={isFullscreen ? 'Exit full view' : 'View map fully'}
+          aria-pressed={isFullscreen}
+        >
+          {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+        </button>
+        <div ref={containerRef} className="delivery-map" />
+      </div>
+      <MapUserDetailsDrawer
+        detail={activeDetail}
+        viewerCoords={viewerCoords}
+        onClose={() => setSelectedDetail(null)}
+      />
+    </>
   );
 }

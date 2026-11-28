@@ -347,13 +347,57 @@ export async function getProfileById(req, res) {
   });
 }
 
+function summarizeFarmerRatingsAndProducts(ratings = [], products = []) {
+  const summaryById = new Map();
+  const breakdownById = new Map();
+  ratings.forEach(({ farmer_id: farmerId, rating }) => {
+    const entry = summaryById.get(farmerId) || { total: 0, count: 0 };
+    entry.total += rating;
+    entry.count += 1;
+    summaryById.set(farmerId, entry);
+
+    const breakdown = breakdownById.get(farmerId) || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    breakdown[rating] = (breakdown[rating] || 0) + 1;
+    breakdownById.set(farmerId, breakdown);
+  });
+
+  const categoryCountsById = new Map();
+  products.forEach(({ farmer_id: farmerId, category }) => {
+    const counts = categoryCountsById.get(farmerId) || new Map();
+    counts.set(category, (counts.get(category) || 0) + 1);
+    categoryCountsById.set(farmerId, counts);
+  });
+
+  return { summaryById, breakdownById, categoryCountsById };
+}
+
 export async function getNearbyMapProfiles(req, res) {
   const canViewDonationMarkers = ['farmer', 'stakeholder'].includes(req.profile.role);
-  const canViewDonorAddresses = req.profile.role === 'stakeholder';
-  const profileColumns = 'id, role, name, farm_name, municipality, latitude, longitude, avatar_url, organization_name, last_active_at, verification_status';
+  const profileColumns = [
+    'id',
+    'role',
+    'name',
+    'farm_name',
+    'address',
+    'barangay',
+    'municipality',
+    'zip_code',
+    'contact_number',
+    'latitude',
+    'longitude',
+    'avatar_url',
+    'organization_name',
+    'organization_type',
+    'contact_person',
+    'organization_description',
+    'partnership_description',
+    'last_active_at',
+    'verification_status',
+    'created_at',
+  ].join(', ');
   const { data, error } = await supabaseAdmin
     .from('profiles')
-    .select(canViewDonorAddresses ? `${profileColumns}, address, barangay` : profileColumns)
+    .select(profileColumns)
     .in('role', VALID_ROLES)
     .neq('account_status', 'suspended')
     .not('latitude', 'is', null)
@@ -366,21 +410,65 @@ export async function getNearbyMapProfiles(req, res) {
       || (['farmer', 'stakeholder'].includes(profile.role) && profile.verification_status === 'verified')
   ));
   const farmerIds = visibleProfiles.filter(profile => profile.role === 'farmer').map(profile => profile.id);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
+  const [donationsResult, ratingsResult, productsResult] = await Promise.all([
+    canViewDonationMarkers && farmerIds.length
+      ? supabaseAdmin.from('donations').select('farmer_id')
+        .in('farmer_id', farmerIds).eq('status', 'available')
+        .or(`expiration_date.is.null,expiration_date.gte.${today}`)
+      : Promise.resolve({ data: [] }),
+    farmerIds.length
+      ? supabaseAdmin.from('ratings').select('farmer_id, rating').in('farmer_id', farmerIds)
+      : Promise.resolve({ data: [] }),
+    farmerIds.length
+      ? supabaseAdmin
+        .from('products')
+        .select('farmer_id, category')
+        .eq('status', 'active')
+        .gt('quantity', 0)
+        .or(`expiration_date.is.null,expiration_date.gte.${today}`)
+        .in('farmer_id', farmerIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
   let donationFarmerIds = new Set();
-  if (canViewDonationMarkers && farmerIds.length) {
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-    const result = await supabaseAdmin.from('donations').select('farmer_id')
-      .in('farmer_id', farmerIds).eq('status', 'available')
-      .or(`expiration_date.is.null,expiration_date.gte.${today}`);
-    if (result.error) console.warn('Unable to refresh map donation indicators:', result.error.code || 'unknown');
-    else donationFarmerIds = new Set((result.data || []).map(item => item.farmer_id));
-  }
+  if (donationsResult?.error) console.warn('Unable to refresh map donation indicators:', donationsResult.error.code || 'unknown');
+  else donationFarmerIds = new Set((donationsResult?.data || []).map(item => item.farmer_id));
+
+  if (ratingsResult?.error) console.warn('Unable to load map farmer ratings:', ratingsResult.error.code || 'unknown');
+  if (productsResult?.error) console.warn('Unable to load map farmer products:', productsResult.error.code || 'unknown');
+
+  const { summaryById, categoryCountsById } = summarizeFarmerRatingsAndProducts(
+    ratingsResult?.error ? [] : (ratingsResult?.data || []),
+    productsResult?.error ? [] : (productsResult?.data || []),
+  );
+
   res.json(visibleProfiles.map(row => {
-    const { address, barangay, ...profile } = serializeProfile(row);
+    const profile = serializeProfile(row);
+    const ratingEntry = row.role === 'farmer' ? summaryById.get(row.id) : null;
+    const categoryCounts = row.role === 'farmer' ? categoryCountsById.get(row.id) : null;
+    const topCategories = categoryCounts
+      ? [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([category]) => category)
+      : [];
+    const productCount = categoryCounts
+      ? [...categoryCounts.values()].reduce((sum, count) => sum + count, 0)
+      : 0;
+
     return {
       ...profile,
-      ...(canViewDonorAddresses && row.role === 'farmer' && donationFarmerIds.has(row.id)
-        ? { address, barangay }
+      ...(row.role === 'farmer'
+        ? {
+            avgRating: ratingEntry ? Number((ratingEntry.total / ratingEntry.count).toFixed(1)) : 0,
+            ratingCount: ratingEntry ? ratingEntry.count : 0,
+            productCount,
+            categories: topCategories,
+          }
         : {}),
       ...(canViewDonationMarkers ? { hasAvailableDonations: row.role === 'farmer' && donationFarmerIds.has(row.id) } : {}),
     };
@@ -424,31 +512,11 @@ async function loadVerifiedFarmersWithStats() {
   if (ordersError) throw new ApiError(ordersError.message, 400);
   if (productsError) throw new ApiError(productsError.message, 400);
 
-  const summaryById = new Map();
-
-
-  const breakdownById = new Map();
-  (ratings || []).forEach(({ farmer_id: farmerId, rating }) => {
-    const entry = summaryById.get(farmerId) || { total: 0, count: 0 };
-    entry.total += rating;
-    entry.count += 1;
-    summaryById.set(farmerId, entry);
-
-    const breakdown = breakdownById.get(farmerId) || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    breakdown[rating] = (breakdown[rating] || 0) + 1;
-    breakdownById.set(farmerId, breakdown);
-  });
+  const { summaryById, breakdownById, categoryCountsById } = summarizeFarmerRatingsAndProducts(ratings || [], products || []);
 
   const completedOrderCountById = new Map();
   (completedOrders || []).forEach(({ farmer_id: farmerId }) => {
     completedOrderCountById.set(farmerId, (completedOrderCountById.get(farmerId) || 0) + 1);
-  });
-
-  const categoryCountsById = new Map();
-  (products || []).forEach(({ farmer_id: farmerId, category }) => {
-    const counts = categoryCountsById.get(farmerId) || new Map();
-    counts.set(category, (counts.get(category) || 0) + 1);
-    categoryCountsById.set(farmerId, counts);
   });
 
   return farmers.map((farmer) => {
